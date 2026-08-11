@@ -1,0 +1,14 @@
+<configuration>
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/application.log</file>
+    </appender>
+
+    <!-- AWS SDK v1 -->
+    <logger name="com.amazonaws" level="ERROR"/>
+    <!-- AWS SDK v2 -->
+    <logger name="software.amazon.awssdk" level="ERROR"/>
+
+    <root level="INFO">
+        <appender-ref ref="FILE"/>
+    </root>
+</configuration>
