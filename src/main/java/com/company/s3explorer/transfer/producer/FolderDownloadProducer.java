@@ -7,7 +7,8 @@ import software.amazon.awssdk.services.s3.model.S3Object;
 
 import java.nio.file.Path;
 
-public class FolderDownloadProducer extends AbstractFolderTransferProducer {
+public class FolderDownloadProducer
+        extends AbstractFolderTransferProducer {
 
     private final Path localFolder;
 
@@ -19,17 +20,30 @@ public class FolderDownloadProducer extends AbstractFolderTransferProducer {
             String prefix,
             Path localFolder) {
 
-        super(context, queue, repository, bucket, prefix);
+        super(
+                context,
+                queue,
+                repository,
+                bucket,
+                prefix);
+
         this.localFolder = localFolder;
+    }
+
+    @Override
+    public String getDescription() {
+        return "Preparing folder download...";
     }
 
     @Override
     protected TransferTask createTask(S3Object object) {
 
-        Path target = localFolder.resolve(
+        Path target =
+                localFolder.resolve(
                         group.getDisplayName()
                                 + "/"
-                                + object.key().substring(prefix.length()));
+                                + object.key()
+                                .substring(prefix.length()));
 
         return TransferTask.download()
                 .repositoryName(repository)

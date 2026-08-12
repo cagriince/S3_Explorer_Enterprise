@@ -12,7 +12,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.UUID;
 
-public class FolderUploadProducer implements FolderTransferProducer {
+public class FolderUploadProducer
+        implements FolderTransferProducer {
 
     private final TransferQueue queue;
 
@@ -36,21 +37,60 @@ public class FolderUploadProducer implements FolderTransferProducer {
         this.bucket = bucket;
         this.targetPrefix = targetPrefix;
         this.folder = folder;
-        this.group = new TransferGroup(UUID.randomUUID(), folder.getFileName().toString());
+
+        this.group =
+                new TransferGroup(
+                        UUID.randomUUID(),
+                        folder.getFileName().toString());
     }
 
     @Override
-    public void produce() throws IOException {
+    public String getDescription() {
+        return "Preparing folder upload...";
+    }
+
+    @Override
+    public void produce(
+            ProducerRuntime runtime)
+            throws IOException {
+
         try (var paths = Files.walk(folder)) {
-            paths.filter(Files::isRegularFile).forEach(this::produceFile);
+
+            paths.filter(Files::isRegularFile)
+                    .forEach(file -> {
+
+                        if (runtime.isCancelRequested()) {
+                            throw new ProducerCancelledException();
+                        }
+
+                        produceFile(file);
+
+                        runtime.incrementDiscovered();
+
+                        /*
+                         * UI event'i her dosyada
+                         * göndermiyoruz.
+                         */
+                    });
         }
     }
 
     private void produceFile(Path file) {
-        String relative = folder.relativize(file).toString().replace("\\", "/");
 
-        String targetChildPrefix = targetPrefix + group.getDisplayName() + "/";
-        String key = S3Util.combineKey(targetChildPrefix, relative);
+        String relative =
+                folder.relativize(file)
+                        .toString()
+                        .replace("\\", "/");
+
+        String targetChildPrefix =
+                targetPrefix
+                        + group.getDisplayName()
+                        + "/";
+
+        String key =
+                S3Util.combineKey(
+                        targetChildPrefix,
+                        relative);
 
         TransferTask task =
                 TransferTask.upload()
@@ -61,17 +101,27 @@ public class FolderUploadProducer implements FolderTransferProducer {
                         .size(getFileSize(file))
                         .affectsObjectList(true)
                         .affectsFolderTree(true)
-                        .addRefreshPrefix(new RefreshTreeNode(targetChildPrefix, RefreshTreeOperation.ADD))
+                        .addRefreshPrefix(
+                                new RefreshTreeNode(
+                                        targetChildPrefix,
+                                        RefreshTreeOperation.ADD))
                         .group(group)
                         .build();
+
         queue.add(task);
     }
 
     private long getFileSize(Path file) {
+
         try {
             return Files.size(file);
+
         } catch (IOException ex) {
-            throw new RuntimeException("File size cannot be read: " + file, ex);
+
+            throw new RuntimeException(
+                    "File size cannot be read: "
+                            + file,
+                    ex);
         }
     }
 }

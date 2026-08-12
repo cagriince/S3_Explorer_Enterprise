@@ -7,7 +7,8 @@ import com.company.s3explorer.ui.explorer.RefreshTreeNode;
 import com.company.s3explorer.ui.explorer.RefreshTreeOperation;
 import software.amazon.awssdk.services.s3.model.S3Object;
 
-public class FolderDeleteProducer extends AbstractFolderTransferProducer {
+public class FolderDeleteProducer
+        extends AbstractFolderTransferProducer {
 
     public FolderDeleteProducer(
             TransferContext context,
@@ -25,16 +26,25 @@ public class FolderDeleteProducer extends AbstractFolderTransferProducer {
     }
 
     @Override
+    public String getDescription() {
+        return "Preparing folder delete...";
+    }
+
+    @Override
     protected TransferTask createTask(S3Object object) {
+
         return TransferTask.delete()
-                        .repositoryName(repository)
-                        .bucket(bucket)
-                        .objectKey(object.key())
-                        .addRefreshPrefix(new RefreshTreeNode(prefix, RefreshTreeOperation.DELETE))
-                        .size(object.size())
-                        .affectsObjectList(false)
-                        .affectsFolderTree(true)
-                        .group(group)
-                        .build();
+                .repositoryName(repository)
+                .bucket(bucket)
+                .objectKey(object.key())
+                .addRefreshPrefix(
+                        new RefreshTreeNode(
+                                prefix,
+                                RefreshTreeOperation.DELETE))
+                .size(object.size())
+                .affectsObjectList(false)
+                .affectsFolderTree(true)
+                .group(group)
+                .build();
     }
 }

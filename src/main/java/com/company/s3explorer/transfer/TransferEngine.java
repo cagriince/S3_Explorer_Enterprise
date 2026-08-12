@@ -20,7 +20,7 @@ public class TransferEngine implements AutoCloseable {
     public TransferEngine(S3ClientManager clientManager) {
         eventBus = new TransferEventBus();
         queue = new TransferQueue(eventBus);
-        producerExecutor = new ProducerExecutor();
+        producerExecutor = new ProducerExecutor(eventBus);
         TransferContext context = new TransferContext(clientManager, eventBus);
         workerExecutor = new WorkerExecutor(THREAD_POOL_SIZE, queue, context, new TransferOperationFactory());
         transferManager = new TransferManager(clientManager, queue, eventBus, producerExecutor);

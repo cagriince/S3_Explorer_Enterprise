@@ -7,16 +7,15 @@ import com.company.s3explorer.ui.explorer.RefreshTreeNode;
 import com.company.s3explorer.ui.explorer.RefreshTreeOperation;
 import software.amazon.awssdk.services.s3.model.S3Object;
 
-public class FolderCopyProducer extends AbstractCopyMoveProducer {
+public class FolderCopyProducer
+        extends AbstractCopyMoveProducer {
 
     public FolderCopyProducer(
             TransferContext context,
             TransferQueue queue,
-
             String repository,
             String bucket,
             String prefix,
-
             String targetRepository,
             String targetBucket,
             String targetPrefix) {
@@ -24,30 +23,39 @@ public class FolderCopyProducer extends AbstractCopyMoveProducer {
         super(
                 context,
                 queue,
-
                 repository,
                 bucket,
                 prefix,
-
                 targetRepository,
                 targetBucket,
                 targetPrefix);
     }
 
     @Override
-    protected TransferTask createTask(S3Object object) {
+    public String getDescription() {
+        return "Preparing folder copy...";
+    }
+
+    @Override
+    protected TransferTask createTask(
+            S3Object object) {
+
         return TransferTask.copy()
                 .repositoryName(repository)
                 .bucket(bucket)
                 .objectKey(object.key())
                 .targetRepositoryName(targetRepository)
                 .targetBucket(targetBucket)
-                .targetObjectKey(buildTargetKey(object))
+                .targetObjectKey(
+                        buildTargetKey(object))
                 .group(group)
                 .size(object.size())
                 .affectsObjectList(true)
                 .affectsFolderTree(true)
-                .addRefreshPrefix(new RefreshTreeNode(getTargetChildPrefix(), RefreshTreeOperation.ADD))
+                .addRefreshPrefix(
+                        new RefreshTreeNode(
+                                getTargetChildPrefix(),
+                                RefreshTreeOperation.ADD))
                 .build();
     }
 }

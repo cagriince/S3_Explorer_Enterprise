@@ -9,7 +9,8 @@ import software.amazon.awssdk.services.s3.model.S3Object;
 
 import java.util.UUID;
 
-public abstract class AbstractFolderTransferProducer implements FolderTransferProducer {
+public abstract class AbstractFolderTransferProducer
+        implements FolderTransferProducer {
 
     protected final TransferContext context;
     protected final TransferQueue queue;
@@ -34,23 +35,40 @@ public abstract class AbstractFolderTransferProducer implements FolderTransferPr
         this.bucket = bucket;
         this.prefix = prefix;
 
-        this.group = new TransferGroup(UUID.randomUUID(), S3Util.extractFolderName(prefix));
+        this.group = new TransferGroup(
+                UUID.randomUUID(),
+                S3Util.extractFolderName(prefix));
     }
 
     @Override
-    public final void produce() {
+    public final void produce(ProducerRuntime runtime) {
+
         context.getService(repository)
                 .forEachObject(
                         bucket,
                         prefix,
-                        this::produceObject);
+                        object -> {
+
+                            if (runtime.isCancelRequested()) {
+                                throw new ProducerCancelledException();
+                            }
+
+                            TransferTask task =
+                                    createTask(object);
+
+                            queue.add(task);
+
+                            runtime.incrementDiscovered();
+
+                            if (runtime.shouldPublishUi(100)) {
+                                context.publishProducer(runtime);
+                            }
+                        });
+
+        runtime.forceNextUiPublish();
+        context.publishProducer(runtime);
     }
 
-    private void produceObject(S3Object object) {
-        TransferTask task = createTask(object);
-        group.queued();
-        queue.add(task);
-    }
-
-    protected abstract TransferTask createTask(S3Object object);
+    protected abstract TransferTask createTask(
+            S3Object object);
 }

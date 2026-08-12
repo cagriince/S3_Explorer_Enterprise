@@ -7,16 +7,15 @@ import com.company.s3explorer.ui.explorer.RefreshTreeNode;
 import com.company.s3explorer.ui.explorer.RefreshTreeOperation;
 import software.amazon.awssdk.services.s3.model.S3Object;
 
-public class FolderMoveProducer extends AbstractCopyMoveProducer {
+public class FolderMoveProducer
+        extends AbstractCopyMoveProducer {
 
     public FolderMoveProducer(
             TransferContext context,
             TransferQueue queue,
-
             String repository,
             String bucket,
             String prefix,
-
             String targetRepository,
             String targetBucket,
             String targetPrefix) {
@@ -24,31 +23,43 @@ public class FolderMoveProducer extends AbstractCopyMoveProducer {
         super(
                 context,
                 queue,
-
                 repository,
                 bucket,
                 prefix,
-
                 targetRepository,
                 targetBucket,
                 targetPrefix);
     }
 
     @Override
-    protected TransferTask createTask(S3Object object) {
+    public String getDescription() {
+        return "Preparing folder move...";
+    }
+
+    @Override
+    protected TransferTask createTask(
+            S3Object object) {
+
         return TransferTask.move()
                 .repositoryName(repository)
                 .bucket(bucket)
                 .objectKey(object.key())
                 .targetRepositoryName(targetRepository)
                 .targetBucket(targetBucket)
-                .targetObjectKey(buildTargetKey(object))
+                .targetObjectKey(
+                        buildTargetKey(object))
                 .group(group)
                 .size(object.size())
                 .affectsObjectList(true)
                 .affectsFolderTree(true)
-                .addRefreshPrefix(new RefreshTreeNode(prefix, RefreshTreeOperation.DELETE))
-                .addRefreshPrefix(new RefreshTreeNode(getTargetChildPrefix(), RefreshTreeOperation.ADD))
+                .addRefreshPrefix(
+                        new RefreshTreeNode(
+                                prefix,
+                                RefreshTreeOperation.DELETE))
+                .addRefreshPrefix(
+                        new RefreshTreeNode(
+                                getTargetChildPrefix(),
+                                RefreshTreeOperation.ADD))
                 .build();
     }
 }
