@@ -7,44 +7,46 @@ import com.company.s3explorer.transfer.event.TransferListener;
 import com.company.s3explorer.transfer.manager.TransferManager;
 import com.company.s3explorer.transfer.producer.ProducerRuntime;
 import com.company.s3explorer.transfer.renderer.*;
+import com.company.s3explorer.transfer.state.TransferStateStore;
 import com.company.s3explorer.ui.icons.IconProvider;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableCellRenderer;
-import javax.swing.table.TableModel;
-import javax.swing.table.TableRowSorter;
 import java.awt.*;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Predicate;
+import java.util.function.Function;
 
-public class TransferPanel extends JPanel implements TransferListener {
+public class TransferPanel
+        extends JPanel
+        implements TransferListener {
+
+    private static final int UI_VISIBLE_LIMIT = 1000;
 
     private final TransferEventBus eventBus;
     private final TransferManager transferManager;
+
+    private final TransferStateStore stateStore =
+            new TransferStateStore(UI_VISIBLE_LIMIT);
 
     private JButton cancelButton;
     private JButton cancelAllButton;
     private JButton clearButton;
 
-    private TransferTableModel tableModel;
+    private TransferTableModel queuedModel;
+    private TransferTableModel runningModel;
+    private TransferTableModel finishedModel;
+    private TransferTableModel allModel;
+
     private ProducerTableModel producerTableModel;
 
     private JTable producerTable;
 
-    private JTabbedPane tabs;
-
-    private JTable allTable;
-    private JTable runningTable;
     private JTable queuedTable;
+    private JTable runningTable;
     private JTable finishedTable;
+    private JTable allTable;
 
-    private final List<JTable> tables = new ArrayList<>();
-
-    private final ConcurrentHashMap<UUID, TransferRuntime> pendingUpdates =
-            new ConcurrentHashMap<>();
+    private JTabbedPane tabs;
 
     private volatile ProducerRuntime pendingProducerUpdate;
 
@@ -61,31 +63,66 @@ public class TransferPanel extends JPanel implements TransferListener {
     }
 
     private void initialize() {
+
         createModel();
         createComponents();
         layoutComponents();
         registerListeners();
+
+        refreshVisibleTables();
         updateTabTitles();
     }
 
     private void createModel() {
-        tableModel = new TransferTableModel();
-        producerTableModel = new ProducerTableModel();
+
+        queuedModel =
+                new TransferTableModel(
+                        UI_VISIBLE_LIMIT);
+
+        runningModel =
+                new TransferTableModel(
+                        UI_VISIBLE_LIMIT);
+
+        finishedModel =
+                new TransferTableModel(
+                        UI_VISIBLE_LIMIT);
+
+        allModel =
+                new TransferTableModel(
+                        UI_VISIBLE_LIMIT);
+
+        producerTableModel =
+                new ProducerTableModel();
     }
 
     private void createComponents() {
 
-        cancelButton = new JButton();
-        cancelButton.setToolTipText("Cancel Selected");
-        cancelButton.setPreferredSize(new Dimension(30, 30));
+        cancelButton =
+                new JButton();
 
-        cancelAllButton = new JButton();
-        cancelAllButton.setToolTipText("Cancel All");
-        cancelAllButton.setPreferredSize(new Dimension(30, 30));
+        cancelButton.setToolTipText(
+                "Cancel Selected");
 
-        clearButton = new JButton();
-        clearButton.setToolTipText("Clear Logs");
-        clearButton.setPreferredSize(new Dimension(30, 30));
+        cancelButton.setPreferredSize(
+                new Dimension(30, 30));
+
+        cancelAllButton =
+                new JButton();
+
+        cancelAllButton.setToolTipText(
+                "Cancel All");
+
+        cancelAllButton.setPreferredSize(
+                new Dimension(30, 30));
+
+        clearButton =
+                new JButton();
+
+        clearButton.setToolTipText(
+                "Clear Logs");
+
+        clearButton.setPreferredSize(
+                new Dimension(30, 30));
 
         cancelButton.setEnabled(false);
         cancelAllButton.setEnabled(false);
@@ -102,37 +139,51 @@ public class TransferPanel extends JPanel implements TransferListener {
 
         setButtonIcons();
 
-        producerTable = createProducerTable();
+        producerTable =
+                createProducerTable();
 
-        tabs = new JTabbedPane();
+        queuedTable =
+                createTable(
+                        queuedModel);
 
-        allTable = createTable(null);
+        runningTable =
+                createTable(
+                        runningModel);
 
-        queuedTable = createTable(
-                task -> task.getStatus() == TransferStatus.QUEUED);
+        finishedTable =
+                createTable(
+                        finishedModel);
 
-        runningTable = createTable(
-                task -> task.getStatus() == TransferStatus.RUNNING);
+        allTable =
+                createTable(
+                        allModel);
 
-        finishedTable = createTable(
-                runtime -> runtime.getStatus().isFinished());
+        tabs =
+                new JTabbedPane();
 
-        tables.add(queuedTable);
-        tables.add(runningTable);
-        tables.add(finishedTable);
-        tables.add(allTable);
-
-        refreshTimer = new Timer(
-                100,
-                e -> flushPendingUpdates());
+        /*
+         * UI yenilemesi yalnızca son snapshot'ı almak için
+         * kullanılıyor.
+         *
+         * Transfer event'leri burada işlenmiyor.
+         */
+        refreshTimer =
+                new Timer(
+                        100,
+                        e -> refreshFromStateStore());
 
         refreshTimer.start();
     }
 
     private void layoutComponents() {
 
-        JPanel toolbar = new JPanel(new FlowLayout());
-        toolbar.setPreferredSize(new Dimension(50, 0));
+        JPanel toolbar =
+                new JPanel(
+                        new FlowLayout());
+
+        toolbar.setPreferredSize(
+                new Dimension(50, 0));
+
         toolbar.setBorder(
                 BorderFactory.createEmptyBorder(
                         50,
@@ -146,126 +197,167 @@ public class TransferPanel extends JPanel implements TransferListener {
 
         tabs.addTab(
                 "Queued",
-                new JScrollPane(queuedTable));
+                new JScrollPane(
+                        queuedTable));
 
         tabs.addTab(
                 "Running",
-                new JScrollPane(runningTable));
+                new JScrollPane(
+                        runningTable));
 
         tabs.addTab(
                 "Finished",
-                new JScrollPane(finishedTable));
+                new JScrollPane(
+                        finishedTable));
 
         tabs.addTab(
                 "All",
-                new JScrollPane(allTable));
+                new JScrollPane(
+                        allTable));
 
+        /*
+         * Varsayılan olarak Running sekmesini göster.
+         */
         tabs.setSelectedIndex(1);
 
-        JPanel contentPanel = new JPanel(new BorderLayout());
+        JPanel contentPanel =
+                new JPanel(
+                        new BorderLayout());
 
         contentPanel.add(
-                new JScrollPane(producerTable),
+                new JScrollPane(
+                        producerTable),
                 BorderLayout.NORTH);
 
         contentPanel.add(
                 tabs,
                 BorderLayout.CENTER);
 
-        setLayout(new BorderLayout());
+        setLayout(
+                new BorderLayout());
 
-        add(toolbar, BorderLayout.WEST);
-        add(contentPanel, BorderLayout.CENTER);
+        add(
+                toolbar,
+                BorderLayout.WEST);
+
+        add(
+                contentPanel,
+                BorderLayout.CENTER);
     }
 
     private void registerListeners() {
 
         eventBus.subscribe(this);
 
-        registerSelectionListener(allTable);
-        registerSelectionListener(runningTable);
-        registerSelectionListener(queuedTable);
-        registerSelectionListener(finishedTable);
+        registerSelectionListener(
+                queuedTable);
+
+        registerSelectionListener(
+                runningTable);
+
+        registerSelectionListener(
+                finishedTable);
+
+        registerSelectionListener(
+                allTable);
 
         tabs.addChangeListener(
                 e -> updateButtons());
     }
 
-    private void registerSelectionListener(JTable table) {
+    private void registerSelectionListener(
+            JTable table) {
 
         table.getSelectionModel()
-                .addListSelectionListener(e -> {
+                .addListSelectionListener(
+                        e -> {
 
-                    if (!e.getValueIsAdjusting()) {
-                        updateButtons();
-                    }
-                });
+                            if (!e.getValueIsAdjusting()) {
+                                updateButtons();
+                            }
+                        });
+    }
+
+    /*
+     * ÖNEMLİ:
+     *
+     * Bu metot event thread'inden çağrılabilir.
+     *
+     * Swing'e dokunmuyoruz.
+     *
+     * Runtime doğrudan thread-safe StateStore'a giriyor.
+     */
+    @Override
+    public void onTransferUpdated(
+            TransferRuntime runtime) {
+
+        if (runtime == null) {
+            return;
+        }
+
+        stateStore.upsert(runtime);
     }
 
     @Override
-    public void onTransferUpdated(TransferRuntime runtime) {
-
-        pendingUpdates.put(
-                runtime.getTask().getId(),
-                runtime);
-    }
-
-    @Override
-    public void onProducerUpdated(ProducerRuntime runtime) {
+    public void onProducerUpdated(
+            ProducerRuntime runtime) {
 
         pendingProducerUpdate = runtime;
     }
 
-    private void flushPendingUpdates() {
+    /*
+     * Sadece EDT üzerinde çalışır.
+     *
+     * StateStore'dan en fazla 1000'er kayıt alır.
+     */
+    private void refreshFromStateStore() {
 
-        if (pendingUpdates.isEmpty()
-                && pendingProducerUpdate == null) {
+        refreshVisibleTables();
 
-            return;
-        }
+        ProducerRuntime producer =
+                pendingProducerUpdate;
 
-        SwingUtilities.invokeLater(() -> {
-
-            List<TransferRuntime> updates =
-                    new ArrayList<>(pendingUpdates.values());
-
-            pendingUpdates.clear();
-
-            for (TransferRuntime runtime : updates) {
-
-                TransferUpdateType type =
-                        tableModel.upsertTask(runtime);
-
-                if (type == TransferUpdateType.STATUS_CHANGED) {
-                    refreshSorters();
-                }
-            }
-
-            ProducerRuntime producer =
-                    pendingProducerUpdate;
+        if (producer != null) {
 
             pendingProducerUpdate = null;
 
-            if (producer != null) {
-                producerTableModel.update(producer);
-            }
+            producerTableModel.update(
+                    producer);
 
-            if (!updates.isEmpty()) {
-                updateTabTitles();
-                updateButtons();
-            }
+            updateProducerVisibility(
+                    producer);
+        }
 
-            if (producer != null) {
-                updateProducerVisibility(producer);
-            }
-        });
+        updateTabTitles();
+        updateButtons();
+    }
+
+    private void refreshVisibleTables() {
+
+        queuedModel.setSnapshot(
+                stateStore.snapshot(
+                        TransferStateStore.View.QUEUED));
+
+        runningModel.setSnapshot(
+                stateStore.snapshot(
+                        TransferStateStore.View.RUNNING));
+
+        finishedModel.setSnapshot(
+                stateStore.snapshot(
+                        TransferStateStore.View.FINISHED));
+
+        allModel.setSnapshot(
+                stateStore.snapshot(
+                        TransferStateStore.View.ALL));
     }
 
     private void updateProducerVisibility(
             ProducerRuntime runtime) {
 
         if (runtime == null) {
+
             producerTable.setVisible(false);
+
             return;
         }
 
@@ -273,15 +365,19 @@ public class TransferPanel extends JPanel implements TransferListener {
 
         if (runtime.getStatus().isFinished()) {
 
-            Timer timer = new Timer(
-                    3000,
-                    e -> {
+            Timer timer =
+                    new Timer(
+                            3000,
+                            e -> {
 
-                        producerTableModel.clear();
-                        producerTable.setVisible(false);
-                        producerTable.revalidate();
-                        producerTable.repaint();
-                    });
+                                producerTableModel.clear();
+
+                                producerTable.setVisible(
+                                        false);
+
+                                producerTable.revalidate();
+                                producerTable.repaint();
+                            });
 
             timer.setRepeats(false);
             timer.start();
@@ -294,7 +390,8 @@ public class TransferPanel extends JPanel implements TransferListener {
     private JTable createProducerTable() {
 
         JTable table =
-                new JTable(producerTableModel);
+                new JTable(
+                        producerTableModel);
 
         table.setRowHeight(40);
         table.setFocusable(false);
@@ -366,118 +463,24 @@ public class TransferPanel extends JPanel implements TransferListener {
         return table;
     }
 
-    private void refreshSorters() {
-
-        for (JTable table : tables) {
-            refreshSorter(table);
-        }
-    }
-
-    private void refreshSorter(JTable table) {
-
-        RowSorter<? extends TableModel> sorter =
-                table.getRowSorter();
-
-        if (sorter instanceof DefaultRowSorter<?, ?> defaultSorter) {
-            defaultSorter.sort();
-        }
-    }
-
-    private void updateTabTitles() {
-
-        long running =
-                tableModel.getRunningCount();
-
-        long queued =
-                tableModel.getQueuedCount();
-
-        long finished =
-                tableModel.getCompletedCount()
-                        + tableModel.getFailedCount()
-                        + tableModel.getCancelledCount();
-
-        tabs.setTitleAt(
-                0,
-                "Queued (" + queued + ")");
-
-        tabs.setTitleAt(
-                1,
-                "Running (" + running + ")");
-
-        tabs.setTitleAt(
-                2,
-                "Finished (" + finished + ")");
-
-        tabs.setTitleAt(
-                3,
-                "All (" + tableModel.getRowCount() + ")");
-
-        boolean hasActive =
-                running > 0 || queued > 0;
-
-        cancelAllButton.setEnabled(hasActive);
-
-        boolean hasFinished =
-                finished > 0;
-
-        clearButton.setEnabled(hasFinished);
-
-        updateButtons();
-    }
-
-    private void updateButtons() {
-
-        JTable table =
-                getSelectedTable();
-
-        cancelButton.setEnabled(
-                hasCancelableSelection(table));
-
-        boolean hasActive =
-                tableModel.getQueuedCount() > 0
-                        || tableModel.getRunningCount() > 0;
-
-        cancelAllButton.setEnabled(hasActive);
-    }
-
     private JTable createTable(
-            Predicate<TransferRuntime> predicate) {
+            TransferTableModel model) {
 
         JTable table =
-                new JTable(tableModel);
+                new JTable(model);
 
-        TableRowSorter<TransferTableModel> sorter =
-                new TableRowSorter<>(tableModel);
+        /*
+         * Artık TableRowSorter YOK.
+         *
+         * Model zaten yalnızca ilgili görünümün
+         * kayıtlarını içeriyor.
+         */
 
-        if (predicate != null) {
-
-            sorter.setRowFilter(
-                    new RowFilter<>() {
-
-                        @Override
-                        public boolean include(
-                                Entry<? extends TransferTableModel,
-                                        ? extends Integer> entry) {
-
-                            TransferRuntime runtime =
-                                    tableModel.getRuntime(
-                                            entry.getIdentifier());
-
-                            return runtime != null
-                                    && predicate.test(runtime);
-                        }
-                    });
-        }
-
-        for (int i = 0;
-             i < tableModel.getColumnCount();
-             i++) {
-
-            sorter.setSortable(i, false);
-        }
-
-        table.setRowSorter(sorter);
         table.setRowHeight(54);
+
+        table.setAutoCreateRowSorter(false);
+
+        table.setRowSorter(null);
 
         table.getColumnModel()
                 .getColumn(0)
@@ -517,31 +520,38 @@ public class TransferPanel extends JPanel implements TransferListener {
 
         table.getColumnModel()
                 .getColumn(0)
-                .setCellRenderer(new TypeRenderer());
+                .setCellRenderer(
+                        new TypeRenderer());
 
         table.getColumnModel()
                 .getColumn(2)
-                .setCellRenderer(new FileSizeRenderer());
+                .setCellRenderer(
+                        new FileSizeRenderer());
 
         table.getColumnModel()
                 .getColumn(3)
-                .setCellRenderer(new ProgressBarRenderer());
+                .setCellRenderer(
+                        new ProgressBarRenderer());
 
         table.getColumnModel()
                 .getColumn(4)
-                .setCellRenderer(new StatusRenderer());
+                .setCellRenderer(
+                        new StatusRenderer());
 
         table.getColumnModel()
                 .getColumn(5)
-                .setCellRenderer(new InstantRenderer());
+                .setCellRenderer(
+                        new InstantRenderer());
 
         table.getColumnModel()
                 .getColumn(6)
-                .setCellRenderer(new InstantRenderer());
+                .setCellRenderer(
+                        new InstantRenderer());
 
         table.getColumnModel()
                 .getColumn(7)
-                .setCellRenderer(new LongFormatRenderer());
+                .setCellRenderer(
+                        new LongFormatRenderer());
 
         table.getTableHeader()
                 .setReorderingAllowed(false);
@@ -549,20 +559,102 @@ public class TransferPanel extends JPanel implements TransferListener {
         return table;
     }
 
+    private void updateTabTitles() {
+
+        long queued =
+                stateStore.getQueuedCount();
+
+        long running =
+                stateStore.getRunningCount();
+
+        long finished =
+                stateStore.getFinishedCount();
+
+        long total =
+                stateStore.getTotalCount();
+
+        tabs.setTitleAt(
+                0,
+                "Queued (" + queued + ")");
+
+        tabs.setTitleAt(
+                1,
+                "Running (" + running + ")");
+
+        tabs.setTitleAt(
+                2,
+                "Finished (" + finished + ")");
+
+        tabs.setTitleAt(
+                3,
+                "All (" + total + ")");
+
+        cancelAllButton.setEnabled(
+                queued > 0
+                        || running > 0);
+
+        clearButton.setEnabled(
+                finished > 0);
+    }
+
+    private void updateButtons() {
+
+        JTable table =
+                getSelectedTable();
+
+        cancelButton.setEnabled(
+                hasCancelableSelection(
+                        table));
+
+        boolean hasActive =
+                stateStore.getQueuedCount() > 0
+                        || stateStore.getRunningCount() > 0;
+
+        cancelAllButton.setEnabled(
+                hasActive);
+    }
+
     private JTable getSelectedTable() {
 
-        Component component =
-                tabs.getSelectedComponent();
+        int index =
+                tabs.getSelectedIndex();
 
-        if (!(component instanceof JScrollPane scrollPane)) {
-            return null;
+        return switch (index) {
+
+            case 0 ->
+                    queuedTable;
+
+            case 1 ->
+                    runningTable;
+
+            case 2 ->
+                    finishedTable;
+
+            case 3 ->
+                    allTable;
+
+            default ->
+                    null;
+        };
+    }
+
+    private TransferTableModel getModelForTable(
+            JTable table) {
+
+        if (table == queuedTable) {
+            return queuedModel;
         }
 
-        JViewport viewport =
-                scrollPane.getViewport();
+        if (table == runningTable) {
+            return runningModel;
+        }
 
-        if (viewport.getView() instanceof JTable table) {
-            return table;
+        if (table == finishedTable) {
+            return finishedModel;
+        }
+
+        if (table == allTable) {
+            return allModel;
         }
 
         return null;
@@ -577,6 +669,13 @@ public class TransferPanel extends JPanel implements TransferListener {
             return;
         }
 
+        TransferTableModel model =
+                getModelForTable(table);
+
+        if (model == null) {
+            return;
+        }
+
         int[] selectedRows =
                 table.getSelectedRows();
 
@@ -584,13 +683,18 @@ public class TransferPanel extends JPanel implements TransferListener {
             return;
         }
 
-        for (int viewRow : selectedRows) {
+        for (int viewRow :
+                selectedRows) {
 
+            /*
+             * Artık sorter olmadığı için
+             * view row == model row.
+             */
             int modelRow =
-                    table.convertRowIndexToModel(viewRow);
+                    viewRow;
 
             TransferRuntime runtime =
-                    tableModel.getRuntimeAtModelRow(
+                    model.getRuntimeAtModelRow(
                             modelRow);
 
             if (runtime == null) {
@@ -598,6 +702,7 @@ public class TransferPanel extends JPanel implements TransferListener {
             }
 
             if (runtime.getStatus().isActive()) {
+
                 transferManager.cancel(
                         runtime.getTask().getId());
             }
@@ -623,9 +728,43 @@ public class TransferPanel extends JPanel implements TransferListener {
 
     private void clearFinishedTransfers() {
 
-        tableModel.removeFinished();
+        stateStore.removeFinished();
+
+        refreshVisibleTables();
 
         updateTabTitles();
+        updateButtons();
+    }
+
+    private boolean hasCancelableSelection(
+            JTable table) {
+
+        if (table == null) {
+            return false;
+        }
+
+        TransferTableModel model =
+                getModelForTable(table);
+
+        if (model == null) {
+            return false;
+        }
+
+        for (int row :
+                table.getSelectedRows()) {
+
+            TransferRuntime runtime =
+                    model.getRuntimeAtModelRow(
+                            row);
+
+            if (runtime != null
+                    && runtime.getStatus().isActive()) {
+
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public void setButtonIcons() {
@@ -638,33 +777,5 @@ public class TransferPanel extends JPanel implements TransferListener {
 
         clearButton.setIcon(
                 IconProvider.ICON_DELETE);
-    }
-
-    private boolean hasCancelableSelection(
-            JTable table) {
-
-        if (table == null) {
-            return false;
-        }
-
-        for (int viewRow :
-                table.getSelectedRows()) {
-
-            int modelRow =
-                    table.convertRowIndexToModel(
-                            viewRow);
-
-            TransferRuntime runtime =
-                    tableModel.getRuntimeAtModelRow(
-                            modelRow);
-
-            if (runtime != null
-                    && runtime.getStatus().isActive()) {
-
-                return true;
-            }
-        }
-
-        return false;
     }
 }
