@@ -122,9 +122,10 @@ public class ExplorerPanel extends JPanel {
         this.clientManager = clientManager;
         this.themeManager = new UIThemeManager(this, transferPanel);
 
-        refreshScheduler = new ExplorerRefreshScheduler(prefix -> {
-            refreshNode(prefix);
-        });
+        refreshScheduler =
+                new ExplorerRefreshScheduler(
+                        this::refreshNode,
+                        this::refreshCurrentTable);
 
         initialize();
     }
@@ -1106,127 +1107,54 @@ public class ExplorerPanel extends JPanel {
         bucketCombo.setSelectedItem(bucketName);
     }
 
-    public void onTransferEvent(TransferRuntime runtime) {
-        if (runtime.getStatus() != TransferStatus.COMPLETED) {
+    public void onTransferEvent(
+            TransferRuntime runtime) {
+
+        if (runtime == null) {
             return;
         }
 
-        SwingUtilities.invokeLater(() -> {
+        if (runtime.getStatus()
+                != TransferStatus.COMPLETED) {
 
-            TransferTask task = runtime.getTask();
-            /*
-            // Transfer tablosunu güncelle
-            if (transferTableModel.contains(task)) {
-                transferTableModel.updateTask(task);
-            } else {
-                transferTableModel.addTask(task);
-            }*/
+            return;
+        }
 
-            Set<RefreshTreeNode> affectedPefixes = task.getAffectedPrefixes();
-            if (task.isAffectsObjectList()) {
-                refreshCurrentTable();
-            }
-            if (task.isAffectsFolderTree()) {
-                refreshScheduler.scheduleRefresh(affectedPefixes);
-            }
+        TransferTask task =
+                runtime.getTask();
 
-            //S3TreeNode node = this.getSelectedFolderNode();
-            //loadFiles(task.getBucket(), node.getFullPrefix());
-        });
+        if (task == null) {
+            return;
+        }
+
+        Set<RefreshTreeNode> affectedPrefixes =
+                task.getAffectedPrefixes();
+
+        /*
+         * File Table'ın yenilenmesi gerekiyorsa
+         * doğrudan loadFiles() çağırma.
+         *
+         * Scheduler bunu debounce edecektir.
+         */
+        if (task.isAffectsObjectList()) {
+
+            refreshScheduler
+                    .scheduleCurrentTableRefresh();
+        }
+
+        /*
+         * Folder Tree refresh.
+         */
+        if (task.isAffectsFolderTree()
+                && affectedPrefixes != null
+                && !affectedPrefixes.isEmpty()) {
+
+            refreshScheduler
+                    .scheduleRefresh(
+                            affectedPrefixes);
+        }
     }
 
-    /*
-    private void onTransferEvent(TransferEvent event) {
-        if (event.getRuntime().getStatus() != TransferStatus.COMPLETED) {
-            return;
-        }
-
-        TransferType type = event.getTask().getType();
-        if (type != TransferType.UPLOAD
-                && type != TransferType.DELETE
-                && type != TransferType.MOVE
-                && type != TransferType.COPY) {
-
-            return;
-
-       SwingUtilities.invokeLater(() -> {
-            TransferTask task = event.getRuntime().getTask();
-            switch (task.getType()) {
-                case DELETE -> {
-                    if (task.getSelectedFolder() != null) {
-                        // delete folder
-                        if (folderPrefix.startsWith(parent.getFullPrefix())) {
-                            String subFolders = newFolderPrefix.substring(parent.getFullPrefix().length());
-                            String firstSubFolder = subFolders.substring(0, subFolders.indexOf("/"));
-                            String folderToCreate = newFolderPrefix + firstSubFolder + "/";
-
-                            treeModel.removeNodeFromParent(node);
-                        }
-                    }
-
-                    if (task.getObjectKey().endsWith("/")) {
-                        removeFolderNode(task.getObjectKey());
-                    }
-                }
-                case CREATE_FOLDER -> {
-                    addFolderNode(extractParentPrefix(task.getObjectKey()), task.getObjectKey());
-                }
-                case UPLOAD -> {
-                    if (task.getSelectedFolder() != null) {
-                        // upload folder
-                        if (!findNodeChildren(parent).contains(newFolderPrefix)) {
-                            if (newFolderPrefix.startsWith(parent.getFullPrefix())) {
-                                String subFolders = newFolderPrefix.substring(parent.getFullPrefix().length());
-                                String firstSubFolder = subFolders.substring(0, subFolders.indexOf("/"));
-                                String folderToCreate = newFolderPrefix + firstSubFolder + "/";
-
-                                S3TreeNode child = new S3TreeNode(firstSubFolder, folderToCreate);
-                                nodeCache.put(folderToCreate, child);
-                                child.add(new DefaultMutableTreeNode("Loading..."));
-                                parent.add(child);
-                                treeModel.reload(parent);
-                            }
-                        }
-
-                        addFolderNode(task.getSelectedFolder(), task.getObjectKey(), true);
-                    }
-                }
-            }
-            refreshCurrentTable();
-        });
-
-        TransferTask task = event.getRuntime().getTask();
-        if (task.getRefreshNode() != null) {
-            SwingUtilities.invokeLater(() -> refreshScheduler.scheduleRefresh(task.getRefreshNode().getFullPrefix()));
-        }
-        refreshCurrentTable();
-
-        SwingUtilities.invokeLater(() -> {
-            TransferTask task = event.getRuntime().getTask();
-            switch (task.getType()) {
-                case DELETE_FOLDER -> {
-                    removeFolderNode(task.getObjectKey());
-                }
-                case CREATE_FOLDER -> {
-                    addFolderNode(extractParentPrefix(task.getObjectKey()), task.getObjectKey());
-                }
-            }
-
-            refreshCurrentTable();
-        });
-    }*/
-/*
-    private void refreshTree() {
-        System.out.println("Reload Tree");
-        String bucket = this.getCurrentBucket();
-        if (bucket == null) {
-            return;
-        }
-
-        nodeCache.clear();
-        loadRootFolders(bucket);
-    }
-*/
     private S3TreeNode findNodeByPrefix(S3TreeNode root, String prefix) {
         if (prefix.equals(root.getFullPrefix())) {
             return root;

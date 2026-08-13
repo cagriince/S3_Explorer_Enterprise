@@ -17,13 +17,16 @@ import com.company.s3explorer.util.S3Util;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class TransferManager {
     private final TransferQueue queue;
     private final TransferContext transferContext;
     private final TransferOperationFactory operationFactory;
     private final ProducerExecutor producerExecutor;
-
+    private final ExecutorService cancellationExecutor;
+    
     public TransferManager(
             S3ClientManager clientManager,
             TransferQueue queue,
@@ -35,6 +38,19 @@ public class TransferManager {
 
         transferContext = new TransferContext(clientManager, eventBus);
         operationFactory = new TransferOperationFactory();
+        cancellationExecutor =
+                Executors.newSingleThreadExecutor(
+                        runnable -> {
+
+                            Thread thread =
+                                    new Thread(
+                                            runnable,
+                                            "transfer-cancellation");
+
+                            thread.setDaemon(true);
+
+                            return thread;
+                        });
     }
 
     public boolean cancel(UUID taskId) {
@@ -42,7 +58,9 @@ public class TransferManager {
     }
 
     public void cancelAll() {
-        queue.cancelAll();
+
+        cancellationExecutor.submit(
+                queue::cancelAll);
     }
 
     public void submitUpload(String repositoryName, String bucket, String key, Path localFile, long size) {
@@ -159,31 +177,6 @@ public class TransferManager {
                     targetPrefix,
                     folder)
         );
-/*
-        String groupName = folder.getFileName().toString();
-        TransferGroup group = new TransferGroup(UUID.randomUUID(), groupName);
-        String targetChildPrefix = targetPrefix + groupName + "/";
-
-        try (Stream<Path> stream = Files.walk(folder)) {
-            stream.filter(Files::isRegularFile)
-                    .forEach(file -> {
-                        String relative = folder.relativize(file).toString().replace("\\", "/");
-                        String key = S3Util.combineKey(targetChildPrefix, relative);
-
-                        submit(
-                                TransferTask.upload()
-                                        .targetRepositoryName(repositoryName)
-                                        .targetBucket(bucket)
-                                        .targetObjectKey(key)
-                                        .localPath(file)
-                                        .addRefreshPrefix(new RefreshTreeNode(targetChildPrefix, RefreshTreeOperation.ADD))
-                                        .size(file.toFile().length())
-                                        .affectsObjectList(true)
-                                        .affectsFolderTree(true)
-                                        .group(group)
-                                        .build());
-                    });
-        }*/
     }
 
     public void submitFolderCopy(String repositoryName, String sourceBucket, String sourcePrefix, String targetRepositoryName, String targetBucket, String targetPrefix) {
@@ -214,6 +207,13 @@ public class TransferManager {
         );
     }
 
+    public void close() {
+
+        cancellationExecutor.shutdownNow();
+
+        producerExecutor.close();
+    }
+    
     private void submit(TransferTask task) {
         queue.add(task);
     }

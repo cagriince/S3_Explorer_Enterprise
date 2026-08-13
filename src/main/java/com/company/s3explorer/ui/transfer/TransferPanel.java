@@ -52,6 +52,8 @@ public class TransferPanel
 
     private Timer refreshTimer;
 
+    private long lastRenderedStateVersion = -1;
+    
     public TransferPanel(
             TransferEventBus eventBus,
             TransferManager transferManager) {
@@ -312,7 +314,40 @@ public class TransferPanel
      */
     private void refreshFromStateStore() {
 
+        long currentVersion =
+                stateStore.getVersion();
+
+        /*
+         * Transfer state değişmemişse
+         * JTable modellerine dokunma.
+         */
+        if (currentVersion
+                == lastRenderedStateVersion) {
+
+            ProducerRuntime producer =
+                    pendingProducerUpdate;
+
+            if (producer != null) {
+
+                pendingProducerUpdate = null;
+
+                producerTableModel.update(
+                        producer);
+
+                updateProducerVisibility(
+                        producer);
+            }
+
+            updateTabTitles();
+            updateButtons();
+
+            return;
+        }
+
         refreshVisibleTables();
+
+        lastRenderedStateVersion =
+                currentVersion;
 
         ProducerRuntime producer =
                 pendingProducerUpdate;
@@ -331,7 +366,7 @@ public class TransferPanel
         updateTabTitles();
         updateButtons();
     }
-
+    
     private void refreshVisibleTables() {
 
         queuedModel.setSnapshot(
@@ -723,9 +758,11 @@ public class TransferPanel
             return;
         }
 
+        cancelAllButton.setEnabled(false);
+
         transferManager.cancelAll();
     }
-
+    
     private void clearFinishedTransfers() {
 
         stateStore.removeFinished();

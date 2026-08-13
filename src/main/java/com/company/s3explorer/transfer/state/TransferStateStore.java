@@ -17,20 +17,9 @@ public class TransferStateStore {
 
     private final int visibleLimit;
 
-    /**
-     * Gerçek transfer state'i.
-     *
-     * Burada 500.000 kayıt bulunabilir.
-     * Bu yapı Swing JTable'a verilmez.
-     */
     private final Map<UUID, TransferRuntime> runtimes =
             new HashMap<>();
 
-    /**
-     * Her görünüm için ayrı sıra.
-     *
-     * İlk eleman en yeni kayıttır.
-     */
     private final Deque<UUID> allOrder =
             new ArrayDeque<>();
 
@@ -51,6 +40,14 @@ public class TransferStateStore {
     private long completedCount;
     private long failedCount;
     private long cancelledCount;
+
+    /*
+     * UI'nin gereksiz yere tabloyu yeniden çizmesini
+     * engellemek için kullanılır.
+     *
+     * Her gerçek state değişiminde artırılır.
+     */
+    private long version;
 
     public TransferStateStore() {
         this(DEFAULT_VISIBLE_LIMIT);
@@ -81,9 +78,13 @@ public class TransferStateStore {
                 runtime.getStatus();
 
         TransferStatus oldStatus =
-                statuses.put(id, newStatus);
+                statuses.put(
+                        id,
+                        newStatus);
 
-        runtimes.put(id, runtime);
+        runtimes.put(
+                id,
+                runtime);
 
         /*
          * İlk kez görüyoruz.
@@ -99,6 +100,8 @@ public class TransferStateStore {
             addToStatusOrder(
                     newStatus,
                     id);
+
+            version++;
 
             return;
         }
@@ -128,6 +131,8 @@ public class TransferStateStore {
         addNewest(
                 allOrder,
                 id);
+
+        version++;
     }
 
     public synchronized TransferRuntime get(
@@ -184,6 +189,10 @@ public class TransferStateStore {
         return result;
     }
 
+    public synchronized long getVersion() {
+        return version;
+    }
+
     public synchronized long getQueuedCount() {
         return queuedCount;
     }
@@ -235,6 +244,10 @@ public class TransferStateStore {
             }
         }
 
+        if (ids.isEmpty()) {
+            return;
+        }
+
         for (UUID id : ids) {
 
             TransferStatus status =
@@ -246,6 +259,8 @@ public class TransferStateStore {
 
             decrement(status);
         }
+
+        version++;
     }
 
     private void increment(
