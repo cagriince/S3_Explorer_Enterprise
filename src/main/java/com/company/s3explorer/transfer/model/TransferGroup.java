@@ -23,6 +23,10 @@ public class TransferGroup {
     private final AtomicInteger cancelled =
             new AtomicInteger();
 
+    private volatile Runnable completionCallback;
+
+    private volatile boolean completionPublished;
+
     public TransferGroup(
             UUID id,
             String displayName) {
@@ -39,6 +43,12 @@ public class TransferGroup {
         return displayName;
     }
 
+    public void setCompletionCallback(
+            Runnable callback) {
+
+        this.completionCallback = callback;
+    }
+
     public void queued() {
         queued.incrementAndGet();
     }
@@ -53,12 +63,16 @@ public class TransferGroup {
 
         running.decrementAndGet();
         completed.incrementAndGet();
+
+        checkCompletion();
     }
 
     public void failed() {
 
         running.decrementAndGet();
         failed.incrementAndGet();
+
+        checkCompletion();
     }
 
     public void cancelled() {
@@ -70,6 +84,8 @@ public class TransferGroup {
         }
 
         cancelled.incrementAndGet();
+
+        checkCompletion();
     }
 
     public int getQueued() {
@@ -107,18 +123,41 @@ public class TransferGroup {
                 && running.get() == 0;
     }
 
-    public boolean isSuccessful() {
-
-        return isFinished()
-                && failed.get() == 0
-                && cancelled.get() == 0
-                && completed.get() > 0;
-    }
-
     public boolean isFullySuccessful() {
 
         return isFinished()
                 && failed.get() == 0
                 && cancelled.get() == 0;
+    }
+
+    private void checkCompletion() {
+
+        if (!isFinished()) {
+            return;
+        }
+
+        if (completionPublished) {
+            return;
+        }
+
+        synchronized (this) {
+
+            if (completionPublished) {
+                return;
+            }
+
+            if (!isFinished()) {
+                return;
+            }
+
+            completionPublished = true;
+
+            Runnable callback =
+                    completionCallback;
+
+            if (callback != null) {
+                callback.run();
+            }
+        }
     }
 }

@@ -3,6 +3,7 @@ package com.company.s3explorer.transfer.queue;
 import com.company.s3explorer.transfer.TransferRuntime;
 import com.company.s3explorer.transfer.TransferStatus;
 import com.company.s3explorer.transfer.event.TransferEventBus;
+import com.company.s3explorer.transfer.model.TransferGroup;
 import com.company.s3explorer.transfer.model.TransferTask;
 
 import java.time.Instant;
@@ -38,6 +39,10 @@ public class TransferQueue {
 
         runtime.setStatus(
                 TransferStatus.QUEUED);
+
+        if (task.getGroup() != null) {
+            task.getGroup().queued();
+        }
 
         queue.add(runtime);
 
@@ -146,6 +151,13 @@ public class TransferQueue {
             TransferRuntime runtime) {
 
         runtime.requestCancel();
+
+        TransferGroup group =
+                runtime.getTask().getGroup();
+
+        if (group != null) {
+            group.cancelled();
+        }
 
         runtime.setEndTime(
                 Instant.now());
