@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class FileTableModel extends AbstractTableModel {
+
     public static final int COL_FOLDER = 0;
     public static final int COL_NAME = 1;
     public static final int COL_SIZE = 2;
@@ -36,48 +37,97 @@ public class FileTableModel extends AbstractTableModel {
     }
 
     @Override
-    public Object getValueAt(int rowIndex, int columnIndex) {
-        S3FileItem item = files.get(rowIndex);
+    public Object getValueAt(
+            int rowIndex,
+            int columnIndex) {
+
+        S3FileItem item =
+                files.get(rowIndex);
+
         return switch (columnIndex) {
-            case COL_FOLDER -> item.isFolder();
-            case COL_NAME -> item;
-            case COL_SIZE -> item.isFolder() ? null : item.getSize();
-            case COL_LAST_MODIFIED -> item.getLastModified();
-            default -> null;
+
+            case COL_FOLDER ->
+                    item.isFolder();
+
+            case COL_NAME ->
+                    item;
+
+            case COL_SIZE ->
+                    item.isFolder()
+                            ? null
+                            : item.getSize();
+
+            case COL_LAST_MODIFIED ->
+                    item.getLastModified();
+
+            default ->
+                    null;
         };
     }
 
     @Override
     public Class<?> getColumnClass(int column) {
+
         return switch (column) {
-            case 0 -> Boolean.class;
-            case 1 -> S3FileItem.class;
-            case 2 -> Long.class;
-            case 3 -> Instant.class;
-            default -> Object.class;
+
+            case COL_FOLDER ->
+                    Boolean.class;
+
+            case COL_NAME ->
+                    S3FileItem.class;
+
+            case COL_SIZE ->
+                    Long.class;
+
+            case COL_LAST_MODIFIED ->
+                    Instant.class;
+
+            default ->
+                    Object.class;
         };
     }
 
-    public void setFiles(List<S3FileItem> newFiles) {
-        this.clear();
+    public void setFiles(
+            List<S3FileItem> newFiles) {
+
+        files.clear();
+
         files.addAll(newFiles);
+
         fireTableDataChanged();
     }
 
-    private void clear() {
-        files.clear();
+    public void addFiles(
+            List<S3FileItem> newFiles) {
+
+        if (newFiles == null
+                || newFiles.isEmpty()) {
+            return;
+        }
+
+        int firstRow = files.size();
+
+        files.addAll(newFiles);
+
+        fireTableRowsInserted(
+                firstRow,
+                files.size() - 1);
     }
 
     public void clearAndRepaint() {
-        this.clear();
+
+        files.clear();
+
         fireTableDataChanged();
     }
 
     public S3FileItem getItem(int row) {
+
         return files.get(row);
     }
 
     public List<S3FileItem> getItems() {
-        return files;
+
+        return List.copyOf(files);
     }
 }

@@ -21,6 +21,7 @@ import com.company.s3explorer.ui.theme.UITheme;
 import com.company.s3explorer.ui.theme.UIThemeManager;
 import com.company.s3explorer.ui.transfer.TransferPanel;
 import com.company.s3explorer.util.S3Util;
+import com.company.s3explorer.service.FolderContentPage;
 
 import javax.swing.*;
 import javax.swing.border.BevelBorder;
@@ -67,7 +68,12 @@ public class ExplorerPanel extends JPanel {
     private JTable fileTable;
     private FileTableModel fileTableModel;
     private final AtomicLong fileLoadGeneration = new AtomicLong();
-
+    private String currentFileBucket;
+    private String currentFilePrefix;
+    private String currentFileContinuationToken;
+    private boolean currentFileHasMore;
+    private boolean loadingMoreFiles;
+    
     private JPanel breadcrumbPanel;
     private JLabel fileFolderInfo;
 
@@ -692,83 +698,166 @@ public class ExplorerPanel extends JPanel {
         });
     }
 
-    private void loadFiles(String bucket, String prefix) {
-        long generation = fileLoadGeneration.incrementAndGet();
+    private void loadFiles(
+            String bucket,
+            String prefix) {
+
+        long generation =
+                fileLoadGeneration.incrementAndGet();
+
+        currentFileBucket = bucket;
+        currentFilePrefix = prefix;
+        currentFileContinuationToken = null;
+        currentFileHasMore = false;
+        loadingMoreFiles = false;
+
         setFileTableLoading(true);
+
         CompletableFuture
-                .supplyAsync(() -> {
-                    FolderContent content = getService().listFolder(bucket, prefix);
-                    List<S3FileItem> rows = new ArrayList<>();
-                    if (!"".equals(prefix)) {
-                        // except root folder, add parent folder holder
-                        rows.add(new S3FileItem(
-                                this.getCurrentRepository().getName(),
-                                bucket,
-                                "..",
-                                0,
-                                null,
-                                true
-                        ));
-                    }
+                .supplyAsync(
+                        () -> getService()
+                                .listFolderPage(
+                                        bucket,
+                                        prefix,
+                                        null),
+                        explorerPool)
+                .thenAccept(page -> {
 
-                    rows.addAll(content.folders().stream()
-                            .map(obj ->
-                                    new S3FileItem(
-                                            this.getCurrentRepository().getName(),
-                                            bucket,
-                                            obj,
-                                            0,
-                                            null,
-                                            true))
-                            .toList());
-
-                    rows.addAll(content.files().stream()
-                            .filter(obj -> !obj.key().endsWith("/"))
-                            .map(obj ->
-                                    new S3FileItem(
-                                            this.getCurrentRepository().getName(),
-                                            bucket,
-                                            obj.key(),
-                                            obj.size(),
-                                            obj.lastModified(),
-                                            false))
-                            .toList());
-
-                    return rows;
-                })
-                .thenAccept(items -> {
                     SwingUtilities.invokeLater(() -> {
-                        // Bu istek artık geçerli değil.
-                        if (generation != fileLoadGeneration.get()) {
+
+                        if (generation !=
+                                fileLoadGeneration.get()) {
                             return;
                         }
-                        long folderCount = items.parallelStream().filter(S3FileItem::isFolderButNotParent).count();
-                        long fileCount = items.parallelStream().filter(S3FileItem::isFile).count();
-                        fileTableModel.setFiles(items);
-                        fileFolderInfo.setText(fileCount + " file(s) and " + folderCount + " folder(s)");
+
+                        applyFilePage(
+                                bucket,
+                                prefix,
+                                page,
+                                false);
+
                         setFileTableLoading(false);
                     });
-
                 })
                 .exceptionally(ex -> {
+
                     ex.printStackTrace();
+
                     SwingUtilities.invokeLater(() -> {
-                        // Eski bir isteğin hatası da güncel UI'ı etkilememeli
-                        if (generation != fileLoadGeneration.get()) {
+
+                        if (generation !=
+                                fileLoadGeneration.get()) {
                             return;
                         }
 
                         setFileTableLoading(false);
-                        SwingUtilities.invokeLater(() ->
-                                JOptionPane.showMessageDialog(
-                                        this,
-                                        "File list could not be loaded"));
+
+                        JOptionPane.showMessageDialog(
+                                this,
+                                "File list could not be loaded");
                     });
 
                     return null;
                 });
     }
 
+    private void applyFilePage(
+            String bucket,
+            String prefix,
+            FolderContentPage page,
+            boolean append) {
+
+        List<S3FileItem> rows =
+                new ArrayList<>();
+
+        if (!append
+                && !"".equals(prefix)) {
+
+            rows.add(
+                    new S3FileItem(
+                            this.getCurrentRepository()
+                                    .getName(),
+                            bucket,
+                            "..",
+                            0,
+                            null,
+                            true));
+        }
+
+        rows.addAll(
+                page.folders()
+                        .stream()
+                        .map(folder ->
+                                new S3FileItem(
+                                        this.getCurrentRepository()
+                                                .getName(),
+                                        bucket,
+                                        folder,
+                                        0,
+                                        null,
+                                        true))
+                        .toList());
+
+        rows.addAll(
+                page.files()
+                        .stream()
+                        .filter(object ->
+                                !object.key()
+                                        .endsWith("/"))
+                        .map(object ->
+                                new S3FileItem(
+                                        this.getCurrentRepository()
+                                                .getName(),
+                                        bucket,
+                                        object.key(),
+                                        object.size(),
+                                        object.lastModified(),
+                                        false))
+                        .toList());
+
+        if (append) {
+            fileTableModel.addFiles(rows);
+        }
+        else {
+            fileTableModel.setFiles(rows);
+        }
+
+        currentFileContinuationToken =
+                page.continuationToken();
+
+        currentFileHasMore =
+                page.hasMore();
+
+        long folderCount =
+                fileTableModel
+                        .getItems()
+                        .stream()
+                        .filter(
+                                S3FileItem::
+                                        isFolderButNotParent)
+                        .count();
+
+        long fileCount =
+                fileTableModel
+                        .getItems()
+                        .stream()
+                        .filter(
+                                S3FileItem::isFile)
+                        .count();
+
+        String suffix =
+                currentFileHasMore
+                        ? " — more available"
+                        : "";
+
+        fileFolderInfo.setText(
+                fileCount
+                        + " file(s) and "
+                        + folderCount
+                        + " folder(s)"
+                        + suffix);
+    }
+    
     private void bindEvents() {
         themeCombo.addActionListener(e -> {
             UITheme theme = (UITheme) themeCombo.getSelectedItem();

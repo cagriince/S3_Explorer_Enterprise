@@ -57,10 +57,20 @@ public class TransferManager {
         return queue.cancel(taskId);
     }
 
+    public boolean cancelProducer(
+            ProducerRuntime runtime) {
+
+        return producerExecutor.cancel(runtime);
+    }
+
     public void cancelAll() {
 
-        cancellationExecutor.submit(
-                queue::cancelAll);
+        cancellationExecutor.submit(() -> {
+
+            queue.cancelAll();
+
+            producerExecutor.cancelAll();
+        });
     }
 
     public void submitUpload(String repositoryName, String bucket, String key, Path localFile, long size) {

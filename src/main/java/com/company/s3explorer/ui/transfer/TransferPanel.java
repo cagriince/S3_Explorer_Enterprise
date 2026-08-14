@@ -15,6 +15,7 @@ import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.*;
 import java.util.List;
 import java.util.function.Function;
+import java.util.concurrent.CompletableFuture;
 
 public class TransferPanel
         extends JPanel
@@ -762,15 +763,56 @@ public class TransferPanel
 
         transferManager.cancelAll();
     }
-    
+
     private void clearFinishedTransfers() {
 
-        stateStore.removeFinished();
+        if (stateStore.getFinishedCount() <= 0) {
+            return;
+        }
 
-        refreshVisibleTables();
+        clearButton.setEnabled(false);
 
-        updateTabTitles();
-        updateButtons();
+        CompletableFuture
+                .runAsync(
+                        stateStore::removeFinished)
+                .whenComplete(
+                        (ignored, error) -> {
+
+                            SwingUtilities.invokeLater(() -> {
+
+                                clearButton.setEnabled(
+                                        true);
+
+                                if (error != null) {
+
+                                    error.printStackTrace();
+
+                                    JOptionPane.showMessageDialog(
+                                            this,
+                                            "Logs could not be cleared:\n"
+                                                    + error.getMessage(),
+                                            "Clear Logs",
+                                            JOptionPane.ERROR_MESSAGE);
+
+                                    return;
+                                }
+
+                                /*
+                                 * Timer zaten state version değişikliğini
+                                 * algılayacak.
+                                 *
+                                 * Burada sadece hemen görsel güncelleme
+                                 * yapıyoruz.
+                                 */
+                                refreshVisibleTables();
+
+                                lastRenderedStateVersion =
+                                        stateStore.getVersion();
+
+                                updateTabTitles();
+                                updateButtons();
+                            });
+                        });
     }
 
     private boolean hasCancelableSelection(

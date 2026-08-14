@@ -230,39 +230,60 @@ public class TransferStateStore {
 
     public synchronized void removeFinished() {
 
-        List<UUID> ids =
-                new ArrayList<>();
-
-        for (Map.Entry<UUID, TransferRuntime> entry
-                : runtimes.entrySet()) {
-
-            if (entry.getValue()
-                    .getStatus()
-                    .isFinished()) {
-
-                ids.add(entry.getKey());
-            }
-        }
-
-        if (ids.isEmpty()) {
+        if (finishedOrder.isEmpty()) {
             return;
         }
 
-        for (UUID id : ids) {
-
-            TransferStatus status =
-                    statuses.remove(id);
+        /*
+         * Finished kayıtları runtimes/statuses içinden çıkar.
+         *
+         * Burada UUID'leri tek tek ArrayDeque'den
+         * remove(Object) ile çıkarmıyoruz.
+         */
+        for (UUID id : finishedOrder) {
 
             runtimes.remove(id);
-
-            removeFromAllOrders(id);
-
-            decrement(status);
+            statuses.remove(id);
         }
+
+        /*
+         * Finished kayıtlarının tamamını tek seferde
+         * temizliyoruz.
+         */
+        finishedOrder.clear();
+
+        /*
+         * All listesini yeniden oluşturuyoruz.
+         *
+         * Böylece 233.000 kez:
+         *
+         * allOrder.remove(id)
+         *
+         * yapmıyoruz.
+         */
+        Deque<UUID> newAllOrder =
+                new ArrayDeque<>();
+
+        for (UUID id : allOrder) {
+
+            if (runtimes.containsKey(id)) {
+                newAllOrder.addLast(id);
+            }
+        }
+
+        allOrder.clear();
+        allOrder.addAll(newAllOrder);
+
+        /*
+         * Finished sayaçlarını sıfırla.
+         */
+        completedCount = 0;
+        failedCount = 0;
+        cancelledCount = 0;
 
         version++;
     }
-
+    
     private void increment(
             TransferStatus status) {
 
