@@ -751,6 +751,7 @@ public class ExplorerPanel extends JPanel {
 
                 })
                 .exceptionally(ex -> {
+                    ex.printStackTrace();
                     SwingUtilities.invokeLater(() -> {
                         // Eski bir isteğin hatası da güncel UI'ı etkilememeli
                         if (generation != fileLoadGeneration.get()) {
