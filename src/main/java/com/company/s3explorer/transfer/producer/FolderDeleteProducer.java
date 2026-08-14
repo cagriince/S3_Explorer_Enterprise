@@ -37,13 +37,9 @@ public class FolderDeleteProducer
                 .repositoryName(repository)
                 .bucket(bucket)
                 .objectKey(object.key())
-                .addRefreshPrefix(
-                        new RefreshTreeNode(
-                                prefix,
-                                RefreshTreeOperation.DELETE))
                 .size(object.size())
                 .affectsObjectList(false)
-                .affectsFolderTree(true)
+                .affectsFolderTree(false)
                 .group(group)
                 .build();
     }

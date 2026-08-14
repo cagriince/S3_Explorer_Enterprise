@@ -4,16 +4,29 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class TransferGroup {
+
     private final UUID id;
     private final String displayName;
 
-    private final AtomicInteger queued = new AtomicInteger();
-    private final AtomicInteger running = new AtomicInteger();
-    private final AtomicInteger completed = new AtomicInteger();
-    private final AtomicInteger failed = new AtomicInteger();
-    private final AtomicInteger cancelled = new AtomicInteger();
+    private final AtomicInteger queued =
+            new AtomicInteger();
 
-    public TransferGroup(UUID id, String displayName) {
+    private final AtomicInteger running =
+            new AtomicInteger();
+
+    private final AtomicInteger completed =
+            new AtomicInteger();
+
+    private final AtomicInteger failed =
+            new AtomicInteger();
+
+    private final AtomicInteger cancelled =
+            new AtomicInteger();
+
+    public TransferGroup(
+            UUID id,
+            String displayName) {
+
         this.id = id;
         this.displayName = displayName;
     }
@@ -31,24 +44,28 @@ public class TransferGroup {
     }
 
     public void running() {
+
         queued.decrementAndGet();
         running.incrementAndGet();
     }
 
     public void completed() {
+
         running.decrementAndGet();
         completed.incrementAndGet();
     }
 
     public void failed() {
+
         running.decrementAndGet();
         failed.incrementAndGet();
     }
 
     public void cancelled() {
+
         if (queued.get() > 0) {
             queued.decrementAndGet();
-        } else {
+        } else if (running.get() > 0) {
             running.decrementAndGet();
         }
 
@@ -74,13 +91,34 @@ public class TransferGroup {
     public int getCancelled() {
         return cancelled.get();
     }
-}
-/*
-public String getDisplayName() {
-    return "%s [%d/%d]".formatted(
-            this.getName(),
-            this.getIndex(),
-            this.getSize());
-}
 
- */
+    public int getTotal() {
+
+        return completed.get()
+                + failed.get()
+                + cancelled.get()
+                + queued.get()
+                + running.get();
+    }
+
+    public boolean isFinished() {
+
+        return queued.get() == 0
+                && running.get() == 0;
+    }
+
+    public boolean isSuccessful() {
+
+        return isFinished()
+                && failed.get() == 0
+                && cancelled.get() == 0
+                && completed.get() > 0;
+    }
+
+    public boolean isFullySuccessful() {
+
+        return isFinished()
+                && failed.get() == 0
+                && cancelled.get() == 0;
+    }
+}
