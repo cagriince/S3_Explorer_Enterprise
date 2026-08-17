@@ -38,37 +38,65 @@ public abstract class AbstractFolderTransferProducer
         this.group = new TransferGroup(
                 UUID.randomUUID(),
                 S3Util.extractFolderName(prefix));
+
+        this.group.setCompletionCallback(
+                () -> {
+
+                    if (this.group.isFullySuccessful()) {
+
+                        context.publishGroupCompleted(
+                                this.group,
+                                repository,
+                                bucket,
+                                prefix);
+                    }
+                });
     }
 
     @Override
-    public final void produce(ProducerRuntime runtime) {
+    public final void produce(
+            ProducerRuntime runtime) {
 
-        context.getService(repository)
-                .forEachObject(
-                        bucket,
-                        prefix,
-                        object -> {
+        try {
 
-                            if (runtime.isCancelRequested()) {
-                                throw new ProducerCancelledException();
-                            }
+            context.getService(repository)
+                    .forEachObject(
+                            bucket,
+                            prefix,
+                            object -> {
 
-                            TransferTask task =
-                                    createTask(object);
+                                if (runtime.isCancelRequested()) {
+                                    throw new ProducerCancelledException();
+                                }
 
-                            queue.add(task);
+                                TransferTask task =
+                                        createTask(object);
 
-                            runtime.incrementDiscovered();
+                                queue.add(task);
 
-                            if (runtime.shouldPublishUi(100)) {
-                                context.publishProducer(runtime);
-                            }
-                        });
+                                runtime.incrementDiscovered();
 
-        runtime.forceNextUiPublish();
-        context.publishProducer(runtime);
+                                if (runtime.shouldPublishUi(100)) {
+                                    context.publishProducer(runtime);
+                                }
+                            });
+
+        } finally {
+
+            /*
+             * Producer artık yeni task üretmeyecek.
+             *
+             * Eğer cancellation nedeniyle çıkıldıysa da
+             * bu bilgi yine verilmelidir.
+             */
+            group.markProductionCompleted();
+
+            runtime.forceNextUiPublish();
+
+            context.publishProducer(runtime);
+        }
     }
-
+    
     protected abstract TransferTask createTask(
             S3Object object);
 }

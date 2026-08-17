@@ -7,7 +7,7 @@ public class TransferGroup {
 
     private final UUID id;
     private final String displayName;
-
+    
     private final AtomicInteger queued =
             new AtomicInteger();
 
@@ -22,6 +22,12 @@ public class TransferGroup {
 
     private final AtomicInteger cancelled =
             new AtomicInteger();
+
+    /*
+     * Producer artık yeni task üretmeyecek
+     * anlamına gelir.
+     */
+    private volatile boolean productionCompleted;
 
     private volatile Runnable completionCallback;
 
@@ -50,6 +56,7 @@ public class TransferGroup {
     }
 
     public void queued() {
+
         queued.incrementAndGet();
     }
 
@@ -78,14 +85,33 @@ public class TransferGroup {
     public void cancelled() {
 
         if (queued.get() > 0) {
+
             queued.decrementAndGet();
+
         } else if (running.get() > 0) {
+
             running.decrementAndGet();
         }
 
         cancelled.incrementAndGet();
 
         checkCompletion();
+    }
+
+    /**
+     * Producer'ın artık yeni task üretmeyeceğini
+     * bildirir.
+     */
+    public void markProductionCompleted() {
+
+        productionCompleted = true;
+
+        checkCompletion();
+    }
+
+    public boolean isProductionCompleted() {
+
+        return productionCompleted;
     }
 
     public int getQueued() {
@@ -119,7 +145,8 @@ public class TransferGroup {
 
     public boolean isFinished() {
 
-        return queued.get() == 0
+        return productionCompleted
+                && queued.get() == 0
                 && running.get() == 0;
     }
 

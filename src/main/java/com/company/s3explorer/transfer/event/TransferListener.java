@@ -5,8 +5,14 @@ import com.company.s3explorer.transfer.producer.ProducerRuntime;
 
 public interface TransferListener {
 
-    void onTransferUpdated(TransferRuntime runtime);
+    void onTransferUpdated(
+            TransferRuntime runtime);
 
-    default void onProducerUpdated(ProducerRuntime runtime) {
+    default void onProducerUpdated(
+            ProducerRuntime runtime) {
+    }
+
+    default void onTransferGroupCompleted(
+            TransferGroupCompletedEvent event) {
     }
 }

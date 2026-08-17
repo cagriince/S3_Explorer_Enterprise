@@ -5,6 +5,7 @@ import com.company.s3explorer.service.S3ClientManager;
 import com.company.s3explorer.transfer.TransferRuntime;
 import com.company.s3explorer.transfer.TransferStatus;
 import com.company.s3explorer.transfer.event.TransferEventBus;
+import com.company.s3explorer.transfer.model.TransferGroup;
 import com.company.s3explorer.transfer.producer.ProducerRuntime;
 
 import java.time.Instant;
@@ -71,5 +72,18 @@ public class TransferContext {
             ProducerRuntime runtime) {
 
         eventBus.publishProducer(runtime);
+    }
+
+    public void publishGroupCompleted(
+            TransferGroup group,
+            String repository,
+            String bucket,
+            String prefix) {
+
+        eventBus.publishGroupCompleted(
+                group,
+                repository,
+                bucket,
+                prefix);
     }
 }

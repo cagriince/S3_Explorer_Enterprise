@@ -10,6 +10,8 @@ import com.company.s3explorer.service.S3ExplorerService;
 import com.company.s3explorer.transfer.TransferRuntime;
 import com.company.s3explorer.transfer.TransferStatus;
 import com.company.s3explorer.transfer.event.TransferEventBus;
+import com.company.s3explorer.transfer.event.TransferGroupCompletedEvent;
+import com.company.s3explorer.transfer.event.TransferListener;
 import com.company.s3explorer.transfer.manager.TransferManager;
 import com.company.s3explorer.transfer.model.TransferTask;
 import com.company.s3explorer.transfer.renderer.FileSizeRenderer;
@@ -146,6 +148,22 @@ public class ExplorerPanel extends JPanel {
         reloadRepositories();
 
         eventBus.subscribe(this::onTransferEvent);
+        eventBus.subscribe(
+                new TransferListener() {
+
+                    @Override
+                    public void onTransferUpdated(
+                            TransferRuntime runtime) {
+                        onTransferEvent(runtime);
+                    }
+
+                    @Override
+                    public void onTransferGroupCompleted(
+                            TransferGroupCompletedEvent event) {
+
+                        onTransferGroupCompleted(event);
+                    }
+                });
     }
 
     private void createActions() {
