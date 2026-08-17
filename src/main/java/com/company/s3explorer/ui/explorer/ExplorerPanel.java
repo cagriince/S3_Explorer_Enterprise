@@ -1270,153 +1270,122 @@ public class ExplorerPanel extends JPanel {
             return;
         }
 
-        SwingUtilities.invokeLater(() -> {
+        String repository =
+                event.getRepository();
 
-            String repository =
-                    event.getRepository();
+        String bucket =
+                event.getBucket();
 
-            String bucket =
-                    event.getBucket();
+        String deletedPrefix =
+                event.getPrefix();
 
-            String deletedPrefix =
-                    event.getPrefix();
+        RepositoryDefinition currentRepository =
+                getCurrentRepository();
 
-            RepositoryDefinition currentRepository =
-                    getCurrentRepository();
+        String currentBucket =
+                getCurrentBucket();
 
-            String currentBucket =
-                    getCurrentBucket();
+        if (currentRepository == null
+                || currentBucket == null) {
+            return;
+        }
 
-            if (currentRepository == null
-                    || currentBucket == null) {
-                return;
-            }
+        /*
+         * Başka repository veya bucket üzerindeki
+         * transfer mevcut Explorer ekranını
+         * etkilememeli.
+         */
+        if (!Objects.equals(
+                repository,
+                currentRepository.getName())
+                || !Objects.equals(
+                bucket,
+                currentBucket)) {
 
-            /*
-             * Başka repository/bucket üzerindeki transfer
-             * Explorer ekranımızı etkilememeli.
-             */
-            if (!Objects.equals(
-                    repository,
-                    currentRepository.getName())
-                    || !Objects.equals(
-                    bucket,
-                    currentBucket)) {
+            return;
+        }
 
-                return;
-            }
+        /*
+         * Silinen klasörün bulunduğu mevcut ekranın
+         * altında olup olmadığını belirle.
+         */
+        String parentPrefix =
+                S3Util.extractParentPrefix(
+                        deletedPrefix);
 
-            S3TreeNode deletedNode =
-                    nodeCache.get(deletedPrefix);
+        boolean currentFolderDeleted =
+                currentFilePrefix != null
+                        && (
+                        currentFilePrefix.equals(
+                                deletedPrefix)
+                                || currentFilePrefix.startsWith(
+                                deletedPrefix));
 
-            if (deletedNode == null) {
+        /*
+         * Kullanıcı silinen klasörün içindeyse
+         * önce parent klasöre dönüyoruz.
+         *
+         * Bunu scheduler'a bırakmıyoruz; çünkü
+         * mevcut selection artık tree'de bulunmayacak.
+         */
+        if (currentFolderDeleted) {
 
-                /*
-                 * Tree node zaten görünür değilse,
-                 * yalnızca mevcut file table'ın ilgili
-                 * durumda olup olmadığını kontrol ediyoruz.
-                 */
-                if (deletedPrefix.equals(
-                        currentFilePrefix)) {
+            SwingUtilities.invokeLater(() -> {
 
-                    String parentPrefix =
-                            S3Util.extractParentPrefix(
-                                    deletedPrefix);
-
-                    selectAndLoadPrefix(
-                            bucket,
-                            parentPrefix);
-                }
-
-                return;
-            }
-
-            if (deletedNode.getParent() == null) {
-                return;
-            }
-
-            S3TreeNode parentNode =
-                    (S3TreeNode) deletedNode.getParent();
-
-            String parentPrefix =
-                    parentNode.getFullPrefix();
-
-            /*
-             * Silinen klasörün altında bir klasör
-             * görüntüleniyorsa artık o ekran geçersiz.
-             */
-            boolean currentSelectionDeleted =
-                    currentFilePrefix != null
-                            && (
-                            currentFilePrefix.equals(
-                                    deletedPrefix)
-                                    || currentFilePrefix.startsWith(
-                                    deletedPrefix));
-
-            TreePath parentPath =
-                    new TreePath(
-                            parentNode.getPath());
-
-            boolean parentExpanded =
-                    folderTree.isExpanded(parentPath);
-
-            /*
-             * Tree'den sil.
-             */
-            removeFromCache(deletedNode);
-            parentNode.remove(deletedNode);
-
-            treeModel.reload(parentNode);
-
-            if (parentExpanded) {
-                folderTree.expandPath(parentPath);
-            }
-
-            /*
-             * Eğer silinen klasörün içindeysek
-             * parent klasöre dön.
-             */
-            if (currentSelectionDeleted) {
-
-                folderTree.setSelectionPath(
-                        parentPath);
-
-                folderTree.scrollPathToVisible(
-                        parentPath);
+                selectNodeByPrefix(parentPrefix);
 
                 currentFileBucket = bucket;
                 currentFilePrefix = parentPrefix;
 
-                updateBreadcrumb(
-                        parentPrefix);
+                updateBreadcrumb(parentPrefix);
 
                 loadFiles(
                         bucket,
                         parentPrefix);
 
                 updateActionStates();
-
-                return;
-            }
+            });
 
             /*
-             * Silinen klasör bulunduğumuz klasörün
-             * doğrudan altındaysa file table'daki
-             * klasör satırını da kaldırmak için
-             * mevcut listeyi yenile.
+             * Tree'deki silinen node'u scheduler üzerinden
+             * kaldır.
              */
-            if (parentPrefix.equals(
-                    currentFilePrefix)) {
+            refreshScheduler.scheduleRefresh(
+                    Set.of(
+                            new RefreshTreeNode(
+                                    deletedPrefix,
+                                    RefreshTreeOperation.DELETE)));
 
-                loadFiles(
-                        bucket,
-                        currentFilePrefix);
+            return;
+        }
 
-                updateActionStates();
-            }
-        });
+        /*
+         * Normal durumda yalnızca silinen klasörün
+         * tree node'unu scheduler üzerinden kaldır.
+         *
+         * Böylece Explorer'daki normal transferlerle
+         * aynı refresh mekanizması kullanılıyor.
+         */
+        refreshScheduler.scheduleRefresh(
+                Set.of(
+                        new RefreshTreeNode(
+                                deletedPrefix,
+                                RefreshTreeOperation.DELETE)));
+
+        /*
+         * Silinen klasör şu anda açık olan klasörün
+         * doğrudan altındaysa File Table'daki klasör
+         * satırını da kaldır.
+         */
+        if (Objects.equals(
+                currentFilePrefix,
+                parentPrefix)) {
+
+            refreshScheduler
+                    .scheduleCurrentTableRefresh();
+        }
     }
-
+    
     private void selectAndLoadPrefix(
             String bucket,
             String prefix) {
@@ -1727,91 +1696,157 @@ public class ExplorerPanel extends JPanel {
         treeModel.reload(parent);
     }
 
-    public void refreshNode(RefreshTreeNode refreshTreeNode) {
-        String childPrefix = refreshTreeNode.prefix();
-        S3TreeNode childNode = nodeCache.get(childPrefix);
-        String parentPrefix = S3Util.extractParentPrefix(childPrefix);
-        S3TreeNode parentNode = nodeCache.get(parentPrefix);
+    public void refreshNode(
+            RefreshTreeNode refreshTreeNode) {
 
-        if (refreshTreeNode.operation().equals(RefreshTreeOperation.ADD)) {
+        if (refreshTreeNode == null) {
+            return;
+        }
+
+        String childPrefix =
+                refreshTreeNode.prefix();
+
+        if (childPrefix == null) {
+            return;
+        }
+
+        S3TreeNode childNode =
+                nodeCache.get(childPrefix);
+
+        String parentPrefix =
+                S3Util.extractParentPrefix(
+                        childPrefix);
+
+        S3TreeNode parentNode =
+                nodeCache.get(parentPrefix);
+
+        /*
+         * -------------------------------------------------
+         * ADD
+         * -------------------------------------------------
+         */
+        if (refreshTreeNode.operation()
+                == RefreshTreeOperation.ADD) {
+
             if (childNode != null) {
-                // already added
-                System.out.println("Already added");
                 return;
             }
+
             if (parentNode == null) {
-                // ???
-                System.out.println("-------------> ??? parent is null");
                 return;
             }
-            attachChild(parentNode, childPrefix);
-        }
-        else if (refreshTreeNode.operation().equals(RefreshTreeOperation.DELETE)) {
-            if (childNode == null) {
-                // already deleted
-                return;
-            }
-            if (parentNode == null) {
-                // ???
-                System.out.println("-------------> ??? parent is null");
-                return;
-            }
-            removeChild(parentNode, childNode);
+
+            attachChild(
+                    parentNode,
+                    childPrefix);
         }
 
-        TreePath path = new TreePath(parentNode.getPath());
-        boolean expanded = folderTree.isExpanded(path);
-        TreePath selected = folderTree.getSelectionPath();
+        /*
+         * -------------------------------------------------
+         * DELETE
+         * -------------------------------------------------
+         */
+        else if (refreshTreeNode.operation()
+                == RefreshTreeOperation.DELETE) {
+
+            /*
+             * Node zaten tree'de yoksa yapılacak
+             * bir işlem yok.
+             */
+            if (childNode == null) {
+
+                /*
+                 * Buna rağmen File Table şu anda
+                 * parent klasörü gösteriyorsa yenile.
+                 */
+                if (Objects.equals(
+                        currentFilePrefix,
+                        parentPrefix)) {
+
+                    SwingUtilities.invokeLater(
+                            this::refreshCurrentTable);
+                }
+
+                return;
+            }
+
+            if (parentNode == null) {
+                return;
+            }
+
+            removeChild(
+                    parentNode,
+                    childNode);
+        }
+
+        /*
+         * -------------------------------------------------
+         * TREE UPDATE
+         * -------------------------------------------------
+         */
+
+        if (parentNode == null) {
+            return;
+        }
+
+        TreePath parentPath =
+                new TreePath(
+                        parentNode.getPath());
+
+        boolean expanded =
+                folderTree.isExpanded(
+                        parentPath);
+
+        /*
+         * Seçili node'u prefix olarak sakla.
+         * Tree model reload edildiğinde eski TreePath
+         * artık güvenilir olmayabilir.
+         */
+        String selectedPrefix = null;
+
+        TreePath selectedPath =
+                folderTree.getSelectionPath();
+
+        if (selectedPath != null
+                && selectedPath.getLastPathComponent()
+                instanceof S3TreeNode selectedNode) {
+
+            selectedPrefix =
+                    selectedNode.getFullPrefix();
+        }
 
         treeModel.reload(parentNode);
 
         if (expanded) {
-            folderTree.expandPath(path);
-        }
-        if (selected != null) {
-            folderTree.setSelectionPath(selected);
+            folderTree.expandPath(parentPath);
         }
 
-        String selectedPrefix = this.getCurrentPrefix();
-        if (((S3TreeNode)selected.getLastPathComponent()).getFullPrefix().equals(selectedPrefix)) {
+        /*
+         * Seçili node hâlâ mevcutsa tekrar seç.
+         */
+        if (selectedPrefix != null) {
+
+            selectNodeByPrefix(
+                    selectedPrefix);
+        }
+
+        /*
+         * Parent klasör açık olan File Table ise
+         * tabloyu yenile.
+         */
+        if (Objects.equals(
+                currentFilePrefix,
+                parentPrefix)) {
+
             refreshCurrentTable();
         }
-/*
-        S3TreeNode node = nodeCache.get(fullPrefix);
-        if (node == null) {
-            refreshTree();
-            return;
-        }
-
-        TreePath path = new TreePath(node.getPath());
-        boolean expanded = folderTree.isExpanded(path);
-        TreePath selected = folderTree.getSelectionPath();
-
-        reloadChildren(node);
-
-        if (expanded) {
-            folderTree.expandPath(path);
-        }
-
-        if (selected != null) {
-            folderTree.setSelectionPath(selected);
-        }*/
     }
-
+    
     private void copySelected() {
         List<S3FileItem> items = getSelectedItems();
         if (items.isEmpty()) {
             return;
         }
-
-        /*for (S3FileItem item : items) {
-            if (item.isFolder()) {
-                JOptionPane.showMessageDialog(
-                        this,
-                        "Folder copy henüz desteklenmiyor.");
-                return;
-            }
-        }*/
 
         clipboard.copy(items);
         updateActionStates();
