@@ -227,9 +227,26 @@ public class TransferPanel
                 new JPanel(
                         new BorderLayout());
 
+        JScrollPane producerScrollPane =
+                new JScrollPane(producerTable);
+
+        producerScrollPane.setHorizontalScrollBarPolicy(
+                ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+
+        producerScrollPane.setVerticalScrollBarPolicy(
+                ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER);
+
+        producerScrollPane.setPreferredSize(
+                new Dimension(0, 48));
+
+        producerScrollPane.setMinimumSize(
+                new Dimension(0, 48));
+
+        producerScrollPane.setMaximumSize(
+                new Dimension(Integer.MAX_VALUE, 48));
+
         contentPanel.add(
-                new JScrollPane(
-                        producerTable),
+                producerScrollPane,
                 BorderLayout.NORTH);
 
         contentPanel.add(
@@ -429,13 +446,15 @@ public class TransferPanel
                 new JTable(
                         producerTableModel);
 
-        table.setRowHeight(40);
+        table.setRowHeight(32);
         table.setFocusable(false);
         table.setEnabled(false);
 
         table.getTableHeader()
                 .setReorderingAllowed(false);
 
+        table.setTableHeader(null);
+        
         table.getColumnModel()
                 .getColumn(0)
                 .setPreferredWidth(500);

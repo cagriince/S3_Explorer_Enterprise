@@ -1263,6 +1263,190 @@ public class ExplorerPanel extends JPanel {
         }
     }
 
+    private void onTransferGroupCompleted(
+            TransferGroupCompletedEvent event) {
+
+        if (event == null || !event.isSuccessful()) {
+            return;
+        }
+
+        SwingUtilities.invokeLater(() -> {
+
+            String repository =
+                    event.getRepository();
+
+            String bucket =
+                    event.getBucket();
+
+            String deletedPrefix =
+                    event.getPrefix();
+
+            RepositoryDefinition currentRepository =
+                    getCurrentRepository();
+
+            String currentBucket =
+                    getCurrentBucket();
+
+            if (currentRepository == null
+                    || currentBucket == null) {
+                return;
+            }
+
+            /*
+             * Başka repository/bucket üzerindeki transfer
+             * Explorer ekranımızı etkilememeli.
+             */
+            if (!Objects.equals(
+                    repository,
+                    currentRepository.getName())
+                    || !Objects.equals(
+                    bucket,
+                    currentBucket)) {
+
+                return;
+            }
+
+            S3TreeNode deletedNode =
+                    nodeCache.get(deletedPrefix);
+
+            if (deletedNode == null) {
+
+                /*
+                 * Tree node zaten görünür değilse,
+                 * yalnızca mevcut file table'ın ilgili
+                 * durumda olup olmadığını kontrol ediyoruz.
+                 */
+                if (deletedPrefix.equals(
+                        currentFilePrefix)) {
+
+                    String parentPrefix =
+                            S3Util.extractParentPrefix(
+                                    deletedPrefix);
+
+                    selectAndLoadPrefix(
+                            bucket,
+                            parentPrefix);
+                }
+
+                return;
+            }
+
+            if (deletedNode.getParent() == null) {
+                return;
+            }
+
+            S3TreeNode parentNode =
+                    (S3TreeNode) deletedNode.getParent();
+
+            String parentPrefix =
+                    parentNode.getFullPrefix();
+
+            /*
+             * Silinen klasörün altında bir klasör
+             * görüntüleniyorsa artık o ekran geçersiz.
+             */
+            boolean currentSelectionDeleted =
+                    currentFilePrefix != null
+                            && (
+                            currentFilePrefix.equals(
+                                    deletedPrefix)
+                                    || currentFilePrefix.startsWith(
+                                    deletedPrefix));
+
+            TreePath parentPath =
+                    new TreePath(
+                            parentNode.getPath());
+
+            boolean parentExpanded =
+                    folderTree.isExpanded(parentPath);
+
+            /*
+             * Tree'den sil.
+             */
+            removeFromCache(deletedNode);
+            parentNode.remove(deletedNode);
+
+            treeModel.reload(parentNode);
+
+            if (parentExpanded) {
+                folderTree.expandPath(parentPath);
+            }
+
+            /*
+             * Eğer silinen klasörün içindeysek
+             * parent klasöre dön.
+             */
+            if (currentSelectionDeleted) {
+
+                folderTree.setSelectionPath(
+                        parentPath);
+
+                folderTree.scrollPathToVisible(
+                        parentPath);
+
+                currentFileBucket = bucket;
+                currentFilePrefix = parentPrefix;
+
+                updateBreadcrumb(
+                        parentPrefix);
+
+                loadFiles(
+                        bucket,
+                        parentPrefix);
+
+                updateActionStates();
+
+                return;
+            }
+
+            /*
+             * Silinen klasör bulunduğumuz klasörün
+             * doğrudan altındaysa file table'daki
+             * klasör satırını da kaldırmak için
+             * mevcut listeyi yenile.
+             */
+            if (parentPrefix.equals(
+                    currentFilePrefix)) {
+
+                loadFiles(
+                        bucket,
+                        currentFilePrefix);
+
+                updateActionStates();
+            }
+        });
+    }
+
+    private void selectAndLoadPrefix(
+            String bucket,
+            String prefix) {
+
+        S3TreeNode root =
+                (S3TreeNode) treeModel.getRoot();
+
+        S3TreeNode node =
+                findNodeByPrefix(
+                        root,
+                        prefix);
+
+        if (node == null) {
+
+            loadFiles(bucket, prefix);
+            updateBreadcrumb(prefix);
+            return;
+        }
+
+        TreePath path =
+                new TreePath(node.getPath());
+
+        folderTree.setSelectionPath(path);
+        folderTree.scrollPathToVisible(path);
+
+        loadFiles(bucket, prefix);
+        updateBreadcrumb(prefix);
+        updateActionStates();
+    }
+    
     private S3TreeNode findNodeByPrefix(S3TreeNode root, String prefix) {
         if (prefix.equals(root.getFullPrefix())) {
             return root;
