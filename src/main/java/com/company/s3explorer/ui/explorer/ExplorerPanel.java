@@ -13,6 +13,7 @@ import com.company.s3explorer.transfer.event.TransferEventBus;
 import com.company.s3explorer.transfer.event.TransferGroupCompletedEvent;
 import com.company.s3explorer.transfer.event.TransferListener;
 import com.company.s3explorer.transfer.manager.TransferManager;
+import com.company.s3explorer.transfer.model.TransferGroup;
 import com.company.s3explorer.transfer.model.TransferTask;
 import com.company.s3explorer.transfer.renderer.FileSizeRenderer;
 import com.company.s3explorer.transfer.renderer.InstantRenderer;
@@ -1265,126 +1266,43 @@ public class ExplorerPanel extends JPanel {
 
     private void onTransferGroupCompleted(
             TransferGroupCompletedEvent event) {
+
+        TransferGroup group =
+                event.getGroup();
+
         System.out.println(
-                "=== GROUP COMPLETED === " +
-                        event.getPrefix());
-        System.out.println(
-                "=== EXPLORER REFRESH === " +
-                        event.getPrefix());
-        if (event == null || !event.isSuccessful()) {
+                "[EXPLORER GROUP COMPLETED] " +
+                        group.getDisplayName());
+
+        if (!event.isSuccessful()) {
+
+            System.out.println(
+                    "[EXPLORER GROUP COMPLETED] " +
+                            "not successful");
+
             return;
         }
 
-        String repository =
-                event.getRepository();
-
-        String bucket =
-                event.getBucket();
-
-        String deletedPrefix =
+        String prefix =
                 event.getPrefix();
 
-        RepositoryDefinition currentRepository =
-                getCurrentRepository();
-
-        String currentBucket =
-                getCurrentBucket();
-
-        if (currentRepository == null
-                || currentBucket == null) {
-            return;
-        }
-
-        /*
-         * Başka repository veya bucket üzerindeki
-         * transfer mevcut Explorer ekranını
-         * etkilememeli.
-         */
-        if (!Objects.equals(
-                repository,
-                currentRepository.getName())
-                || !Objects.equals(
-                bucket,
-                currentBucket)) {
-
-            return;
-        }
-
-        /*
-         * Silinen klasörün bulunduğu mevcut ekranın
-         * altında olup olmadığını belirle.
-         */
         String parentPrefix =
-                S3Util.extractParentPrefix(
-                        deletedPrefix);
+                getParentPrefix(prefix);
 
-        boolean currentFolderDeleted =
-                currentFilePrefix != null
-                        && (
-                        currentFilePrefix.equals(
-                                deletedPrefix)
-                                || currentFilePrefix.startsWith(
-                                deletedPrefix));
+        System.out.println(
+                "[EXPLORER REFRESH] " +
+                        "prefix=" + prefix +
+                        " parent=" + parentPrefix);
 
-        /*
-         * Kullanıcı silinen klasörün içindeyse
-         * önce parent klasöre dönüyoruz.
-         *
-         * Bunu scheduler'a bırakmıyoruz; çünkü
-         * mevcut selection artık tree'de bulunmayacak.
-         */
-        if (currentFolderDeleted) {
-
-            SwingUtilities.invokeLater(() -> {
-
-                selectNodeByPrefix(parentPrefix);
-
-                currentFileBucket = bucket;
-                currentFilePrefix = parentPrefix;
-
-                updateBreadcrumb(parentPrefix);
-
-                loadFiles(
-                        bucket,
-                        parentPrefix);
-
-                updateActionStates();
-            });
-
-            /*
-             * Tree'deki silinen node'u scheduler üzerinden
-             * kaldır.
-             */
-            refreshScheduler.scheduleRefresh(
-                    Set.of(
-                            new RefreshTreeNode(
-                                    deletedPrefix,
-                                    RefreshTreeOperation.DELETE)));
-
-            return;
-        }
-
-        /*
-         * Normal durumda yalnızca silinen klasörün
-         * tree node'unu scheduler üzerinden kaldır.
-         *
-         * Böylece Explorer'daki normal transferlerle
-         * aynı refresh mekanizması kullanılıyor.
-         */
         refreshScheduler.scheduleRefresh(
-                Set.of(
+                List.of(
                         new RefreshTreeNode(
-                                deletedPrefix,
+                                parentPrefix,
                                 RefreshTreeOperation.DELETE)));
 
-        /*
-         * Silinen klasör şu anda açık olan klasörün
-         * doğrudan altındaysa File Table'daki klasör
-         * satırını da kaldır.
-         */
         if (Objects.equals(
-                currentFilePrefix,
-                parentPrefix)) {
+                parentPrefix,
+                currentFilePrefix)) {
 
             refreshScheduler
                     .scheduleCurrentTableRefresh();
@@ -1701,150 +1619,31 @@ public class ExplorerPanel extends JPanel {
         treeModel.reload(parent);
     }
 
-    public void refreshNode(
-            RefreshTreeNode refreshTreeNode) {
+    private void refreshNode(
+            RefreshTreeNode request) {
 
-        if (refreshTreeNode == null) {
+        String prefix =
+                request.prefix();
+
+        System.out.println(
+                "[EXPLORER TREE REFRESH] " +
+                        "prefix=" + prefix +
+                        " operation=" +
+                        request.operation());
+
+        S3TreeNode node =
+                nodeCache.get(prefix);
+
+        if (node == null) {
+
+            System.out.println(
+                    "[EXPLORER TREE REFRESH] " +
+                            "node not found: " + prefix);
+
             return;
         }
 
-        String childPrefix =
-                refreshTreeNode.prefix();
-
-        if (childPrefix == null) {
-            return;
-        }
-
-        S3TreeNode childNode =
-                nodeCache.get(childPrefix);
-
-        String parentPrefix =
-                S3Util.extractParentPrefix(
-                        childPrefix);
-
-        S3TreeNode parentNode =
-                nodeCache.get(parentPrefix);
-
-        /*
-         * -------------------------------------------------
-         * ADD
-         * -------------------------------------------------
-         */
-        if (refreshTreeNode.operation()
-                == RefreshTreeOperation.ADD) {
-
-            if (childNode != null) {
-                return;
-            }
-
-            if (parentNode == null) {
-                return;
-            }
-
-            attachChild(
-                    parentNode,
-                    childPrefix);
-        }
-
-        /*
-         * -------------------------------------------------
-         * DELETE
-         * -------------------------------------------------
-         */
-        else if (refreshTreeNode.operation()
-                == RefreshTreeOperation.DELETE) {
-
-            /*
-             * Node zaten tree'de yoksa yapılacak
-             * bir işlem yok.
-             */
-            if (childNode == null) {
-
-                /*
-                 * Buna rağmen File Table şu anda
-                 * parent klasörü gösteriyorsa yenile.
-                 */
-                if (Objects.equals(
-                        currentFilePrefix,
-                        parentPrefix)) {
-
-                    SwingUtilities.invokeLater(
-                            this::refreshCurrentTable);
-                }
-
-                return;
-            }
-
-            if (parentNode == null) {
-                return;
-            }
-
-            removeChild(
-                    parentNode,
-                    childNode);
-        }
-
-        /*
-         * -------------------------------------------------
-         * TREE UPDATE
-         * -------------------------------------------------
-         */
-
-        if (parentNode == null) {
-            return;
-        }
-
-        TreePath parentPath =
-                new TreePath(
-                        parentNode.getPath());
-
-        boolean expanded =
-                folderTree.isExpanded(
-                        parentPath);
-
-        /*
-         * Seçili node'u prefix olarak sakla.
-         * Tree model reload edildiğinde eski TreePath
-         * artık güvenilir olmayabilir.
-         */
-        String selectedPrefix = null;
-
-        TreePath selectedPath =
-                folderTree.getSelectionPath();
-
-        if (selectedPath != null
-                && selectedPath.getLastPathComponent()
-                instanceof S3TreeNode selectedNode) {
-
-            selectedPrefix =
-                    selectedNode.getFullPrefix();
-        }
-
-        treeModel.reload(parentNode);
-
-        if (expanded) {
-            folderTree.expandPath(parentPath);
-        }
-
-        /*
-         * Seçili node hâlâ mevcutsa tekrar seç.
-         */
-        if (selectedPrefix != null) {
-
-            selectNodeByPrefix(
-                    selectedPrefix);
-        }
-
-        /*
-         * Parent klasör açık olan File Table ise
-         * tabloyu yenile.
-         */
-        if (Objects.equals(
-                currentFilePrefix,
-                parentPrefix)) {
-
-            refreshCurrentTable();
-        }
+        loadChildren(node);
     }
     
     private void copySelected() {
@@ -2148,5 +1947,33 @@ public class ExplorerPanel extends JPanel {
         TreePath parentPath = new TreePath(parent.getPath());
         folderTree.setSelectionPath(parentPath);
         folderTree.scrollPathToVisible(parentPath);
+    }
+
+    private String getParentPrefix(
+            String prefix) {
+
+        if (prefix == null
+                || prefix.isBlank()) {
+
+            return S3TreeNode.ROOT_PREFIX;
+        }
+
+        String normalized =
+                prefix.endsWith("/")
+                        ? prefix.substring(
+                        0,
+                        prefix.length() - 1)
+                        : prefix;
+
+        int index =
+                normalized.lastIndexOf('/');
+
+        if (index < 0) {
+            return S3TreeNode.ROOT_PREFIX;
+        }
+
+        return normalized.substring(
+                0,
+                index + 1);
     }
 }
