@@ -42,7 +42,21 @@ public abstract class AbstractFolderTransferProducer
         this.group.setCompletionCallback(
                 () -> {
 
+                    System.out.println(
+                            "[GROUP CALLBACK] " +
+                                    "group=" + this.group.getDisplayName() +
+                                    " finished=" + this.group.isFinished() +
+                                    " successful=" + this.group.isFullySuccessful() +
+                                    " queued=" + this.group.getQueued() +
+                                    " running=" + this.group.getRunning() +
+                                    " completed=" + this.group.getCompleted() +
+                                    " failed=" + this.group.getFailed() +
+                                    " cancelled=" + this.group.getCancelled());
+
                     if (this.group.isFullySuccessful()) {
+
+                        System.out.println(
+                                "[GROUP CALLBACK] publishing group completed");
 
                         context.publishGroupCompleted(
                                 this.group,

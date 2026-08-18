@@ -46,6 +46,11 @@ public class TransferEventBus {
             String bucket,
             String prefix) {
 
+        System.out.println(
+                "[EVENT BUS] publishGroupCompleted " +
+                        "listeners=" + listeners.size() +
+                        " group=" + group.getDisplayName());
+
         TransferGroupCompletedEvent event =
                 new TransferGroupCompletedEvent(
                         group,
@@ -55,6 +60,10 @@ public class TransferEventBus {
 
         for (TransferListener listener :
                 listeners) {
+
+            System.out.println(
+                    "[EVENT BUS] notifying " +
+                            listener.getClass().getName());
 
             listener.onTransferGroupCompleted(
                     event);
