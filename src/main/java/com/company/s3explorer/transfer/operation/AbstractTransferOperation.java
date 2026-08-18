@@ -23,10 +23,18 @@ public abstract class AbstractTransferOperation implements TransferOperation {
             checkCancelled(runtime);
             doExecute(runtime, transferContext);
             checkCancelled(runtime);
+            System.out.println(
+                    "[OPERATION BEFORE COMPLETE] " +
+                            runtime.getTask().getId() +
+                            " key=" +
+                            runtime.getTask().getObjectKey());
             if (group != null) {
                 group.completed();
             }
             transferContext.publishCompleted(runtime);
+            System.out.println(
+                    "[OPERATION PUBLISHED COMPLETED] " +
+                            runtime.getTask().getId());
         }
         catch (CancellationException ex) {
             if (group != null) {

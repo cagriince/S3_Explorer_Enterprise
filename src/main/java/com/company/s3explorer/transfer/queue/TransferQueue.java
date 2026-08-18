@@ -63,13 +63,6 @@ public class TransferQueue {
         activeTransfers.put(
                 runtime.getTask().getId(),
                 runtime);
-
-        TransferGroup group =
-                runtime.getTask().getGroup();
-
-        if (group != null) {
-            group.running();
-        }
     }
 
     public void markFinished(
@@ -77,31 +70,6 @@ public class TransferQueue {
 
         activeTransfers.remove(
                 runtime.getTask().getId());
-
-        TransferGroup group =
-                runtime.getTask().getGroup();
-
-        if (group == null) {
-            return;
-        }
-
-        switch (runtime.getStatus()) {
-
-            case CANCELLED:
-                group.cancelled();
-                break;
-
-            case FAILED:
-                group.failed();
-                break;
-
-            case COMPLETED:
-                group.completed();
-                break;
-
-            default:
-                break;
-        }
     }
     
     public boolean cancel(

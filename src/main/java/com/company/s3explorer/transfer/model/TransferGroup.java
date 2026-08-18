@@ -62,18 +62,46 @@ public class TransferGroup {
 
     public void running() {
 
-        queued.decrementAndGet();
-        running.incrementAndGet();
+        int q =
+                queued.decrementAndGet();
+
+        int r =
+                running.incrementAndGet();
+
+        System.out.println(
+                "[GROUP RUNNING] " +
+                        displayName +
+                        " queued=" + q +
+                        " running=" + r +
+                        " completed=" + completed.get() +
+                        " failed=" + failed.get() +
+                        " cancelled=" + cancelled.get() +
+                        " productionCompleted=" +
+                        productionCompleted);
     }
 
     public void completed() {
 
-        running.decrementAndGet();
-        completed.incrementAndGet();
+        int r =
+                running.decrementAndGet();
+
+        int c =
+                completed.incrementAndGet();
+
+        System.out.println(
+                "[GROUP COMPLETED TASK] " +
+                        displayName +
+                        " queued=" + queued.get() +
+                        " running=" + r +
+                        " completed=" + c +
+                        " failed=" + failed.get() +
+                        " cancelled=" + cancelled.get() +
+                        " productionCompleted=" +
+                        productionCompleted);
 
         checkCompletion();
     }
-
+    
     public void failed() {
 
         running.decrementAndGet();
@@ -106,9 +134,18 @@ public class TransferGroup {
 
         productionCompleted = true;
 
+        System.out.println(
+                "[GROUP PRODUCTION COMPLETED] " +
+                        displayName +
+                        " queued=" + queued.get() +
+                        " running=" + running.get() +
+                        " completed=" + completed.get() +
+                        " failed=" + failed.get() +
+                        " cancelled=" + cancelled.get());
+
         checkCompletion();
     }
-
+    
     public boolean isProductionCompleted() {
 
         return productionCompleted;
@@ -159,6 +196,17 @@ public class TransferGroup {
 
     private void checkCompletion() {
 
+        System.out.println(
+                "[GROUP CHECK] " +
+                        displayName +
+                        " queued=" + queued.get() +
+                        " running=" + running.get() +
+                        " completed=" + completed.get() +
+                        " failed=" + failed.get() +
+                        " cancelled=" + cancelled.get() +
+                        " productionCompleted=" +
+                        productionCompleted);
+
         if (!isFinished()) {
             return;
         }
@@ -178,6 +226,10 @@ public class TransferGroup {
             }
 
             completionPublished = true;
+
+            System.out.println(
+                    "[GROUP FINISHED!!!] " +
+                            displayName);
 
             Runnable callback =
                     completionCallback;
