@@ -63,6 +63,13 @@ public class TransferQueue {
         activeTransfers.put(
                 runtime.getTask().getId(),
                 runtime);
+
+        TransferGroup group =
+                runtime.getTask().getGroup();
+
+        if (group != null) {
+            group.running();
+        }
     }
 
     public void markFinished(

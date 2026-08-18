@@ -1265,7 +1265,12 @@ public class ExplorerPanel extends JPanel {
 
     private void onTransferGroupCompleted(
             TransferGroupCompletedEvent event) {
-
+        System.out.println(
+                "=== GROUP COMPLETED === " +
+                        event.getPrefix());
+        System.out.println(
+                "=== EXPLORER REFRESH === " +
+                        event.getPrefix());
         if (event == null || !event.isSuccessful()) {
             return;
         }
