@@ -1622,23 +1622,35 @@ public class ExplorerPanel extends JPanel {
     private void refreshNode(
             RefreshTreeNode request) {
 
-        String prefix =
-                request.prefix();
+        String prefix = request.prefix();
 
         System.out.println(
-                "[EXPLORER TREE REFRESH] " +
-                        "prefix=" + prefix +
+                "[EXPLORER TREE REFRESH] prefix=" +
+                        prefix +
                         " operation=" +
                         request.operation());
 
+        String targetPrefix = prefix;
+
+        if (request.operation() ==
+                RefreshTreeOperation.DELETE) {
+
+            targetPrefix =
+                    getParentPrefix(prefix);
+
+            System.out.println(
+                    "[EXPLORER TREE REFRESH] DELETE -> parent=" +
+                            targetPrefix);
+        }
+
         S3TreeNode node =
-                nodeCache.get(prefix);
+                nodeCache.get(targetPrefix);
 
         if (node == null) {
 
             System.out.println(
-                    "[EXPLORER TREE REFRESH] " +
-                            "node not found: " + prefix);
+                    "[EXPLORER TREE REFRESH] node not found: " +
+                            targetPrefix);
 
             return;
         }
@@ -1949,31 +1961,23 @@ public class ExplorerPanel extends JPanel {
         folderTree.scrollPathToVisible(parentPath);
     }
 
-    private String getParentPrefix(
-            String prefix) {
+    private String getParentPrefix(String prefix) {
 
-        if (prefix == null
-                || prefix.isBlank()) {
-
+        if (prefix == null || prefix.isBlank()) {
             return S3TreeNode.ROOT_PREFIX;
         }
 
         String normalized =
                 prefix.endsWith("/")
-                        ? prefix.substring(
-                        0,
-                        prefix.length() - 1)
+                        ? prefix.substring(0, prefix.length() - 1)
                         : prefix;
 
-        int index =
-                normalized.lastIndexOf('/');
+        int index = normalized.lastIndexOf('/');
 
         if (index < 0) {
             return S3TreeNode.ROOT_PREFIX;
         }
 
-        return normalized.substring(
-                0,
-                index + 1);
+        return normalized.substring(0, index + 1);
     }
 }
