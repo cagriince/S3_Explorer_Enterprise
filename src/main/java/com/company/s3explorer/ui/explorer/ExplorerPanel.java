@@ -161,7 +161,9 @@ public class ExplorerPanel extends JPanel {
                     @Override
                     public void onTransferGroupCompleted(
                             TransferGroupCompletedEvent event) {
-
+                        System.out.println(
+                                "[EXPLORER LISTENER ENTERED] " +
+                                        "event=" + event);
                         onTransferGroupCompleted(event);
                     }
                 });
