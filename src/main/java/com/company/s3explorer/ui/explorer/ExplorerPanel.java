@@ -688,60 +688,127 @@ public class ExplorerPanel extends JPanel {
     public void loadBucketsAsync() {
 
         /*
-         * Refresh başlamadan önce mevcut bucket'ı sakla.
+         * Refresh başlamadan önce aktif bucket'ı sakla.
          *
-         * Eğer pendingBucketSelection zaten set edilmişse
-         * onu bozma.
+         * Eğer dışarıdan özellikle bir bucket seçimi
+         * bekletiliyorsa onu kullan.
          */
-        if (pendingBucketSelection == null) {
-            pendingBucketSelection =
-                    getCurrentBucket();
-        }
-
         final String bucketToSelect =
-                pendingBucketSelection;
+                pendingBucketSelection != null
+                        ? pendingBucketSelection
+                        : getCurrentBucket();
 
         explorerPool.submit(() -> {
 
             try {
 
                 /*
-                 * Güncel repository tanımını al.
+                 * ComboBox'ta seçili repository'nin ADINI alıyoruz.
+                 */
+                RepositoryDefinition selectedRepository =
+                        (RepositoryDefinition)
+                                repositoryCombo.getSelectedItem();
+
+                if (selectedRepository == null
+                        || selectedRepository ==
+                        RepositoryDefinition.EMPTY_REPOSITORY) {
+
+                    log.debug(
+                            "[BUCKET LOAD] no repository selected");
+
+                    return;
+                }
+
+                /*
+                 * RepositoryManager'dan repository'nin
+                 * GÜNCEL halini alıyoruz.
                  *
-                 * RepositoryDialog'da external bucket değiştiyse
-                 * burada yeni listeyi kullanacağız.
+                 * RepositoryDialog'da external bucket eklenmiş /
+                 * silinmişse burada yeni liste bulunacak.
                  */
                 RepositoryDefinition repository =
-                        getCurrentRepository();
+                        repositoryManager.findByName(
+                                selectedRepository.getName());
 
-                List<String> buckets =
-                        getService().listBuckets();
+                if (repository == null
+                        || repository ==
+                        RepositoryDefinition.EMPTY_REPOSITORY) {
 
-                Set<String> allBuckets =
-                        new LinkedHashSet<>(
-                                buckets);
+                    log.warn(
+                            "[BUCKET LOAD] repository not found: {}",
+                            selectedRepository.getName());
 
-                if (repository != null) {
-
-                    allBuckets.addAll(
-                            repository
-                                    .getExternalBuckets());
+                    return;
                 }
+
+                log.debug(
+                        "[BUCKET LOAD START] repository={} previousBucket={} externalBuckets={}",
+                        repository.getName(),
+                        bucketToSelect,
+                        repository.getExternalBuckets());
+
+                /*
+                 * Önce S3'teki gerçek bucket'ları al.
+                 */
+                List<String> s3Buckets;
+
+                try {
+
+                    s3Buckets =
+                            getService().listBuckets();
+
+                }
+                catch (Exception ex) {
+
+                    /*
+                     * ListBuckets yetkisi yoksa problem değil.
+                     * External bucket'larla devam edeceğiz.
+                     */
+                    log.warn(
+                            "[BUCKET LOAD] ListBuckets failed; using external buckets only",
+                            ex);
+
+                    s3Buckets =
+                            Collections.emptyList();
+                }
+
+                /*
+                 * S3 bucket'ları + external bucket'lar.
+                 *
+                 * LinkedHashSet:
+                 * - duplicate'i engeller
+                 * - sıralamayı korur
+                 */
+                Set<String> allBuckets =
+                        new LinkedHashSet<>();
+
+                allBuckets.addAll(s3Buckets);
+
+                allBuckets.addAll(
+                        repository.getExternalBuckets());
 
                 SwingUtilities.invokeLater(() -> {
 
-                    suppressBucketSelectionEvent =
-                            true;
+                    suppressBucketSelectionEvent = true;
+
+                    String selectedBucket = null;
 
                     try {
 
+                        /*
+                         * ComboBox'ı güncelle.
+                         */
                         bucketCombo.removeAllItems();
 
-                        allBuckets.forEach(
-                                bucketCombo::addItem);
+                        for (String bucket :
+                                allBuckets) {
+
+                            bucketCombo.addItem(bucket);
+                        }
 
                         /*
-                         * Önce eski aktif bucket'ı korumayı dene.
+                         * Önce mevcut aktif bucket'ı
+                         * mümkünse koru.
                          */
                         if (bucketToSelect != null
                                 && allBuckets.contains(
@@ -749,37 +816,43 @@ public class ExplorerPanel extends JPanel {
 
                             bucketCombo.setSelectedItem(
                                     bucketToSelect);
-                        }
 
+                        }
                         /*
-                         * Eski bucket artık yoksa
-                         * ilk bucket'a geç.
+                         * Aktif bucket artık yoksa
+                         * ilk geçerli bucket'a geç.
                          */
                         else if (bucketCombo.getItemCount() > 0) {
 
                             bucketCombo.setSelectedIndex(0);
                         }
 
+                        selectedBucket =
+                                (String)
+                                        bucketCombo.getSelectedItem();
+
+                        log.debug(
+                                "[BUCKET LOAD RESULT] repository={} buckets={} selected={}",
+                                repository.getName(),
+                                allBuckets,
+                                selectedBucket);
+
                     }
                     finally {
 
-                        suppressBucketSelectionEvent =
-                                false;
+                        suppressBucketSelectionEvent = false;
 
                         pendingBucketSelection = null;
                     }
 
                     /*
-                     * ComboBox'ın otomatik selection event'i
-                     * bastırıldı.
+                     * ComboBox ActionListener yukarıdaki
+                     * suppress nedeniyle çalışmadı.
                      *
-                     * Şimdi gerçekten seçilmiş olan bucket'ın
-                     * tree/table içeriğini bir kez yükle.
+                     * Bu yüzden tree/table'ı yalnızca
+                     * GERÇEKTEN seçilmiş bucket ile
+                     * bir kez yükle.
                      */
-                    String selectedBucket =
-                            (String)
-                                    bucketCombo.getSelectedItem();
-
                     if (selectedBucket != null) {
 
                         loadRootFolders(
@@ -791,62 +864,12 @@ public class ExplorerPanel extends JPanel {
             catch (Exception ex) {
 
                 log.error(
-                        "Bucket list could not be loaded",
+                        "[BUCKET LOAD] failed",
                         ex);
 
                 SwingUtilities.invokeLater(() -> {
 
-                    RepositoryDefinition repository =
-                            getCurrentRepository();
-
-                    Set<String> externalBuckets =
-                            repository == null
-                                    ? Collections.emptySet()
-                                    : new LinkedHashSet<>(
-                                    repository
-                                            .getExternalBuckets());
-
-                    suppressBucketSelectionEvent =
-                            true;
-
-                    try {
-
-                        bucketCombo.removeAllItems();
-
-                        externalBuckets.forEach(
-                                bucketCombo::addItem);
-
-                        if (bucketToSelect != null
-                                && externalBuckets.contains(
-                                bucketToSelect)) {
-
-                            bucketCombo.setSelectedItem(
-                                    bucketToSelect);
-
-                        }
-                        else if (bucketCombo.getItemCount() > 0) {
-
-                            bucketCombo.setSelectedIndex(0);
-                        }
-
-                    }
-                    finally {
-
-                        suppressBucketSelectionEvent =
-                                false;
-
-                        pendingBucketSelection = null;
-                    }
-
-                    String selectedBucket =
-                            (String)
-                                    bucketCombo.getSelectedItem();
-
-                    if (selectedBucket != null) {
-
-                        loadRootFolders(
-                                selectedBucket);
-                    }
+                    pendingBucketSelection = null;
                 });
             }
         });
@@ -2274,8 +2297,8 @@ public class ExplorerPanel extends JPanel {
             }
 
             /*
-             * Başka bir repository değiştiyse
-             * Explorer'da hiçbir şey yapma.
+             * Başka repository değiştiyse
+             * Explorer'a dokunma.
              */
             if (!Objects.equals(
                     currentRepository.getName(),
@@ -2289,16 +2312,15 @@ public class ExplorerPanel extends JPanel {
                     changedRepository.getName());
 
             /*
-             * Aktif bucket'ı koru.
+             * Mevcut bucket'ı sakla.
              */
             pendingBucketSelection =
                     getCurrentBucket();
 
             /*
-             * Repository ComboBox'ı yeniden doldurma!
+             * Repository ComboBox'a dokunma.
              *
-             * Aksi halde loadRepositoriesAsync()
-             * EMPTY_REPOSITORY seçer.
+             * Sadece bucket listesini güncelle.
              */
             loadBucketsAsync();
         });
