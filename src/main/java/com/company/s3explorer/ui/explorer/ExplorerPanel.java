@@ -174,7 +174,15 @@ public class ExplorerPanel extends JPanel {
         add(createMainSplit(), BorderLayout.CENTER);
         bindEvents();
         defineShortCuts();
+        fileTableRowLimitSelectionListener =
+                selectedLimit -> {
 
+                    log.debug(
+                            "[FILE TABLE LIMIT CHANGED] limit={}",
+                            selectedLimit);
+
+                    reloadCurrentFileTable();
+                };
         reloadRepositories();
         
         repositoryManager.addRepositoryChangeListener(
@@ -1320,9 +1328,6 @@ public class ExplorerPanel extends JPanel {
         updateBreadcrumb(
                 S3TreeNode.ROOT_PREFIX);
         updateActionStates();
-
-        fileTableModel.setFiles(
-                Collections.emptyList());
 
         if (!context.hasActiveRepository()) {
             return;
@@ -2538,19 +2543,26 @@ public class ExplorerPanel extends JPanel {
         switch (column) {
 
             case FileTableModel.COL_SIZE:
+
                 sortColumn =
                         FileTableSortSpec.Column.SIZE;
+
                 break;
 
             case FileTableModel.COL_LAST_MODIFIED:
+
                 sortColumn =
                         FileTableSortSpec.Column.LAST_MODIFIED;
+
                 break;
 
             case FileTableModel.COL_NAME:
+
             default:
+
                 sortColumn =
                         FileTableSortSpec.Column.NAME;
+
                 break;
         }
 
@@ -2581,15 +2593,30 @@ public class ExplorerPanel extends JPanel {
 
     private void reloadCurrentFileTable() {
 
-        if (currentFileBucket == null
-                || currentFilePrefix == null) {
+        String bucket =
+                currentFileBucket;
 
+        String prefix =
+                currentFilePrefix;
+
+        if (bucket == null) {
             return;
         }
 
+        if (prefix == null) {
+            prefix =
+                    S3TreeNode.ROOT_PREFIX;
+        }
+
+        log.debug(
+                "[FILE TABLE RELOAD] bucket={} prefix={} limit={}",
+                bucket,
+                prefix,
+                getSelectedFileTableRowLimit());
+
         loadFiles(
-                currentFileBucket,
-                currentFilePrefix);
+                bucket,
+                prefix);
     }
 
     private void applyLimitedFolderContent(

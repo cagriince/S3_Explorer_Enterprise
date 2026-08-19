@@ -76,18 +76,16 @@ public class FileTableRowSorter extends TableRowSorter<FileTableModel> {
         List<? extends SortKey> keys =
                 getSortKeys();
 
-        if (keys == null || keys.isEmpty()) {
+        if (keys == null
+                || keys.isEmpty()) {
+
             return FileTableModel.COL_NAME;
         }
 
-        /*
-         * 0 = Folder/File kolonu.
-         * Asıl kullanıcı sıralamasını ikinci key'de
-         * tutuyoruz.
-         */
         for (SortKey key : keys) {
 
             if (key.getColumn() != 0) {
+
                 return key.getColumn();
             }
         }
@@ -100,13 +98,16 @@ public class FileTableRowSorter extends TableRowSorter<FileTableModel> {
         List<? extends SortKey> keys =
                 getSortKeys();
 
-        if (keys == null || keys.isEmpty()) {
+        if (keys == null
+                || keys.isEmpty()) {
+
             return SortOrder.ASCENDING;
         }
 
         for (SortKey key : keys) {
 
             if (key.getColumn() != 0) {
+
                 return key.getSortOrder();
             }
         }
