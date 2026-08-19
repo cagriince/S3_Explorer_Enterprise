@@ -3,6 +3,7 @@ package com.company.s3explorer.repository;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Consumer;
 
 public class RepositoryManager {
 
@@ -12,7 +13,8 @@ public class RepositoryManager {
     private final RepositoryConfigStore store =
             new RepositoryConfigStore();
 
-    private final List<Runnable> repositoryChangeListeners =
+    private final List<Consumer<RepositoryDefinition>>
+            repositoryChangeListeners =
             new CopyOnWriteArrayList<>();
 
     public RepositoryManager() {
@@ -23,13 +25,17 @@ public class RepositoryManager {
         return new ArrayList<>(repositories);
     }
 
-    public void addRepositoryChangeListener(Runnable listener) {
+    public void addRepositoryChangeListener(
+            Consumer<RepositoryDefinition> listener) {
+
         if (listener != null) {
             repositoryChangeListeners.add(listener);
         }
     }
 
-    public void removeRepositoryChangeListener(Runnable listener) {
+    public void removeRepositoryChangeListener(
+            Consumer<RepositoryDefinition> listener) {
+
         if (listener != null) {
             repositoryChangeListeners.remove(listener);
         }
@@ -39,42 +45,60 @@ public class RepositoryManager {
         store.save(repositories);
     }
 
-    private void fireRepositoryChanged() {
-        for (Runnable listener : repositoryChangeListeners) {
+    private void fireRepositoryChanged(
+            RepositoryDefinition repository) {
+
+        for (Consumer<RepositoryDefinition> listener :
+                repositoryChangeListeners) {
+
             try {
-                listener.run();
-            } catch (Exception ex) {
+                listener.accept(repository);
+            }
+            catch (Exception ex) {
                 ex.printStackTrace();
             }
         }
     }
 
-    public void addRepository(RepositoryDefinition repo) {
+    public void addRepository(
+            RepositoryDefinition repo) {
+
         repositories.add(repo);
         persist();
-        fireRepositoryChanged();
+
+        fireRepositoryChanged(repo);
     }
 
-    public void removeRepository(RepositoryDefinition repo) {
+    public void removeRepository(
+            RepositoryDefinition repo) {
+
         repositories.remove(repo);
         persist();
-        fireRepositoryChanged();
+
+        fireRepositoryChanged(repo);
     }
 
     public void updateRepository(
             RepositoryDefinition oldRepo,
             RepositoryDefinition newRepo) {
 
-        int idx = repositories.indexOf(oldRepo);
+        int idx =
+                repositories.indexOf(oldRepo);
 
         if (idx >= 0) {
-            repositories.set(idx, newRepo);
+
+            repositories.set(
+                    idx,
+                    newRepo);
+
             persist();
-            fireRepositoryChanged();
+
+            fireRepositoryChanged(newRepo);
         }
     }
 
-    public RepositoryDefinition findByName(String name) {
+    public RepositoryDefinition findByName(
+            String name) {
 
         if (name == null) {
             return null;
@@ -82,7 +106,9 @@ public class RepositoryManager {
 
         RepositoryDefinition repository =
                 repositories.stream()
-                        .filter(r -> name.equals(r.getName()))
+                        .filter(r ->
+                                name.equals(
+                                        r.getName()))
                         .findFirst()
                         .orElse(null);
 

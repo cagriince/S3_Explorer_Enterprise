@@ -104,7 +104,8 @@ public class ExplorerPanel extends JPanel {
     private Consumer<String> bucketSelectionListener;
     private RepositoryDefinition pendingRepositorySelection;
     private String pendingBucketSelection;
-
+    private boolean suppressBucketSelectionEvent;
+    
     private final ExplorerClipboard clipboard = new ExplorerClipboard();
 
     private Action downloadAction;
@@ -684,95 +685,168 @@ public class ExplorerPanel extends JPanel {
         });
     }
 
-    private void loadBucketsAsync() {
-        String previousBucket =
-                getCurrentBucket();
+    public void loadBucketsAsync() {
 
+        /*
+         * Refresh başlamadan önce mevcut bucket'ı sakla.
+         *
+         * Eğer pendingBucketSelection zaten set edilmişse
+         * onu bozma.
+         */
         if (pendingBucketSelection == null) {
             pendingBucketSelection =
-                    previousBucket;
+                    getCurrentBucket();
         }
-        
+
+        final String bucketToSelect =
+                pendingBucketSelection;
+
         explorerPool.submit(() -> {
-
-            RepositoryDefinition repository =
-                    getFreshSelectedRepository();
-
-            if (repository == null) {
-                return;
-            }
 
             try {
 
-                S3ExplorerService service =
-                        new S3ExplorerService(
-                                clientManager.getClient(repository));
+                /*
+                 * Güncel repository tanımını al.
+                 *
+                 * RepositoryDialog'da external bucket değiştiyse
+                 * burada yeni listeyi kullanacağız.
+                 */
+                RepositoryDefinition repository =
+                        getCurrentRepository();
 
                 List<String> buckets =
-                        service.listBuckets();
+                        getService().listBuckets();
 
                 Set<String> allBuckets =
-                        new LinkedHashSet<>(buckets);
+                        new LinkedHashSet<>(
+                                buckets);
 
-                allBuckets.addAll(
-                        repository.getExternalBuckets());
+                if (repository != null) {
+
+                    allBuckets.addAll(
+                            repository
+                                    .getExternalBuckets());
+                }
 
                 SwingUtilities.invokeLater(() -> {
 
-                    bucketCombo.removeAllItems();
+                    suppressBucketSelectionEvent =
+                            true;
 
-                    allBuckets.forEach(
-                            bucketCombo::addItem);
+                    try {
 
-                    if (pendingBucketSelection != null
-                            && allBuckets.contains(
-                            pendingBucketSelection)) {
+                        bucketCombo.removeAllItems();
 
-                        bucketCombo.setSelectedItem(
-                                pendingBucketSelection);
+                        allBuckets.forEach(
+                                bucketCombo::addItem);
 
-                    } else if (bucketCombo.getItemCount() > 0) {
+                        /*
+                         * Önce eski aktif bucket'ı korumayı dene.
+                         */
+                        if (bucketToSelect != null
+                                && allBuckets.contains(
+                                bucketToSelect)) {
 
-                        bucketCombo.setSelectedIndex(0);
+                            bucketCombo.setSelectedItem(
+                                    bucketToSelect);
+                        }
+
+                        /*
+                         * Eski bucket artık yoksa
+                         * ilk bucket'a geç.
+                         */
+                        else if (bucketCombo.getItemCount() > 0) {
+
+                            bucketCombo.setSelectedIndex(0);
+                        }
+
+                    }
+                    finally {
+
+                        suppressBucketSelectionEvent =
+                                false;
+
+                        pendingBucketSelection = null;
                     }
 
-                    pendingBucketSelection = null;
+                    /*
+                     * ComboBox'ın otomatik selection event'i
+                     * bastırıldı.
+                     *
+                     * Şimdi gerçekten seçilmiş olan bucket'ın
+                     * tree/table içeriğini bir kez yükle.
+                     */
+                    String selectedBucket =
+                            (String)
+                                    bucketCombo.getSelectedItem();
+
+                    if (selectedBucket != null) {
+
+                        loadRootFolders(
+                                selectedBucket);
+                    }
                 });
 
-            } catch (Exception ex) {
+            }
+            catch (Exception ex) {
 
                 log.error(
                         "Bucket list could not be loaded",
                         ex);
 
-                /*
-                 * ListBuckets yetkisi yoksa bile
-                 * external bucket'lar kullanılabilsin.
-                 */
                 SwingUtilities.invokeLater(() -> {
 
-                    bucketCombo.removeAllItems();
+                    RepositoryDefinition repository =
+                            getCurrentRepository();
 
-                    repository
-                            .getExternalBuckets()
-                            .forEach(
-                                    bucketCombo::addItem);
+                    Set<String> externalBuckets =
+                            repository == null
+                                    ? Collections.emptySet()
+                                    : new LinkedHashSet<>(
+                                    repository
+                                            .getExternalBuckets());
 
-                    if (pendingBucketSelection != null
-                            && repository
-                            .getExternalBuckets()
-                            .contains(
-                                    pendingBucketSelection)) {
+                    suppressBucketSelectionEvent =
+                            true;
 
-                        bucketCombo.setSelectedItem(
-                                pendingBucketSelection);
+                    try {
 
-                    } else if (bucketCombo.getItemCount() > 0) {
+                        bucketCombo.removeAllItems();
 
-                        bucketCombo.setSelectedIndex(0);
+                        externalBuckets.forEach(
+                                bucketCombo::addItem);
+
+                        if (bucketToSelect != null
+                                && externalBuckets.contains(
+                                bucketToSelect)) {
+
+                            bucketCombo.setSelectedItem(
+                                    bucketToSelect);
+
+                        }
+                        else if (bucketCombo.getItemCount() > 0) {
+
+                            bucketCombo.setSelectedIndex(0);
+                        }
+
+                    }
+                    finally {
+
+                        suppressBucketSelectionEvent =
+                                false;
+
+                        pendingBucketSelection = null;
                     }
 
-                    pendingBucketSelection = null;
+                    String selectedBucket =
+                            (String)
+                                    bucketCombo.getSelectedItem();
+
+                    if (selectedBucket != null) {
+
+                        loadRootFolders(
+                                selectedBucket);
+                    }
                 });
             }
         });
@@ -988,6 +1062,10 @@ public class ExplorerPanel extends JPanel {
         });
 
         bucketCombo.addActionListener(e -> {
+            if (suppressBucketSelectionEvent) {
+                return;
+            }
+            
             String bucket = this.getCurrentBucket();
             if (bucket == null) {
                 return;
@@ -2176,20 +2254,52 @@ public class ExplorerPanel extends JPanel {
         return fresh;
     }
 
-    private void onRepositoryChanged() {
+    private void onRepositoryChanged(
+            RepositoryDefinition changedRepository) {
+
+        if (changedRepository == null) {
+            return;
+        }
 
         SwingUtilities.invokeLater(() -> {
 
-            log.info("[EXPLORER REPOSITORY CHANGED] refreshing buckets");
+            RepositoryDefinition currentRepository =
+                    (RepositoryDefinition)
+                            repositoryCombo.getSelectedItem();
 
-            String currentBucket =
+            if (currentRepository == null
+                    || currentRepository ==
+                    RepositoryDefinition.EMPTY_REPOSITORY) {
+                return;
+            }
+
+            /*
+             * Başka bir repository değiştiyse
+             * Explorer'da hiçbir şey yapma.
+             */
+            if (!Objects.equals(
+                    currentRepository.getName(),
+                    changedRepository.getName())) {
+
+                return;
+            }
+
+            log.info(
+                    "[EXPLORER REPOSITORY CHANGED] repository={}",
+                    changedRepository.getName());
+
+            /*
+             * Aktif bucket'ı koru.
+             */
+            pendingBucketSelection =
                     getCurrentBucket();
 
-            pendingBucketSelection =
-                    currentBucket;
-
-            reloadRepositories();
-
+            /*
+             * Repository ComboBox'ı yeniden doldurma!
+             *
+             * Aksi halde loadRepositoriesAsync()
+             * EMPTY_REPOSITORY seçer.
+             */
             loadBucketsAsync();
         });
     }
