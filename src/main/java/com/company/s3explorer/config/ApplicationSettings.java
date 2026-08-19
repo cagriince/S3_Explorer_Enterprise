@@ -11,9 +11,6 @@ public class ApplicationSettings {
     private int windowX = -1;
     private int windowY = -1;
 
-    private int dividerLocationVertical = 300;
-    private int dividerLocationHorizontal = 600;
-
     public String getLastSelectedRepository() {
         return lastSelectedRepository;
     }
@@ -68,21 +65,5 @@ public class ApplicationSettings {
 
     public void setWindowY(int windowY) {
         this.windowY = windowY;
-    }
-
-    public int getDividerLocationVertical() {
-        return dividerLocationVertical;
-    }
-
-    public void setDividerLocationVertical(int dividerLocationVertical) {
-        this.dividerLocationVertical = dividerLocationVertical;
-    }
-
-    public int getDividerLocationHorizontal() {
-        return dividerLocationHorizontal;
-    }
-
-    public void setDividerLocationHorizontal(int dividerLocationHorizontal) {
-        this.dividerLocationHorizontal = dividerLocationHorizontal;
     }
 }

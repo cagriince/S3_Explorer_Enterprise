@@ -72,8 +72,6 @@ public class MainFrame extends JFrame {
         String lastSelectedRepository = settings.getLastSelectedRepository();
         String lastSelectedBucket = settings.getLastSelectedBucket();
         SwingUtilities.invokeLater(() -> {
-                explorerPanel.setDividerLocation(settings.getDividerLocationVertical());
-                this.setDividerLocation(settings.getDividerLocationHorizontal());
                 explorerPanel.selectRepository(repositoryManager.findByName(lastSelectedRepository));
                 explorerPanel.selectBucket(lastSelectedBucket);
             }
@@ -131,7 +129,7 @@ public class MainFrame extends JFrame {
         JPanel root = new JPanel(new BorderLayout());
 
         split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, explorerPanel, transferPanel);
-        //split.setResizeWeight(0.80);
+        split.setResizeWeight(0.75);
         root.add(split, BorderLayout.CENTER);
 
         setContentPane(root);
@@ -158,8 +156,6 @@ public class MainFrame extends JFrame {
         settings.setWindowX(getX());
         settings.setWindowY(getY());
 
-        settings.setDividerLocationVertical(explorerPanel.getDividerLocation());
-        settings.setDividerLocationHorizontal(this.getDividerLocation());
         settings.setLastSelectedRepository(activeRepositoryContext.getActiveRepository() != null ? activeRepositoryContext.getActiveRepository().getName() : null);
 
         settingsStore.save(settings);
