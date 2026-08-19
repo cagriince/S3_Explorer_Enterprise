@@ -4,6 +4,7 @@ import com.company.s3explorer.transfer.TransferStatus;
 import com.company.s3explorer.transfer.event.TransferEventBus;
 
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -89,10 +90,20 @@ public class ProducerExecutor
 
     public void cancelAll() {
 
+        /*
+         * Snapshot alıyoruz.
+         *
+         * Producer kendi finally bloğunda map'ten
+         * silinirken ConcurrentHashMap üzerinde
+         * sorun yaşamayacağız.
+         */
+        Map<ProducerRuntime, Future<?>> snapshot =
+                new HashMap<>(runningProducers);
+
         for (Map.Entry<
                 ProducerRuntime,
                 Future<?>> entry
-                : runningProducers.entrySet()) {
+                : snapshot.entrySet()) {
 
             ProducerRuntime runtime =
                     entry.getKey();
@@ -100,9 +111,15 @@ public class ProducerExecutor
             Future<?> future =
                     entry.getValue();
 
+            if (runtime == null) {
+                continue;
+            }
+
             runtime.requestCancel();
 
-            future.cancel(true);
+            if (future != null) {
+                future.cancel(true);
+            }
 
             eventBus.publishProducer(runtime);
         }
