@@ -1,7 +1,9 @@
 package com.company.s3explorer.service;
 
+import com.company.s3explorer.ui.explorer.S3FileItem;
 import software.amazon.awssdk.services.s3.model.S3Object;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public record LimitedFolderContent(

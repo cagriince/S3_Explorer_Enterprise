@@ -1,14 +1,11 @@
 package com.company.s3explorer.ui.explorer;
 
 import com.company.s3explorer.application.ActiveRepositoryContext;
+import com.company.s3explorer.service.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.company.s3explorer.repository.RepositoryDefinition;
 import com.company.s3explorer.repository.RepositoryManager;
-import com.company.s3explorer.service.FolderContent;
-import com.company.s3explorer.service.S3ClientFactory;
-import com.company.s3explorer.service.S3ClientManager;
-import com.company.s3explorer.service.S3ExplorerService;
 import com.company.s3explorer.transfer.TransferRuntime;
 import com.company.s3explorer.transfer.TransferStatus;
 import com.company.s3explorer.transfer.event.TransferEventBus;
@@ -26,7 +23,6 @@ import com.company.s3explorer.ui.theme.UITheme;
 import com.company.s3explorer.ui.theme.UIThemeManager;
 import com.company.s3explorer.ui.transfer.TransferPanel;
 import com.company.s3explorer.util.S3Util;
-import com.company.s3explorer.service.FolderContentPage;
 
 import javax.swing.*;
 import javax.swing.border.BevelBorder;
@@ -587,6 +583,52 @@ public class ExplorerPanel extends JPanel {
         FileTableRowSorter sorter = new FileTableRowSorter(fileTableModel);
         fileTable.setRowSorter(sorter);
         fileTable.getTableHeader().setReorderingAllowed(false);
+        fileTable.getTableHeader()
+                .addMouseListener(
+                        new MouseAdapter() {
+
+                            @Override
+                            public void mouseClicked(
+                                    MouseEvent e) {
+
+                                int viewColumn =
+                                        fileTable
+                                                .columnAtPoint(
+                                                        e.getPoint());
+
+                                if (viewColumn < 0) {
+                                    return;
+                                }
+
+                                int modelColumn =
+                                        fileTable
+                                                .convertColumnIndexToModel(
+                                                        viewColumn);
+
+                                /*
+                                 * Folder/File kolonu özel:
+                                 * Mevcut davranışı bozma.
+                                 */
+                                if (modelColumn == 0) {
+                                    return;
+                                }
+
+                                SwingUtilities.invokeLater(() -> {
+
+                                    FileTableSortSpec sortSpec =
+                                            getCurrentFileSortSpec();
+
+                                    log.info(
+                                            "[FILE SORT CHANGED] column={} order={}",
+                                            sortSpec.getColumn(),
+                                            sortSpec.isAscending()
+                                                    ? "ASC"
+                                                    : "DESC");
+
+                                    reloadCurrentFileTable();
+                                });
+                            }
+                        });
 
         final javax.swing.table.TableCellRenderer originalRenderer = fileTable.getTableHeader().getDefaultRenderer();
         fileTable.getTableHeader().setDefaultRenderer(new javax.swing.table.TableCellRenderer() {
@@ -704,41 +746,6 @@ public class ExplorerPanel extends JPanel {
                     public void popupMenuCanceled(PopupMenuEvent e) {
                     }
                 });
-/*
-        fileTable.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                if (e.getClickCount() == 2) {
-                    openSelectedFileItem();
-                }
-            }
-
-            @Override
-            public void mousePressed(MouseEvent e) {
-                showPopup(e);
-            }
-
-            @Override
-            public void mouseReleased(MouseEvent e) {
-                showPopup(e);
-            }
-
-            private void showPopup(MouseEvent e) {
-                if (!e.isPopupTrigger()) {
-                    return;
-                }
-                int row = fileTable.rowAtPoint(e.getPoint());
-                if (row < 0) {
-                    return;
-                }
-
-                if (!fileTable.isRowSelected(row)) {
-                    fileTable.setRowSelectionInterval(row, row);
-                }
-                updateActionStates();
-                filePopup.show(fileTable, e.getX(), e.getY());
-            }
-        });*/
     }
 
     public void updateActionStates() {
@@ -1061,15 +1068,22 @@ public class ExplorerPanel extends JPanel {
 
         setFileTableLoading(true);
 
+        int fileLimit =
+                getSelectedFileTableRowLimit();
+
+        FileTableSortSpec sortSpec =
+                getCurrentFileSortSpec();
+
         CompletableFuture
                 .supplyAsync(
                         () -> getService()
-                                .listFolderPage(
+                                .listFolderWithLimit(
                                         bucket,
                                         prefix,
-                                        null),
+                                        fileLimit,
+                                        sortSpec),
                         explorerPool)
-                .thenAccept(page -> {
+                .thenAccept(content -> {
 
                     SwingUtilities.invokeLater(() -> {
 
@@ -1078,11 +1092,10 @@ public class ExplorerPanel extends JPanel {
                             return;
                         }
 
-                        applyFilePage(
+                        applyLimitedFolderContent(
                                 bucket,
                                 prefix,
-                                page,
-                                false);
+                                content);
 
                         setFileTableLoading(false);
                     });
@@ -2504,5 +2517,168 @@ public class ExplorerPanel extends JPanel {
 
             suppressThreadCountSelectionEvent = false;
         }
+    }
+
+    private FileTableSortSpec getCurrentFileSortSpec() {
+
+        if (!(fileTable.getRowSorter()
+                instanceof FileTableRowSorter sorter)) {
+
+            return FileTableSortSpec.defaultSpec();
+        }
+
+        int column =
+                sorter.getPrimarySortColumn();
+
+        SortOrder order =
+                sorter.getPrimarySortOrder();
+
+        FileTableSortSpec.Column sortColumn;
+
+        switch (column) {
+
+            case FileTableModel.COL_SIZE:
+                sortColumn =
+                        FileTableSortSpec.Column.SIZE;
+                break;
+
+            case FileTableModel.COL_LAST_MODIFIED:
+                sortColumn =
+                        FileTableSortSpec.Column.LAST_MODIFIED;
+                break;
+
+            case FileTableModel.COL_NAME:
+            default:
+                sortColumn =
+                        FileTableSortSpec.Column.NAME;
+                break;
+        }
+
+        return new FileTableSortSpec(
+                sortColumn,
+                order != SortOrder.DESCENDING);
+    }
+
+    private int getSelectedFileTableRowLimit() {
+
+        if (fileTableRowLimitCombo == null) {
+            return 500;
+        }
+
+        Integer selected =
+                (Integer)
+                        fileTableRowLimitCombo
+                                .getSelectedItem();
+
+        if (selected == null
+                || selected <= 0) {
+
+            return 500;
+        }
+
+        return selected;
+    }
+
+    private void reloadCurrentFileTable() {
+
+        if (currentFileBucket == null
+                || currentFilePrefix == null) {
+
+            return;
+        }
+
+        loadFiles(
+                currentFileBucket,
+                currentFilePrefix);
+    }
+
+    private void applyLimitedFolderContent(
+            String bucket,
+            String prefix,
+            LimitedFolderContent content) {
+
+        List<S3FileItem> rows =
+                new ArrayList<>();
+
+        /*
+         * Parent klasör.
+         */
+        if (!"".equals(prefix)) {
+
+            rows.add(
+                    new S3FileItem(
+                            getCurrentRepository()
+                                    .getName(),
+                            bucket,
+                            prefix
+                                    + "/"
+                                    + S3FileItem
+                                    .PARENT_FOLDER_NAME,
+                            0,
+                            null,
+                            true));
+        }
+
+        /*
+         * TÜM klasörler.
+         */
+        rows.addAll(
+                content.folders()
+                        .stream()
+                        .map(folder ->
+                                new S3FileItem(
+                                        getCurrentRepository()
+                                                .getName(),
+                                        bucket,
+                                        folder,
+                                        0,
+                                        null,
+                                        true))
+                        .toList());
+
+        /*
+         * Sadece bounded collection'da kalan
+         * dosyalar.
+         */
+        rows.addAll(
+                content.files()
+                        .stream()
+                        .map(object ->
+                                new S3FileItem(
+                                        getCurrentRepository()
+                                                .getName(),
+                                        bucket,
+                                        object.key(),
+                                        object.size(),
+                                        object.lastModified(),
+                                        false))
+                        .toList());
+
+        fileTableModel.setFiles(rows);
+
+        long folderCount =
+                rows.stream()
+                        .filter(
+                                S3FileItem::
+                                        isFolderButNotParent)
+                        .count();
+
+        long fileCount =
+                rows.stream()
+                        .filter(
+                                S3FileItem::isFile)
+                        .count();
+
+        String suffix =
+                content.fileLimitReached()
+                        ? " — display limit reached"
+                        : "";
+
+        fileFolderInfo.setText(
+                fileCount
+                        + " file(s) and "
+                        + folderCount
+                        + " folder(s)"
+                        + suffix);
     }
 }

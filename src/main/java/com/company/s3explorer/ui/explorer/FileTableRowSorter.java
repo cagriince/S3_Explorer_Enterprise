@@ -36,7 +36,7 @@ public class FileTableRowSorter extends TableRowSorter<FileTableModel> {
 
     @Override
     public void toggleSortOrder(int column) {
-// Eğer kullanıcı zaten 0. kolona (Klasör/Dosya türüne) tıkladıysa standart davranışı koru
+        // Eğer kullanıcı zaten 0. kolona (Klasör/Dosya türüne) tıkladıysa standart davranışı koru
         if (column == 0) {
             super.toggleSortOrder(column);
             return;
@@ -69,20 +69,48 @@ public class FileTableRowSorter extends TableRowSorter<FileTableModel> {
 
         // Sıralamayı uygula
         setSortKeys(yeniAnahtarlar);
-        /*
-        SortOrder order = SortOrder.ASCENDING;
-        List<? extends SortKey> keys = getSortKeys();
+    }
 
-        if (!keys.isEmpty()
-                && keys.get(0).getColumn() == column
-                && keys.get(0).getSortOrder() == SortOrder.ASCENDING) {
+    public int getPrimarySortColumn() {
 
-            order = SortOrder.DESCENDING;
+        List<? extends SortKey> keys =
+                getSortKeys();
+
+        if (keys == null || keys.isEmpty()) {
+            return FileTableModel.COL_NAME;
         }
 
-        setSortKeys(List.of(
-                new SortKey(0, order),
-                new SortKey(column, order)
-        ));*/
+        /*
+         * 0 = Folder/File kolonu.
+         * Asıl kullanıcı sıralamasını ikinci key'de
+         * tutuyoruz.
+         */
+        for (SortKey key : keys) {
+
+            if (key.getColumn() != 0) {
+                return key.getColumn();
+            }
+        }
+
+        return FileTableModel.COL_NAME;
+    }
+
+    public SortOrder getPrimarySortOrder() {
+
+        List<? extends SortKey> keys =
+                getSortKeys();
+
+        if (keys == null || keys.isEmpty()) {
+            return SortOrder.ASCENDING;
+        }
+
+        for (SortKey key : keys) {
+
+            if (key.getColumn() != 0) {
+                return key.getSortOrder();
+            }
+        }
+
+        return SortOrder.ASCENDING;
     }
 }
