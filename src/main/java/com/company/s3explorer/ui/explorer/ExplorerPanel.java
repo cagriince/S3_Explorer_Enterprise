@@ -1003,14 +1003,37 @@ public class ExplorerPanel extends JPanel {
             String bucket =
                     this.getCurrentBucket();
 
+            System.out.println(
+                    "[TREE LOAD START] bucket=" +
+                            bucket +
+                            " prefix=" +
+                            parentNode.getFullPrefix() +
+                            " forceRefresh=" +
+                            forceRefresh);
+
             List<String> folders =
                     getService()
                             .listFolders(
                                     bucket,
                                     parentNode.getFullPrefix());
 
+            System.out.println(
+                    "[TREE LOAD RESULT] bucket=" +
+                            bucket +
+                            " prefix=" +
+                            parentNode.getFullPrefix() +
+                            " folders=" +
+                            folders.size() +
+                            " " + folders);
+
             SwingUtilities.invokeLater(() -> {
 
+                System.out.println(
+                        "[TREE APPLY START] prefix=" +
+                                parentNode.getFullPrefix() +
+                                " folders=" +
+                                folders.size());
+                
                 Enumeration<?> children =
                         parentNode.children();
 
@@ -1048,6 +1071,12 @@ public class ExplorerPanel extends JPanel {
                 }
 
                 treeModel.reload(parentNode);
+
+                System.out.println(
+                        "[TREE APPLY DONE] prefix=" +
+                                parentNode.getFullPrefix() +
+                                " childCount=" +
+                                parentNode.getChildCount());
             });
         });
     }
@@ -1308,9 +1337,26 @@ public class ExplorerPanel extends JPanel {
                 && affectedPrefixes != null
                 && !affectedPrefixes.isEmpty()) {
 
-            refreshScheduler
-                    .scheduleRefresh(
-                            affectedPrefixes);
+            Set<RefreshTreeNode> parentPrefixes =
+                    new HashSet<>();
+
+            for (RefreshTreeNode affected :
+                    affectedPrefixes) {
+
+                String prefix =
+                        affected.prefix();
+
+                String parentPrefix =
+                        getParentPrefix(prefix);
+
+                parentPrefixes.add(
+                        new RefreshTreeNode(
+                                parentPrefix,
+                                affected.operation()));
+            }
+
+            refreshScheduler.scheduleRefresh(
+                    parentPrefixes);
         }
     }
 
@@ -1683,11 +1729,20 @@ public class ExplorerPanel extends JPanel {
         S3TreeNode node =
                 nodeCache.get(prefix);
 
+        System.out.println(
+                "[EXPLORER TREE REFRESH NODE] " +
+                        "prefix=" + prefix +
+                        " node=" + node +
+                        " childCount=" +
+                        (node == null
+                                ? -1
+                                : node.getChildCount()));
+
         if (node == null) {
 
             System.out.println(
-                    "[EXPLORER TREE REFRESH] node not found: " +
-                            prefix);
+                    "[EXPLORER TREE REFRESH NODE] " +
+                            "NODE NOT FOUND");
 
             return;
         }
