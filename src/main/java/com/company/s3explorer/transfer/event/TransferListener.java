@@ -19,7 +19,7 @@ public interface TransferListener {
             onTransferUpdated(runtime);
         }
     }
-    
+
     default void onProducerUpdated(
             ProducerRuntime runtime) {
     }

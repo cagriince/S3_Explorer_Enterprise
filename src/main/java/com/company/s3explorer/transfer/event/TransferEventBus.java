@@ -3,11 +3,17 @@ package com.company.s3explorer.transfer.event;
 import com.company.s3explorer.transfer.TransferRuntime;
 import com.company.s3explorer.transfer.model.TransferGroup;
 import com.company.s3explorer.transfer.producer.ProducerRuntime;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public class TransferEventBus {
+
+    private static final Logger log =
+            LoggerFactory.getLogger(
+                    TransferEventBus.class);
 
     private final List<TransferListener> listeners =
             new CopyOnWriteArrayList<>();
@@ -37,13 +43,14 @@ public class TransferEventBus {
             return;
         }
 
-        for (TransferListener listener : listeners) {
+        for (TransferListener listener :
+                listeners) {
 
             listener.onTransfersUpdated(
                     runtimes);
         }
     }
-    
+
     public void publishProducer(
             ProducerRuntime runtime) {
 
@@ -61,11 +68,6 @@ public class TransferEventBus {
             String bucket,
             String prefix) {
 
-        System.out.println(
-                "[EVENT BUS] publishGroupCompleted " +
-                        "listeners=" + listeners.size() +
-                        " group=" + group.getDisplayName());
-
         TransferGroupCompletedEvent event =
                 new TransferGroupCompletedEvent(
                         group,
@@ -73,12 +75,17 @@ public class TransferEventBus {
                         bucket,
                         prefix);
 
+        log.debug(
+                "[EVENT BUS] publishGroupCompleted listeners={} group={}",
+                listeners.size(),
+                group.getDisplayName());
+
         for (TransferListener listener :
                 listeners) {
 
-            System.out.println(
-                    "[EVENT BUS] notifying " +
-                            listener.getClass().getName());
+            log.debug(
+                    "[EVENT BUS] notifying {}",
+                    listener.getClass().getName());
 
             listener.onTransferGroupCompleted(
                     event);

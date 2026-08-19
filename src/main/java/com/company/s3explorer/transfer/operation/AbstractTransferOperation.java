@@ -6,86 +6,161 @@ import com.company.s3explorer.transfer.context.TransferContext;
 import com.company.s3explorer.service.TransferProgressListener;
 import com.company.s3explorer.transfer.model.TransferGroup;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.time.Instant;
 import java.util.concurrent.CancellationException;
 
-public abstract class AbstractTransferOperation implements TransferOperation {
+public abstract class AbstractTransferOperation
+        implements TransferOperation {
+
+    private static final Logger log =
+            LoggerFactory.getLogger(
+                    AbstractTransferOperation.class);
 
     @Override
-    public final void execute(TransferRuntime runtime, TransferContext transferContext) throws Exception {
-        TransferGroup group = runtime.getTask().getGroup();
+    public final void execute(
+            TransferRuntime runtime,
+            TransferContext transferContext)
+            throws Exception {
+
+        TransferGroup group =
+                runtime.getTask().getGroup();
+
         if (group != null) {
             group.running();
         }
-        transferContext.publishRunning(runtime);
+
+        transferContext.publishRunning(
+                runtime);
 
         try {
+
             checkCancelled(runtime);
-            doExecute(runtime, transferContext);
+
+            doExecute(
+                    runtime,
+                    transferContext);
+
             checkCancelled(runtime);
-            System.out.println(
-                    "[OPERATION BEFORE COMPLETE] " +
-                            runtime.getTask().getId() +
-                            " key=" +
-                            runtime.getTask().getObjectKey());
+
+            log.debug(
+                    "[OPERATION BEFORE COMPLETE] {} key={}",
+                    runtime.getTask().getId(),
+                    runtime.getTask().getObjectKey());
+
             if (group != null) {
                 group.completed();
             }
-            transferContext.publishCompleted(runtime);
-            System.out.println(
-                    "[OPERATION PUBLISHED COMPLETED] " +
-                            runtime.getTask().getId());
+
+            transferContext.publishCompleted(
+                    runtime);
+
+            log.debug(
+                    "[OPERATION PUBLISHED COMPLETED] {}",
+                    runtime.getTask().getId());
+
         }
         catch (CancellationException ex) {
+
             if (group != null) {
                 group.cancelled();
             }
-            transferContext.publishCancelled(runtime);
+
+            transferContext.publishCancelled(
+                    runtime);
         }
         catch (Exception ex) {
+
             if (group != null) {
                 group.failed();
             }
-            transferContext.publishFailed(runtime, ex);
+
+            transferContext.publishFailed(
+                    runtime,
+                    ex);
+
             throw ex;
         }
     }
 
-    protected void checkCancelled(TransferRuntime runtime) throws CancellationException {
+    protected void checkCancelled(
+            TransferRuntime runtime)
+            throws CancellationException {
+
         if (runtime.isCancelRequested()) {
             throw new CancellationException();
         }
     }
 
-    protected TransferProgressListener createProgressListener(TransferRuntime runtime, TransferContext transferContext) {
+    protected TransferProgressListener
+    createProgressListener(
+            TransferRuntime runtime,
+            TransferContext transferContext) {
+
         return (transferred, total) -> {
+
             checkCancelled(runtime);
-            runtime.updateProgress(transferred, total);
+
+            runtime.updateProgress(
+                    transferred,
+                    total);
+
             if (runtime.shouldPublishUi(100)) {
-                transferContext.publishProgress(runtime);
+
+                transferContext.publishProgress(
+                        runtime);
             }
         };
     }
 
-    protected void updateProgress(TransferRuntime runtime, TransferContext transferContext, long transferred, long total) {
+    protected void updateProgress(
+            TransferRuntime runtime,
+            TransferContext transferContext,
+            long transferred,
+            long total) {
+
         checkCancelled(runtime);
-        runtime.updateProgress(transferred, total);
+
+        runtime.updateProgress(
+                transferred,
+                total);
+
         if (runtime.shouldPublishUi(100)) {
-            transferContext.publishProgress(runtime);
+
+            transferContext.publishProgress(
+                    runtime);
         }
     }
 
-    protected void updateProgressCompleted(TransferRuntime runtime, TransferContext transferContext) {
+    protected void updateProgressCompleted(
+            TransferRuntime runtime,
+            TransferContext transferContext) {
+
         runtime.progressCompleted();
+
         runtime.forceNextUiPublish();
-        transferContext.publishProgress(runtime);
+
+        transferContext.publishProgress(
+                runtime);
     }
 
-    protected void updateProgressPercent(TransferRuntime runtime, TransferContext transferContext, int percent) {
+    protected void updateProgressPercent(
+            TransferRuntime runtime,
+            TransferContext transferContext,
+            int percent) {
+
         checkCancelled(runtime);
-        runtime.updateProgress(percent, 100);
+
+        runtime.updateProgress(
+                percent,
+                100);
+
         if (runtime.shouldPublishUi(100)) {
-            transferContext.publishProgress(runtime);
+
+            transferContext.publishProgress(
+                    runtime);
         }
     }
 
