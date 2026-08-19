@@ -166,7 +166,7 @@ public class ExplorerPanel extends JPanel {
                     public void onTransferGroupCompleted(
                             TransferGroupCompletedEvent event) {
 
-                        log.debug("[EXPLORER LISTENER ENTERED] event={}", event);
+                        log.info("[EXPLORER LISTENER ENTERED] event={}", event);
 
                         ExplorerPanel.this
                                 .onTransferGroupCompleted(event);
