@@ -1264,20 +1264,6 @@ public class ExplorerPanel extends JPanel {
         }
     }
 
-    public int getDividerLocation() {
-        if (mainSplit == null) {
-            return 300;
-        }
-        return mainSplit.getDividerLocation();
-    }
-
-    public void setDividerLocation(int location) {
-        if (mainSplit == null) {
-            return;
-        }
-        mainSplit.setDividerLocation(location);
-    }
-
     public void setThemeSelectionListener(Consumer<UITheme> listener) {
         this.themeSelectionListener = listener;
     }

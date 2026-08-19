@@ -161,19 +161,6 @@ public class MainFrame extends JFrame {
         settingsStore.save(settings);
     }
 
-    public int getDividerLocation() {
-        if (split == null) {
-            return 800;
-        }
-        return split.getDividerLocation();
-    }
-
-    public void setDividerLocation(int location) {
-        if (split == null) {
-            return;
-        }
-        split.setDividerLocation(location);
-    }
 /*
     private void selectDefaultRepository() {
         RepositoryDefinition selected = repositoryManager.findByName(settings.getLastSelectedRepository());
