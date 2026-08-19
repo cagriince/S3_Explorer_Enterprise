@@ -1070,9 +1070,6 @@ public class ExplorerPanel extends JPanel {
 
         currentFileBucket = bucket;
         currentFilePrefix = prefix;
-        currentFileContinuationToken = null;
-        currentFileHasMore = false;
-        loadingMoreFiles = false;
 
         setFileTableLoading(true);
 
@@ -2628,17 +2625,19 @@ public class ExplorerPanel extends JPanel {
                 new ArrayList<>();
 
         /*
-         * Parent klasör.
+         * Parent folder.
+         *
+         * Root'ta ".." göstermiyoruz.
          */
-        if (!"".equals(prefix)) {
+        if (prefix != null
+                && !prefix.isEmpty()) {
 
             rows.add(
                     new S3FileItem(
-                            getCurrentRepository()
+                            this.getCurrentRepository()
                                     .getName(),
                             bucket,
                             prefix
-                                    + "/"
                                     + S3FileItem
                                     .PARENT_FOLDER_NAME,
                             0,
@@ -2647,14 +2646,18 @@ public class ExplorerPanel extends JPanel {
         }
 
         /*
-         * TÜM klasörler.
+         * -------------------------------------------------
+         * TÜM KLASÖRLER
+         * -------------------------------------------------
+         *
+         * Klasör sayısı Max Line Count'tan etkilenmez.
          */
         rows.addAll(
                 content.folders()
                         .stream()
                         .map(folder ->
                                 new S3FileItem(
-                                        getCurrentRepository()
+                                        this.getCurrentRepository()
                                                 .getName(),
                                         bucket,
                                         folder,
@@ -2664,15 +2667,22 @@ public class ExplorerPanel extends JPanel {
                         .toList());
 
         /*
-         * Sadece bounded collection'da kalan
-         * dosyalar.
+         * -------------------------------------------------
+         * SINIRLI DOSYALAR
+         * -------------------------------------------------
+         *
+         * Burada yalnızca bounded collection'da
+         * kalan dosyalar bulunur.
          */
         rows.addAll(
                 content.files()
                         .stream()
+                        .filter(object ->
+                                !object.key()
+                                        .endsWith("/"))
                         .map(object ->
                                 new S3FileItem(
-                                        getCurrentRepository()
+                                        this.getCurrentRepository()
                                                 .getName(),
                                         bucket,
                                         object.key(),
@@ -2681,20 +2691,23 @@ public class ExplorerPanel extends JPanel {
                                         false))
                         .toList());
 
+        /*
+         * JTable'a sonucu tek seferde veriyoruz.
+         *
+         * Lazy loading yok.
+         */
         fileTableModel.setFiles(rows);
 
+        /*
+         * -------------------------------------------------
+         * BİLGİ SATIRI
+         * -------------------------------------------------
+         */
         long folderCount =
-                rows.stream()
-                        .filter(
-                                S3FileItem::
-                                        isFolderButNotParent)
-                        .count();
+                content.folders().size();
 
         long fileCount =
-                rows.stream()
-                        .filter(
-                                S3FileItem::isFile)
-                        .count();
+                content.files().size();
 
         String suffix =
                 content.fileLimitReached()
@@ -2707,5 +2720,14 @@ public class ExplorerPanel extends JPanel {
                         + folderCount
                         + " folder(s)"
                         + suffix);
+
+        log.debug(
+                "[FILE TABLE APPLY] bucket={} prefix={} folders={} files={} scannedFiles={} limitReached={}",
+                bucket,
+                prefix,
+                folderCount,
+                fileCount,
+                content.scannedFileCount(),
+                content.fileLimitReached());
     }
 }

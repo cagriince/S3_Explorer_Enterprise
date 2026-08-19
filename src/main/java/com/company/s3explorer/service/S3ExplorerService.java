@@ -13,7 +13,9 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
@@ -136,8 +138,8 @@ public class S3ExplorerService {
                     FileTableSortSpec.defaultSpec();
         }
 
-        List<String> folders =
-                new ArrayList<>();
+        Set<String> folders =
+                new LinkedHashSet<>();
 
         BoundedSortedFileCollection files =
                 new BoundedSortedFileCollection(
@@ -215,7 +217,7 @@ public class S3ExplorerService {
                 scannedFileCount > files.size();
 
         return new LimitedFolderContent(
-                folders,
+                new ArrayList<>(folders),
                 files.toList(),
                 fileLimitReached,
                 scannedFileCount);
