@@ -14,6 +14,7 @@ import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 public class TransferQueue {
 
@@ -25,17 +26,54 @@ public class TransferQueue {
 
     private final TransferEventBus eventBus;
 
+    /*
+     * Cancel All sırasında worker'ların yeni iş
+     * almasını engeller.
+     */
+    private volatile boolean cancellingAll;
+
     public TransferQueue(
             TransferEventBus eventBus) {
 
         this.eventBus = eventBus;
     }
 
-    public TransferRuntime add(
+    public synchronized TransferRuntime add(
             TransferTask task) {
 
         TransferRuntime runtime =
                 new TransferRuntime(task);
+
+        /*
+         * Cancel All devam ediyorsa bu task'ın
+         * kuyruğa girmesine izin verme.
+         *
+         * Producer cancellation fark edene kadar
+         * yeni task üretirse onu da doğrudan cancelled
+         * yapıyoruz.
+         */
+        if (cancellingAll) {
+
+            runtime.setStatus(
+                    TransferStatus.CANCELLED);
+
+            runtime.setEndTime(
+                    Instant.now());
+
+            runtime.setMessage(
+                    "Transfer cancelled");
+
+            TransferGroup group =
+                    task.getGroup();
+
+            if (group != null) {
+                group.cancelled();
+            }
+
+            eventBus.publish(runtime);
+
+            return runtime;
+        }
 
         runtime.setStatus(
                 TransferStatus.QUEUED);
@@ -54,18 +92,73 @@ public class TransferQueue {
     public TransferRuntime take()
             throws InterruptedException {
 
-        return queue.take();
+        while (true) {
+
+            if (cancellingAll) {
+
+                Thread.sleep(50);
+
+                continue;
+            }
+
+            TransferRuntime runtime =
+                    queue.take();
+
+            /*
+             * Cancel All, take() ile aynı anda
+             * yarışmış olabilir.
+             *
+             * Gate açıldıktan sonra burada kontrol
+             * edilmesi güvenlik katmanı olarak kalıyor.
+             */
+            if (cancellingAll) {
+
+                cancelRuntime(runtime);
+
+                continue;
+            }
+
+            return runtime;
+        }
     }
 
     public TransferRuntime poll(
             long timeoutMillis)
             throws InterruptedException {
 
-        return queue.poll(
-                timeoutMillis,
-                java.util.concurrent.TimeUnit.MILLISECONDS);
+        /*
+         * Cancel All sırasında yeni iş alma.
+         */
+        if (cancellingAll) {
+
+            Thread.sleep(
+                    Math.min(
+                            timeoutMillis,
+                            50));
+
+            return null;
+        }
+
+        TransferRuntime runtime =
+                queue.poll(
+                        timeoutMillis,
+                        TimeUnit.MILLISECONDS);
+
+        /*
+         * poll() ile Cancel All arasında yarış
+         * ihtimaline karşı ikinci kontrol.
+         */
+        if (runtime != null
+                && cancellingAll) {
+
+            cancelRuntime(runtime);
+
+            return null;
+        }
+
+        return runtime;
     }
-    
+
     public void markActive(
             TransferRuntime runtime) {
 
@@ -80,7 +173,7 @@ public class TransferQueue {
         activeTransfers.remove(
                 runtime.getTask().getId());
     }
-    
+
     public boolean cancel(
             UUID taskId) {
 
@@ -116,21 +209,48 @@ public class TransferQueue {
     }
 
     /**
-     * Bütün queued transfer'ları iptal eder.
+     * Cancel All başlangıcı.
      *
-     * Bu metod artık UI/EDT üzerinden çağrılmamalıdır.
-     * TransferManager bunu background thread'de çalıştırır.
+     * Bu andan itibaren worker'lar yeni task alamaz.
+     */
+    public void beginCancelAll() {
+
+        cancellingAll = true;
+    }
+
+    /**
+     * Cancel All tamamlandıktan sonra worker'ların
+     * tekrar queue'dan iş almasına izin ver.
+     */
+    public void endCancelAll() {
+
+        cancellingAll = false;
+    }
+
+    public boolean isCancellingAll() {
+
+        return cancellingAll;
+    }
+
+    /**
+     * Bütün queued transfer'ları iptal eder.
      */
     public void cancelAll() {
 
         List<TransferRuntime> cancelled =
                 new ArrayList<>();
 
+        /*
+         * cancellingAll zaten true olduğu için
+         * worker'lar artık yeni iş alamıyor.
+         */
         TransferRuntime transferRuntime;
 
-        while ((transferRuntime = queue.poll()) != null) {
+        while ((transferRuntime =
+                queue.poll()) != null) {
 
-            cancelled.add(transferRuntime);
+            cancelled.add(
+                    transferRuntime);
         }
 
         /*
@@ -159,10 +279,14 @@ public class TransferQueue {
                     "Transfer cancelled");
         }
 
-        eventBus.publishBatch(cancelled);
+        if (!cancelled.isEmpty()) {
+
+            eventBus.publishBatch(
+                    cancelled);
+        }
 
         /*
-         * Çalışan transferleri öldürmeye çalışma.
+         * Çalışan transferleri öldürme.
          *
          * Sadece cancellation request gönder.
          */

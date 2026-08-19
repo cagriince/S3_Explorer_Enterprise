@@ -36,10 +36,36 @@ public class TransferWorker implements Runnable {
 
         try {
 
-            while (!Thread.currentThread().isInterrupted()) {
+            while (!Thread.currentThread()
+                    .isInterrupted()) {
 
+                /*
+                 * Dinamik thread count azaltıldıysa
+                 * worker emekli olabilir.
+                 */
                 if (shouldRetire.getAsBoolean()) {
                     return;
+                }
+
+                /*
+                 * Cancel All sırasında yeni iş alma.
+                 *
+                 * Worker burada bekler; thread ölmez.
+                 */
+                if (queue.isCancellingAll()) {
+
+                    try {
+                        Thread.sleep(50);
+                    }
+                    catch (InterruptedException ex) {
+
+                        Thread.currentThread()
+                                .interrupt();
+
+                        return;
+                    }
+
+                    continue;
                 }
 
                 TransferRuntime runtime;
@@ -51,6 +77,7 @@ public class TransferWorker implements Runnable {
 
                 }
                 catch (InterruptedException ex) {
+
                     return;
                 }
 
@@ -58,13 +85,26 @@ public class TransferWorker implements Runnable {
                     continue;
                 }
 
+                /*
+                 * Cancel All poll ile aynı anda yarıştıysa
+                 * queue.poll() runtime'ı cancelled yapıp
+                 * null döndürecektir.
+                 */
+                if (queue.isCancellingAll()) {
+                    continue;
+                }
+
                 queue.markActive(runtime);
 
                 try {
+
                     process(runtime);
+
                 }
                 finally {
-                    queue.markFinished(runtime);
+
+                    queue.markFinished(
+                            runtime);
                 }
             }
 
@@ -80,9 +120,23 @@ public class TransferWorker implements Runnable {
 
         try {
 
+            /*
+             * Cancel All sırasında task worker'a
+             * ulaşmışsa operation başlamadan önce
+             * kontrol et.
+             */
+            if (runtime.isCancelRequested()) {
+
+                context.publishCancelled(
+                        runtime);
+
+                return;
+            }
+
             TransferOperation operation =
                     operationFactory.get(
-                            runtime.getTask().getType());
+                            runtime.getTask()
+                                    .getType());
 
             operation.execute(
                     runtime,
@@ -91,16 +145,30 @@ public class TransferWorker implements Runnable {
         }
         catch (CancellationException ex) {
 
-            context.publishCancelled(runtime);
+            context.publishCancelled(
+                    runtime);
 
         }
         catch (Exception ex) {
 
-            ex.printStackTrace();
+            /*
+             * Operation sırasında cancellation
+             * gerçekleşmiş olabilir.
+             */
+            if (runtime.isCancelRequested()) {
 
-            context.publishFailed(
-                    runtime,
-                    ex);
+                context.publishCancelled(
+                        runtime);
+
+            }
+            else {
+
+                ex.printStackTrace();
+
+                context.publishFailed(
+                        runtime,
+                        ex);
+            }
         }
     }
 }

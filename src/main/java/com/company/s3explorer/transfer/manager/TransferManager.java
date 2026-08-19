@@ -67,9 +67,25 @@ public class TransferManager {
 
         cancellationExecutor.submit(() -> {
 
-            queue.cancelAll();
+            System.out.println(
+                    "[CANCEL ALL START]");
 
-            producerExecutor.cancelAll();
+            queue.beginCancelAll();
+
+            try {
+
+                producerExecutor.cancelAll();
+
+                queue.cancelAll();
+
+            }
+            finally {
+
+                queue.endCancelAll();
+
+                System.out.println(
+                        "[CANCEL ALL FINISHED]");
+            }
         });
     }
 
