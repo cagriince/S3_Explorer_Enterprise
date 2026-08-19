@@ -195,8 +195,17 @@ public class ExplorerPanel extends JPanel {
         InputMap inputMap = fileTable.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
         ActionMap actionMap = fileTable.getActionMap();
 
-        inputMap.put(KeyStroke.getKeyStroke("ENTER"), "download");
-        actionMap.put("download", goToParentAction);
+        inputMap.put(
+                KeyStroke.getKeyStroke("ENTER"),
+                "openSelectedFileItem");
+        actionMap.put(
+                "openSelectedFileItem",
+                new AbstractAction() {
+                    @Override
+                    public void actionPerformed(ActionEvent e) {
+                        openSelectedFileItem();
+                    }
+                });
 
         inputMap.put(KeyStroke.getKeyStroke("control C"), "copy");
         actionMap.put("copy", copyAction);
@@ -804,7 +813,7 @@ public class ExplorerPanel extends JPanel {
                             this.getCurrentRepository()
                                     .getName(),
                             bucket,
-                            "..",
+                            prefix + "/" + S3FileItem.PARENT_FOLDER_NAME,
                             0,
                             null,
                             true));
@@ -1087,12 +1096,7 @@ public class ExplorerPanel extends JPanel {
         }
 
         int modelRow = fileTable.convertRowIndexToModel(viewRow);
-        S3FileItem item = fileTableModel.getItem(modelRow);
-        if (item.isParentFolder()) {
-            goToParentFolder();
-            return null;
-        }
-        return item;
+        return fileTableModel.getItem(modelRow);
     }
 
     private void openSelectedFileItem() {
@@ -1102,7 +1106,16 @@ public class ExplorerPanel extends JPanel {
         }
 
         if (item.isFolder()) {
-            navigateToFolder(item);
+            if (item.isParentFolder()) {
+                goToParentFolder();
+            }
+            else {
+                navigateToFolder(item);
+            }
+            
+            SwingUtilities.invokeLater(() -> {
+                fileTable.requestFocusInWindow();
+            });
         } else {
             downloadSelected();
         }
@@ -1114,7 +1127,7 @@ public class ExplorerPanel extends JPanel {
             return;
         }
 
-        String targetPrefix = item.getKey();
+        String targetPrefix = (item.isParentFolder() ? S3Util.extractParentPrefix(item.getKey()) : item.getKey());
         S3TreeNode root = (S3TreeNode) treeModel.getRoot();
 
         TreePath path = findNodePath(root, targetPrefix);
@@ -2042,6 +2055,10 @@ public class ExplorerPanel extends JPanel {
         TreePath parentPath = new TreePath(parent.getPath());
         folderTree.setSelectionPath(parentPath);
         folderTree.scrollPathToVisible(parentPath);
+
+        SwingUtilities.invokeLater(() ->
+                fileTable.requestFocusInWindow()
+        );
     }
 
     private String getParentPrefix(String prefix) {

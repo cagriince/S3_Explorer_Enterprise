@@ -1,9 +1,11 @@
 package com.company.s3explorer.ui.explorer;
 
+import com.company.s3explorer.util.S3Util;
+
 import java.time.Instant;
 
 public class S3FileItem {
-    private static String PARENT_FOLDER_NAME = "..";
+    public static String PARENT_FOLDER_NAME = "..";
     private final String repositoryName;
     private final String bucket;
     private final String key;
@@ -62,6 +64,6 @@ public class S3FileItem {
     }
 
     public boolean isParentFolder() {
-        return folder && "..".equals(key);
+        return folder && S3Util.extractFileName(key).equals(PARENT_FOLDER_NAME);
     }
 }
