@@ -29,6 +29,21 @@ public class TransferEventBus {
         }
     }
 
+    public void publishBatch(
+            List<TransferRuntime> runtimes) {
+
+        if (runtimes == null
+                || runtimes.isEmpty()) {
+            return;
+        }
+
+        for (TransferListener listener : listeners) {
+
+            listener.onTransfersUpdated(
+                    runtimes);
+        }
+    }
+    
     public void publishProducer(
             ProducerRuntime runtime) {
 

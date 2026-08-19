@@ -117,23 +117,40 @@ public class TransferQueue {
         List<TransferRuntime> cancelled =
                 new ArrayList<>();
 
-        TransferRuntime runtime;
+        TransferRuntime transferRuntime;
 
-        while ((runtime = queue.poll()) != null) {
+        while ((transferRuntime = queue.poll()) != null) {
 
-            cancelled.add(runtime);
+            cancelled.add(transferRuntime);
         }
 
         /*
          * Queue boşaltıldıktan sonra cancellation
          * state'lerini ver.
          */
-        for (TransferRuntime queuedRuntime :
+        for (TransferRuntime runtime :
                 cancelled) {
 
-            cancelRuntime(
-                    queuedRuntime);
+            runtime.requestCancel();
+
+            TransferGroup group =
+                    runtime.getTask().getGroup();
+
+            if (group != null) {
+                group.cancelled();
+            }
+
+            runtime.setEndTime(
+                    Instant.now());
+
+            runtime.setStatus(
+                    TransferStatus.CANCELLED);
+
+            runtime.setMessage(
+                    "Transfer cancelled");
         }
+
+        eventBus.publishBatch(cancelled);
 
         /*
          * Çalışan transferleri öldürmeye çalışma.

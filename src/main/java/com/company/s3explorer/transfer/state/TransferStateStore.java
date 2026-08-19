@@ -3,13 +3,7 @@ package com.company.s3explorer.transfer.state;
 import com.company.s3explorer.transfer.TransferRuntime;
 import com.company.s3explorer.transfer.TransferStatus;
 
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Deque;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 public class TransferStateStore {
 
@@ -135,6 +129,89 @@ public class TransferStateStore {
         version++;
     }
 
+    public synchronized void upsertAll(
+            Collection<TransferRuntime> runtimes) {
+
+        if (runtimes == null
+                || runtimes.isEmpty()) {
+            return;
+        }
+
+        boolean changed = false;
+
+        for (TransferRuntime runtime : runtimes) {
+
+            if (runtime == null
+                    || runtime.getTask() == null) {
+                continue;
+            }
+
+            UUID id =
+                    runtime.getTask().getId();
+
+            TransferStatus newStatus =
+                    runtime.getStatus();
+
+            TransferStatus oldStatus =
+                    statuses.put(
+                            id,
+                            newStatus);
+
+            this.runtimes.put(
+                    id,
+                    runtime);
+
+            if (oldStatus == null) {
+
+                increment(newStatus);
+
+                addNewest(
+                        allOrder,
+                        id);
+
+                addToStatusOrder(
+                        newStatus,
+                        id);
+
+                changed = true;
+
+                continue;
+            }
+
+            if (oldStatus != newStatus) {
+
+                decrement(oldStatus);
+                increment(newStatus);
+
+                removeFromStatusOrder(
+                        oldStatus,
+                        id);
+
+                addToStatusOrder(
+                        newStatus,
+                        id);
+
+                changed = true;
+
+            } else {
+
+                /*
+                 * Runtime'ın başka bir alanı
+                 * değişmiş olabilir.
+                 */
+                changed = true;
+            }
+
+            addNewest(
+                    allOrder,
+                    id);
+        }
+
+        if (changed) {
+            version++;
+        }
+    }
+    
     public synchronized TransferRuntime get(
             UUID id) {
 
