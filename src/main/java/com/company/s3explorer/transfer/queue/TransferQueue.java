@@ -57,6 +57,15 @@ public class TransferQueue {
         return queue.take();
     }
 
+    public TransferRuntime poll(
+            long timeoutMillis)
+            throws InterruptedException {
+
+        return queue.poll(
+                timeoutMillis,
+                java.util.concurrent.TimeUnit.MILLISECONDS);
+    }
+    
     public void markActive(
             TransferRuntime runtime) {
 

@@ -59,7 +59,11 @@ import java.util.function.Consumer;
 public class ExplorerPanel extends JPanel {
 
     private static final Logger log = LoggerFactory.getLogger(ExplorerPanel.class);
-
+    private static final Integer[] THREAD_COUNTS = {
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+            15, 20, 25, 30, 40, 50, 60, 80, 100
+    };
+    
     private final ExplorerRefreshScheduler refreshScheduler;
     private final Map<String, S3TreeNode> nodeCache = new HashMap<>();
 
@@ -80,6 +84,9 @@ public class ExplorerPanel extends JPanel {
     private String currentFileContinuationToken;
     private boolean currentFileHasMore;
     private boolean loadingMoreFiles;
+
+    private JComboBox<Integer> threadCountCombo;
+    private Consumer<Integer> threadCountSelectionListener;
 
     private JPanel breadcrumbPanel;
     private JLabel fileFolderInfo;
@@ -105,6 +112,7 @@ public class ExplorerPanel extends JPanel {
     private RepositoryDefinition pendingRepositorySelection;
     private String pendingBucketSelection;
     private boolean suppressBucketSelectionEvent;
+    private boolean suppressThreadCountSelectionEvent;
     
     private final ExplorerClipboard clipboard = new ExplorerClipboard();
 
@@ -374,22 +382,82 @@ public class ExplorerPanel extends JPanel {
         buttonPanel.add(cutBtn);
         buttonPanel.add(pasteBtn);
 
-        JPanel themePanel = new JPanel(new GridBagLayout());
-        themeCombo = new JComboBox<>(){
-            @Override
-            public void setSelectedIndex(int index) {
-                UITheme theme = this.getItemAt(index);
-                if (theme.isDisabled()) {
-                    return;
-                }
-                super.setSelectedIndex(index);
-            }
-        };
+        JPanel themePanel =
+                new JPanel(
+                        new GridBagLayout());
 
-        themeManager.getThemes().forEach(themeCombo::addItem);
-        GridBagConstraints c = new GridBagConstraints();
-        c.insets = new Insets(10, 5, 5, 10);
-        themePanel.add(themeCombo, c);
+        GridBagConstraints c =
+                new GridBagConstraints();
+
+        c.insets =
+                new Insets(10, 5, 5, 5);
+
+        /*
+         * Thread count ComboBox
+         */
+        threadCountCombo = new JComboBox<>(THREAD_COUNTS);
+        threadCountCombo.setSelectedItem(15);
+        threadCountCombo.addActionListener(e -> {
+
+            if (suppressThreadCountSelectionEvent) {
+                return;
+            }
+
+            Integer selected =
+                    (Integer)
+                            threadCountCombo
+                                    .getSelectedItem();
+
+            if (selected == null) {
+                return;
+            }
+
+            if (threadCountSelectionListener != null) {
+                threadCountSelectionListener.accept(
+                        selected);
+            }
+        });
+
+        themePanel.add(
+                threadCountCombo,
+                c);
+
+        /*
+         * Theme ComboBox
+         */
+        themeCombo =
+                new JComboBox<>() {
+
+                    @Override
+                    public void setSelectedIndex(
+                            int index) {
+
+                        UITheme theme =
+                                this.getItemAt(index);
+
+                        if (theme.isDisabled()) {
+                            return;
+                        }
+
+                        super.setSelectedIndex(
+                                index);
+                    }
+                };
+
+        themeManager.getThemes()
+                .forEach(
+                        themeCombo::addItem);
+
+        c.insets =
+                new Insets(
+                        10,
+                        5,
+                        5,
+                        10);
+
+        themePanel.add(
+                themeCombo,
+                c);
 
         JPanel topPanel = new JPanel(new BorderLayout());
         topPanel.add(buttonPanel, BorderLayout.WEST);
@@ -688,12 +756,10 @@ public class ExplorerPanel extends JPanel {
     public void loadBucketsAsync() {
 
         /*
-         * Refresh başlamadan önce aktif bucket'ı sakla.
-         *
-         * Eğer dışarıdan özellikle bir bucket seçimi
-         * bekletiliyorsa onu kullan.
+         * Refresh başlamadan önce gerçekten aktif olan bucket'ı
+         * kaydet.
          */
-        final String bucketToSelect =
+        final String previousBucket =
                 pendingBucketSelection != null
                         ? pendingBucketSelection
                         : getCurrentBucket();
@@ -703,7 +769,7 @@ public class ExplorerPanel extends JPanel {
             try {
 
                 /*
-                 * ComboBox'ta seçili repository'nin ADINI alıyoruz.
+                 * ComboBox'tan seçili repository'yi al.
                  */
                 RepositoryDefinition selectedRepository =
                         (RepositoryDefinition)
@@ -720,11 +786,11 @@ public class ExplorerPanel extends JPanel {
                 }
 
                 /*
-                 * RepositoryManager'dan repository'nin
-                 * GÜNCEL halini alıyoruz.
+                 * RepositoryManager'dan güncel repository
+                 * tanımını al.
                  *
-                 * RepositoryDialog'da external bucket eklenmiş /
-                 * silinmişse burada yeni liste bulunacak.
+                 * RepositoryDialog'daki external bucket
+                 * değişiklikleri burada görülecek.
                  */
                 RepositoryDefinition repository =
                         repositoryManager.findByName(
@@ -744,11 +810,11 @@ public class ExplorerPanel extends JPanel {
                 log.debug(
                         "[BUCKET LOAD START] repository={} previousBucket={} externalBuckets={}",
                         repository.getName(),
-                        bucketToSelect,
+                        previousBucket,
                         repository.getExternalBuckets());
 
                 /*
-                 * Önce S3'teki gerçek bucket'ları al.
+                 * Gerçek S3 bucket'larını al.
                  */
                 List<String> s3Buckets;
 
@@ -761,8 +827,8 @@ public class ExplorerPanel extends JPanel {
                 catch (Exception ex) {
 
                     /*
-                     * ListBuckets yetkisi yoksa problem değil.
-                     * External bucket'larla devam edeceğiz.
+                     * ListBuckets yetkisi yoksa external bucket'larla
+                     * devam et.
                      */
                     log.warn(
                             "[BUCKET LOAD] ListBuckets failed; using external buckets only",
@@ -774,10 +840,6 @@ public class ExplorerPanel extends JPanel {
 
                 /*
                  * S3 bucket'ları + external bucket'lar.
-                 *
-                 * LinkedHashSet:
-                 * - duplicate'i engeller
-                 * - sıralamayı korur
                  */
                 Set<String> allBuckets =
                         new LinkedHashSet<>();
@@ -796,7 +858,7 @@ public class ExplorerPanel extends JPanel {
                     try {
 
                         /*
-                         * ComboBox'ı güncelle.
+                         * ComboBox'ı yeniden doldur.
                          */
                         bucketCombo.removeAllItems();
 
@@ -807,20 +869,19 @@ public class ExplorerPanel extends JPanel {
                         }
 
                         /*
-                         * Önce mevcut aktif bucket'ı
-                         * mümkünse koru.
+                         * Önce mevcut bucket'ı korumaya çalış.
                          */
-                        if (bucketToSelect != null
+                        if (previousBucket != null
                                 && allBuckets.contains(
-                                bucketToSelect)) {
+                                previousBucket)) {
 
                             bucketCombo.setSelectedItem(
-                                    bucketToSelect);
-
+                                    previousBucket);
                         }
+
                         /*
-                         * Aktif bucket artık yoksa
-                         * ilk geçerli bucket'a geç.
+                         * Mevcut bucket artık yoksa
+                         * ilk bucket'ı seç.
                          */
                         else if (bucketCombo.getItemCount() > 0) {
 
@@ -832,9 +893,10 @@ public class ExplorerPanel extends JPanel {
                                         bucketCombo.getSelectedItem();
 
                         log.debug(
-                                "[BUCKET LOAD RESULT] repository={} buckets={} selected={}",
+                                "[BUCKET LOAD RESULT] repository={} buckets={} previous={} selected={}",
                                 repository.getName(),
                                 allBuckets,
+                                previousBucket,
                                 selectedBucket);
 
                     }
@@ -846,14 +908,43 @@ public class ExplorerPanel extends JPanel {
                     }
 
                     /*
-                     * ComboBox ActionListener yukarıdaki
-                     * suppress nedeniyle çalışmadı.
+                     * -------------------------------------------------
+                     * KRİTİK NOKTA
+                     * -------------------------------------------------
                      *
-                     * Bu yüzden tree/table'ı yalnızca
-                     * GERÇEKTEN seçilmiş bucket ile
-                     * bir kez yükle.
+                     * Eğer bucket değişmediyse:
+                     *
+                     *     TREE'ye dokunma
+                     *     FILE TABLE'a dokunma
+                     *
+                     * Sadece ComboBox yenilenmiş olsun.
+                     */
+                    if (Objects.equals(
+                            previousBucket,
+                            selectedBucket)) {
+
+                        log.debug(
+                                "[BUCKET LOAD] bucket unchanged={} - tree/table refresh skipped",
+                                selectedBucket);
+
+                        return;
+                    }
+
+                    /*
+                     * Buraya ancak:
+                     *
+                     * - ilk bucket yükleniyorsa
+                     * - aktif bucket silinmişse
+                     * - gerçekten başka bucket seçilmişse
+                     *
+                     * geliyoruz.
                      */
                     if (selectedBucket != null) {
+
+                        log.debug(
+                                "[BUCKET LOAD] bucket changed {} -> {} - loading explorer",
+                                previousBucket,
+                                selectedBucket);
 
                         loadRootFolders(
                                 selectedBucket);
@@ -867,10 +958,8 @@ public class ExplorerPanel extends JPanel {
                         "[BUCKET LOAD] failed",
                         ex);
 
-                SwingUtilities.invokeLater(() -> {
-
-                    pendingBucketSelection = null;
-                });
+                SwingUtilities.invokeLater(() ->
+                        pendingBucketSelection = null);
             }
         });
     }
@@ -2324,5 +2413,41 @@ public class ExplorerPanel extends JPanel {
              */
             loadBucketsAsync();
         });
+    }
+
+    public void setThreadCountSelectionListener(
+            Consumer<Integer> listener) {
+
+        this.threadCountSelectionListener =
+                listener;
+    }
+
+    public int getSelectedThreadCount() {
+
+        Integer value =
+                (Integer)
+                        threadCountCombo
+                                .getSelectedItem();
+
+        return value == null
+                ? 15
+                : value;
+    }
+
+    public void selectThreadCount(
+            int threadCount) {
+
+        suppressThreadCountSelectionEvent = true;
+
+        try {
+
+            threadCountCombo.setSelectedItem(
+                    threadCount);
+
+        }
+        finally {
+
+            suppressThreadCountSelectionEvent = false;
+        }
     }
 }

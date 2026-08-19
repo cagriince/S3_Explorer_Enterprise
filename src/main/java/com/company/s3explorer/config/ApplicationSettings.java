@@ -5,6 +5,8 @@ public class ApplicationSettings {
     private String lastSelectedBucket;
     private String lastSelectedTheme;
 
+    private int transferThreadCount = 15;
+    
     private int windowWidth = 1200;
     private int windowHeight = 800;
 
@@ -65,5 +67,13 @@ public class ApplicationSettings {
 
     public void setWindowY(int windowY) {
         this.windowY = windowY;
+    }
+
+    public int getTransferThreadCount() {
+        return transferThreadCount;
+    }
+
+    public void setTransferThreadCount(int transferThreadCount) {
+        this.transferThreadCount = transferThreadCount;
     }
 }

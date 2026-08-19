@@ -31,7 +31,7 @@ public class MainFrame extends JFrame {
     private ApplicationSettings settings;
     private TransferPanel transferPanel;
     private JSplitPane split;
-
+    
     public MainFrame() {
         initialize();
     }
@@ -62,6 +62,9 @@ public class MainFrame extends JFrame {
             setExtendedState(JFrame.MAXIMIZED_BOTH);
         }
 
+        int savedThreadCount = settings.getTransferThreadCount();
+        explorerPanel.selectThreadCount( savedThreadCount);
+        
         String lastSelectedTheme = settings.getLastSelectedTheme();
         if (lastSelectedTheme != null) {
             explorerPanel.selectTheme(lastSelectedTheme);
@@ -77,6 +80,19 @@ public class MainFrame extends JFrame {
             }
         );
 
+        explorerPanel.setThreadCountSelectionListener(
+                threadCount -> {
+
+                    settings.setTransferThreadCount(
+                            threadCount);
+
+                    settingsStore.save(
+                            settings);
+
+                    transferEngine.setThreadCount(
+                            threadCount);
+                });
+        
         explorerPanel.setThemeSelectionListener(
                 theme -> {
                     settings.setLastSelectedTheme(theme.name());
@@ -111,7 +127,10 @@ public class MainFrame extends JFrame {
         repositoryManager = new RepositoryManager();
         clientFactory = new S3ClientFactory();
         clientManager = new S3ClientManager(repositoryManager, clientFactory, activeRepositoryContext);
-        transferEngine = new TransferEngine(clientManager);
+        transferEngine =
+                new TransferEngine(
+                        clientManager,
+                        settings.getTransferThreadCount());
         transferPanel = new TransferPanel(transferEngine.getEventBus(), transferEngine.getTransferManager());
 
         explorerPanel =
