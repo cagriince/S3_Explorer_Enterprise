@@ -52,7 +52,7 @@ public class TransferWorker implements Runnable {
             TransferOperation operation = operationFactory.get(runtime.getTask().getType());
             operation.execute(runtime, context);
         } catch (CancellationException ex) {
-            //
+            context.publishCancelled(runtime);
         } catch (Exception ex) {
             ex.printStackTrace();
             context.publishFailed(runtime, ex);
