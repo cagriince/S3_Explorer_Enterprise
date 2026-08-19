@@ -120,6 +120,107 @@ public class S3ExplorerService {
                 files);
     }
 
+    public LimitedFolderContent listFolderWithLimit(
+            String bucket,
+            String prefix,
+            int fileLimit,
+            FileTableSortSpec sortSpec) {
+
+        if (fileLimit <= 0) {
+            throw new IllegalArgumentException(
+                    "fileLimit must be greater than zero");
+        }
+
+        if (sortSpec == null) {
+            sortSpec =
+                    FileTableSortSpec.defaultSpec();
+        }
+
+        List<String> folders =
+                new ArrayList<>();
+
+        BoundedSortedFileCollection files =
+                new BoundedSortedFileCollection(
+                        fileLimit,
+                        sortSpec.createFileComparator());
+
+        String continuationToken = null;
+
+        long scannedFileCount = 0;
+
+        do {
+
+            ListObjectsV2Request.Builder builder =
+                    ListObjectsV2Request.builder()
+                            .bucket(bucket)
+                            .prefix(
+                                    prefix == null
+                                            ? ""
+                                            : prefix)
+                            .delimiter("/")
+                            .maxKeys(500);
+
+            if (continuationToken != null
+                    && !continuationToken.isBlank()) {
+
+                builder.continuationToken(
+                        continuationToken);
+            }
+
+            ListObjectsV2Response response =
+                    client.listObjectsV2(
+                            builder.build());
+
+            /*
+             * Klasörler limitsiz.
+             */
+            for (CommonPrefix commonPrefix :
+                    response.commonPrefixes()) {
+
+                String folder =
+                        commonPrefix.prefix();
+
+                if (!folders.contains(folder)) {
+                    folders.add(folder);
+                }
+            }
+
+            /*
+             * Dosyalar bounded collection'a gider.
+             */
+            for (S3Object object :
+                    response.contents()) {
+
+                if (object.key().equals(prefix)) {
+                    continue;
+                }
+
+                if (object.key().endsWith("/")) {
+                    continue;
+                }
+
+                scannedFileCount++;
+
+                files.add(object);
+            }
+
+            continuationToken =
+                    response.nextContinuationToken();
+
+        }
+        while (continuationToken != null
+                && !continuationToken.isBlank());
+
+        boolean fileLimitReached =
+                scannedFileCount > files.size();
+
+        return new LimitedFolderContent(
+                folders,
+                files.toList(),
+                fileLimitReached,
+                scannedFileCount);
+    }
+    
     public FolderContentPage listFolderPage(
             String bucket,
             String prefix,

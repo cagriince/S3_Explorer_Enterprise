@@ -1,6 +1,6 @@
-package com.company.s3explorer.ui.explorer;
+package com.company.s3explorer.service;
 
-import com.company.s3explorer.util.S3Util;
+import software.amazon.awssdk.services.s3.model.S3Object;
 
 import java.text.Collator;
 import java.time.Instant;
@@ -34,16 +34,17 @@ public final class FileTableSortSpec {
         return ascending;
     }
 
-    public Comparator<S3FileItem> createFileComparator() {
+    public Comparator<S3Object>
+    createFileComparator() {
 
-        Collator turkishCollator =
+        Collator collator =
                 Collator.getInstance(
                         new Locale("tr", "TR"));
 
-        turkishCollator.setStrength(
+        collator.setStrength(
                 Collator.PRIMARY);
 
-        Comparator<S3FileItem> comparator;
+        Comparator<S3Object> comparator;
 
         switch (column) {
 
@@ -51,7 +52,7 @@ public final class FileTableSortSpec {
 
                 comparator =
                         Comparator.comparingLong(
-                                S3FileItem::getSize);
+                                S3Object::size);
 
                 break;
 
@@ -59,7 +60,7 @@ public final class FileTableSortSpec {
 
                 comparator =
                         Comparator.comparing(
-                                S3FileItem::getLastModified,
+                                S3Object::lastModified,
                                 Comparator.nullsFirst(
                                         Instant::compareTo));
 
@@ -70,19 +71,36 @@ public final class FileTableSortSpec {
 
                 comparator =
                         Comparator.comparing(
-                                item ->
-                                        S3Util.extractFolderName(
-                                                item.getKey()),
-                                turkishCollator);
+                                S3Object::key,
+                                collator);
 
                 break;
         }
 
         if (!ascending) {
-            comparator = comparator.reversed();
+            comparator =
+                    comparator.reversed();
         }
 
-        return comparator;
+        /*
+         * Deterministic ordering.
+         *
+         * Eğer iki kayıt primary sort alanında
+         * eşitse key'e göre ikinci bir sıralama
+         * yapıyoruz.
+         */
+        Comparator<S3Object> keyComparator =
+                Comparator.comparing(
+                        S3Object::key,
+                        collator);
+
+        if (!ascending) {
+            keyComparator =
+                    keyComparator.reversed();
+        }
+
+        return comparator.thenComparing(
+                keyComparator);
     }
 
     public static FileTableSortSpec defaultSpec() {
