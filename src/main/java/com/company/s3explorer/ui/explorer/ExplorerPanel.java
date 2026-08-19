@@ -151,7 +151,10 @@ public class ExplorerPanel extends JPanel {
         defineShortCuts();
 
         reloadRepositories();
-
+        
+        repositoryManager.addRepositoryChangeListener(
+                this::onRepositoryChanged);
+        
         eventBus.subscribe(this::onTransferEvent);
         eventBus.subscribe(
                 new TransferListener() {
@@ -681,23 +684,41 @@ public class ExplorerPanel extends JPanel {
         });
     }
 
-    public void loadBucketsAsync() {
-        explorerPool.submit(() -> {
-            try {
-                List<String> buckets = getService().listBuckets();
+    private void loadBucketsAsync() {
+        String previousBucket =
+                getCurrentBucket();
 
-                RepositoryDefinition repository =
-                        getCurrentRepository();
+        if (pendingBucketSelection == null) {
+            pendingBucketSelection =
+                    previousBucket;
+        }
+        
+        explorerPool.submit(() -> {
+
+            RepositoryDefinition repository =
+                    getFreshSelectedRepository();
+
+            if (repository == null) {
+                return;
+            }
+
+            try {
+
+                S3ExplorerService service =
+                        new S3ExplorerService(
+                                clientManager.getClient(repository));
+
+                List<String> buckets =
+                        service.listBuckets();
 
                 Set<String> allBuckets =
                         new LinkedHashSet<>(buckets);
 
-                if (repository != null) {
-                    allBuckets.addAll(
-                            repository.getExternalBuckets());
-                }
+                allBuckets.addAll(
+                        repository.getExternalBuckets());
 
                 SwingUtilities.invokeLater(() -> {
+
                     bucketCombo.removeAllItems();
 
                     allBuckets.forEach(
@@ -710,54 +731,53 @@ public class ExplorerPanel extends JPanel {
                         bucketCombo.setSelectedItem(
                                 pendingBucketSelection);
 
-                        pendingBucketSelection = null;
-                    }
-                    else if (bucketCombo.getItemCount() > 0) {
+                    } else if (bucketCombo.getItemCount() > 0) {
+
                         bucketCombo.setSelectedIndex(0);
                     }
+
+                    pendingBucketSelection = null;
                 });
 
             } catch (Exception ex) {
 
-                // log.error("Explorer operation failed", ex);
+                log.error(
+                        "Bucket list could not be loaded",
+                        ex);
 
+                /*
+                 * ListBuckets yetkisi yoksa bile
+                 * external bucket'lar kullanılabilsin.
+                 */
                 SwingUtilities.invokeLater(() -> {
 
-                    RepositoryDefinition repository =
-                            getCurrentRepository();
+                    bucketCombo.removeAllItems();
 
-                    if (repository != null
-                            && !repository
+                    repository
                             .getExternalBuckets()
-                            .isEmpty()) {
+                            .forEach(
+                                    bucketCombo::addItem);
 
-                        bucketCombo.removeAllItems();
+                    if (pendingBucketSelection != null
+                            && repository
+                            .getExternalBuckets()
+                            .contains(
+                                    pendingBucketSelection)) {
 
-                        repository
-                                .getExternalBuckets()
-                                .forEach(
-                                        bucketCombo::addItem);
+                        bucketCombo.setSelectedItem(
+                                pendingBucketSelection);
 
-                        if (pendingBucketSelection != null) {
-                            bucketCombo.setSelectedItem(
-                                    pendingBucketSelection);
-                            pendingBucketSelection = null;
-                        }
-                        else if (bucketCombo.getItemCount() > 0) {
-                            bucketCombo.setSelectedIndex(0);
-                        }
+                    } else if (bucketCombo.getItemCount() > 0) {
 
-                        return;
+                        bucketCombo.setSelectedIndex(0);
                     }
 
-                    JOptionPane.showMessageDialog(
-                            this,
-                            ex.getMessage());
+                    pendingBucketSelection = null;
                 });
             }
         });
     }
-
+    
     public void loadRootFolders(String bucket) {
         explorerPool.submit(() -> {
             java.util.List<String> folders = getService().listFolders(bucket, S3TreeNode.ROOT_PREFIX);
@@ -1020,24 +1040,42 @@ public class ExplorerPanel extends JPanel {
     }
 
     public void reloadBuckets() {
+
+        String previousBucket = getCurrentBucket();
+        pendingBucketSelection = previousBucket;
+        
         bucketCombo.removeAllItems();
-        S3TreeNode root = new S3TreeNode(S3TreeNode.ROOT_PREFIX, S3TreeNode.ROOT_PREFIX, S3TreeNode.ROOT_PREFIX);
+
+        S3TreeNode root =
+                new S3TreeNode(
+                        S3TreeNode.ROOT_PREFIX,
+                        S3TreeNode.ROOT_PREFIX,
+                        S3TreeNode.ROOT_PREFIX);
+
         treeModel.setRoot(root);
         nodeCache.clear();
-        nodeCache.put(root.getFullPrefix(), root);
+        nodeCache.put(
+                root.getFullPrefix(),
+                root);
+
         treeModel.reload();
-        updateBreadcrumb(S3TreeNode.ROOT_PREFIX);
+        updateBreadcrumb(
+                S3TreeNode.ROOT_PREFIX);
         updateActionStates();
 
-        fileTableModel.setFiles(Collections.emptyList());
+        fileTableModel.setFiles(
+                Collections.emptyList());
 
         if (!context.hasActiveRepository()) {
             return;
         }
 
+        pendingBucketSelection =
+                previousBucket;
+
         loadBucketsAsync();
     }
-
+    
     private void loadChildren(
             S3TreeNode parentNode) {
 
@@ -2117,5 +2155,42 @@ public class ExplorerPanel extends JPanel {
         }
 
         return normalized.substring(0, index + 1);
+    }
+
+    private RepositoryDefinition getFreshSelectedRepository() {
+        RepositoryDefinition selected =
+                (RepositoryDefinition) repositoryCombo.getSelectedItem();
+
+        if (selected == null) {
+            return null;
+        }
+
+        RepositoryDefinition fresh =
+                repositoryManager.findByName(selected.getName());
+
+        if (fresh == null
+                || fresh == RepositoryDefinition.EMPTY_REPOSITORY) {
+            return selected;
+        }
+
+        return fresh;
+    }
+
+    private void onRepositoryChanged() {
+
+        SwingUtilities.invokeLater(() -> {
+
+            log.info("[EXPLORER REPOSITORY CHANGED] refreshing buckets");
+
+            String currentBucket =
+                    getCurrentBucket();
+
+            pendingBucketSelection =
+                    currentBucket;
+
+            reloadRepositories();
+
+            loadBucketsAsync();
+        });
     }
 }
