@@ -59,6 +59,23 @@ import java.util.function.Consumer;
 public class ExplorerPanel extends JPanel {
 
     private static final Logger log = LoggerFactory.getLogger(ExplorerPanel.class);
+
+    private static final Integer[] FILE_TABLE_ROW_LIMITS = {
+            100,
+            250,
+            500,
+            1000,
+            2000,
+            5000,
+            10000,
+            20000,
+            50000,
+            100000,
+            200000,
+            500000,
+            1000000,
+            10000000
+    };
     private static final Integer[] THREAD_COUNTS = {
             1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
             15, 20, 25, 30, 40, 50, 60, 80, 100
@@ -85,6 +102,9 @@ public class ExplorerPanel extends JPanel {
     private boolean currentFileHasMore;
     private boolean loadingMoreFiles;
 
+    private JComboBox<Integer> fileTableRowLimitCombo;
+    private Consumer<Integer> fileTableRowLimitSelectionListener;
+    
     private JComboBox<Integer> threadCountCombo;
     private Consumer<Integer> threadCountSelectionListener;
 
@@ -393,10 +413,43 @@ public class ExplorerPanel extends JPanel {
                 new Insets(10, 5, 5, 5);
 
         /*
+         * Max line count ComboBox
+         */
+        fileTableRowLimitCombo =
+                new JComboBox<>(FILE_TABLE_ROW_LIMITS);
+
+        fileTableRowLimitCombo.setSelectedItem(500);
+
+        fileTableRowLimitCombo.setToolTipText(
+                "Max Line Count");
+
+        fileTableRowLimitCombo.addActionListener(e -> {
+
+            Integer selected =
+                    (Integer)
+                            fileTableRowLimitCombo
+                                    .getSelectedItem();
+
+            if (selected == null) {
+                return;
+            }
+
+            if (fileTableRowLimitSelectionListener != null) {
+                fileTableRowLimitSelectionListener.accept(
+                        selected);
+            }
+        });
+        themePanel.add(
+                fileTableRowLimitCombo,
+                c);
+        
+        /*
          * Thread count ComboBox
          */
         threadCountCombo = new JComboBox<>(THREAD_COUNTS);
         threadCountCombo.setSelectedItem(15);
+        threadCountCombo.setToolTipText(
+                "Thread Count");
         threadCountCombo.addActionListener(e -> {
 
             if (suppressThreadCountSelectionEvent) {
@@ -443,6 +496,8 @@ public class ExplorerPanel extends JPanel {
                                 index);
                     }
                 };
+        themeCombo.setToolTipText(
+                "Theme");
 
         themeManager.getThemes()
                 .forEach(
