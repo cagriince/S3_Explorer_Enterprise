@@ -140,4 +140,10 @@ public class ProducerRuntime {
                 startTime,
                 end).toMillis();
     }
+
+    public boolean isInterruptedOrCancelRequested() {
+
+        return cancelRequested
+                || Thread.currentThread().isInterrupted();
+    }
 }

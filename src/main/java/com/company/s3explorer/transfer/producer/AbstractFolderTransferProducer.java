@@ -79,7 +79,7 @@ public abstract class AbstractFolderTransferProducer
                             prefix,
                             object -> {
 
-                                if (runtime.isCancelRequested()) {
+                                if (runtime.isInterruptedOrCancelRequested()) {
                                     throw new ProducerCancelledException();
                                 }
 

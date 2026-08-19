@@ -59,18 +59,13 @@ public class FolderUploadProducer
             paths.filter(Files::isRegularFile)
                     .forEach(file -> {
 
-                        if (runtime.isCancelRequested()) {
+                        if (runtime.isInterruptedOrCancelRequested()) {
                             throw new ProducerCancelledException();
                         }
 
                         produceFile(file);
 
                         runtime.incrementDiscovered();
-
-                        /*
-                         * UI event'i her dosyada
-                         * göndermiyoruz.
-                         */
                     });
         }
     }

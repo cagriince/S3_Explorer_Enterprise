@@ -90,20 +90,10 @@ public class ProducerExecutor
 
     public void cancelAll() {
 
-        /*
-         * Snapshot alıyoruz.
-         *
-         * Producer kendi finally bloğunda map'ten
-         * silinirken ConcurrentHashMap üzerinde
-         * sorun yaşamayacağız.
-         */
-        Map<ProducerRuntime, Future<?>> snapshot =
-                new HashMap<>(runningProducers);
-
         for (Map.Entry<
                 ProducerRuntime,
                 Future<?>> entry
-                : snapshot.entrySet()) {
+                : runningProducers.entrySet()) {
 
             ProducerRuntime runtime =
                     entry.getKey();
@@ -115,13 +105,31 @@ public class ProducerExecutor
                 continue;
             }
 
+            /*
+             * Önce mantıksal cancellation.
+             */
             runtime.requestCancel();
 
+            /*
+             * Preparing işlemini UI'da hemen
+             * CANCELLED olarak göster.
+             */
+            runtime.setMessage(
+                    "Producer cancelled");
+
+            runtime.setStatus(
+                    TransferStatus.CANCELLED);
+
+            runtime.forceNextUiPublish();
+
+            eventBus.publishProducer(runtime);
+
+            /*
+             * Sonra çalışan producer thread'ini interrupt et.
+             */
             if (future != null) {
                 future.cancel(true);
             }
-
-            eventBus.publishProducer(runtime);
         }
     }
 
@@ -141,7 +149,8 @@ public class ProducerExecutor
 
             producer.produce(runtime);
 
-            if (runtime.isCancelRequested()) {
+            if (runtime.isCancelRequested()
+                    || Thread.currentThread().isInterrupted()) {
 
                 runtime.setMessage(
                         "Producer cancelled");
@@ -158,7 +167,8 @@ public class ProducerExecutor
                         TransferStatus.COMPLETED);
             }
 
-        } catch (ProducerCancelledException ex) {
+        }
+        catch (ProducerCancelledException ex) {
 
             runtime.setMessage(
                     "Producer cancelled");
@@ -166,15 +176,33 @@ public class ProducerExecutor
             runtime.setStatus(
                     TransferStatus.CANCELLED);
 
-        } catch (Exception ex) {
+        }
+        catch (Exception ex) {
 
-            runtime.setMessage(
-                    ex.getMessage());
+            /*
+             * Cancel All sırasında producer interrupt edilmişse
+             * FAILED olarak göstermiyoruz.
+             */
+            if (runtime.isCancelRequested()
+                    || Thread.currentThread().isInterrupted()) {
 
-            runtime.setStatus(
-                    TransferStatus.FAILED);
+                runtime.setMessage(
+                        "Producer cancelled");
 
-        } finally {
+                runtime.setStatus(
+                        TransferStatus.CANCELLED);
+
+            } else {
+
+                runtime.setMessage(
+                        ex.getMessage());
+
+                runtime.setStatus(
+                        TransferStatus.FAILED);
+            }
+
+        }
+        finally {
 
             runtime.setEndTime(
                     Instant.now());
