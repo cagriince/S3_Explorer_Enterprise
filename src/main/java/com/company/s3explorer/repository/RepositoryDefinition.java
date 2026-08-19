@@ -2,11 +2,14 @@ package com.company.s3explorer.repository;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 public class RepositoryDefinition {
     public static RepositoryDefinition EMPTY_REPOSITORY = new RepositoryDefinition(null, null, null, null);
-
+    private List<String> externalBuckets = new ArrayList<>();
+    
     private String name;
     private String endpoint;
     private String accessKey;
@@ -59,6 +62,19 @@ public class RepositoryDefinition {
         this.secretKey = secretKey;
     }
 
+    public List<String> getExternalBuckets() {
+        return externalBuckets == null
+                ? List.of()
+                : List.copyOf(externalBuckets);
+    }
+
+    public void setExternalBuckets(List<String> externalBuckets) {
+        this.externalBuckets =
+                externalBuckets == null
+                        ? new ArrayList<>()
+                        : new ArrayList<>(externalBuckets);
+    }
+    
     @Override
     public String toString() {
         return name;

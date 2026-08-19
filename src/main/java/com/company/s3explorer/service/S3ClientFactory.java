@@ -36,7 +36,6 @@ public class S3ClientFactory {
         S3Client client = null;
         try {
             client = create(repo);
-            client.listBuckets();
 
             return true;
         } catch (Exception e) {

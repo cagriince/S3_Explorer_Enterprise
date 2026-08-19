@@ -685,23 +685,75 @@ public class ExplorerPanel extends JPanel {
         explorerPool.submit(() -> {
             try {
                 List<String> buckets = getService().listBuckets();
+
+                RepositoryDefinition repository =
+                        getCurrentRepository();
+
+                Set<String> allBuckets =
+                        new LinkedHashSet<>(buckets);
+
+                if (repository != null) {
+                    allBuckets.addAll(
+                            repository.getExternalBuckets());
+                }
+
                 SwingUtilities.invokeLater(() -> {
                     bucketCombo.removeAllItems();
-                    buckets.forEach(bucketCombo::addItem);
-                    if (pendingBucketSelection != null) {
-                        bucketCombo.setSelectedItem(pendingBucketSelection);
+
+                    allBuckets.forEach(
+                            bucketCombo::addItem);
+
+                    if (pendingBucketSelection != null
+                            && allBuckets.contains(
+                            pendingBucketSelection)) {
+
+                        bucketCombo.setSelectedItem(
+                                pendingBucketSelection);
+
                         pendingBucketSelection = null;
                     }
-                    else {
+                    else if (bucketCombo.getItemCount() > 0) {
                         bucketCombo.setSelectedIndex(0);
                     }
                 });
+
             } catch (Exception ex) {
-                log.error("Explorer operation failed", ex);
-                SwingUtilities.invokeLater(() ->
-                        JOptionPane.showMessageDialog(
-                                this,
-                                ex.getMessage()));
+
+                // log.error("Explorer operation failed", ex);
+
+                SwingUtilities.invokeLater(() -> {
+
+                    RepositoryDefinition repository =
+                            getCurrentRepository();
+
+                    if (repository != null
+                            && !repository
+                            .getExternalBuckets()
+                            .isEmpty()) {
+
+                        bucketCombo.removeAllItems();
+
+                        repository
+                                .getExternalBuckets()
+                                .forEach(
+                                        bucketCombo::addItem);
+
+                        if (pendingBucketSelection != null) {
+                            bucketCombo.setSelectedItem(
+                                    pendingBucketSelection);
+                            pendingBucketSelection = null;
+                        }
+                        else if (bucketCombo.getItemCount() > 0) {
+                            bucketCombo.setSelectedIndex(0);
+                        }
+
+                        return;
+                    }
+
+                    JOptionPane.showMessageDialog(
+                            this,
+                            ex.getMessage());
+                });
             }
         });
     }

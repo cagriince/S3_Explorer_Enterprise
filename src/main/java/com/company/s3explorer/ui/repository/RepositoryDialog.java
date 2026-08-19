@@ -8,12 +8,15 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
+import java.util.List;
+import java.util.Arrays;
 
 public class RepositoryDialog extends JDialog {
     private JTextField nameField;
     private JTextField endpointField;
     private JTextField accessKeyField;
     private JPasswordField secretKeyField;
+    private JTextArea externalBucketsArea;
     private RepositoryDefinition repository;
 
     public RepositoryDialog(Window owner) {
@@ -28,11 +31,17 @@ public class RepositoryDialog extends JDialog {
         endpointField.setText(repository.getEndpoint());
         accessKeyField.setText(repository.getAccessKey());
         secretKeyField.setText(repository.getSecretKey());
+        if (repository.getExternalBuckets() != null) {
+            externalBucketsArea.setText(
+                    String.join(
+                            System.lineSeparator(),
+                            repository.getExternalBuckets()));
+        }
         setTitle("Edit Repository");
     }
 
     private void initialize() {
-        setSize(500, 220);
+        setSize(500, 360);
         setLocationRelativeTo(getOwner());
         setLayout(new BorderLayout());
 
@@ -84,6 +93,24 @@ public class RepositoryDialog extends JDialog {
         secretKeyField = new JPasswordField();
         panel.add(secretKeyField, gbc);
 
+        gbc.gridx = 0;
+        gbc.gridy = 4;
+        gbc.weightx = 0.0;
+        gbc.anchor = GridBagConstraints.NORTHWEST;
+        panel.add(new JLabel("External Buckets"), gbc);
+
+        gbc.gridx = 1;
+        gbc.gridy = 4;
+        gbc.weightx = 1.0;
+        gbc.weighty = 1.0;
+        gbc.fill = GridBagConstraints.BOTH;
+
+        externalBucketsArea = new JTextArea(5, 30);
+        externalBucketsArea.setLineWrap(false);
+
+        JScrollPane externalBucketsScroll = new JScrollPane(externalBucketsArea);
+        panel.add(externalBucketsScroll, gbc);
+        
         return panel;
     }
 
@@ -107,7 +134,16 @@ public class RepositoryDialog extends JDialog {
         String endpoint = endpointField.getText().trim();
         String accessKey = accessKeyField.getText().trim();
         String secretKey = new String(secretKeyField.getPassword()).trim();
-
+        List<String> externalBuckets =
+                Arrays.stream(
+                                externalBucketsArea
+                                        .getText()
+                                        .split("\\R"))
+                        .map(String::trim)
+                        .filter(s -> !s.isEmpty())
+                        .distinct()
+                        .toList();
+        
         if (name.isEmpty()
                 || endpoint.isEmpty()
                 || accessKey.isEmpty()
@@ -127,7 +163,8 @@ public class RepositoryDialog extends JDialog {
             repository.setEndpoint(endpoint);
             repository.setAccessKey(accessKey);
             repository.setSecretKey(secretKey);
-
+            repository.setExternalBuckets(externalBuckets);
+            
             dispose();
 
         } catch (Exception ex) {
