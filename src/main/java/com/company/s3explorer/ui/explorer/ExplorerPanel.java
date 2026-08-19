@@ -1,6 +1,8 @@
 package com.company.s3explorer.ui.explorer;
 
 import com.company.s3explorer.application.ActiveRepositoryContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import com.company.s3explorer.repository.RepositoryDefinition;
 import com.company.s3explorer.repository.RepositoryManager;
 import com.company.s3explorer.service.FolderContent;
@@ -56,6 +58,8 @@ import java.util.function.Consumer;
 
 public class ExplorerPanel extends JPanel {
 
+    private static final Logger log = LoggerFactory.getLogger(ExplorerPanel.class);
+
     private final ExplorerRefreshScheduler refreshScheduler;
     private final Map<String, S3TreeNode> nodeCache = new HashMap<>();
 
@@ -76,7 +80,7 @@ public class ExplorerPanel extends JPanel {
     private String currentFileContinuationToken;
     private boolean currentFileHasMore;
     private boolean loadingMoreFiles;
-    
+
     private JPanel breadcrumbPanel;
     private JLabel fileFolderInfo;
 
@@ -162,9 +166,7 @@ public class ExplorerPanel extends JPanel {
                     public void onTransferGroupCompleted(
                             TransferGroupCompletedEvent event) {
 
-                        System.out.println(
-                                "[EXPLORER LISTENER ENTERED] " +
-                                        "event=" + event);
+                        log.debug("[EXPLORER LISTENER ENTERED] event={}", event);
 
                         ExplorerPanel.this
                                 .onTransferGroupCompleted(event);
@@ -661,7 +663,7 @@ public class ExplorerPanel extends JPanel {
                     }
                 });
             } catch (Exception ex) {
-                ex.printStackTrace();
+                log.error("Explorer operation failed", ex);
                 SwingUtilities.invokeLater(() ->
                         JOptionPane.showMessageDialog(
                                 this,
@@ -686,7 +688,7 @@ public class ExplorerPanel extends JPanel {
                     }
                 });
             } catch (Exception ex) {
-                ex.printStackTrace();
+                log.error("Explorer operation failed", ex);
                 SwingUtilities.invokeLater(() ->
                         JOptionPane.showMessageDialog(
                                 this,
@@ -765,7 +767,7 @@ public class ExplorerPanel extends JPanel {
                 })
                 .exceptionally(ex -> {
 
-                    ex.printStackTrace();
+                    log.error("Explorer operation failed", ex);
 
                     SwingUtilities.invokeLater(() -> {
 
@@ -881,7 +883,7 @@ public class ExplorerPanel extends JPanel {
                         + " folder(s)"
                         + suffix);
     }
-    
+
     private void bindEvents() {
         themeCombo.addActionListener(e -> {
             UITheme theme = (UITheme) themeCombo.getSelectedItem();
@@ -980,7 +982,7 @@ public class ExplorerPanel extends JPanel {
 
         loadChildren(parentNode, false);
     }
-    
+
     private void loadChildren(
             S3TreeNode parentNode,
             boolean forceRefresh) {
@@ -1003,13 +1005,12 @@ public class ExplorerPanel extends JPanel {
             String bucket =
                     this.getCurrentBucket();
 
-            System.out.println(
-                    "[TREE LOAD START] bucket=" +
-                            bucket +
-                            " prefix=" +
-                            parentNode.getFullPrefix() +
-                            " forceRefresh=" +
-                            forceRefresh);
+            log.debug(
+                    "[TREE LOAD START] thread={} bucket={} prefix={} forceRefresh={}",
+                    Thread.currentThread().getName(),
+                    bucket,
+                    parentNode.getFullPrefix(),
+                    forceRefresh);
 
             List<String> folders =
                     getService()
@@ -1017,23 +1018,21 @@ public class ExplorerPanel extends JPanel {
                                     bucket,
                                     parentNode.getFullPrefix());
 
-            System.out.println(
-                    "[TREE LOAD RESULT] bucket=" +
-                            bucket +
-                            " prefix=" +
-                            parentNode.getFullPrefix() +
-                            " folders=" +
-                            folders.size() +
-                            " " + folders);
+            log.debug(
+                    "[TREE LOAD RESULT] thread={} bucket={} prefix={} folders={}",
+                    Thread.currentThread().getName(),
+                    bucket,
+                    parentNode.getFullPrefix(),
+                    folders.size());
 
             SwingUtilities.invokeLater(() -> {
 
-                System.out.println(
-                        "[TREE APPLY START] prefix=" +
-                                parentNode.getFullPrefix() +
-                                " folders=" +
-                                folders.size());
-                
+                log.debug(
+                        "[TREE APPLY START] thread={} prefix={} folders={}",
+                        Thread.currentThread().getName(),
+                        parentNode.getFullPrefix(),
+                        folders.size());
+
                 Enumeration<?> children =
                         parentNode.children();
 
@@ -1072,11 +1071,11 @@ public class ExplorerPanel extends JPanel {
 
                 treeModel.reload(parentNode);
 
-                System.out.println(
-                        "[TREE APPLY DONE] prefix=" +
-                                parentNode.getFullPrefix() +
-                                " childCount=" +
-                                parentNode.getChildCount());
+                log.debug(
+                        "[TREE APPLY DONE] thread={} prefix={} childCount={}",
+                        Thread.currentThread().getName(),
+                        parentNode.getFullPrefix(),
+                        parentNode.getChildCount());
             });
         });
     }
@@ -1366,15 +1365,13 @@ public class ExplorerPanel extends JPanel {
         TransferGroup group =
                 event.getGroup();
 
-        System.out.println(
-                "[EXPLORER GROUP COMPLETED] " +
-                        group.getDisplayName());
+        log.debug(
+                "[EXPLORER GROUP COMPLETED] {}",
+                group.getDisplayName());
 
         if (!event.isSuccessful()) {
 
-            System.out.println(
-                    "[EXPLORER GROUP COMPLETED] " +
-                            "not successful");
+            log.debug("[EXPLORER GROUP COMPLETED] not successful");
 
             return;
         }
@@ -1385,10 +1382,10 @@ public class ExplorerPanel extends JPanel {
         String parentPrefix =
                 getParentPrefix(prefix);
 
-        System.out.println(
-                "[EXPLORER REFRESH] " +
-                        "prefix=" + prefix +
-                        " parent=" + parentPrefix);
+        log.debug(
+                "[EXPLORER REFRESH] prefix={} parent={}",
+                prefix,
+                parentPrefix);
 
         refreshScheduler.scheduleRefresh(
                 List.of(
@@ -1404,7 +1401,7 @@ public class ExplorerPanel extends JPanel {
                     .scheduleCurrentTableRefresh();
         }
     }
-    
+
     private void selectAndLoadPrefix(
             String bucket,
             String prefix) {
@@ -1434,7 +1431,7 @@ public class ExplorerPanel extends JPanel {
         updateBreadcrumb(prefix);
         updateActionStates();
     }
-    
+
     private S3TreeNode findNodeByPrefix(S3TreeNode root, String prefix) {
         if (prefix.equals(root.getFullPrefix())) {
             return root;
@@ -1640,43 +1637,43 @@ public class ExplorerPanel extends JPanel {
             removeFromCache((S3TreeNode) children.nextElement());
         }
     }
-/*
-    public void refreshNode(String prefix) {
-        DefaultMutableTreeNode node = nodeCache.get(prefix);
-        if (node == null) {
-            refreshTree();
-            return;
+    /*
+        public void refreshNode(String prefix) {
+            DefaultMutableTreeNode node = nodeCache.get(prefix);
+            if (node == null) {
+                refreshTree();
+                return;
+            }
+    
+            reloadChildren(node);
         }
-
-        reloadChildren(node);
-    }
-
-    private void reloadChildren(DefaultMutableTreeNode node) {
-        System.out.println("Reload Tree Node: " + node);
-        S3TreeNode treeNode = (S3TreeNode) node;
-        Enumeration<?> children = node.children();
-        while (children.hasMoreElements()) {
-            DefaultMutableTreeNode child = (DefaultMutableTreeNode) children.nextElement();
-            removeFromCache(child);
+    
+        private void reloadChildren(DefaultMutableTreeNode node) {
+            log.debug("Reload Tree Node: {}", node);
+            S3TreeNode treeNode = (S3TreeNode) node;
+            Enumeration<?> children = node.children();
+            while (children.hasMoreElements()) {
+                DefaultMutableTreeNode child = (DefaultMutableTreeNode) children.nextElement();
+                removeFromCache(child);
+            }
+            node.removeAllChildren();
+    
+            List<String> folders = getService().listFolders(treeNode.getBucket(), treeNode.getFullPrefix());
+            for (String folder : folders) {
+                String displayName = extractFolderName(folder);
+                DefaultMutableTreeNode child = new S3TreeNode(displayName, treeNode.getBucket(), folder);
+                node.add(child);
+                nodeCache.put(folder, child);
+            }
+    
+            treeModel.reload(node);
+            if (treeNode.getParent() == null) {
+                // root olunca selection'ı kaybediyor
+                folderTree.setSelectionRow(0);
+            }
+            loadFiles(treeNode.getBucket(), ((S3TreeNode) node).getFullPrefix());
         }
-        node.removeAllChildren();
-
-        List<String> folders = getService().listFolders(treeNode.getBucket(), treeNode.getFullPrefix());
-        for (String folder : folders) {
-            String displayName = extractFolderName(folder);
-            DefaultMutableTreeNode child = new S3TreeNode(displayName, treeNode.getBucket(), folder);
-            node.add(child);
-            nodeCache.put(folder, child);
-        }
-
-        treeModel.reload(node);
-        if (treeNode.getParent() == null) {
-            // root olunca selection'ı kaybediyor
-            folderTree.setSelectionRow(0);
-        }
-        loadFiles(treeNode.getBucket(), ((S3TreeNode) node).getFullPrefix());
-    }
-*/
+    */
     private void clearChildren(S3TreeNode parent) {
         Enumeration<?> e = parent.children();
         while (e.hasMoreElements()) {
@@ -1694,15 +1691,15 @@ public class ExplorerPanel extends JPanel {
     }
 
     private void attachChild(S3TreeNode parentNode, String prefix) {
-            String displayName = S3Util.extractFolderName(prefix);
-            S3TreeNode childNode = new S3TreeNode(displayName, parentNode.getBucket(), prefix);
-            parentNode.add(childNode);
-            nodeCache.put(childNode.getFullPrefix(), childNode);
+        String displayName = S3Util.extractFolderName(prefix);
+        S3TreeNode childNode = new S3TreeNode(displayName, parentNode.getBucket(), prefix);
+        parentNode.add(childNode);
+        nodeCache.put(childNode.getFullPrefix(), childNode);
     }
 
     private void removeChild(S3TreeNode parentNode, S3TreeNode childNode) {
         if (!childNode.getParent().equals(parentNode)) {
-            System.out.println("-------------> ??? parent node is different");
+            log.warn("Parent node mismatch while removing child");
         }
         parentNode.remove(childNode);
         nodeCache.remove(childNode.getFullPrefix());
@@ -1720,36 +1717,30 @@ public class ExplorerPanel extends JPanel {
 
         String prefix = request.prefix();
 
-        System.out.println(
-                "[EXPLORER TREE REFRESH] prefix=" +
-                        prefix +
-                        " operation=" +
-                        request.operation());
+        log.debug(
+                "[EXPLORER TREE REFRESH] prefix={} operation={}",
+                prefix,
+                request.operation());
 
         S3TreeNode node =
                 nodeCache.get(prefix);
 
-        System.out.println(
-                "[EXPLORER TREE REFRESH NODE] " +
-                        "prefix=" + prefix +
-                        " node=" + node +
-                        " childCount=" +
-                        (node == null
-                                ? -1
-                                : node.getChildCount()));
+        log.debug(
+                "[EXPLORER TREE REFRESH NODE] prefix={} node={} childCount={}",
+                prefix,
+                node,
+                node == null ? -1 : node.getChildCount());
 
         if (node == null) {
 
-            System.out.println(
-                    "[EXPLORER TREE REFRESH NODE] " +
-                            "NODE NOT FOUND");
+            log.debug("[EXPLORER TREE REFRESH NODE] NODE NOT FOUND");
 
             return;
         }
 
         loadChildren(node, true);
     }
-    
+
     private void copySelected() {
         List<S3FileItem> items = getSelectedItems();
         if (items.isEmpty()) {
