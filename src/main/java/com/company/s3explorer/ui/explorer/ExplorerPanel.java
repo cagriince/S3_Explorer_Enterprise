@@ -127,7 +127,8 @@ public class ExplorerPanel extends JPanel {
     private final TransferManager transferManager;
     private final RepositoryManager repositoryManager;
     private final S3ClientManager clientManager;
-
+    private final TransferPanel transferPanel;
+    
     private Consumer<UITheme> themeSelectionListener;
     private Consumer<RepositoryDefinition> repositorySelectionListener;
     private Consumer<String> bucketSelectionListener;
@@ -164,6 +165,7 @@ public class ExplorerPanel extends JPanel {
         this.transferManager = transferManager;
         this.repositoryManager = repositoryManager;
         this.clientManager = clientManager;
+        this.transferPanel = transferPanel;
         this.themeManager = new UIThemeManager(this, transferPanel);
 
         refreshScheduler =
@@ -1100,6 +1102,9 @@ public class ExplorerPanel extends JPanel {
 
         /*
          * Bu klasörün tamamı daha önce alınmış mı?
+         *
+         * Cache varsa S3'e gitmiyoruz.
+         * Dolayısıyla Preparing de göstermiyoruz.
          */
         if (isFullContentCached(
                 bucket,
@@ -1116,8 +1121,10 @@ public class ExplorerPanel extends JPanel {
         }
 
         /*
-         * Cache yoksa mevcut S3 akışı.
+         * Gerçek S3 taraması başlıyor.
          */
+        transferPanel.showPreparing();
+
         CompletableFuture
                 .supplyAsync(
                         () -> getService()
@@ -1126,7 +1133,13 @@ public class ExplorerPanel extends JPanel {
                                         prefix,
                                         fileLimit,
                                         sortSpec,
-                                        currentFolderCollationKeyCache),
+                                        currentFolderCollationKeyCache,
+                                        (fileCount,
+                                         folderCount) ->
+                                                transferPanel
+                                                        .updatePreparing(
+                                                                fileCount,
+                                                                folderCount)),
                         explorerPool)
                 .thenAccept(content -> {
 
@@ -1134,6 +1147,9 @@ public class ExplorerPanel extends JPanel {
 
                         if (generation !=
                                 fileLoadGeneration.get()) {
+
+                            transferPanel.hidePreparing();
+
                             return;
                         }
 
@@ -1153,6 +1169,8 @@ public class ExplorerPanel extends JPanel {
                                     prefix;
                         }
 
+                        transferPanel.hidePreparing();
+
                         applyLimitedFolderContent(
                                 bucket,
                                 prefix,
@@ -1171,8 +1189,13 @@ public class ExplorerPanel extends JPanel {
 
                         if (generation !=
                                 fileLoadGeneration.get()) {
+
+                            transferPanel.hidePreparing();
+
                             return;
                         }
+
+                        transferPanel.hidePreparing();
 
                         setFileTableLoading(false);
 

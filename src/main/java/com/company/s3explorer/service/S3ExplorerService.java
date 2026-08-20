@@ -141,6 +141,23 @@ public class S3ExplorerService {
             FileTableSortSpec sortSpec,
             Map<String, CollationKey> collationKeyCache) {
 
+        return listFolderWithLimit(
+                bucket,
+                prefix,
+                fileLimit,
+                sortSpec,
+                collationKeyCache,
+                null);
+    }
+
+    public LimitedFolderContent listFolderWithLimit(
+            String bucket,
+            String prefix,
+            int fileLimit,
+            FileTableSortSpec sortSpec,
+            Map<String, CollationKey> collationKeyCache,
+            FolderDiscoveryListener discoveryListener) {
+
         if (fileLimit <= 0) {
             throw new IllegalArgumentException(
                     "fileLimit must be greater than zero");
@@ -208,6 +225,19 @@ public class S3ExplorerService {
                 scannedFileCount++;
 
                 files.add(object);
+            }
+
+            /*
+             * Bu noktada bir S3 sayfası tamamen işlendi.
+             *
+             * Her dosyada callback çağırmıyoruz.
+             * Böylece UI tarafına gereksiz yük bindirmiyoruz.
+             */
+            if (discoveryListener != null) {
+
+                discoveryListener.onDiscovery(
+                        scannedFileCount,
+                        folders.size());
             }
 
             continuationToken =
