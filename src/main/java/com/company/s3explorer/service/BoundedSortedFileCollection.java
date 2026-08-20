@@ -2,10 +2,7 @@ package com.company.s3explorer.service;
 
 import software.amazon.awssdk.services.s3.model.S3Object;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 
 public class BoundedSortedFileCollection {
 
@@ -88,11 +85,42 @@ public class BoundedSortedFileCollection {
             return;
         }
 
+        /*
+         * Eğer kaynak zaten Collection ise,
+         * tek tek insertion yapmak yerine
+         * topluca sort etmek çok daha hızlıdır.
+         */
+        if (source instanceof java.util.Collection<?> collection) {
+
+            @SuppressWarnings("unchecked")
+            Collection<S3Object> objects =
+                    (Collection<S3Object>) collection;
+
+            items.clear();
+
+            items.addAll(objects);
+
+            items.sort(comparator);
+
+            if (items.size() > limit) {
+
+                items.subList(
+                        limit,
+                        items.size()).clear();
+            }
+
+            return;
+        }
+
+        /*
+         * Streaming kaynaklar için mevcut
+         * bounded insertion algoritması.
+         */
         for (S3Object item : source) {
             add(item);
         }
     }
-
+    
     public int size() {
         return items.size();
     }
