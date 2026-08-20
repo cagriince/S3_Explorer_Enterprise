@@ -12,10 +12,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Set;
+import java.text.CollationKey;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
@@ -128,6 +126,21 @@ public class S3ExplorerService {
             int fileLimit,
             FileTableSortSpec sortSpec) {
 
+        return listFolderWithLimit(
+                bucket,
+                prefix,
+                fileLimit,
+                sortSpec,
+                new HashMap<>());
+    }
+
+    public LimitedFolderContent listFolderWithLimit(
+            String bucket,
+            String prefix,
+            int fileLimit,
+            FileTableSortSpec sortSpec,
+            Map<String, CollationKey> collationKeyCache) {
+
         if (fileLimit <= 0) {
             throw new IllegalArgumentException(
                     "fileLimit must be greater than zero");
@@ -144,7 +157,8 @@ public class S3ExplorerService {
         BoundedSortedFileCollection files =
                 new BoundedSortedFileCollection(
                         fileLimit,
-                        sortSpec.createFileComparator());
+                        sortSpec.createFileComparator(
+                                collationKeyCache));
 
         String continuationToken = null;
 
@@ -173,23 +187,13 @@ public class S3ExplorerService {
                     client.listObjectsV2(
                             builder.build());
 
-            /*
-             * Klasörler limitsiz.
-             */
             for (CommonPrefix commonPrefix :
                     response.commonPrefixes()) {
 
-                String folder =
-                        commonPrefix.prefix();
-
-                if (!folders.contains(folder)) {
-                    folders.add(folder);
-                }
+                folders.add(
+                        commonPrefix.prefix());
             }
 
-            /*
-             * Dosyalar bounded collection'a gider.
-             */
             for (S3Object object :
                     response.contents()) {
 
@@ -209,8 +213,7 @@ public class S3ExplorerService {
             continuationToken =
                     response.nextContinuationToken();
 
-        }
-        while (continuationToken != null
+        } while (continuationToken != null
                 && !continuationToken.isBlank());
 
         boolean fileLimitReached =

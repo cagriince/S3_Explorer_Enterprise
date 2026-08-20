@@ -37,15 +37,12 @@ public final class FileTableSortSpec {
         return ascending;
     }
 
-    public Comparator<S3Object>
-    createFileComparator() {
+    public Comparator<S3Object> createFileComparator() {
+        return createFileComparator(new HashMap<>());
+    }
 
-        /*
-         * Türkçe Collator.
-         *
-         * Comparator oluşturulduğunda bir kez
-         * oluşturuluyor.
-         */
+    public Comparator<S3Object> createFileComparator(Map<String, CollationKey> collationKeyCache) {
+
         Collator collator =
                 Collator.getInstance(
                         new Locale("tr", "TR"));
@@ -76,17 +73,8 @@ public final class FileTableSortSpec {
                 break;
 
             case NAME:
-            default:
 
-                /*
-                 * CollationKey cache.
-                 *
-                 * Aynı key için Collator.getCollationKey()
-                 * tekrar tekrar çalıştırılmayacak.
-                 */
-                Map<String, CollationKey>
-                        collationKeyCache =
-                        new HashMap<>();
+            default:
 
                 comparator =
                         (left, right) -> {
@@ -111,24 +99,14 @@ public final class FileTableSortSpec {
         }
 
         if (!ascending) {
+
             comparator =
                     comparator.reversed();
         }
 
         /*
-         * DİKKAT:
-         *
-         * Burada artık:
-         *
-         * comparator.thenComparing(keyComparator)
-         *
-         * YOK.
-         *
-         * Çünkü NAME sıralamasında primary comparator
-         * zaten key üzerinde çalışıyor.
-         *
-         * SIZE ve LAST_MODIFIED için ise önceki
-         * deterministic key sıralamasını koruyoruz.
+         * NAME zaten key üzerinden sıralandığı için
+         * ikinci key comparator'a gerek yok.
          */
         if (column != Column.NAME) {
 
@@ -149,7 +127,7 @@ public final class FileTableSortSpec {
 
         return comparator;
     }
-
+    
     public static FileTableSortSpec defaultSpec() {
 
         return new FileTableSortSpec(

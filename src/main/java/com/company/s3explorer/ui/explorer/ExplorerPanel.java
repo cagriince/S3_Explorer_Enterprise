@@ -44,6 +44,7 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
 import java.nio.file.Path;
+import java.text.CollationKey;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -100,6 +101,8 @@ public class ExplorerPanel extends JPanel {
     private LimitedFolderContent currentFolderFullContent;
     private String currentFolderFullContentBucket;
     private String currentFolderFullContentPrefix;
+
+    private final Map<String, CollationKey> currentFolderCollationKeyCache = new HashMap<>();
     
     private JComboBox<Integer> fileTableRowLimitCombo;
     private Consumer<Integer> fileTableRowLimitSelectionListener;
@@ -1109,7 +1112,8 @@ public class ExplorerPanel extends JPanel {
                                         bucket,
                                         prefix,
                                         fileLimit,
-                                        sortSpec),
+                                        sortSpec,
+                                        currentFolderCollationKeyCache),
                         explorerPool)
                 .thenAccept(content -> {
 
@@ -1134,6 +1138,8 @@ public class ExplorerPanel extends JPanel {
 
                             currentFolderFullContentPrefix =
                                     prefix;
+
+                            currentFolderCollationKeyCache.clear();
                         }
 
                         applyLimitedFolderContent(
@@ -2823,7 +2829,8 @@ public class ExplorerPanel extends JPanel {
         BoundedSortedFileCollection bounded =
                 new BoundedSortedFileCollection(
                         fileLimit,
-                        sortSpec.createFileComparator());
+                        sortSpec.createFileComparator(
+                                currentFolderCollationKeyCache));
 
         /*
          * Cache'teki TÜM dosyaları yeniden sırala.
