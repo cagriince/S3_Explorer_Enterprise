@@ -244,7 +244,7 @@ public class FileTableRowSorter extends TableRowSorter<FileTableModel> {
 
         return 0;
     }
-
+    
     private int compareFolderPosition(
             S3FileItem item1,
             S3FileItem item2) {
