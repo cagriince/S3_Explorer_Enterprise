@@ -1,9 +1,10 @@
 package com.company.s3explorer.ui.explorer;
 
-import javax.swing.table.AbstractTableModel;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+
+import javax.swing.table.AbstractTableModel;
 
 public class FileTableModel extends AbstractTableModel {
 
@@ -12,7 +13,8 @@ public class FileTableModel extends AbstractTableModel {
     public static final int COL_SIZE = 2;
     public static final int COL_LAST_MODIFIED = 3;
 
-    private final List<S3FileItem> files = new ArrayList<>();
+    private final List<S3FileItem> files =
+            new ArrayList<>();
 
     private static final String[] COLUMNS = {
             "",
@@ -32,7 +34,9 @@ public class FileTableModel extends AbstractTableModel {
     }
 
     @Override
-    public String getColumnName(int column) {
+    public String getColumnName(
+            int column) {
+
         return COLUMNS[column];
     }
 
@@ -66,7 +70,8 @@ public class FileTableModel extends AbstractTableModel {
     }
 
     @Override
-    public Class<?> getColumnClass(int column) {
+    public Class<?> getColumnClass(
+            int column) {
 
         return switch (column) {
 
@@ -102,10 +107,12 @@ public class FileTableModel extends AbstractTableModel {
 
         if (newFiles == null
                 || newFiles.isEmpty()) {
+
             return;
         }
 
-        int firstRow = files.size();
+        int firstRow =
+                files.size();
 
         files.addAll(newFiles);
 
@@ -121,7 +128,8 @@ public class FileTableModel extends AbstractTableModel {
         fireTableDataChanged();
     }
 
-    public S3FileItem getItem(int row) {
+    public S3FileItem getItem(
+            int row) {
 
         return files.get(row);
     }

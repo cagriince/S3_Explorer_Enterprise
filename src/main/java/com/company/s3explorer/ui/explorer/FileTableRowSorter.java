@@ -2,7 +2,7 @@ package com.company.s3explorer.ui.explorer;
 
 import com.company.s3explorer.util.S3Util;
 
-import javax.swing.*;
+import javax.swing.SortOrder;
 import javax.swing.table.TableRowSorter;
 import java.text.Collator;
 import java.time.Instant;
@@ -11,9 +11,12 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 
-public class FileTableRowSorter extends TableRowSorter<FileTableModel> {
+public class FileTableRowSorter
+        extends TableRowSorter<FileTableModel> {
 
-    public FileTableRowSorter(FileTableModel model) {
+    public FileTableRowSorter(
+            FileTableModel model) {
+
         super(model);
 
         Collator turkceCollator =
@@ -24,27 +27,27 @@ public class FileTableRowSorter extends TableRowSorter<FileTableModel> {
                 Collator.PRIMARY);
 
         /*
-         * Klasör/Dosya:
-         * klasörler önce, dosyalar sonra.
-         * ".." ise klasörler içinde de en önde.
+         * ---------------------------------------------
+         * FOLDER / FILE
+         * ---------------------------------------------
+         *
+         * FileTableModel.COL_FOLDER -> Boolean
+         *
+         * true  = folder
+         * false = file
+         *
+         * Klasörler önce gelsin.
          */
         this.setComparator(
                 FileTableModel.COL_FOLDER,
-                (left, right) -> {
-
-                    S3FileItem item1 =
-                            (S3FileItem) left;
-
-                    S3FileItem item2 =
-                            (S3FileItem) right;
-
-                    return compareFolderPosition(
-                            item1,
-                            item2);
-                });
+                Comparator.reverseOrder());
 
         /*
-         * Name
+         * ---------------------------------------------
+         * NAME
+         * ---------------------------------------------
+         *
+         * COL_NAME -> S3FileItem
          */
         this.setComparator(
                 FileTableModel.COL_NAME,
@@ -56,13 +59,22 @@ public class FileTableRowSorter extends TableRowSorter<FileTableModel> {
                     S3FileItem item2 =
                             (S3FileItem) right;
 
-                    int parentResult =
-                            compareParentPosition(
-                                    item1,
-                                    item2);
+                    /*
+                     * ".." parent folder
+                     * her zaman önce.
+                     */
+                    boolean parent1 =
+                            item1.isParentFolder();
 
-                    if (parentResult != 0) {
-                        return parentResult;
+                    boolean parent2 =
+                            item2.isParentFolder();
+
+                    if (parent1 && !parent2) {
+                        return -1;
+                    }
+
+                    if (!parent1 && parent2) {
+                        return 1;
                     }
 
                     return turkceCollator.compare(
@@ -73,111 +85,101 @@ public class FileTableRowSorter extends TableRowSorter<FileTableModel> {
                 });
 
         /*
-         * Size
+         * ---------------------------------------------
+         * SIZE
+         * ---------------------------------------------
+         *
+         * COL_SIZE -> Long
          */
         this.setComparator(
                 FileTableModel.COL_SIZE,
-                (left, right) -> {
-
-                    S3FileItem item1 =
-                            (S3FileItem) left;
-
-                    S3FileItem item2 =
-                            (S3FileItem) right;
-
-                    int parentResult =
-                            compareParentPosition(
-                                    item1,
-                                    item2);
-
-                    if (parentResult != 0) {
-                        return parentResult;
-                    }
-
-                    return Long.compare(
-                            item1.getSize(),
-                            item2.getSize());
-                });
+                Comparator.nullsFirst(
+                        Long::compare));
 
         /*
-         * Last Modified
+         * ---------------------------------------------
+         * LAST MODIFIED
+         * ---------------------------------------------
+         *
+         * COL_LAST_MODIFIED -> Instant
          */
         this.setComparator(
                 FileTableModel.COL_LAST_MODIFIED,
-                (left, right) -> {
-
-                    S3FileItem item1 =
-                            (S3FileItem) left;
-
-                    S3FileItem item2 =
-                            (S3FileItem) right;
-
-                    int parentResult =
-                            compareParentPosition(
-                                    item1,
-                                    item2);
-
-                    if (parentResult != 0) {
-                        return parentResult;
-                    }
-
-                    Instant date1 =
-                            item1.getLastModified();
-
-                    Instant date2 =
-                            item2.getLastModified();
-
-                    if (date1 == null && date2 == null) {
-                        return 0;
-                    }
-
-                    if (date1 == null) {
-                        return -1;
-                    }
-
-                    if (date2 == null) {
-                        return 1;
-                    }
-
-                    return date1.compareTo(date2);
-                });
+                Comparator.nullsFirst(
+                        Instant::compareTo));
     }
 
     @Override
-    public void toggleSortOrder(int column) {
-        // Eğer kullanıcı zaten 0. kolona (Klasör/Dosya türüne) tıkladıysa standart davranışı koru
-        if (column == 0) {
+    public void toggleSortOrder(
+            int column) {
+
+        /*
+         * Folder/File kolonuna basılırsa
+         * mevcut Swing davranışını koru.
+         */
+        if (column ==
+                FileTableModel.COL_FOLDER) {
+
             super.toggleSortOrder(column);
+
             return;
         }
 
-        SortOrder yeniDuzen = SortOrder.ASCENDING;
-        List<? extends SortKey> mevcutAnahtarlar = getSortKeys();
+        SortOrder yeniDuzen =
+                SortOrder.ASCENDING;
 
-        // Listenin ilk elemanına bakmak yerine, tıklanan sütunun anahtarını arıyoruz
-        for (SortKey anahtar : mevcutAnahtarlar) {
-            if (anahtar.getColumn() == column) {
-                // Tıklanan sütun listede bulunduysa, mevcut yönünün tersini alıyoruz
-                if (anahtar.getSortOrder() == SortOrder.ASCENDING) {
-                    yeniDuzen = SortOrder.DESCENDING;
+        List<? extends SortKey>
+                mevcutAnahtarlar =
+                getSortKeys();
+
+        /*
+         * Tıklanan kolonun mevcut yönünü bul.
+         */
+        for (SortKey anahtar :
+                mevcutAnahtarlar) {
+
+            if (anahtar.getColumn()
+                    == column) {
+
+                if (anahtar.getSortOrder()
+                        == SortOrder.ASCENDING) {
+
+                    yeniDuzen =
+                            SortOrder.DESCENDING;
+
                 } else {
-                    yeniDuzen = SortOrder.ASCENDING;
+
+                    yeniDuzen =
+                            SortOrder.ASCENDING;
                 }
+
                 break;
             }
         }
 
-        // Çoklu sıralama listesini oluşturuyoruz
-        List<SortKey> yeniAnahtarlar = new ArrayList<>();
+        List<SortKey> yeniAnahtarlar =
+                new ArrayList<>();
 
-        // 1. Öncelik: Klasörler her zaman üstte (A'dan Z'ye sıralamada "Klasör" < "Dosya")
-        yeniAnahtarlar.add(new SortKey(0, SortOrder.ASCENDING));
+        /*
+         * Klasörler her zaman dosyalardan önce.
+         *
+         * COL_FOLDER gerçek Boolean kolonu.
+         */
+        yeniAnahtarlar.add(
+                new SortKey(
+                        FileTableModel.COL_FOLDER,
+                        SortOrder.DESCENDING));
 
-        // 2. Öncelik: Kullanıcının tıkladığı sütun ve yeni yönü
-        yeniAnahtarlar.add(new SortKey(column, yeniDuzen));
+        /*
+         * Kullanıcının seçtiği kolon.
+         */
+        yeniAnahtarlar.add(
+                new SortKey(
+                        column,
+                        yeniDuzen));
 
-        // Sıralamayı uygula
-        setSortKeys(yeniAnahtarlar);
+        setSortKeys(
+                yeniAnahtarlar);
     }
 
     public int getPrimarySortColumn() {
@@ -193,7 +195,8 @@ public class FileTableRowSorter extends TableRowSorter<FileTableModel> {
 
         for (SortKey key : keys) {
 
-            if (key.getColumn() != 0) {
+            if (key.getColumn()
+                    != FileTableModel.COL_FOLDER) {
 
                 return key.getColumn();
             }
@@ -215,70 +218,13 @@ public class FileTableRowSorter extends TableRowSorter<FileTableModel> {
 
         for (SortKey key : keys) {
 
-            if (key.getColumn() != 0) {
+            if (key.getColumn()
+                    != FileTableModel.COL_FOLDER) {
 
                 return key.getSortOrder();
             }
         }
 
         return SortOrder.ASCENDING;
-    }
-
-    private int compareParentPosition(
-            S3FileItem item1,
-            S3FileItem item2) {
-
-        boolean parent1 =
-                item1.isParentFolder();
-
-        boolean parent2 =
-                item2.isParentFolder();
-
-        if (parent1 && !parent2) {
-            return -1;
-        }
-
-        if (!parent1 && parent2) {
-            return 1;
-        }
-
-        return 0;
-    }
-    
-    private int compareFolderPosition(
-            S3FileItem item1,
-            S3FileItem item2) {
-
-        boolean parent1 =
-                item1.isParentFolder();
-
-        boolean parent2 =
-                item2.isParentFolder();
-
-        /*
-         * ".." her şeyden önce.
-         */
-        if (parent1 && !parent2) {
-            return -1;
-        }
-
-        if (!parent1 && parent2) {
-            return 1;
-        }
-
-        /*
-         * Sonra klasörler.
-         */
-        if (item1.isFolder()
-                && !item2.isFolder()) {
-            return -1;
-        }
-
-        if (!item1.isFolder()
-                && item2.isFolder()) {
-            return 1;
-        }
-
-        return 0;
     }
 }

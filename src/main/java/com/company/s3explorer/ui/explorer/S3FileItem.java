@@ -5,7 +5,9 @@ import com.company.s3explorer.util.S3Util;
 import java.time.Instant;
 
 public class S3FileItem {
+
     public static String PARENT_FOLDER_NAME = "..";
+
     private final String repositoryName;
     private final String bucket;
     private final String key;
@@ -13,7 +15,14 @@ public class S3FileItem {
     private final Instant lastModified;
     private final boolean folder;
 
-    public S3FileItem(String repositoryName, String bucket, String key, long size, Instant lastModified, boolean folder) {
+    public S3FileItem(
+            String repositoryName,
+            String bucket,
+            String key,
+            long size,
+            Instant lastModified,
+            boolean folder) {
+
         this.repositoryName = repositoryName;
         this.bucket = bucket;
         this.key = key;
@@ -47,7 +56,8 @@ public class S3FileItem {
     }
 
     public boolean isFolderButNotParent() {
-        return this.isFolder() && !this.isParentFolder();
+        return this.isFolder()
+                && !this.isParentFolder();
     }
 
     public boolean isFile() {
@@ -55,7 +65,10 @@ public class S3FileItem {
     }
 
     public String getName() {
-        int index = key.lastIndexOf('/');
+
+        int index =
+                key.lastIndexOf('/');
+
         if (index < 0) {
             return key;
         }
@@ -64,6 +77,10 @@ public class S3FileItem {
     }
 
     public boolean isParentFolder() {
-        return folder && S3Util.extractFileName(key).equals(PARENT_FOLDER_NAME);
+
+        return folder
+                && S3Util.extractFileName(key)
+                .equals(
+                        PARENT_FOLDER_NAME);
     }
 }
