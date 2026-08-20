@@ -592,6 +592,9 @@ public class ExplorerPanel extends JPanel {
         hidden.setResizable(false);
         fileTable.getColumnModel().getColumn(1).setCellRenderer(new FileTableCellRenderer());
         fileTable.getColumnModel().getColumn(2).setCellRenderer(new FileSizeRenderer());
+        fileTable.getColumnModel()
+                .getColumn(2)
+                .setPreferredWidth(120);
         fileTable.getColumnModel().getColumn(3).setCellRenderer(new InstantRenderer());
 
         FileTableRowSorter sorter = new FileTableRowSorter(fileTableModel);
