@@ -2820,23 +2820,26 @@ public class ExplorerPanel extends JPanel {
             return;
         }
 
-        /*
-         * Cache'teki bütün S3Object'leri tekrar
-         * kullanıcının istediği sort + limit ile
-         * sıralıyoruz.
-         */
         BoundedSortedFileCollection bounded =
                 new BoundedSortedFileCollection(
                         fileLimit,
-                        getService().createFileComparator(sortSpec));
+                        sortSpec.createFileComparator());
 
+        /*
+         * Cache'teki bütün dosyaları tekrar
+         * aynı sorting algoritmasından geçir.
+         */
         bounded.addAll(cached.files());
+
+        boolean fileLimitReached =
+                cached.scannedFileCount()
+                        > bounded.size();
 
         LimitedFolderContent displayContent =
                 new LimitedFolderContent(
                         cached.folders(),
                         bounded.toList(),
-                        bounded.size() < cached.scannedFileCount(),
+                        fileLimitReached,
                         cached.scannedFileCount());
 
         SwingUtilities.invokeLater(() -> {
