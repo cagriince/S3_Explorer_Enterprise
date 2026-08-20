@@ -1074,6 +1074,19 @@ public class ExplorerPanel extends JPanel {
         long generation =
                 fileLoadGeneration.incrementAndGet();
 
+        boolean folderChanged =
+                !Objects.equals(
+                        currentFileBucket,
+                        bucket)
+                        || !Objects.equals(
+                        currentFilePrefix,
+                        prefix);
+
+        if (folderChanged) {
+
+            currentFolderCollationKeyCache.clear();
+        }
+
         currentFileBucket = bucket;
         currentFilePrefix = prefix;
 
@@ -1138,8 +1151,6 @@ public class ExplorerPanel extends JPanel {
 
                             currentFolderFullContentPrefix =
                                     prefix;
-
-                            currentFolderCollationKeyCache.clear();
                         }
 
                         applyLimitedFolderContent(
