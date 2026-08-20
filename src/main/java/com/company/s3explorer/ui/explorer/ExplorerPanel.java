@@ -430,9 +430,9 @@ public class ExplorerPanel extends JPanel {
 
         fileTableRowLimitCombo.setSelectedItem(500);
 
-        fileTableRowLimitCombo.setToolTipText(
-                "Max Line Count");
-
+        fileTableRowLimitCombo.setToolTipText("Max Line Count");
+        alignComboBoxRight(fileTableRowLimitCombo);
+        
         fileTableRowLimitCombo.addActionListener(e -> {
 
             Integer selected =
@@ -458,8 +458,8 @@ public class ExplorerPanel extends JPanel {
          */
         threadCountCombo = new JComboBox<>(THREAD_COUNTS);
         threadCountCombo.setSelectedItem(15);
-        threadCountCombo.setToolTipText(
-                "Thread Count");
+        threadCountCombo.setToolTipText("Thread Count");
+        alignComboBoxRight(threadCountCombo);
         threadCountCombo.addActionListener(e -> {
 
             if (suppressThreadCountSelectionEvent) {
@@ -2866,5 +2866,36 @@ public class ExplorerPanel extends JPanel {
                 displayContent);
 
         setFileTableLoading(false);
+    }
+
+    private static void alignComboBoxRight(
+            JComboBox<?> comboBox) {
+
+        comboBox.setRenderer(
+                new DefaultListCellRenderer() {
+                    @Override
+                    public Component
+                    getListCellRendererComponent(
+                            JList<?> list,
+                            Object value,
+                            int index,
+                            boolean isSelected,
+                            boolean cellHasFocus) {
+
+                        JLabel label =
+                                (JLabel) super
+                                        .getListCellRendererComponent(
+                                                list,
+                                                value,
+                                                index,
+                                                isSelected,
+                                                cellHasFocus);
+
+                        label.setHorizontalAlignment(
+                                SwingConstants.RIGHT);
+
+                        return label;
+                    }
+                });
     }
 }
