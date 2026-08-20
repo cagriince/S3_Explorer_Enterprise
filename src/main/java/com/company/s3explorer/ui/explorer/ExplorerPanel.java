@@ -97,7 +97,10 @@ public class ExplorerPanel extends JPanel {
     private String currentFileContinuationToken;
     private boolean currentFileHasMore;
     private boolean loadingMoreFiles;
-
+    private LimitedFolderContent currentFolderFullContent;
+    private String currentFolderFullContentBucket;
+    private String currentFolderFullContentPrefix;
+    
     private JComboBox<Integer> fileTableRowLimitCombo;
     private Consumer<Integer> fileTableRowLimitSelectionListener;
     
@@ -1079,6 +1082,26 @@ public class ExplorerPanel extends JPanel {
         FileTableSortSpec sortSpec =
                 getCurrentFileSortSpec();
 
+        /*
+         * Bu klasörün tamamı daha önce alınmış mı?
+         */
+        if (isFullContentCached(
+                bucket,
+                prefix)) {
+
+            applyCachedFolderContent(
+                    bucket,
+                    prefix,
+                    fileLimit,
+                    sortSpec,
+                    generation);
+
+            return;
+        }
+
+        /*
+         * Cache yoksa mevcut S3 akışı.
+         */
         CompletableFuture
                 .supplyAsync(
                         () -> getService()
@@ -1097,6 +1120,22 @@ public class ExplorerPanel extends JPanel {
                             return;
                         }
 
+                        /*
+                         * Eğer bütün dosyaları aldıysak
+                         * cache'e koy.
+                         */
+                        if (!content.fileLimitReached()) {
+
+                            currentFolderFullContent =
+                                    content;
+
+                            currentFolderFullContentBucket =
+                                    bucket;
+
+                            currentFolderFullContentPrefix =
+                                    prefix;
+                        }
+
                         applyLimitedFolderContent(
                                 bucket,
                                 prefix,
@@ -1107,7 +1146,9 @@ public class ExplorerPanel extends JPanel {
                 })
                 .exceptionally(ex -> {
 
-                    log.error("Explorer operation failed", ex);
+                    log.error(
+                            "Explorer operation failed",
+                            ex);
 
                     SwingUtilities.invokeLater(() -> {
 
@@ -2739,5 +2780,78 @@ public class ExplorerPanel extends JPanel {
                 fileCount,
                 content.scannedFileCount(),
                 content.fileLimitReached());
+    }
+
+    private boolean isFullContentCached(
+            String bucket,
+            String prefix) {
+
+        return currentFolderFullContent != null
+                && Objects.equals(
+                currentFolderFullContentBucket,
+                bucket)
+                && Objects.equals(
+                currentFolderFullContentPrefix,
+                prefix);
+    }
+
+    private void invalidateCurrentFolderFullContentCache() {
+
+        currentFolderFullContent = null;
+        currentFolderFullContentBucket = null;
+        currentFolderFullContentPrefix = null;
+    }
+
+    private void applyCachedFolderContent(
+            String bucket,
+            String prefix,
+            int fileLimit,
+            FileTableSortSpec sortSpec,
+            long generation) {
+
+        if (generation != fileLoadGeneration.get()) {
+            return;
+        }
+
+        LimitedFolderContent cached =
+                currentFolderFullContent;
+
+        if (cached == null) {
+            return;
+        }
+
+        /*
+         * Cache'teki bütün S3Object'leri tekrar
+         * kullanıcının istediği sort + limit ile
+         * sıralıyoruz.
+         */
+        BoundedSortedFileCollection bounded =
+                new BoundedSortedFileCollection(
+                        fileLimit,
+                        getService().createFileComparator(sortSpec));
+
+        bounded.addAll(cached.files());
+
+        LimitedFolderContent displayContent =
+                new LimitedFolderContent(
+                        cached.folders(),
+                        bounded.toList(),
+                        bounded.size() < cached.scannedFileCount(),
+                        cached.scannedFileCount());
+
+        SwingUtilities.invokeLater(() -> {
+
+            if (generation !=
+                    fileLoadGeneration.get()) {
+                return;
+            }
+
+            applyLimitedFolderContent(
+                    bucket,
+                    prefix,
+                    displayContent);
+
+            setFileTableLoading(false);
+        });
     }
 }
