@@ -2709,17 +2709,27 @@ public class ExplorerPanel extends JPanel {
         long fileCount =
                 content.files().size();
 
-        String suffix =
-                content.fileLimitReached()
-                        ? " — display limit reached"
-                        : "";
+        String fileText;
+
+        if (content.fileLimitReached()) {
+
+            fileText =
+                    content.fileCount()
+                            + " / "
+                            + content.scannedFileCount()
+                            + " file(s)";
+
+        } else {
+
+            fileText =
+                    content.fileCount()
+                            + " file(s)";
+        }
 
         fileFolderInfo.setText(
-                fileCount
-                        + " file(s) and "
-                        + folderCount
-                        + " folder(s)"
-                        + suffix);
+                content.folderCount()
+                        + " folder(s) and "
+                        + fileText);
 
         log.debug(
                 "[FILE TABLE APPLY] bucket={} prefix={} folders={} files={} scannedFiles={} limitReached={}",
