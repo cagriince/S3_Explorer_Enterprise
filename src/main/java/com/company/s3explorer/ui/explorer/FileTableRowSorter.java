@@ -16,22 +16,131 @@ public class FileTableRowSorter extends TableRowSorter<FileTableModel> {
     public FileTableRowSorter(FileTableModel model) {
         super(model);
 
-        Collator turkceCollator = Collator.getInstance(new Locale("tr", "TR"));
-        turkceCollator.setStrength(Collator.PRIMARY);
+        Collator turkceCollator =
+                Collator.getInstance(
+                        new Locale("tr", "TR"));
 
+        turkceCollator.setStrength(
+                Collator.PRIMARY);
+
+        /*
+         * Klasör/Dosya:
+         * klasörler önce, dosyalar sonra.
+         * ".." ise klasörler içinde de en önde.
+         */
         this.setComparator(
                 FileTableModel.COL_FOLDER,
-                Comparator.reverseOrder());
-        this.setComparator(FileTableModel.COL_NAME,
-                Comparator.comparing(
-                        item -> S3Util.extractFolderName(((S3FileItem) item).getKey()),
-                        turkceCollator));
+                (left, right) -> {
+
+                    S3FileItem item1 =
+                            (S3FileItem) left;
+
+                    S3FileItem item2 =
+                            (S3FileItem) right;
+
+                    return compareFolderPosition(
+                            item1,
+                            item2);
+                });
+
+        /*
+         * Name
+         */
+        this.setComparator(
+                FileTableModel.COL_NAME,
+                (left, right) -> {
+
+                    S3FileItem item1 =
+                            (S3FileItem) left;
+
+                    S3FileItem item2 =
+                            (S3FileItem) right;
+
+                    int parentResult =
+                            compareParentPosition(
+                                    item1,
+                                    item2);
+
+                    if (parentResult != 0) {
+                        return parentResult;
+                    }
+
+                    return turkceCollator.compare(
+                            S3Util.extractFolderName(
+                                    item1.getKey()),
+                            S3Util.extractFolderName(
+                                    item2.getKey()));
+                });
+
+        /*
+         * Size
+         */
         this.setComparator(
                 FileTableModel.COL_SIZE,
-                Comparator.nullsFirst(Long::compareTo));
+                (left, right) -> {
+
+                    S3FileItem item1 =
+                            (S3FileItem) left;
+
+                    S3FileItem item2 =
+                            (S3FileItem) right;
+
+                    int parentResult =
+                            compareParentPosition(
+                                    item1,
+                                    item2);
+
+                    if (parentResult != 0) {
+                        return parentResult;
+                    }
+
+                    return Long.compare(
+                            item1.getSize(),
+                            item2.getSize());
+                });
+
+        /*
+         * Last Modified
+         */
         this.setComparator(
                 FileTableModel.COL_LAST_MODIFIED,
-                Comparator.nullsFirst(Instant::compareTo));
+                (left, right) -> {
+
+                    S3FileItem item1 =
+                            (S3FileItem) left;
+
+                    S3FileItem item2 =
+                            (S3FileItem) right;
+
+                    int parentResult =
+                            compareParentPosition(
+                                    item1,
+                                    item2);
+
+                    if (parentResult != 0) {
+                        return parentResult;
+                    }
+
+                    Instant date1 =
+                            item1.getLastModified();
+
+                    Instant date2 =
+                            item2.getLastModified();
+
+                    if (date1 == null && date2 == null) {
+                        return 0;
+                    }
+
+                    if (date1 == null) {
+                        return -1;
+                    }
+
+                    if (date2 == null) {
+                        return 1;
+                    }
+
+                    return date1.compareTo(date2);
+                });
     }
 
     @Override
@@ -113,5 +222,63 @@ public class FileTableRowSorter extends TableRowSorter<FileTableModel> {
         }
 
         return SortOrder.ASCENDING;
+    }
+
+    private int compareParentPosition(
+            S3FileItem item1,
+            S3FileItem item2) {
+
+        boolean parent1 =
+                item1.isParentFolder();
+
+        boolean parent2 =
+                item2.isParentFolder();
+
+        if (parent1 && !parent2) {
+            return -1;
+        }
+
+        if (!parent1 && parent2) {
+            return 1;
+        }
+
+        return 0;
+    }
+
+    private int compareFolderPosition(
+            S3FileItem item1,
+            S3FileItem item2) {
+
+        boolean parent1 =
+                item1.isParentFolder();
+
+        boolean parent2 =
+                item2.isParentFolder();
+
+        /*
+         * ".." her şeyden önce.
+         */
+        if (parent1 && !parent2) {
+            return -1;
+        }
+
+        if (!parent1 && parent2) {
+            return 1;
+        }
+
+        /*
+         * Sonra klasörler.
+         */
+        if (item1.isFolder()
+                && !item2.isFolder()) {
+            return -1;
+        }
+
+        if (!item1.isFolder()
+                && item2.isFolder()) {
+            return 1;
+        }
+
+        return 0;
     }
 }
