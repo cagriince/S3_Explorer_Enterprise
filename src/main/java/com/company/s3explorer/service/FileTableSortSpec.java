@@ -2,10 +2,13 @@ package com.company.s3explorer.service;
 
 import software.amazon.awssdk.services.s3.model.S3Object;
 
+import java.text.CollationKey;
 import java.text.Collator;
 import java.time.Instant;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 
 public final class FileTableSortSpec {
 
@@ -37,6 +40,12 @@ public final class FileTableSortSpec {
     public Comparator<S3Object>
     createFileComparator() {
 
+        /*
+         * Türkçe Collator.
+         *
+         * Comparator oluşturulduğunda bir kez
+         * oluşturuluyor.
+         */
         Collator collator =
                 Collator.getInstance(
                         new Locale("tr", "TR"));
@@ -69,10 +78,34 @@ public final class FileTableSortSpec {
             case NAME:
             default:
 
+                /*
+                 * CollationKey cache.
+                 *
+                 * Aynı key için Collator.getCollationKey()
+                 * tekrar tekrar çalıştırılmayacak.
+                 */
+                Map<String, CollationKey>
+                        collationKeyCache =
+                        new HashMap<>();
+
                 comparator =
-                        Comparator.comparing(
-                                S3Object::key,
-                                collator);
+                        (left, right) -> {
+
+                            CollationKey leftKey =
+                                    collationKeyCache
+                                            .computeIfAbsent(
+                                                    left.key(),
+                                                    collator::getCollationKey);
+
+                            CollationKey rightKey =
+                                    collationKeyCache
+                                            .computeIfAbsent(
+                                                    right.key(),
+                                                    collator::getCollationKey);
+
+                            return leftKey.compareTo(
+                                    rightKey);
+                        };
 
                 break;
         }
@@ -83,24 +116,38 @@ public final class FileTableSortSpec {
         }
 
         /*
-         * Deterministic ordering.
+         * DİKKAT:
          *
-         * Eğer iki kayıt primary sort alanında
-         * eşitse key'e göre ikinci bir sıralama
-         * yapıyoruz.
+         * Burada artık:
+         *
+         * comparator.thenComparing(keyComparator)
+         *
+         * YOK.
+         *
+         * Çünkü NAME sıralamasında primary comparator
+         * zaten key üzerinde çalışıyor.
+         *
+         * SIZE ve LAST_MODIFIED için ise önceki
+         * deterministic key sıralamasını koruyoruz.
          */
-        Comparator<S3Object> keyComparator =
-                Comparator.comparing(
-                        S3Object::key,
-                        collator);
+        if (column != Column.NAME) {
 
-        if (!ascending) {
-            keyComparator =
-                    keyComparator.reversed();
+            Comparator<S3Object> keyComparator =
+                    Comparator.comparing(
+                            S3Object::key,
+                            collator);
+
+            if (!ascending) {
+                keyComparator =
+                        keyComparator.reversed();
+            }
+
+            comparator =
+                    comparator.thenComparing(
+                            keyComparator);
         }
 
-        return comparator.thenComparing(
-                keyComparator);
+        return comparator;
     }
 
     public static FileTableSortSpec defaultSpec() {
