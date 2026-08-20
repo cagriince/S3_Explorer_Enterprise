@@ -2826,8 +2826,8 @@ public class ExplorerPanel extends JPanel {
                         sortSpec.createFileComparator());
 
         /*
-         * Cache'teki bütün dosyaları tekrar
-         * aynı sorting algoritmasından geçir.
+         * Cache'teki TÜM dosyaları yeniden sırala.
+         * Burada S3 çağrısı yok.
          */
         bounded.addAll(cached.files());
 
@@ -2842,19 +2842,11 @@ public class ExplorerPanel extends JPanel {
                         fileLimitReached,
                         cached.scannedFileCount());
 
-        SwingUtilities.invokeLater(() -> {
+        applyLimitedFolderContent(
+                bucket,
+                prefix,
+                displayContent);
 
-            if (generation !=
-                    fileLoadGeneration.get()) {
-                return;
-            }
-
-            applyLimitedFolderContent(
-                    bucket,
-                    prefix,
-                    displayContent);
-
-            setFileTableLoading(false);
-        });
+        setFileTableLoading(false);
     }
 }
