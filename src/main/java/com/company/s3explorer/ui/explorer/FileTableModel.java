@@ -51,7 +51,7 @@ public class FileTableModel extends AbstractTableModel {
         return switch (columnIndex) {
 
             case COL_FOLDER ->
-                    item.isFolder();
+                    item.isParentFolder() ? 0 : (item.isFolder() ? 1 : 2);
 
             case COL_NAME ->
                     item;
@@ -76,7 +76,7 @@ public class FileTableModel extends AbstractTableModel {
         return switch (column) {
 
             case COL_FOLDER ->
-                    Boolean.class;
+                    Integer.class;
 
             case COL_NAME ->
                     S3FileItem.class;

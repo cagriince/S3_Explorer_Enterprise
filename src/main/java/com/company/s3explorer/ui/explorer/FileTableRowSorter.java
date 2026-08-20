@@ -31,11 +31,12 @@ public class FileTableRowSorter
          * FOLDER / FILE
          * ---------------------------------------------
          *
-         * FileTableModel.COL_FOLDER -> Boolean
+         * FileTableModel.COL_FOLDER -> Integer
          *
-         * true  = folder
-         * false = file
-         *
+         * 0  = parent folder (..)
+         * 1 = folder
+         * 2 ? file
+         * 
          * Klasörler önce gelsin.
          */
         this.setComparator(
@@ -163,7 +164,6 @@ public class FileTableRowSorter
         /*
          * Klasörler her zaman dosyalardan önce.
          *
-         * COL_FOLDER gerçek Boolean kolonu.
          */
         yeniAnahtarlar.add(
                 new SortKey(
