@@ -16,98 +16,25 @@ public class FileTableRowSorter
 
     public FileTableRowSorter(
             FileTableModel model) {
-
         super(model);
 
-        Collator turkceCollator =
-                Collator.getInstance(
-                        new Locale("tr", "TR"));
+        Collator turkceCollator = Collator.getInstance(new Locale("tr", "TR"));
+        turkceCollator.setStrength(Collator.PRIMARY);
 
-        turkceCollator.setStrength(
-                Collator.PRIMARY);
-
-        /*
-         * ---------------------------------------------
-         * FOLDER / FILE
-         * ---------------------------------------------
-         *
-         * FileTableModel.COL_FOLDER -> Integer
-         *
-         * 0  = parent folder (..)
-         * 1 = folder
-         * 2 ? file
-         * 
-         * Klasörler önce gelsin.
-         */
         this.setComparator(
                 FileTableModel.COL_FOLDER,
-                Comparator.reverseOrder());
-
-        /*
-         * ---------------------------------------------
-         * NAME
-         * ---------------------------------------------
-         *
-         * COL_NAME -> S3FileItem
-         */
-        this.setComparator(
-                FileTableModel.COL_NAME,
-                (left, right) -> {
-
-                    S3FileItem item1 =
-                            (S3FileItem) left;
-
-                    S3FileItem item2 =
-                            (S3FileItem) right;
-
-                    /*
-                     * ".." parent folder
-                     * her zaman önce.
-                     */
-                    boolean parent1 =
-                            item1.isParentFolder();
-
-                    boolean parent2 =
-                            item2.isParentFolder();
-
-                    if (parent1 && !parent2) {
-                        return -1;
-                    }
-
-                    if (!parent1 && parent2) {
-                        return 1;
-                    }
-
-                    return turkceCollator.compare(
-                            S3Util.extractFolderName(
-                                    item1.getKey()),
-                            S3Util.extractFolderName(
-                                    item2.getKey()));
-                });
-
-        /*
-         * ---------------------------------------------
-         * SIZE
-         * ---------------------------------------------
-         *
-         * COL_SIZE -> Long
-         */
+                Comparator.nullsFirst(Integer::compareTo));
+        this.setComparator(FileTableModel.COL_NAME,
+                Comparator.comparing(
+                        item -> S3Util.extractFolderName(((S3FileItem) item).getKey()),
+                        turkceCollator));
         this.setComparator(
                 FileTableModel.COL_SIZE,
-                Comparator.nullsFirst(
-                        Long::compare));
-
-        /*
-         * ---------------------------------------------
-         * LAST MODIFIED
-         * ---------------------------------------------
-         *
-         * COL_LAST_MODIFIED -> Instant
-         */
+                Comparator.nullsFirst(Long::compareTo));
         this.setComparator(
                 FileTableModel.COL_LAST_MODIFIED,
-                Comparator.nullsFirst(
-                        Instant::compareTo));
+                Comparator.nullsFirst(Instant::compareTo));
+
     }
 
     @Override
@@ -168,7 +95,7 @@ public class FileTableRowSorter
         yeniAnahtarlar.add(
                 new SortKey(
                         FileTableModel.COL_FOLDER,
-                        SortOrder.DESCENDING));
+                        SortOrder.ASCENDING));
 
         /*
          * Kullanıcının seçtiği kolon.
