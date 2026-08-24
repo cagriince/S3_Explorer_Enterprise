@@ -9,40 +9,124 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class S3ClientManager implements AutoCloseable {
+
     private final Map<RepositoryDefinition, S3Client> clientMap;
+
     private final RepositoryManager repositoryManager;
+
     private final S3ClientFactory clientFactory;
+
     private final ActiveRepositoryContext repositoryContext;
 
-    public S3ClientManager(RepositoryManager repositoryManager, S3ClientFactory clientFactory, ActiveRepositoryContext repositoryContext) {
-        this.repositoryManager = repositoryManager;
-        this.clientFactory = clientFactory;
-        this.repositoryContext = repositoryContext;
-        clientMap = new HashMap<>();
+    private final java.util.function.Consumer<RepositoryDefinition>
+            repositoryChangeListener;
+
+    public S3ClientManager(
+            RepositoryManager repositoryManager,
+            S3ClientFactory clientFactory,
+            ActiveRepositoryContext repositoryContext) {
+
+        this.repositoryManager =
+                repositoryManager;
+
+        this.clientFactory =
+                clientFactory;
+
+        this.repositoryContext =
+                repositoryContext;
+
+        this.clientMap =
+                new HashMap<>();
+
+        /*
+         * Repository değiştiğinde cache'teki S3
+         * client'larının artık güvenilir olmadığını
+         * kabul ediyoruz.
+         */
+        this.repositoryChangeListener =
+                repository ->
+                        invalidateAllClients();
+
+        repositoryManager.addRepositoryChangeListener(
+                repositoryChangeListener);
     }
 
-    public S3Client getClient(String repositoryName) {
+    public S3Client getClient(
+            String repositoryName) {
+
         if (repositoryName == null) {
-            return this.getClient(repositoryContext.getActiveRepository());
+
+            return getClient(
+                    repositoryContext
+                            .getActiveRepository());
         }
-        return this.getClient(repositoryManager.findByName(repositoryName));
+
+        return getClient(
+                repositoryManager
+                        .findByName(repositoryName));
     }
 
-    public synchronized S3Client getClient(RepositoryDefinition repository) {
-        if (clientMap.containsKey(repository)) {
-            return clientMap.get(repository);
+    public synchronized S3Client getClient(
+            RepositoryDefinition repository) {
+
+        if (repository == null
+                || repository.isEmpty()) {
+
+            throw new IllegalArgumentException(
+                    "Repository cannot be empty");
         }
 
-        S3Client client = clientFactory.create(repository);
-        clientMap.put(repository, client);
+        S3Client existingClient =
+                clientMap.get(repository);
+
+        if (existingClient != null) {
+
+            return existingClient;
+        }
+
+        S3Client client =
+                clientFactory.create(repository);
+
+        clientMap.put(
+                repository,
+                client);
 
         return client;
     }
 
-    @Override
-    public void close() {
-        for (S3Client client : clientMap.values()) {
-            client.close();
+    private synchronized void invalidateAllClients() {
+
+        if (clientMap.isEmpty()) {
+            return;
         }
+
+        for (S3Client client :
+                clientMap.values()) {
+
+            try {
+
+                client.close();
+
+            } catch (Exception ex) {
+
+                ex.printStackTrace();
+            }
+        }
+
+        clientMap.clear();
+    }
+
+    @Override
+    public synchronized void close() {
+
+        /*
+         * Uygulama kapanırken listener'ın tekrar
+         * çalışmasını istemiyoruz.
+         */
+        repositoryManager
+                .removeRepositoryChangeListener(
+                        repositoryChangeListener);
+
+        invalidateAllClients();
     }
 }
