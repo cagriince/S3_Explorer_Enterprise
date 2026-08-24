@@ -80,6 +80,24 @@ public final class S3ErrorResolver {
         return getUserMessage(cause);
     }
 
+    public static boolean isAccessDenied(
+            Throwable throwable) {
+
+        Throwable cause =
+                unwrap(throwable);
+
+        if (!(cause instanceof S3Exception s3Exception)) {
+            return false;
+        }
+
+        String errorCode =
+                getErrorCode(s3Exception);
+
+        return s3Exception.statusCode() == 403
+                || "AccessDenied".equalsIgnoreCase(
+                errorCode);
+    }
+    
     private static String resolveS3Exception(
             S3Exception exception) {
 

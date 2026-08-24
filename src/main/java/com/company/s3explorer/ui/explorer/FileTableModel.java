@@ -121,6 +121,10 @@ public class FileTableModel extends AbstractTableModel {
                 files.size() - 1);
     }
 
+    public void clear() {
+        files.clear();
+    }
+
     public void clearAndRepaint() {
 
         files.clear();

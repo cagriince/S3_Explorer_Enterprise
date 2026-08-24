@@ -908,16 +908,20 @@ public class ExplorerPanel extends JPanel {
                 }
                 catch (Exception ex) {
 
-                    /*
-                     * ListBuckets yetkisi yoksa external bucket'larla
-                     * devam et.
-                     */
-                    log.warn(
-                            "[BUCKET LOAD] ListBuckets failed; using external buckets only",
-                            ex);
+                    if (S3ErrorResolver.isAccessDenied(ex)
+                            && !repository.getExternalBuckets().isEmpty()) {
 
-                    s3Buckets =
-                            Collections.emptyList();
+                        log.warn(
+                                "[BUCKET LOAD] ListBuckets access denied; using external buckets only");
+
+                        s3Buckets =
+                                Collections.emptyList();
+
+                    }
+                    else {
+
+                        throw ex;
+                    }
                 }
 
                 /*
@@ -1040,11 +1044,47 @@ public class ExplorerPanel extends JPanel {
             catch (Exception ex) {
 
                 log.error(
-                        "[BUCKET LOAD] failed",
+                        "[BUCKET LOAD] failed: {}",
+                        S3ErrorResolver.getDetailedMessage(ex),
                         ex);
 
-                SwingUtilities.invokeLater(() ->
-                        pendingBucketSelection = null);
+                SwingUtilities.invokeLater(() -> {
+
+                    pendingBucketSelection = null;
+
+                    suppressBucketSelectionEvent = true;
+
+                    try {
+                        bucketCombo.removeAllItems();
+                    }
+                    finally {
+                        suppressBucketSelectionEvent = false;
+                    }
+
+                    currentFileBucket = null;
+                    currentFilePrefix = null;
+
+                    currentFolderFullContent = null;
+                    currentFolderFullContentBucket = null;
+                    currentFolderFullContentPrefix = null;
+
+                    currentFolderCollationKeyCache.clear();
+
+                    fileTableModel.clear();
+
+                    updateFileFolderInfo(
+                            null);
+
+                    setFileTableLoading(false);
+
+                    JOptionPane.showMessageDialog(
+                            this,
+                            S3ErrorResolver.getUserMessage(ex),
+                            "Bucket Load Failed",
+                            JOptionPane.ERROR_MESSAGE);
+
+                    updateActionStates();
+                });
             }
         });
     }
