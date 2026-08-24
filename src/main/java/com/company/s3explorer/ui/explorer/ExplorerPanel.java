@@ -2913,7 +2913,7 @@ public class ExplorerPanel extends JPanel {
                     }
                 });
     }
-
+/*
     private void showFileDiscoveryProgress(
             long fileCount,
             long folderCount) {
@@ -2924,7 +2924,7 @@ public class ExplorerPanel extends JPanel {
                         + " files / "
                         + folderCount
                         + " folders discovered");
-    }
+    }*/
 
     private void updateFileDiscoveryProgress(
             long fileCount,
@@ -2933,9 +2933,9 @@ public class ExplorerPanel extends JPanel {
         SwingUtilities.invokeLater(() ->
                 fileFolderInfo.setText(
                         "Preparing... "
-                                + fileCount
-                                + " files / "
                                 + folderCount
-                                + " folders discovered"));
+                                + " folders / "
+                                + fileCount
+                                + " files discovered"));
     }
 }
