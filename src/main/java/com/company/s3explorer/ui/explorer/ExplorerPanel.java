@@ -102,7 +102,7 @@ public class ExplorerPanel extends JPanel {
     private String currentFolderFullContentBucket;
     private String currentFolderFullContentPrefix;
 
-    private final Map<String, CollationKey> currentFolderCollationKeyCache = new HashMap<>();
+    private final Map<String, CollationKey> currentFolderCollationKeyCache = new java.util.concurrent.ConcurrentHashMap<>();
     
     private JComboBox<Integer> fileTableRowLimitCombo;
     private Consumer<Integer> fileTableRowLimitSelectionListener;
