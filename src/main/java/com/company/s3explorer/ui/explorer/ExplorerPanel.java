@@ -1146,7 +1146,7 @@ public class ExplorerPanel extends JPanel {
                         if (generation !=
                                 fileLoadGeneration.get()) {
 
-                            updateFileFolderInfo();
+                            updateFileFolderInfo(content);
 
                             return;
                         }
@@ -1167,7 +1167,7 @@ public class ExplorerPanel extends JPanel {
                                     prefix;
                         }
 
-                        updateFileFolderInfo();
+                        updateFileFolderInfo(content);
 
                         applyLimitedFolderContent(
                                 bucket,
@@ -1188,12 +1188,8 @@ public class ExplorerPanel extends JPanel {
                         if (generation !=
                                 fileLoadGeneration.get()) {
 
-                            updateFileFolderInfo();
-
                             return;
                         }
-
-                        updateFileFolderInfo();
 
                         setFileTableLoading(false);
 
@@ -2777,45 +2773,14 @@ public class ExplorerPanel extends JPanel {
          */
         fileTableModel.setFiles(rows);
 
-        /*
-         * -------------------------------------------------
-         * BİLGİ SATIRI
-         * -------------------------------------------------
-         */
-        long folderCount =
-                content.folders().size();
-
-        long fileCount =
-                content.files().size();
-
-        String fileText;
-
-        if (content.fileLimitReached()) {
-
-            fileText =
-                    content.fileCount()
-                            + " / "
-                            + content.scannedFileCount()
-                            + " file(s)";
-
-        } else {
-
-            fileText =
-                    content.fileCount()
-                            + " file(s)";
-        }
-
-        fileFolderInfo.setText(
-                content.folderCount()
-                        + " folder(s) and "
-                        + fileText);
-
+        updateFileFolderInfo(content);
+        
         log.debug(
                 "[FILE TABLE APPLY] bucket={} prefix={} folders={} files={} scannedFiles={} limitReached={}",
                 bucket,
                 prefix,
-                folderCount,
-                fileCount,
+                content.folderCount(),
+                content.fileCount(),
                 content.scannedFileCount(),
                 content.fileLimitReached());
     }
@@ -2943,5 +2908,31 @@ public class ExplorerPanel extends JPanel {
                                 + " files / "
                                 + folderCount
                                 + " folders discovered"));
+    }
+    
+    private void updateFileFolderInfo(
+            LimitedFolderContent content) {
+
+        String fileText;
+
+        if (content.fileLimitReached()) {
+
+            fileText =
+                    content.fileCount()
+                            + " / "
+                            + content.scannedFileCount()
+                            + " file(s)";
+
+        } else {
+
+            fileText =
+                    content.fileCount()
+                            + " file(s)";
+        }
+
+        fileFolderInfo.setText(
+                content.folderCount()
+                        + " folder(s) and "
+                        + fileText);
     }
 }
