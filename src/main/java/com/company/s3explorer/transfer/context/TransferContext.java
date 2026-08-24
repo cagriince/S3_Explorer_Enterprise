@@ -1,5 +1,6 @@
 package com.company.s3explorer.transfer.context;
 
+import com.company.s3explorer.service.S3ErrorResolver;
 import com.company.s3explorer.service.S3ExplorerService;
 import com.company.s3explorer.service.S3ClientManager;
 import com.company.s3explorer.transfer.TransferRuntime;
@@ -59,8 +60,15 @@ public class TransferContext {
             Exception ex) {
 
         runtime.setEndTime(Instant.now());
-        runtime.setMessage(ex.getMessage());
-        runtime.setStatus(TransferStatus.FAILED);
+
+        runtime.setException(ex);
+
+        runtime.setMessage(
+                S3ErrorResolver.getUserMessage(ex));
+
+        runtime.setStatus(
+                TransferStatus.FAILED);
+
         publish(runtime);
     }
 
