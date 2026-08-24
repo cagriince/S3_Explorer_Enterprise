@@ -1200,7 +1200,8 @@ public class ExplorerPanel extends JPanel {
         }).exceptionally(ex -> {
 
             log.error(
-                    "Explorer operation failed",
+                    "Explorer operation failed: {}",
+                    S3ErrorResolver.getDetailedMessage(ex),
                     ex);
 
             SwingUtilities.invokeLater(() -> {
@@ -1215,11 +1216,12 @@ public class ExplorerPanel extends JPanel {
 
                 JOptionPane.showMessageDialog(
                         this,
-                        "File list could not be loaded");
+                        S3ErrorResolver.getUserMessage(ex),
+                        "S3 Operation Failed",
+                        JOptionPane.ERROR_MESSAGE);
             });
 
             return null;
-
         }).whenComplete(
                 (result, throwable) ->
                         inFlightFileLoads.remove(
