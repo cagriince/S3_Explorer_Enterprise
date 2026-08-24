@@ -50,7 +50,6 @@ public class TransferPanel
     private JTabbedPane tabs;
 
     private volatile ProducerRuntime pendingProducerUpdate;
-    private volatile ProducerRuntime preparingRuntime;
     private Timer refreshTimer;
 
     private long lastRenderedStateVersion = -1;
@@ -342,35 +341,6 @@ public class TransferPanel
         if (currentVersion
                 == lastRenderedStateVersion) {
 
-            if (preparingRuntime == null) {
-
-                ProducerRuntime producer =
-                        pendingProducerUpdate;
-
-                if (producer != null) {
-
-                    pendingProducerUpdate = null;
-
-                    producerTableModel.update(
-                            producer);
-
-                    updateProducerVisibility(
-                            producer);
-                }
-            }
-
-            updateTabTitles();
-            updateButtons();
-
-            return;
-        }
-
-        refreshVisibleTables();
-
-        lastRenderedStateVersion =
-                currentVersion;
-
-        if (preparingRuntime == null) {
 
             ProducerRuntime producer =
                     pendingProducerUpdate;
@@ -385,6 +355,30 @@ public class TransferPanel
                 updateProducerVisibility(
                         producer);
             }
+
+            updateTabTitles();
+            updateButtons();
+
+            return;
+        }
+
+        refreshVisibleTables();
+
+        lastRenderedStateVersion =
+                currentVersion;
+
+        ProducerRuntime producer =
+                pendingProducerUpdate;
+
+        if (producer != null) {
+
+            pendingProducerUpdate = null;
+
+            producerTableModel.update(
+                    producer);
+
+            updateProducerVisibility(
+                    producer);
         }
 
         updateTabTitles();
@@ -881,102 +875,5 @@ public class TransferPanel
 
         clearButton.setIcon(
                 IconProvider.ICON_DELETE);
-    }
-
-    public void showPreparing() {
-
-        ProducerRuntime runtime =
-                new ProducerRuntime(
-                        "Folder Discovery");
-
-        runtime.setStatus(
-                TransferStatus.RUNNING);
-
-        runtime.setStartTime(
-                java.time.Instant.now());
-
-        runtime.setMessage(
-                "Preparing...");
-
-        preparingRuntime = runtime;
-
-        SwingUtilities.invokeLater(() -> {
-
-            producerTableModel.update(runtime);
-
-            producerTable.setVisible(true);
-
-            producerTable.revalidate();
-            producerTable.repaint();
-        });
-    }
-
-    public void updatePreparing(
-            long fileCount,
-            long folderCount) {
-
-        ProducerRuntime runtime =
-                preparingRuntime;
-
-        if (runtime == null) {
-            return;
-        }
-
-        runtime.setMessage(
-                "Preparing... "
-                        + fileCount
-                        + " files / "
-                        + folderCount
-                        + " folders discovered");
-
-        SwingUtilities.invokeLater(() -> {
-
-            if (preparingRuntime != runtime) {
-                return;
-            }
-
-            producerTableModel.update(runtime);
-
-            producerTable.revalidate();
-            producerTable.repaint();
-        });
-    }
-
-    public void hidePreparing() {
-
-        ProducerRuntime runtime =
-                preparingRuntime;
-
-        if (runtime == null) {
-            return;
-        }
-
-        preparingRuntime = null;
-
-        SwingUtilities.invokeLater(() -> {
-
-            if (pendingProducerUpdate != null) {
-
-                ProducerRuntime producer =
-                        pendingProducerUpdate;
-
-                pendingProducerUpdate = null;
-
-                producerTableModel.update(
-                        producer);
-
-                updateProducerVisibility(
-                        producer);
-
-            } else {
-
-                producerTableModel.clear();
-
-                producerTable.setVisible(false);
-
-                producerTable.revalidate();
-                producerTable.repaint();
-            }
-        });
     }
 }

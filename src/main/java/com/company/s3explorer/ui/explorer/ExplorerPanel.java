@@ -1123,8 +1123,8 @@ public class ExplorerPanel extends JPanel {
         /*
          * Gerçek S3 taraması başlıyor.
          */
-        transferPanel.showPreparing();
-
+        updateFileDiscoveryProgress(0, 0);
+        
         CompletableFuture
                 .supplyAsync(
                         () -> getService()
@@ -1134,12 +1134,10 @@ public class ExplorerPanel extends JPanel {
                                         fileLimit,
                                         sortSpec,
                                         currentFolderCollationKeyCache,
-                                        (fileCount,
-                                         folderCount) ->
-                                                transferPanel
-                                                        .updatePreparing(
-                                                                fileCount,
-                                                                folderCount)),
+                                        (fileCount, folderCount) ->
+                                                updateFileDiscoveryProgress(
+                                                        fileCount,
+                                                        folderCount)),
                         explorerPool)
                 .thenAccept(content -> {
 
@@ -1148,7 +1146,7 @@ public class ExplorerPanel extends JPanel {
                         if (generation !=
                                 fileLoadGeneration.get()) {
 
-                            transferPanel.hidePreparing();
+                            updateFileFolderInfo();
 
                             return;
                         }
@@ -1169,7 +1167,7 @@ public class ExplorerPanel extends JPanel {
                                     prefix;
                         }
 
-                        transferPanel.hidePreparing();
+                        updateFileFolderInfo();
 
                         applyLimitedFolderContent(
                                 bucket,
@@ -1190,12 +1188,12 @@ public class ExplorerPanel extends JPanel {
                         if (generation !=
                                 fileLoadGeneration.get()) {
 
-                            transferPanel.hidePreparing();
+                            updateFileFolderInfo();
 
                             return;
                         }
 
-                        transferPanel.hidePreparing();
+                        updateFileFolderInfo();
 
                         setFileTableLoading(false);
 
@@ -2920,5 +2918,30 @@ public class ExplorerPanel extends JPanel {
                         return label;
                     }
                 });
+    }
+
+    private void showFileDiscoveryProgress(
+            long fileCount,
+            long folderCount) {
+
+        fileFolderInfo.setText(
+                "Preparing... "
+                        + fileCount
+                        + " files / "
+                        + folderCount
+                        + " folders discovered");
+    }
+
+    private void updateFileDiscoveryProgress(
+            long fileCount,
+            long folderCount) {
+
+        SwingUtilities.invokeLater(() ->
+                fileFolderInfo.setText(
+                        "Preparing... "
+                                + fileCount
+                                + " files / "
+                                + folderCount
+                                + " folders discovered"));
     }
 }
