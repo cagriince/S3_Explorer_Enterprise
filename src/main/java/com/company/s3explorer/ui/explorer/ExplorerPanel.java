@@ -2867,18 +2867,48 @@ public class ExplorerPanel extends JPanel {
                         + " folder(s) and "
                         + fileText);
     }
-    
+
     private boolean isFullContentCached(
             String bucket,
             String prefix) {
 
-        return currentFolderFullContent != null
-                && Objects.equals(
+        if (currentFolderFullContent == null) {
+            return false;
+        }
+
+        if (currentFolderFullContentBucket == null
+                || currentFolderFullContentPrefix == null) {
+
+            return false;
+        }
+
+        /*
+         * Cache yalnızca aynı bucket + prefix için
+         * kullanılabilir.
+         */
+        if (!Objects.equals(
                 currentFolderFullContentBucket,
-                bucket)
-                && Objects.equals(
+                bucket)) {
+
+            return false;
+        }
+
+        if (!Objects.equals(
                 currentFolderFullContentPrefix,
-                prefix);
+                prefix)) {
+
+            return false;
+        }
+
+        /*
+         * Cache'in temsil ettiği içerik gerçekten
+         * tamamlanmış olmalı.
+         *
+         * fileLimitReached=true ise elimizde yalnızca
+         * ilk sayfa vardır ve bunu "tam cache" olarak
+         * kullanamayız.
+         */
+        return !currentFolderFullContent.fileLimitReached();
     }
 
     private void invalidateCurrentFolderFullContentCache() {
