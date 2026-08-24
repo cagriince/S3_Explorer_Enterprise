@@ -135,6 +135,7 @@ public class ExplorerPanel extends JPanel {
     private RepositoryDefinition pendingRepositorySelection;
     private String pendingBucketSelection;
     private boolean suppressBucketSelectionEvent;
+    private boolean forceBucketReload;
     private boolean suppressThreadCountSelectionEvent;
     
     private final ExplorerClipboard clipboard = new ExplorerClipboard();
@@ -999,7 +1000,8 @@ public class ExplorerPanel extends JPanel {
                      */
                     if (Objects.equals(
                             previousBucket,
-                            selectedBucket)) {
+                            selectedBucket)
+                            && !forceBucketReload) {
 
                         log.debug(
                                 "[BUCKET LOAD] bucket unchanged={} - tree/table refresh skipped",
@@ -1007,6 +1009,8 @@ public class ExplorerPanel extends JPanel {
 
                         return;
                     }
+
+                    forceBucketReload = false;
 
                     /*
                      * Buraya ancak:
@@ -2527,12 +2531,13 @@ public class ExplorerPanel extends JPanel {
             if (currentRepository == null
                     || currentRepository ==
                     RepositoryDefinition.EMPTY_REPOSITORY) {
+
                 return;
             }
 
             /*
-             * Başka repository değiştiyse
-             * Explorer'a dokunma.
+             * Başka bir repository değiştiyse
+             * mevcut Explorer durumuna dokunma.
              */
             if (!Objects.equals(
                     currentRepository.getName(),
@@ -2546,20 +2551,69 @@ public class ExplorerPanel extends JPanel {
                     changedRepository.getName());
 
             /*
-             * Mevcut bucket'ı sakla.
+             * Repository'nin endpoint'i, credential'ları
+             * veya external bucket bilgileri değişmiş olabilir.
+             *
+             * Bu nedenle mevcut Explorer state'ini
+             * artık geçerli kabul etmiyoruz.
+             */
+
+            fileLoadGeneration.incrementAndGet();
+
+            currentFileBucket = null;
+            currentFilePrefix = null;
+            currentFileContinuationToken = null;
+            currentFileHasMore = false;
+            loadingMoreFiles = false;
+
+            currentFolderFullContent = null;
+            currentFolderFullContentBucket = null;
+            currentFolderFullContentPrefix = null;
+
+            currentFolderCollationKeyCache.clear();
+
+            nodeCache.clear();
+
+            /*
+             * Folder tree'i temizle.
+             */
+            S3TreeNode root =
+                    new S3TreeNode(
+                            S3TreeNode.ROOT_PREFIX,
+                            S3TreeNode.ROOT_PREFIX,
+                            S3TreeNode.ROOT_PREFIX);
+
+            nodeCache.put(
+                    root.getFullPrefix(),
+                    root);
+
+            treeModel.setRoot(root);
+
+            /*
+             * File table'ı temizle.
+             */
+            fileTableModel.clearAndRepaint();
+
+            setFileTableLoading(false);
+
+            updateBreadcrumb(
+                    S3TreeNode.ROOT_PREFIX);
+
+            updateActionStates();
+
+            /*
+             * Mevcut bucket'ı mümkünse koruyarak
+             * bucket listesini yeniden yükle.
              */
             pendingBucketSelection =
                     getCurrentBucket();
 
-            /*
-             * Repository ComboBox'a dokunma.
-             *
-             * Sadece bucket listesini güncelle.
-             */
+            forceBucketReload = true;
+
             loadBucketsAsync();
         });
     }
-
+    
     public void setThreadCountSelectionListener(
             Consumer<Integer> listener) {
 
