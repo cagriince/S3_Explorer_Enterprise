@@ -1951,15 +1951,58 @@ public class ExplorerPanel extends JPanel {
     }
 
     private void refreshCurrentTable() {
-        String bucket = this.getCurrentBucket();
+
+        String bucket =
+                this.getCurrentBucket();
+
         if (bucket == null) {
             return;
         }
 
-        loadFiles(bucket, getCurrentPrefix());
+        String prefix =
+                getCurrentPrefix();
+
+        invalidateFileContentCache(
+                bucket,
+                prefix);
+
+        fileLoadGeneration.incrementAndGet();
+
+        loadFiles(
+                bucket,
+                prefix);
+
         updateActionStates();
     }
 
+    private void invalidateFileContentCache(
+            String bucket,
+            String prefix) {
+
+        if (bucket == null
+                || prefix == null) {
+
+            return;
+        }
+
+        if (Objects.equals(
+                currentFolderFullContentBucket,
+                bucket)
+                && Objects.equals(
+                currentFolderFullContentPrefix,
+                prefix)) {
+
+            log.debug(
+                    "[FILE CACHE INVALIDATE] bucket={} prefix={}",
+                    bucket,
+                    prefix);
+
+            currentFolderFullContent = null;
+            currentFolderFullContentBucket = null;
+            currentFolderFullContentPrefix = null;
+        }
+    }
+    
     public void updateBreadcrumb(String prefix) {
         if (prefix == null) {
             prefix = getCurrentPrefix();
