@@ -103,6 +103,7 @@ public class ExplorerPanel extends JPanel {
     private String currentFolderFullContentPrefix;
 
     private final Map<String, CollationKey> currentFolderCollationKeyCache = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<String, CompletableFuture<LimitedFolderContent>> inFlightFileLoads = new java.util.concurrent.ConcurrentHashMap<>();
     
     private JComboBox<Integer> fileTableRowLimitCombo;
     private Consumer<Integer> fileTableRowLimitSelectionListener;
@@ -1106,9 +1107,6 @@ public class ExplorerPanel extends JPanel {
 
         /*
          * Bu klasörün tamamı daha önce alınmış mı?
-         *
-         * Cache varsa S3'e gitmiyoruz.
-         * Dolayısıyla Preparing de göstermiyoruz.
          */
         if (isFullContentCached(
                 bucket,
@@ -1125,85 +1123,106 @@ public class ExplorerPanel extends JPanel {
         }
 
         /*
-         * Gerçek S3 taraması başlıyor.
+         * Aynı parametrelerle devam eden bir S3 isteği
+         * zaten varsa ikinci bir istek başlatmıyoruz.
          */
-        updateFileDiscoveryProgress(0, 0);
-        
-        CompletableFuture
-                .supplyAsync(
-                        () -> getService()
-                                .listFolderWithLimit(
-                                        bucket,
-                                        prefix,
-                                        fileLimit,
-                                        sortSpec,
-                                        currentFolderCollationKeyCache,
-                                        (fileCount, folderCount) ->
-                                                updateFileDiscoveryProgress(
-                                                        fileCount,
-                                                        folderCount)),
-                        explorerPool)
-                .thenAccept(content -> {
+        String loadKey =
+                createFileLoadKey(
+                        bucket,
+                        prefix,
+                        fileLimit,
+                        sortSpec);
 
-                    SwingUtilities.invokeLater(() -> {
+        CompletableFuture<LimitedFolderContent> future =
+                inFlightFileLoads.computeIfAbsent(
+                        loadKey,
+                        key -> {
 
-                        if (generation !=
-                                fileLoadGeneration.get()) {
+                            updateFileDiscoveryProgress(
+                                    0,
+                                    0);
 
-                            updateFileFolderInfo(content);
+                            return CompletableFuture.supplyAsync(
+                                    () -> getService()
+                                            .listFolderWithLimit(
+                                                    bucket,
+                                                    prefix,
+                                                    fileLimit,
+                                                    sortSpec,
+                                                    currentFolderCollationKeyCache,
+                                                    (fileCount, folderCount) ->
+                                                            updateFileDiscoveryProgress(
+                                                                    fileCount,
+                                                                    folderCount)),
+                                    explorerPool);
+                        });
 
-                            return;
-                        }
+        future.thenAccept(content -> {
 
-                        /*
-                         * Eğer bütün dosyaları aldıysak
-                         * cache'e koy.
-                         */
-                        if (!content.fileLimitReached()) {
+            SwingUtilities.invokeLater(() -> {
 
-                            currentFolderFullContent =
-                                    content;
+                if (generation !=
+                        fileLoadGeneration.get()) {
 
-                            currentFolderFullContentBucket =
-                                    bucket;
+                    updateFileFolderInfo(content);
 
-                            currentFolderFullContentPrefix =
-                                    prefix;
-                        }
+                    return;
+                }
 
-                        updateFileFolderInfo(content);
+                /*
+                 * Eğer bütün dosyaları aldıysak
+                 * cache'e koy.
+                 */
+                if (!content.fileLimitReached()) {
 
-                        applyLimitedFolderContent(
-                                bucket,
-                                prefix,
-                                content);
+                    currentFolderFullContent =
+                            content;
 
-                        setFileTableLoading(false);
-                    });
-                })
-                .exceptionally(ex -> {
+                    currentFolderFullContentBucket =
+                            bucket;
 
-                    log.error(
-                            "Explorer operation failed",
-                            ex);
+                    currentFolderFullContentPrefix =
+                            prefix;
+                }
 
-                    SwingUtilities.invokeLater(() -> {
+                updateFileFolderInfo(content);
 
-                        if (generation !=
-                                fileLoadGeneration.get()) {
+                applyLimitedFolderContent(
+                        bucket,
+                        prefix,
+                        content);
 
-                            return;
-                        }
+                setFileTableLoading(false);
+            });
 
-                        setFileTableLoading(false);
+        }).exceptionally(ex -> {
 
-                        JOptionPane.showMessageDialog(
-                                this,
-                                "File list could not be loaded");
-                    });
+            log.error(
+                    "Explorer operation failed",
+                    ex);
 
-                    return null;
-                });
+            SwingUtilities.invokeLater(() -> {
+
+                if (generation !=
+                        fileLoadGeneration.get()) {
+
+                    return;
+                }
+
+                setFileTableLoading(false);
+
+                JOptionPane.showMessageDialog(
+                        this,
+                        "File list could not be loaded");
+            });
+
+            return null;
+
+        }).whenComplete(
+                (result, throwable) ->
+                        inFlightFileLoads.remove(
+                                loadKey,
+                                future));
     }
 
     private void applyFilePage(
@@ -3064,5 +3083,22 @@ public class ExplorerPanel extends JPanel {
                                 + " folders / "
                                 + fileCount
                                 + " files discovered"));
+    }
+
+    private String createFileLoadKey(
+            String bucket,
+            String prefix,
+            int fileLimit,
+            FileTableSortSpec sortSpec) {
+
+        return bucket
+                + "\u0000"
+                + prefix
+                + "\u0000"
+                + fileLimit
+                + "\u0000"
+                + sortSpec.getColumn()
+                + "\u0000"
+                + sortSpec.isAscending();
     }
 }
