@@ -2785,6 +2785,35 @@ public class ExplorerPanel extends JPanel {
                 content.fileLimitReached());
     }
 
+    private void updateFileFolderInfo(
+            LimitedFolderContent content) {
+
+        long folderCount =
+                content.folderCount();
+
+        String fileText;
+
+        if (content.fileLimitReached()) {
+
+            fileText =
+                    content.fileCount()
+                            + " / "
+                            + content.scannedFileCount()
+                            + " file(s)";
+
+        } else {
+
+            fileText =
+                    content.fileCount()
+                            + " file(s)";
+        }
+
+        fileFolderInfo.setText(
+                folderCount
+                        + " folder(s) and "
+                        + fileText);
+    }
+    
     private boolean isFullContentCached(
             String bucket,
             String prefix) {
@@ -2908,31 +2937,5 @@ public class ExplorerPanel extends JPanel {
                                 + " files / "
                                 + folderCount
                                 + " folders discovered"));
-    }
-    
-    private void updateFileFolderInfo(
-            LimitedFolderContent content) {
-
-        String fileText;
-
-        if (content.fileLimitReached()) {
-
-            fileText =
-                    content.fileCount()
-                            + " / "
-                            + content.scannedFileCount()
-                            + " file(s)";
-
-        } else {
-
-            fileText =
-                    content.fileCount()
-                            + " file(s)";
-        }
-
-        fileFolderInfo.setText(
-                content.folderCount()
-                        + " folder(s) and "
-                        + fileText);
     }
 }
