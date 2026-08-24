@@ -7,9 +7,12 @@ import java.util.List;
 import java.util.Objects;
 
 public class RepositoryDefinition {
-    public static RepositoryDefinition EMPTY_REPOSITORY = new RepositoryDefinition(null, null, null, null);
+
+    public static final RepositoryDefinition EMPTY_REPOSITORY =
+            new RepositoryDefinition(null, null, null, null);
+
     private List<String> externalBuckets = new ArrayList<>();
-    
+
     private String name;
     private String endpoint;
     private String accessKey;
@@ -68,13 +71,15 @@ public class RepositoryDefinition {
                 : List.copyOf(externalBuckets);
     }
 
-    public void setExternalBuckets(List<String> externalBuckets) {
+    public void setExternalBuckets(
+            List<String> externalBuckets) {
+
         this.externalBuckets =
                 externalBuckets == null
                         ? new ArrayList<>()
                         : new ArrayList<>(externalBuckets);
     }
-    
+
     @Override
     public String toString() {
         return name;
@@ -82,22 +87,28 @@ public class RepositoryDefinition {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        RepositoryDefinition that = (RepositoryDefinition) o;
-        return Objects.equals(name, that.name);
+
+        if (this == o) {
+            return true;
+        }
+
+        if (!(o instanceof RepositoryDefinition that)) {
+            return false;
+        }
+
+        return Objects.equals(
+                name,
+                that.name);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(
-                name,
-                endpoint,
-                accessKey);
+
+        return Objects.hash(name);
     }
 
     @JsonIgnore
     public boolean isEmpty() {
-        return getName() == null;
+        return name == null;
     }
 }
