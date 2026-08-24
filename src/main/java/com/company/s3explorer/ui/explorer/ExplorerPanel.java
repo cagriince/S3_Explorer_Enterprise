@@ -120,7 +120,7 @@ public class ExplorerPanel extends JPanel {
     private File lastOpenedFolderToUpload;
     private File lastOpenedFolderToDownload;
 
-    ExecutorService explorerPool = Executors.newFixedThreadPool(5);
+    private ExecutorService explorerPool = Executors.newFixedThreadPool(5);
     private final UIThemeManager themeManager;
     private final ActiveRepositoryContext context;
     private final S3ClientFactory clientFactory;
@@ -427,14 +427,14 @@ public class ExplorerPanel extends JPanel {
                 new Insets(10, 5, 5, 5);
 
         /*
-         * Max line count ComboBox
+         * Max item count ComboBox
          */
         fileTableRowLimitCombo =
                 new JComboBox<>(FILE_TABLE_ROW_LIMITS);
 
         fileTableRowLimitCombo.setSelectedItem(500);
 
-        fileTableRowLimitCombo.setToolTipText("Max Line Count");
+        fileTableRowLimitCombo.setToolTipText("Max Item Count");
         alignComboBoxRight(fileTableRowLimitCombo);
         
         fileTableRowLimitCombo.addActionListener(e -> {
@@ -478,6 +478,8 @@ public class ExplorerPanel extends JPanel {
             if (selected == null) {
                 return;
             }
+
+            resizeExplorerPool(selected);
 
             if (threadCountSelectionListener != null) {
                 threadCountSelectionListener.accept(
@@ -2698,18 +2700,27 @@ public class ExplorerPanel extends JPanel {
     public void selectThreadCount(
             int threadCount) {
 
-        suppressThreadCountSelectionEvent = true;
-
-        try {
-
-            threadCountCombo.setSelectedItem(
-                    threadCount);
-
+        if (threadCount <= 0) {
+            return;
         }
-        finally {
 
-            suppressThreadCountSelectionEvent = false;
+        if (threadCountCombo != null) {
+
+            suppressThreadCountSelectionEvent = true;
+
+            try {
+
+                threadCountCombo.setSelectedItem(
+                        threadCount);
+
+            } finally {
+
+                suppressThreadCountSelectionEvent = false;
+            }
         }
+
+        resizeExplorerPool(
+                threadCount);
     }
 
     private FileTableSortSpec getCurrentFileSortSpec() {
@@ -3100,5 +3111,41 @@ public class ExplorerPanel extends JPanel {
                 + sortSpec.getColumn()
                 + "\u0000"
                 + sortSpec.isAscending();
+    }
+
+    private synchronized void resizeExplorerPool(
+            int threadCount) {
+
+        if (threadCount <= 0) {
+            return;
+        }
+
+        ExecutorService oldPool =
+                explorerPool;
+
+        explorerPool =
+                Executors.newFixedThreadPool(
+                        threadCount);
+
+        if (oldPool != null) {
+            oldPool.shutdown();
+        }
+
+        log.info(
+                "[EXPLORER POOL] resized to {} threads",
+                threadCount);
+    }
+
+    public void shutdown() {
+
+        synchronized (this) {
+
+            if (explorerPool != null) {
+
+                explorerPool.shutdown();
+
+                explorerPool = null;
+            }
+        }
     }
 }

@@ -192,8 +192,12 @@ public class MainFrame extends JFrame {
 
     @Override
     public void dispose() {
+
         transferEngine.close();
+
+        explorerPanel.shutdown();
         clientManager.close();
+
         super.dispose();
     }
 }
