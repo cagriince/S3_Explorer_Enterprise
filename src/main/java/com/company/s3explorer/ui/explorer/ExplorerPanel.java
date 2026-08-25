@@ -95,7 +95,7 @@ public class ExplorerPanel extends JPanel {
     private FileTableModel fileTableModel;
     private final AtomicLong fileLoadGeneration = new AtomicLong();
     private final AtomicLong operationGeneration = new AtomicLong();
-    private final AtomicLong treeLoadGeneration = new AtomicLong();
+    private final Map<S3TreeNode, Long> treeLoadGenerations = new IdentityHashMap<>();
     private String currentFileBucket;
     private String currentFilePrefix;
     private LimitedFolderContent currentFolderFullContent;
@@ -1458,11 +1458,12 @@ public class ExplorerPanel extends JPanel {
          * işlemleri geçersiz kılar.
          */
         operationGeneration.incrementAndGet();
-        treeLoadGeneration.incrementAndGet();
         
         /*
          * Önceki repository'nin UI state'i artık geçerli değil.
          */
+        treeLoadGenerations.clear();
+        
         pendingBucketSelection = null;
 
         currentFileBucket = null;
@@ -1542,6 +1543,7 @@ public class ExplorerPanel extends JPanel {
                         S3TreeNode.ROOT_PREFIX);
 
         treeModel.setRoot(root);
+        treeLoadGenerations.clear();
         nodeCache.clear();
         nodeCache.put(
                 root.getFullPrefix(),
@@ -1577,7 +1579,10 @@ public class ExplorerPanel extends JPanel {
         }
 
         final long generation =
-                treeLoadGeneration.incrementAndGet();
+                treeLoadGenerations.merge(
+                        parentNode,
+                        1L,
+                        Long::sum);
         
         if (!forceRefresh
                 && parentNode.getChildCount() > 0
@@ -1614,12 +1619,18 @@ public class ExplorerPanel extends JPanel {
                     folders.size());
 
             SwingUtilities.invokeLater(() -> {
-                if (generation !=
-                        treeLoadGeneration.get()) {
+                Long currentGeneration =
+                        treeLoadGenerations.get(parentNode);
+
+                if (!Objects.equals(
+                        generation,
+                        currentGeneration)) {
 
                     log.debug(
-                            "[TREE APPLY SKIPPED] stale tree load prefix={}",
-                            parentNode.getFullPrefix());
+                            "[TREE APPLY SKIPPED] stale tree load prefix={} generation={} currentGeneration={}",
+                            parentNode.getFullPrefix(),
+                            generation,
+                            currentGeneration);
 
                     return;
                 }
@@ -2143,7 +2154,8 @@ public class ExplorerPanel extends JPanel {
         }
 
         nodeCache.remove(node.getFullPrefix());
-
+        treeLoadGenerations.remove(node);
+        
         Enumeration<?> children = node.children();
         while (children.hasMoreElements()) {
             removeFromCache((S3TreeNode) children.nextElement());
