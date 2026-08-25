@@ -911,12 +911,29 @@ public class ExplorerPanel extends JPanel {
                     if (S3ErrorResolver.isAccessDenied(ex)
                             && !repository.getExternalBuckets().isEmpty()) {
 
-                        log.warn(
-                                "[BUCKET LOAD] ListBuckets access denied; using external buckets only");
+                        try {
 
-                        s3Buckets =
-                                Collections.emptyList();
+                            String externalBucket =
+                                    repository
+                                            .getExternalBuckets()
+                                            .get(0);
 
+                            getService().testBucketAccess(
+                                    externalBucket);
+
+                            log.warn(
+                                    "[BUCKET LOAD] ListBuckets access denied; " +
+                                            "external bucket is accessible: {}",
+                                    externalBucket);
+
+                            s3Buckets =
+                                    Collections.emptyList();
+
+                        }
+                        catch (Exception externalBucketException) {
+
+                            throw externalBucketException;
+                        }
                     }
                     else {
 
@@ -1430,6 +1447,29 @@ public class ExplorerPanel extends JPanel {
         }
 
         context.setActiveRepository(repository);
+
+        /*
+         * Yeni repository seçildiği anda eski repository'nin
+         * UI verileri artık geçerli değildir.
+         */
+        pendingBucketSelection = null;
+
+        currentFileBucket = null;
+        currentFilePrefix = null;
+        currentFileContinuationToken = null;
+        currentFileHasMore = false;
+        loadingMoreFiles = false;
+
+        currentFolderFullContent = null;
+        currentFolderFullContentBucket = null;
+        currentFolderFullContentPrefix = null;
+
+        currentFolderCollationKeyCache.clear();
+
+        fileTableModel.setFiles(
+                Collections.emptyList());
+
+        setFileTableLoading(false);
 
         reloadBuckets();
     }

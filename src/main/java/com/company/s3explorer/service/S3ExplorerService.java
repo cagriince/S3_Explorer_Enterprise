@@ -567,4 +567,21 @@ public class S3ExplorerService {
                     RequestBody.fromInputStream(in, totalBytes));
         }
     }
+
+    public void testBucketAccess(
+            String bucket) {
+
+        if (bucket == null
+                || bucket.isBlank()) {
+
+            throw new IllegalArgumentException(
+                    "Bucket name is required");
+        }
+
+        client.listObjectsV2(
+                ListObjectsV2Request.builder()
+                        .bucket(bucket)
+                        .maxKeys(1)
+                        .build());
+    }
 }
