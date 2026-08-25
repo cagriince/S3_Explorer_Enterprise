@@ -127,7 +127,8 @@ public class ExplorerPanel extends JPanel {
         BUCKET,
         FILE_TABLE
     }
-
+    private final List<OperationDialog> visibleOperationDialogs = new ArrayList<>();
+    
     private JDialog operationDialog;
     private JLabel operationDialogMessage;
     
@@ -3526,9 +3527,16 @@ public class ExplorerPanel extends JPanel {
 
             operationDialog.dialog.pack();
 
-            positionOperationDialogs();
-
             operationDialog.dialog.setVisible(true);
+
+            if (!visibleOperationDialogs.contains(
+                    operationDialog)) {
+
+                visibleOperationDialogs.add(
+                        operationDialog);
+            }
+
+            positionOperationDialogs();
         });
     }
 
@@ -3545,22 +3553,14 @@ public class ExplorerPanel extends JPanel {
                 owner.getX()
                         + (owner.getWidth() / 2);
 
-        int startY =
+        int currentY =
                 owner.getY()
                         + (owner.getHeight() * 30 / 100);
 
         int gap = 12;
 
-        int currentY = startY;
-
-        OperationDialog[] dialogs = {
-                connectionDialog,
-                bucketDialog,
-                fileTableDialog
-        };
-
         for (OperationDialog operationDialog :
-                dialogs) {
+                visibleOperationDialogs) {
 
             if (operationDialog == null
                     || !operationDialog.dialog.isVisible()) {
@@ -3587,14 +3587,14 @@ public class ExplorerPanel extends JPanel {
             OperationDialogType type) {
 
         SwingUtilities.invokeLater(() -> {
-
+            OperationDialog operationDialog = null;
+            
             switch (type) {
 
                 case CONNECTION:
 
                     if (connectionDialog != null) {
-                        connectionDialog.dialog
-                                .setVisible(false);
+                        operationDialog = connectionDialog;
                     }
 
                     break;
@@ -3602,8 +3602,7 @@ public class ExplorerPanel extends JPanel {
                 case BUCKET:
 
                     if (bucketDialog != null) {
-                        bucketDialog.dialog
-                                .setVisible(false);
+                        operationDialog = bucketDialog;
                     }
 
                     break;
@@ -3611,16 +3610,24 @@ public class ExplorerPanel extends JPanel {
                 case FILE_TABLE:
 
                     if (fileTableDialog != null) {
-                        fileTableDialog.dialog
-                                .setVisible(false);
+                        operationDialog = fileTableDialog;
                     }
 
                     break;
 
                 default:
-                    break;
+                    return;
             }
 
+            if (operationDialog != null) {
+
+                operationDialog.dialog
+                        .setVisible(false);
+
+                visibleOperationDialogs.remove(
+                        operationDialog);
+            }
+            
             positionOperationDialogs();
         });
     }
