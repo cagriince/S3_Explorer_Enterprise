@@ -1043,6 +1043,8 @@ public class ExplorerPanel extends JPanel {
                                 "[BUCKET LOAD] bucket unchanged={} - tree/table refresh skipped",
                                 selectedBucket);
 
+                        hideOperationDialog();
+
                         return;
                     }
 
@@ -1539,15 +1541,15 @@ public class ExplorerPanel extends JPanel {
     public void setSelectedRepository(
             RepositoryDefinition repository) {
 
-        if (repository == null
-                || repository.isEmpty()) {
-            return;
-        }
-
+        /*
+         * Her repository seçimi önceki asenkron
+         * işlemleri geçersiz kılar.
+         */
         operationGeneration.incrementAndGet();
 
-        context.setActiveRepository(repository);
-
+        /*
+         * Önceki repository'nin UI state'i artık geçerli değil.
+         */
         pendingBucketSelection = null;
 
         currentFileBucket = null;
@@ -1562,8 +1564,44 @@ public class ExplorerPanel extends JPanel {
 
         currentFolderCollationKeyCache.clear();
 
+        nodeCache.clear();
+
         fileTableModel.setFiles(
                 Collections.emptyList());
+
+        bucketCombo.removeAllItems();
+
+        treeModel.setRoot(
+                new S3TreeNode(
+                        S3TreeNode.ROOT_PREFIX,
+                        S3TreeNode.ROOT_PREFIX,
+                        S3TreeNode.ROOT_PREFIX));
+
+        folderTree.clearSelection();
+
+        setFileTableLoading(false);
+
+        hideOperationDialog();
+
+        /*
+         * Empty Repository seçildiyse yalnızca ekranı
+         * temizlemek yeterli.
+         */
+        if (repository == null
+                || repository.isEmpty()) {
+
+            context.setActiveRepository(
+                    RepositoryDefinition.EMPTY_REPOSITORY);
+
+            updateActionStates();
+
+            return;
+        }
+
+        /*
+         * Gerçek repository artık aktif.
+         */
+        context.setActiveRepository(repository);
 
         setFileTableLoading(true);
 
