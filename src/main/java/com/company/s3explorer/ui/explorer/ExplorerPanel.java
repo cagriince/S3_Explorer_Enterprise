@@ -1315,9 +1315,13 @@ public class ExplorerPanel extends JPanel {
                         loadKey,
                         key -> {
 
-                            updateFileDiscoveryProgress(
-                                    0,
-                                    0);
+                            if (generation ==
+                                    fileLoadGeneration.get()) {
+
+                                updateFileDiscoveryProgress(
+                                        0,
+                                        0);
+                            }
 
                             return CompletableFuture.supplyAsync(
                                     () -> getService()
@@ -1327,10 +1331,13 @@ public class ExplorerPanel extends JPanel {
                                                     fileLimit,
                                                     sortSpec,
                                                     currentFolderCollationKeyCache,
-                                                    (fileCount, folderCount) ->
+                                                    (fileCount, folderCount) -> {
+                                                        if (generation == fileLoadGeneration.get()) {
                                                             updateFileDiscoveryProgress(
                                                                     fileCount,
-                                                                    folderCount)),
+                                                                    folderCount);
+                                                        }
+                                                    }),
                                     explorerPool);
                         });
 
@@ -1341,9 +1348,7 @@ public class ExplorerPanel extends JPanel {
                 if (generation !=
                         fileLoadGeneration.get()) {
 
-                    updateFileFolderInfo(content);
-
-                    return;
+return;
                 }
 
                 /*
