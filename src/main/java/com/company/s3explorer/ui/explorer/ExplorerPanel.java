@@ -1,11 +1,9 @@
 package com.company.s3explorer.ui.explorer;
 
 import com.company.s3explorer.application.ActiveRepositoryContext;
-import com.company.s3explorer.service.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import com.company.s3explorer.repository.RepositoryDefinition;
 import com.company.s3explorer.repository.RepositoryManager;
+import com.company.s3explorer.service.*;
 import com.company.s3explorer.transfer.TransferRuntime;
 import com.company.s3explorer.transfer.TransferStatus;
 import com.company.s3explorer.transfer.event.TransferEventBus;
@@ -23,6 +21,8 @@ import com.company.s3explorer.ui.theme.UITheme;
 import com.company.s3explorer.ui.theme.UIThemeManager;
 import com.company.s3explorer.ui.transfer.TransferPanel;
 import com.company.s3explorer.util.S3Util;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import javax.swing.Timer;
@@ -33,7 +33,6 @@ import javax.swing.event.PopupMenuEvent;
 import javax.swing.event.PopupMenuListener;
 import javax.swing.event.TreeExpansionEvent;
 import javax.swing.event.TreeWillExpandListener;
-import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableColumn;
 import javax.swing.tree.DefaultTreeCellRenderer;
 import javax.swing.tree.DefaultTreeModel;
@@ -374,9 +373,6 @@ public class ExplorerPanel extends JPanel {
         S3TreeNode root = new S3TreeNode(S3TreeNode.ROOT_PREFIX, S3TreeNode.ROOT_PREFIX, S3TreeNode.ROOT_PREFIX);
         folderTree = new JTree(root);
         nodeCache.put(S3TreeNode.ROOT_PREFIX, root);
-        fileTable = new JTable(new DefaultTableModel(
-                new Object[]{"Name", "Size", "Last Modified"}, 0
-        ));
         treeModel = (DefaultTreeModel) folderTree.getModel();
 
         folderTree.addTreeWillExpandListener(
