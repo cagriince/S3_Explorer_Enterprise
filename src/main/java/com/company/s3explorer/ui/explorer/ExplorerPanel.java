@@ -114,6 +114,20 @@ public class ExplorerPanel extends JPanel {
 
     private JPanel breadcrumbPanel;
     private JLabel fileFolderInfo;
+
+    private OperationDialog connectionDialog;
+    private JLabel connectionDialogMessage;
+    private OperationDialog bucketDialog;
+    private JLabel bucketDialogMessage;
+    private OperationDialog fileTableDialog;
+    private JLabel fileTableDialogMessage;
+
+    private enum OperationDialogType {
+        CONNECTION,
+        BUCKET,
+        FILE_TABLE
+    }
+
     private JDialog operationDialog;
     private JLabel operationDialogMessage;
     
@@ -3361,6 +3375,293 @@ return;
         }
     }
 
+    private OperationDialog createOperationDialog(
+            String title) {
+
+        Window owner =
+                SwingUtilities.getWindowAncestor(this);
+
+        JDialog dialog =
+                new JDialog(
+                        owner,
+                        title,
+                        Dialog.ModalityType.MODELESS);
+
+        dialog.setDefaultCloseOperation(
+                WindowConstants.HIDE_ON_CLOSE);
+
+        dialog.setResizable(false);
+
+        JPanel panel =
+                new JPanel(
+                        new BorderLayout(15, 15));
+
+        panel.setBorder(
+                new EmptyBorder(
+                        18,
+                        20,
+                        18,
+                        20));
+
+        JLabel message =
+                new JLabel("Preparing...");
+
+        panel.add(
+                message,
+                BorderLayout.CENTER);
+
+        JButton hideButton =
+                new JButton("Hide");
+
+        hideButton.addActionListener(
+                e -> dialog.setVisible(false));
+
+        JPanel buttonPanel =
+                new JPanel(
+                        new FlowLayout(
+                                FlowLayout.RIGHT,
+                                0,
+                                0));
+
+        buttonPanel.add(hideButton);
+
+        panel.add(
+                buttonPanel,
+                BorderLayout.SOUTH);
+
+        dialog.setContentPane(panel);
+
+        dialog.setMinimumSize(
+                new Dimension(
+                        450,
+                        150));
+
+        return new OperationDialog(
+                dialog,
+                message);
+    }
+
+    private static final class OperationDialog {
+
+        private final JDialog dialog;
+        private final JLabel message;
+
+        private OperationDialog(
+                JDialog dialog,
+                JLabel message) {
+
+            this.dialog = dialog;
+            this.message = message;
+        }
+    }
+
+    private void showOperationDialog(
+            OperationDialogType type,
+            String message) {
+
+        SwingUtilities.invokeLater(() -> {
+
+            OperationDialog operationDialog;
+
+            switch (type) {
+
+                case CONNECTION:
+
+                    if (connectionDialog == null) {
+                        connectionDialog =
+                                createOperationDialog(
+                                        "S3 Connection");
+                    }
+
+                    operationDialog =
+                            connectionDialog;
+
+                    break;
+
+                case BUCKET:
+
+                    if (bucketDialog == null) {
+                        bucketDialog =
+                                createOperationDialog(
+                                        "Bucket Loading");
+                    }
+
+                    operationDialog =
+                            bucketDialog;
+
+                    break;
+
+                case FILE_TABLE:
+
+                    if (fileTableDialog == null) {
+                        fileTableDialog =
+                                createOperationDialog(
+                                        "File Table");
+                    }
+
+                    operationDialog =
+                            fileTableDialog;
+
+                    break;
+
+                default:
+                    return;
+            }
+
+            operationDialog.message.setText(
+                    message);
+
+            operationDialog.dialog.pack();
+
+            positionOperationDialogs();
+
+            operationDialog.dialog.setVisible(true);
+        });
+    }
+
+    private void positionOperationDialogs() {
+
+        Window owner =
+                SwingUtilities.getWindowAncestor(this);
+
+        if (owner == null) {
+            return;
+        }
+
+        int centerX =
+                owner.getX()
+                        + (owner.getWidth() / 2);
+
+        int startY =
+                owner.getY()
+                        + (owner.getHeight() * 30 / 100);
+
+        int gap = 12;
+
+        int currentY = startY;
+
+        OperationDialog[] dialogs = {
+                connectionDialog,
+                bucketDialog,
+                fileTableDialog
+        };
+
+        for (OperationDialog operationDialog :
+                dialogs) {
+
+            if (operationDialog == null
+                    || !operationDialog.dialog.isVisible()) {
+
+                continue;
+            }
+
+            int x =
+                    centerX
+                            - operationDialog.dialog
+                            .getWidth() / 2;
+
+            operationDialog.dialog.setLocation(
+                    x,
+                    currentY);
+
+            currentY +=
+                    operationDialog.dialog.getHeight()
+                            + gap;
+        }
+    }
+
+    private void hideOperationDialog(
+            OperationDialogType type) {
+
+        SwingUtilities.invokeLater(() -> {
+
+            switch (type) {
+
+                case CONNECTION:
+
+                    if (connectionDialog != null) {
+                        connectionDialog.dialog
+                                .setVisible(false);
+                    }
+
+                    break;
+
+                case BUCKET:
+
+                    if (bucketDialog != null) {
+                        bucketDialog.dialog
+                                .setVisible(false);
+                    }
+
+                    break;
+
+                case FILE_TABLE:
+
+                    if (fileTableDialog != null) {
+                        fileTableDialog.dialog
+                                .setVisible(false);
+                    }
+
+                    break;
+
+                default:
+                    break;
+            }
+
+            positionOperationDialogs();
+        });
+    }
+
+    private void hideOperationDialog() {
+
+        SwingUtilities.invokeLater(() -> {
+
+            if (operationDialog != null) {
+                operationDialog.setVisible(false);
+            }
+        });
+    }
+
+    private void showOperationDialog(
+            String message) {
+
+        SwingUtilities.invokeLater(() -> {
+
+            if (operationDialog == null) {
+                createOperationDialog();
+            }
+
+            operationDialogMessage.setText(
+                    message);
+
+            operationDialog.pack();
+
+            Window owner =
+                    SwingUtilities.getWindowAncestor(this);
+
+            if (owner != null) {
+
+                int x =
+                        owner.getX()
+                                + (owner.getWidth()
+                                - operationDialog.getWidth())
+                                / 2;
+
+                int y =
+                        owner.getY()
+                                + (owner.getHeight()
+                                - operationDialog.getHeight())
+                                / 2;
+
+                operationDialog.setLocation(
+                        x,
+                        y);
+            }
+
+            operationDialog.setVisible(true);
+        });
+    }
+
     private void createOperationDialog() {
 
         Window owner =
@@ -3420,55 +3721,5 @@ return;
 
         operationDialog.setMinimumSize(
                 new Dimension(350, 120));
-    }
-
-    private void showOperationDialog(
-            String message) {
-
-        SwingUtilities.invokeLater(() -> {
-
-            if (operationDialog == null) {
-                createOperationDialog();
-            }
-
-            operationDialogMessage.setText(
-                    message);
-
-            operationDialog.pack();
-
-            Window owner =
-                    SwingUtilities.getWindowAncestor(this);
-
-            if (owner != null) {
-
-                int x =
-                        owner.getX()
-                                + (owner.getWidth()
-                                - operationDialog.getWidth())
-                                / 2;
-
-                int y =
-                        owner.getY()
-                                + (owner.getHeight()
-                                - operationDialog.getHeight())
-                                / 2;
-
-                operationDialog.setLocation(
-                        x,
-                        y);
-            }
-
-            operationDialog.setVisible(true);
-        });
-    }
-
-    private void hideOperationDialog() {
-
-        SwingUtilities.invokeLater(() -> {
-
-            if (operationDialog != null) {
-                operationDialog.setVisible(false);
-            }
-        });
     }
 }
