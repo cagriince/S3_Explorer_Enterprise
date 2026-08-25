@@ -93,6 +93,7 @@ public class ExplorerPanel extends JPanel {
     private JTable fileTable;
     private FileTableModel fileTableModel;
     private final AtomicLong fileLoadGeneration = new AtomicLong();
+    private final AtomicLong operationGeneration = new AtomicLong();
     private String currentFileBucket;
     private String currentFilePrefix;
     private String currentFileContinuationToken;
@@ -113,7 +114,9 @@ public class ExplorerPanel extends JPanel {
 
     private JPanel breadcrumbPanel;
     private JLabel fileFolderInfo;
-
+    private JDialog operationDialog;
+    private JLabel operationDialogMessage;
+    
     private JPopupMenu filePopup;
     private JSplitPane mainSplit;
 
@@ -837,6 +840,9 @@ public class ExplorerPanel extends JPanel {
 
     public void loadBucketsAsync() {
 
+        final long operationId = operationGeneration.get();
+        showOperationDialog("Loading buckets...");
+        
         /*
          * Refresh başlamadan önce gerçekten aktif olan bucket'ı
          * kaydet.
@@ -954,6 +960,12 @@ public class ExplorerPanel extends JPanel {
 
                 SwingUtilities.invokeLater(() -> {
 
+                    if (operationId !=
+                            operationGeneration.get()) {
+
+                        return;
+                    }
+
                     suppressBucketSelectionEvent = true;
 
                     String selectedBucket = null;
@@ -1055,6 +1067,8 @@ public class ExplorerPanel extends JPanel {
                         loadRootFolders(
                                 selectedBucket);
                     }
+
+                    //hideOperationDialog();
                 });
 
             }
@@ -1066,7 +1080,11 @@ public class ExplorerPanel extends JPanel {
                         ex);
 
                 SwingUtilities.invokeLater(() -> {
-
+                    if (operationId != operationGeneration.get()) {
+                        return;
+                    }
+                    hideOperationDialog();
+                    
                     pendingBucketSelection = null;
 
                     fileTableModel.setFiles(
@@ -1093,31 +1111,113 @@ public class ExplorerPanel extends JPanel {
             }
         });
     }
-    
+
     public void loadRootFolders(String bucket) {
+
+        final long operationId =
+                operationGeneration.get();
+
         explorerPool.submit(() -> {
-            java.util.List<String> folders = getService().listFolders(bucket, S3TreeNode.ROOT_PREFIX);
 
-            S3TreeNode root = new S3TreeNode(bucket, bucket, S3TreeNode.ROOT_PREFIX);
-            nodeCache.clear();
-            nodeCache.put(root.getFullPrefix(), root);
+            try {
 
-            for (String folder : folders) {
-                String displayName = S3Util.extractFolderName(folder);
-                S3TreeNode child = new S3TreeNode(displayName, bucket, folder);
-                nodeCache.put(folder, child);
+                java.util.List<String> folders =
+                        getService().listFolders(
+                                bucket,
+                                S3TreeNode.ROOT_PREFIX);
 
-                child.add(new S3TreeNode(S3TreeNode.LOADING, bucket, S3TreeNode.ROOT_PREFIX));
-                root.add(child);
+                S3TreeNode root =
+                        new S3TreeNode(
+                                bucket,
+                                bucket,
+                                S3TreeNode.ROOT_PREFIX);
+
+                nodeCache.clear();
+
+                nodeCache.put(
+                        root.getFullPrefix(),
+                        root);
+
+                for (String folder : folders) {
+
+                    String displayName =
+                            S3Util.extractFolderName(
+                                    folder);
+
+                    S3TreeNode child =
+                            new S3TreeNode(
+                                    displayName,
+                                    bucket,
+                                    folder);
+
+                    nodeCache.put(
+                            folder,
+                            child);
+
+                    child.add(
+                            new S3TreeNode(
+                                    S3TreeNode.LOADING,
+                                    bucket,
+                                    S3TreeNode.ROOT_PREFIX));
+
+                    root.add(child);
+                }
+
+                SwingUtilities.invokeLater(() -> {
+
+                    /*
+                     * Bu repository işlemi artık güncel değilse
+                     * UI'ya dokunma.
+                     */
+                    if (operationId !=
+                            operationGeneration.get()) {
+
+                        return;
+                    }
+
+                    treeModel.setRoot(root);
+
+                    folderTree.setSelectionRow(0);
+
+                    loadFiles(
+                            bucket,
+                            S3TreeNode.ROOT_PREFIX);
+
+                    updateBreadcrumb(
+                            S3TreeNode.ROOT_PREFIX);
+
+                    updateActionStates();
+                });
+
             }
+            catch (Exception ex) {
 
-            SwingUtilities.invokeLater(() -> {
-                treeModel.setRoot(root);
-                folderTree.setSelectionRow(0);
-                loadFiles(bucket, S3TreeNode.ROOT_PREFIX);
-                updateBreadcrumb(S3TreeNode.ROOT_PREFIX);
-                updateActionStates();
-            });
+                log.error(
+                        "[FOLDER LOAD] failed: {}",
+                        S3ErrorResolver.getDetailedMessage(ex),
+                        ex);
+
+                SwingUtilities.invokeLater(() -> {
+
+                    /*
+                     * Başka bir repository artık aktifse
+                     * eski işlemin hatasını gösterme.
+                     */
+                    if (operationId !=
+                            operationGeneration.get()) {
+
+                        return;
+                    }
+
+                    hideOperationDialog();
+
+                    JOptionPane.showMessageDialog(
+                            this,
+                            S3ErrorResolver.getUserMessage(ex),
+                            "Folder Load Failed",
+                            JOptionPane.ERROR_MESSAGE);
+                });
+            }
         });
     }
 
@@ -1125,8 +1225,7 @@ public class ExplorerPanel extends JPanel {
             String bucket,
             String prefix) {
 
-        long generation =
-                fileLoadGeneration.incrementAndGet();
+        long generation = fileLoadGeneration.incrementAndGet();
 
         boolean folderChanged =
                 !Objects.equals(
@@ -1137,7 +1236,6 @@ public class ExplorerPanel extends JPanel {
                         prefix);
 
         if (folderChanged) {
-
             currentFolderCollationKeyCache.clear();
         }
 
@@ -1145,7 +1243,8 @@ public class ExplorerPanel extends JPanel {
         currentFilePrefix = prefix;
 
         setFileTableLoading(true);
-
+        showOperationDialog("Preparing file table...");
+        
         int fileLimit =
                 getSelectedFileTableRowLimit();
 
@@ -1240,6 +1339,7 @@ public class ExplorerPanel extends JPanel {
                         content);
 
                 setFileTableLoading(false);
+                hideOperationDialog();
             });
 
         }).exceptionally(ex -> {
@@ -1251,14 +1351,12 @@ public class ExplorerPanel extends JPanel {
 
             SwingUtilities.invokeLater(() -> {
 
-                if (generation !=
-                        fileLoadGeneration.get()) {
-
+                if (generation != fileLoadGeneration.get()) {
                     return;
                 }
 
                 setFileTableLoading(false);
-
+                hideOperationDialog();
                 JOptionPane.showMessageDialog(
                         this,
                         S3ErrorResolver.getUserMessage(ex),
@@ -1446,12 +1544,10 @@ public class ExplorerPanel extends JPanel {
             return;
         }
 
+        operationGeneration.incrementAndGet();
+
         context.setActiveRepository(repository);
 
-        /*
-         * Yeni repository seçildiği anda eski repository'nin
-         * UI verileri artık geçerli değildir.
-         */
         pendingBucketSelection = null;
 
         currentFileBucket = null;
@@ -1470,6 +1566,9 @@ public class ExplorerPanel extends JPanel {
                 Collections.emptyList());
 
         setFileTableLoading(true);
+
+        showOperationDialog(
+                "Connecting to S3 repository...");
 
         reloadBuckets();
     }
@@ -3188,5 +3287,116 @@ public class ExplorerPanel extends JPanel {
                 explorerPool = null;
             }
         }
+    }
+
+    private void createOperationDialog() {
+
+        Window owner =
+                SwingUtilities.getWindowAncestor(this);
+
+        operationDialog =
+                new JDialog(
+                        owner,
+                        "Information",
+                        Dialog.ModalityType.MODELESS);
+
+        operationDialog.setDefaultCloseOperation(
+                WindowConstants.HIDE_ON_CLOSE);
+
+        operationDialog.setResizable(false);
+
+        JPanel panel =
+                new JPanel(new BorderLayout(15, 15));
+
+        panel.setBorder(
+                new EmptyBorder(
+                        18,
+                        20,
+                        18,
+                        20));
+
+        operationDialogMessage =
+                new JLabel(
+                        "Preparing...");
+
+        panel.add(
+                operationDialogMessage,
+                BorderLayout.CENTER);
+
+        JButton hideButton =
+                new JButton("Hide");
+
+        hideButton.addActionListener(
+                e -> operationDialog.setVisible(false));
+
+        JPanel buttonPanel =
+                new JPanel(
+                        new FlowLayout(
+                                FlowLayout.RIGHT,
+                                0,
+                                0));
+
+        buttonPanel.add(hideButton);
+
+        panel.add(
+                buttonPanel,
+                BorderLayout.SOUTH);
+
+        operationDialog.setContentPane(panel);
+
+        operationDialog.pack();
+
+        operationDialog.setMinimumSize(
+                new Dimension(350, 120));
+    }
+
+    private void showOperationDialog(
+            String message) {
+
+        SwingUtilities.invokeLater(() -> {
+
+            if (operationDialog == null) {
+                createOperationDialog();
+            }
+
+            operationDialogMessage.setText(
+                    message);
+
+            operationDialog.pack();
+
+            Window owner =
+                    SwingUtilities.getWindowAncestor(this);
+
+            if (owner != null) {
+
+                int x =
+                        owner.getX()
+                                + (owner.getWidth()
+                                - operationDialog.getWidth())
+                                / 2;
+
+                int y =
+                        owner.getY()
+                                + (owner.getHeight()
+                                - operationDialog.getHeight())
+                                / 2;
+
+                operationDialog.setLocation(
+                        x,
+                        y);
+            }
+
+            operationDialog.setVisible(true);
+        });
+    }
+
+    private void hideOperationDialog() {
+
+        SwingUtilities.invokeLater(() -> {
+
+            if (operationDialog != null) {
+                operationDialog.setVisible(false);
+            }
+        });
     }
 }
