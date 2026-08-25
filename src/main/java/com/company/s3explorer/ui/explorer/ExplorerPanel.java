@@ -1406,10 +1406,17 @@ public class ExplorerPanel extends JPanel {
         return new S3ExplorerService(clientManager.getClient(context.getActiveRepository()));
     }
 
-    public void setSelectedRepository(RepositoryDefinition repository) {
-        repositoryCombo.setSelectedItem(repository);
+    public void setSelectedRepository(
+            RepositoryDefinition repository) {
+
+        if (repository == null
+                || repository.isEmpty()) {
+            return;
+        }
+
         context.setActiveRepository(repository);
-        this.reloadBuckets();
+
+        reloadBuckets();
     }
 
     public void reloadRepositories() {
