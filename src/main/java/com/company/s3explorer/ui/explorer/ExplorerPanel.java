@@ -1052,6 +1052,21 @@ public class ExplorerPanel extends JPanel {
 
                     pendingBucketSelection = null;
 
+                    fileTableModel.setFiles(
+                            Collections.emptyList());
+
+                    currentFileBucket = null;
+                    currentFilePrefix = null;
+                    currentFileContinuationToken = null;
+                    currentFileHasMore = false;
+                    loadingMoreFiles = false;
+
+                    currentFolderFullContent = null;
+                    currentFolderFullContentBucket = null;
+                    currentFolderFullContentPrefix = null;
+
+                    currentFolderCollationKeyCache.clear();
+
                     JOptionPane.showMessageDialog(
                             this,
                             S3ErrorResolver.getUserMessage(ex),
