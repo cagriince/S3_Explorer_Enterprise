@@ -95,6 +95,7 @@ public class ExplorerPanel extends JPanel {
     private FileTableModel fileTableModel;
     private final AtomicLong fileLoadGeneration = new AtomicLong();
     private final AtomicLong operationGeneration = new AtomicLong();
+    private final AtomicLong treeLoadGeneration = new AtomicLong();
     private String currentFileBucket;
     private String currentFilePrefix;
     private LimitedFolderContent currentFolderFullContent;
@@ -1457,7 +1458,8 @@ public class ExplorerPanel extends JPanel {
          * işlemleri geçersiz kılar.
          */
         operationGeneration.incrementAndGet();
-
+        treeLoadGeneration.incrementAndGet();
+        
         /*
          * Önceki repository'nin UI state'i artık geçerli değil.
          */
@@ -1574,6 +1576,9 @@ public class ExplorerPanel extends JPanel {
             return;
         }
 
+        final long generation =
+                treeLoadGeneration.incrementAndGet();
+        
         if (!forceRefresh
                 && parentNode.getChildCount() > 0
                 && !((S3TreeNode)
@@ -1609,7 +1614,16 @@ public class ExplorerPanel extends JPanel {
                     folders.size());
 
             SwingUtilities.invokeLater(() -> {
+                if (generation !=
+                        treeLoadGeneration.get()) {
 
+                    log.debug(
+                            "[TREE APPLY SKIPPED] stale tree load prefix={}",
+                            parentNode.getFullPrefix());
+
+                    return;
+                }
+                
                 log.debug(
                         "[TREE APPLY START] thread={} prefix={} folders={}",
                         Thread.currentThread().getName(),
