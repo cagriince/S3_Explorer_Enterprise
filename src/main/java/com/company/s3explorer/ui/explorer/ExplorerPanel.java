@@ -1052,38 +1052,11 @@ public class ExplorerPanel extends JPanel {
 
                     pendingBucketSelection = null;
 
-                    suppressBucketSelectionEvent = true;
-
-                    try {
-                        bucketCombo.removeAllItems();
-                    }
-                    finally {
-                        suppressBucketSelectionEvent = false;
-                    }
-
-                    currentFileBucket = null;
-                    currentFilePrefix = null;
-
-                    currentFolderFullContent = null;
-                    currentFolderFullContentBucket = null;
-                    currentFolderFullContentPrefix = null;
-
-                    currentFolderCollationKeyCache.clear();
-
-                    fileTableModel.clear();
-
-                    updateFileFolderInfo(
-                            null);
-
-                    setFileTableLoading(false);
-
                     JOptionPane.showMessageDialog(
                             this,
                             S3ErrorResolver.getUserMessage(ex),
                             "Bucket Load Failed",
                             JOptionPane.ERROR_MESSAGE);
-
-                    updateActionStates();
                 });
             }
         });
