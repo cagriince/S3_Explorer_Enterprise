@@ -118,11 +118,8 @@ public class ExplorerPanel extends JPanel {
     private JLabel fileFolderInfo;
 
     private OperationDialog connectionDialog;
-    private JLabel connectionDialogMessage;
     private OperationDialog bucketDialog;
-    private JLabel bucketDialogMessage;
     private OperationDialog fileTableDialog;
-    private JLabel fileTableDialogMessage;
 
     private enum OperationDialogType {
         CONNECTION,
@@ -130,9 +127,6 @@ public class ExplorerPanel extends JPanel {
         FILE_TABLE
     }
     private final List<OperationDialog> visibleOperationDialogs = new ArrayList<>();
-    
-    private JDialog operationDialog;
-    private JLabel operationDialogMessage;
     
     private JPopupMenu filePopup;
     private JSplitPane mainSplit;
@@ -867,8 +861,6 @@ public class ExplorerPanel extends JPanel {
         if (selectedRepository == null
                 || selectedRepository ==
                 RepositoryDefinition.EMPTY_REPOSITORY) {
-
-            hideOperationDialog();
 
             return;
         }
@@ -3666,116 +3658,5 @@ public class ExplorerPanel extends JPanel {
             
             positionOperationDialogs();
         });
-    }
-
-    private void hideOperationDialog() {
-
-        SwingUtilities.invokeLater(() -> {
-
-            if (operationDialog != null) {
-                operationDialog.setVisible(false);
-            }
-        });
-    }
-
-    private void showOperationDialog(
-            String message) {
-
-        SwingUtilities.invokeLater(() -> {
-
-            if (operationDialog == null) {
-                createOperationDialog();
-            }
-
-            operationDialogMessage.setText(
-                    message);
-
-            operationDialog.pack();
-
-            Window owner =
-                    SwingUtilities.getWindowAncestor(this);
-
-            if (owner != null) {
-
-                int x =
-                        owner.getX()
-                                + (owner.getWidth()
-                                - operationDialog.getWidth())
-                                / 2;
-
-                int y =
-                        owner.getY()
-                                + (owner.getHeight()
-                                - operationDialog.getHeight())
-                                / 2;
-
-                operationDialog.setLocation(
-                        x,
-                        y);
-            }
-
-            operationDialog.setVisible(true);
-        });
-    }
-
-    private void createOperationDialog() {
-
-        Window owner =
-                SwingUtilities.getWindowAncestor(this);
-
-        operationDialog =
-                new JDialog(
-                        owner,
-                        "Information",
-                        Dialog.ModalityType.MODELESS);
-
-        operationDialog.setDefaultCloseOperation(
-                WindowConstants.HIDE_ON_CLOSE);
-
-        operationDialog.setResizable(false);
-
-        JPanel panel =
-                new JPanel(new BorderLayout(15, 15));
-
-        panel.setBorder(
-                new EmptyBorder(
-                        18,
-                        20,
-                        18,
-                        20));
-
-        operationDialogMessage =
-                new JLabel(
-                        "Preparing...");
-
-        panel.add(
-                operationDialogMessage,
-                BorderLayout.CENTER);
-
-        JButton hideButton =
-                new JButton("Hide");
-
-        hideButton.addActionListener(
-                e -> operationDialog.setVisible(false));
-
-        JPanel buttonPanel =
-                new JPanel(
-                        new FlowLayout(
-                                FlowLayout.RIGHT,
-                                0,
-                                0));
-
-        buttonPanel.add(hideButton);
-
-        panel.add(
-                buttonPanel,
-                BorderLayout.SOUTH);
-
-        operationDialog.setContentPane(panel);
-
-        operationDialog.pack();
-
-        operationDialog.setMinimumSize(
-                new Dimension(350, 120));
     }
 }
