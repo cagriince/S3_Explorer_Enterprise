@@ -25,6 +25,7 @@ import com.company.s3explorer.ui.transfer.TransferPanel;
 import com.company.s3explorer.util.S3Util;
 
 import javax.swing.*;
+import javax.swing.Timer;
 import javax.swing.border.BevelBorder;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.LineBorder;
@@ -57,6 +58,7 @@ public class ExplorerPanel extends JPanel {
 
     private static final Logger log = LoggerFactory.getLogger(ExplorerPanel.class);
 
+    private static final int OPERATION_DIALOG_DELAY_MS = 250;
     private static final Integer[] FILE_TABLE_ROW_LIMITS = {
             100,
             250,
@@ -3460,6 +3462,8 @@ public class ExplorerPanel extends JPanel {
         private final JDialog dialog;
         private final JLabel message;
 
+        private Timer showTimer;
+
         private OperationDialog(
                 JDialog dialog,
                 JLabel message) {
@@ -3527,7 +3531,9 @@ public class ExplorerPanel extends JPanel {
 
             operationDialog.dialog.pack();
 
-            operationDialog.dialog.setVisible(true);
+            if (operationDialog.showTimer != null) {
+                operationDialog.showTimer.stop();
+            }
 
             if (!visibleOperationDialogs.contains(
                     operationDialog)) {
@@ -3536,7 +3542,31 @@ public class ExplorerPanel extends JPanel {
                         operationDialog);
             }
 
-            positionOperationDialogs();
+            operationDialog.dialog.setVisible(false);
+
+            operationDialog.showTimer =
+                    new Timer(
+                            OPERATION_DIALOG_DELAY_MS,
+                            e -> {
+
+                                if (!visibleOperationDialogs.contains(
+                                        operationDialog)) {
+
+                                    ((Timer) e.getSource()).stop();
+
+                                    return;
+                                }
+
+                                operationDialog.dialog.setVisible(true);
+
+                                positionOperationDialogs();
+
+                                ((Timer) e.getSource()).stop();
+                            });
+
+            operationDialog.showTimer.setRepeats(false);
+
+            operationDialog.showTimer.start();
         });
     }
 
@@ -3621,8 +3651,14 @@ public class ExplorerPanel extends JPanel {
 
             if (operationDialog != null) {
 
-                operationDialog.dialog
-                        .setVisible(false);
+                if (operationDialog.showTimer != null) {
+
+                    operationDialog.showTimer.stop();
+
+                    operationDialog.showTimer = null;
+                }
+
+                operationDialog.dialog.setVisible(false);
 
                 visibleOperationDialogs.remove(
                         operationDialog);
