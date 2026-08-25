@@ -1257,7 +1257,18 @@ public class ExplorerPanel extends JPanel {
         currentFilePrefix = prefix;
 
         setFileTableLoading(true);
-        showOperationDialog("Preparing file table...");
+        showOperationDialog(
+                "<html>"
+                        + "<b>Preparing file table...</b><br><br>"
+                        + "<b>Bucket:</b> "
+                        + bucket
+                        + "<br><br>"
+                        + "<b>Folder:</b> "
+                        + (prefix == null
+                        || prefix.isBlank()
+                        ? "/"
+                        : prefix)
+                        + "</html>");
         
         int fileLimit =
                 getSelectedFileTableRowLimit();
