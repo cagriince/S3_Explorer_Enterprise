@@ -871,6 +871,7 @@ public class ExplorerPanel extends JPanel {
         }
 
         showOperationDialog(
+                OperationDialogType.BUCKET,
                 "Loading buckets...");
         
         /*
@@ -1111,7 +1112,8 @@ public class ExplorerPanel extends JPanel {
                     if (operationId != operationGeneration.get()) {
                         return;
                     }
-                    hideOperationDialog();
+                    hideOperationDialog(
+                            OperationDialogType.BUCKET);
                     
                     pendingBucketSelection = null;
 
@@ -1272,6 +1274,7 @@ public class ExplorerPanel extends JPanel {
 
         setFileTableLoading(true);
         showOperationDialog(
+                OperationDialogType.FILE_TABLE,
                 "<html>"
                         + "<b>Preparing file table...</b><br><br>"
                         + "<b>Bucket:</b> "
@@ -1307,7 +1310,8 @@ public class ExplorerPanel extends JPanel {
             if (generation ==
                     fileLoadGeneration.get()) {
 
-                hideOperationDialog();
+                hideOperationDialog(
+                        OperationDialogType.FILE_TABLE);
             }
             
             return;
@@ -1361,8 +1365,7 @@ public class ExplorerPanel extends JPanel {
 
                 if (generation !=
                         fileLoadGeneration.get()) {
-
-return;
+                    return;
                 }
 
                 /*
@@ -1389,7 +1392,8 @@ return;
                         content);
 
                 setFileTableLoading(false);
-                hideOperationDialog();
+                hideOperationDialog(
+                        OperationDialogType.FILE_TABLE);
             });
 
         }).exceptionally(ex -> {
@@ -1406,7 +1410,8 @@ return;
                 }
 
                 setFileTableLoading(false);
-                hideOperationDialog();
+                hideOperationDialog(
+                        OperationDialogType.FILE_TABLE);
                 JOptionPane.showMessageDialog(
                         this,
                         S3ErrorResolver.getUserMessage(ex),
@@ -1629,7 +1634,8 @@ return;
 
         setFileTableLoading(false);
 
-        hideOperationDialog();
+        hideOperationDialog(
+                OperationDialogType.CONNECTION);
 
         /*
          * Empty Repository seçildiyse yalnızca ekranı
@@ -1654,6 +1660,7 @@ return;
         setFileTableLoading(true);
 
         showOperationDialog(
+                OperationDialogType.CONNECTION,
                 "Connecting to S3 repository...");
 
         reloadBuckets();
