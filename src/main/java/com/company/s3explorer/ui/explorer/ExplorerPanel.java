@@ -1279,6 +1279,12 @@ public class ExplorerPanel extends JPanel {
                     sortSpec,
                     generation);
 
+            if (generation ==
+                    fileLoadGeneration.get()) {
+
+                hideOperationDialog();
+            }
+            
             return;
         }
 
