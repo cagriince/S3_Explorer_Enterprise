@@ -873,7 +873,8 @@ public class ExplorerPanel extends JPanel {
         showOperationDialog(
                 OperationDialogType.BUCKET,
                 "Loading buckets...");
-        
+        hideOperationDialog(
+                OperationDialogType.CONNECTION);
         /*
          * Refresh başlamadan önce gerçekten aktif olan bucket'ı
          * kaydet.
@@ -1070,7 +1071,8 @@ public class ExplorerPanel extends JPanel {
                                 "[BUCKET LOAD] bucket unchanged={} - tree/table refresh skipped",
                                 selectedBucket);
 
-                        hideOperationDialog();
+                        hideOperationDialog(
+                                OperationDialogType.BUCKET);
 
                         return;
                     }
@@ -1209,6 +1211,9 @@ public class ExplorerPanel extends JPanel {
 
                     folderTree.setSelectionRow(0);
 
+                    hideOperationDialog(
+                            OperationDialogType.BUCKET);
+                    
                     loadFiles(
                             bucket,
                             S3TreeNode.ROOT_PREFIX);
@@ -1239,7 +1244,8 @@ public class ExplorerPanel extends JPanel {
                         return;
                     }
 
-                    hideOperationDialog();
+                    hideOperationDialog(
+                            OperationDialogType.BUCKET);
 
                     JOptionPane.showMessageDialog(
                             this,
