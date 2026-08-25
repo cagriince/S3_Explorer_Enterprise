@@ -1469,7 +1469,7 @@ public class ExplorerPanel extends JPanel {
         fileTableModel.setFiles(
                 Collections.emptyList());
 
-        setFileTableLoading(false);
+        setFileTableLoading(true);
 
         reloadBuckets();
     }

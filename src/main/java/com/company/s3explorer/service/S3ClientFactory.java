@@ -3,6 +3,7 @@ package com.company.s3explorer.service;
 import com.company.s3explorer.repository.RepositoryDefinition;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -14,6 +15,7 @@ import java.io.IOException;
 import java.net.ConnectException;
 import java.net.SocketTimeoutException;
 import java.net.URI;
+import java.time.Duration;
 import java.util.List;
 
 public class S3ClientFactory {
@@ -40,6 +42,11 @@ public class S3ClientFactory {
                                         repo.getSecretKey())))
                 .serviceConfiguration(
                         s3Config)
+                .overrideConfiguration(
+                        ClientOverrideConfiguration.builder()
+                                .apiCallAttemptTimeout(
+                                        Duration.ofSeconds(10))
+                                .build())
                 .region(
                         Region.US_EAST_1)
                 .build();
