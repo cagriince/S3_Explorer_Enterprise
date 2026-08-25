@@ -44,8 +44,31 @@ public class S3ClientManager implements AutoCloseable {
          * kabul ediyoruz.
          */
         this.repositoryChangeListener =
-                repository ->
-                        invalidateAllClients();
+                repository -> {
+
+                    invalidateAllClients();
+
+                    RepositoryDefinition activeRepository =
+                            repositoryContext
+                                    .getActiveRepository();
+
+                    if (activeRepository == null) {
+                        return;
+                    }
+
+                    if (activeRepository.getName() == null) {
+                        return;
+                    }
+
+                    if (!activeRepository.getName().equals(
+                            repository.getName())) {
+
+                        return;
+                    }
+
+                    repositoryContext.setActiveRepository(
+                            repository);
+                };
 
         repositoryManager.addRepositoryChangeListener(
                 repositoryChangeListener);

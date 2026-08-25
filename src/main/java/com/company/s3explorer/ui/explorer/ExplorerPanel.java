@@ -2597,99 +2597,63 @@ public class ExplorerPanel extends JPanel {
     private void onRepositoryChanged(
             RepositoryDefinition changedRepository) {
 
-        if (changedRepository == null) {
+        if (changedRepository == null
+                || changedRepository.getName() == null) {
             return;
         }
 
         SwingUtilities.invokeLater(() -> {
 
-            RepositoryDefinition currentRepository =
-                    (RepositoryDefinition)
-                            repositoryCombo.getSelectedItem();
+            String changedName =
+                    changedRepository.getName();
 
-            if (currentRepository == null
-                    || currentRepository ==
-                    RepositoryDefinition.EMPTY_REPOSITORY) {
+            int index = -1;
 
+            for (int i = 0;
+                 i < repositoryCombo.getItemCount();
+                 i++) {
+
+                RepositoryDefinition item =
+                        repositoryCombo.getItemAt(i);
+
+                if (item != null
+                        && Objects.equals(
+                        item.getName(),
+                        changedName)) {
+
+                    index = i;
+                    break;
+                }
+            }
+
+            if (index < 0) {
                 return;
             }
 
-            /*
-             * Başka bir repository değiştiyse
-             * mevcut Explorer durumuna dokunma.
-             */
-            if (!Objects.equals(
-                    currentRepository.getName(),
-                    changedRepository.getName())) {
+            RepositoryDefinition activeRepository =
+                    context.getActiveRepository();
 
-                return;
+            boolean wasActive =
+                    activeRepository != null
+                            && Objects.equals(
+                            activeRepository.getName(),
+                            changedName);
+
+            repositoryCombo.removeItemAt(index);
+            repositoryCombo.insertItemAt(
+                    changedRepository,
+                    index);
+
+            if (wasActive) {
+
+                context.setActiveRepository(
+                        changedRepository);
+
+                repositoryCombo.setSelectedIndex(
+                        index);
+
+                reloadBuckets();
             }
-
-            log.info(
-                    "[EXPLORER REPOSITORY CHANGED] repository={}",
-                    changedRepository.getName());
-
-            /*
-             * Repository'nin endpoint'i, credential'ları
-             * veya external bucket bilgileri değişmiş olabilir.
-             *
-             * Bu nedenle mevcut Explorer state'ini
-             * artık geçerli kabul etmiyoruz.
-             */
-
-            fileLoadGeneration.incrementAndGet();
-
-            currentFileBucket = null;
-            currentFilePrefix = null;
-            currentFileContinuationToken = null;
-            currentFileHasMore = false;
-            loadingMoreFiles = false;
-
-            currentFolderFullContent = null;
-            currentFolderFullContentBucket = null;
-            currentFolderFullContentPrefix = null;
-
-            currentFolderCollationKeyCache.clear();
-
-            nodeCache.clear();
-
-            /*
-             * Folder tree'i temizle.
-             */
-            S3TreeNode root =
-                    new S3TreeNode(
-                            S3TreeNode.ROOT_PREFIX,
-                            S3TreeNode.ROOT_PREFIX,
-                            S3TreeNode.ROOT_PREFIX);
-
-            nodeCache.put(
-                    root.getFullPrefix(),
-                    root);
-
-            treeModel.setRoot(root);
-
-            /*
-             * File table'ı temizle.
-             */
-            fileTableModel.clearAndRepaint();
-
-            setFileTableLoading(false);
-
-            updateBreadcrumb(
-                    S3TreeNode.ROOT_PREFIX);
-
-            updateActionStates();
-
-            /*
-             * Mevcut bucket'ı mümkünse koruyarak
-             * bucket listesini yeniden yükle.
-             */
-            pendingBucketSelection =
-                    getCurrentBucket();
-
-            forceBucketReload = true;
-
-            loadBucketsAsync();
         });
     }
     
