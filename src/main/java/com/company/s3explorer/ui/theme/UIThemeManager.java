@@ -7,7 +7,6 @@ import com.formdev.flatlaf.intellijthemes.FlatAllIJThemes;
 
 import javax.swing.*;
 import java.util.ArrayList;
-import java.util.Enumeration;
 import java.util.List;
 
 public class UIThemeManager {
