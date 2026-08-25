@@ -840,8 +840,24 @@ public class ExplorerPanel extends JPanel {
 
     public void loadBucketsAsync() {
 
-        final long operationId = operationGeneration.get();
-        showOperationDialog("Loading buckets...");
+        final long operationId =
+                operationGeneration.get();
+
+        RepositoryDefinition selectedRepository =
+                (RepositoryDefinition)
+                        repositoryCombo.getSelectedItem();
+
+        if (selectedRepository == null
+                || selectedRepository ==
+                RepositoryDefinition.EMPTY_REPOSITORY) {
+
+            hideOperationDialog();
+
+            return;
+        }
+
+        showOperationDialog(
+                "Loading buckets...");
         
         /*
          * Refresh başlamadan önce gerçekten aktif olan bucket'ı
@@ -859,10 +875,6 @@ public class ExplorerPanel extends JPanel {
                 /*
                  * ComboBox'tan seçili repository'yi al.
                  */
-                RepositoryDefinition selectedRepository =
-                        (RepositoryDefinition)
-                                repositoryCombo.getSelectedItem();
-
                 if (selectedRepository == null
                         || selectedRepository ==
                         RepositoryDefinition.EMPTY_REPOSITORY) {
