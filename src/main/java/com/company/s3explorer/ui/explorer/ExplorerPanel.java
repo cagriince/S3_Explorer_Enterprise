@@ -78,7 +78,9 @@ public class ExplorerPanel extends JPanel {
             1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
             15, 20, 25, 30, 40, 50, 60, 80, 100
     };
-    
+
+    private ExplorerView view;
+
     private final ExplorerRefreshScheduler refreshScheduler;
     private final Map<String, S3TreeNode> nodeCache = new HashMap<>();
 
@@ -104,10 +106,10 @@ public class ExplorerPanel extends JPanel {
 
     private final Map<String, CollationKey> currentFolderCollationKeyCache = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<String, CompletableFuture<LimitedFolderContent>> inFlightFileLoads = new java.util.concurrent.ConcurrentHashMap<>();
-    
+
     private JComboBox<Integer> fileTableRowLimitCombo;
     private Consumer<Integer> fileTableRowLimitSelectionListener;
-    
+
     private JComboBox<Integer> threadCountCombo;
     private Consumer<Integer> threadCountSelectionListener;
 
@@ -124,7 +126,7 @@ public class ExplorerPanel extends JPanel {
         FILE_TABLE
     }
     private final List<OperationDialog> visibleOperationDialogs = new ArrayList<>();
-    
+
     private JPopupMenu filePopup;
 
     private File lastOpenedFolderToUpload;
@@ -147,7 +149,7 @@ public class ExplorerPanel extends JPanel {
     private boolean suppressBucketSelectionEvent;
     private boolean forceBucketReload;
     private boolean suppressThreadCountSelectionEvent;
-    
+
     private final ExplorerClipboard clipboard = new ExplorerClipboard();
 
     private Action downloadAction;
@@ -188,6 +190,25 @@ public class ExplorerPanel extends JPanel {
 
     private void initialize() {
         createActions();
+
+        view = new ExplorerView(
+                downloadAction,
+                deleteAction,
+                copyAction,
+                cutAction,
+                pasteAction,
+                uploadAction,
+                newFolderAction,
+                refreshAction,
+                manageRepositoryAction,
+                this::loadChildren,
+                this::openSelectedFileItem,
+                this::reloadCurrentFileTable,
+                this::updateActionStates,
+                clipboard::isEmpty,
+                this::resizeExplorerPool,
+                this::getCurrentFileSortSpec);
+
         setLayout(new BorderLayout());
         add(createMainSplit(), BorderLayout.CENTER);
         bindEvents();
@@ -201,11 +222,13 @@ public class ExplorerPanel extends JPanel {
 
                     reloadCurrentFileTable();
                 };
+        view.setFileTableRowLimitSelectionListener(
+                fileTableRowLimitSelectionListener);
         reloadRepositories();
-        
+
         repositoryManager.addRepositoryChangeListener(
                 this::onRepositoryChanged);
-        
+
         eventBus.subscribe(this::onTransferEvent);
         eventBus.subscribe(
                 new TransferListener() {
@@ -226,6 +249,14 @@ public class ExplorerPanel extends JPanel {
                                 .onTransferGroupCompleted(event);
                     }
                 });
+    }
+
+    public void setFolderTreeLeafIcon() {
+        view.setFolderTreeLeafIcon();
+    }
+
+    public void setButtonIcons() {
+        view.setButtonIcons();
     }
 
     private void createActions() {
@@ -298,475 +329,47 @@ public class ExplorerPanel extends JPanel {
         panelActionMap.put("explorerGoParent", goToParentAction);
     }
 
-    private JPanel createTopBar() {
-        JPanel container = new JPanel(new GridBagLayout());
 
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(5, 10, 5, 10);
 
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        gbc.weightx = 0.2;
-        repositoryLabel = new JLabel("Repository", SwingConstants.LEFT);
-        repositoryLabel.setIconTextGap(14);
-        container.add(repositoryLabel, gbc);
 
-        repositoryCombo = new JComboBox<>();
-        gbc.gridx = 1;
-        gbc.gridy = 0;
-        gbc.weightx = 0.6;
-        container.add(repositoryCombo, gbc);
 
-        JButton manageRepositoriesBtn = createIconButton(manageRepositoryAction);
-        gbc.gridx = 2;
-        gbc.gridy = 0;
-        gbc.weightx = 0.2;
-        container.add(manageRepositoriesBtn, gbc);
 
-        gbc.gridx = 0;
-        gbc.gridy = 1;
-        gbc.weightx = 0.2;
-        bucketLabel = new JLabel("Bucket", SwingConstants.LEFT);
-        bucketLabel.setIconTextGap(10);
-        container.add(bucketLabel, gbc);
-
-        bucketCombo = new JComboBox<>();
-        gbc.gridx = 1;
-        gbc.gridy = 1;
-        gbc.weightx = 0.6;
-        container.add(bucketCombo, gbc);
-
-        JButton refreshBtn = createIconButton(refreshAction);
-        gbc.gridx = 2;
-        gbc.gridy = 1;
-        gbc.weightx = 0.2;
-        container.add(refreshBtn, gbc);
-
-        return container;
-    }
-
-    private JButton createIconButton(Action action) {
-        JButton button = new JButton(action);
-        button.setToolTipText((String) action.getValue(Action.NAME));
-        button.setHideActionText(true);
-        return button;
-    }
-
-    private JPanel createSeparator() {
-        JPanel wrapper = new JPanel(new GridBagLayout());
-        wrapper.setOpaque(false);
-        wrapper.setPreferredSize(new Dimension(20, 25));
-
-        JSeparator sep = new JSeparator(SwingConstants.VERTICAL);
-
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.fill = GridBagConstraints.VERTICAL;
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        gbc.weighty = 1.0;
-
-        wrapper.add(sep, gbc);
-        return wrapper;
-    }
 
     private JSplitPane createMainSplit() {
-        S3TreeNode root = new S3TreeNode(S3TreeNode.ROOT_PREFIX, S3TreeNode.ROOT_PREFIX, S3TreeNode.ROOT_PREFIX);
-        folderTree = new JTree(root);
-        nodeCache.put(S3TreeNode.ROOT_PREFIX, root);
-        treeModel = (DefaultTreeModel) folderTree.getModel();
+        JSplitPane mainSplit = view.createMainSplit();
 
-        folderTree.addTreeWillExpandListener(
-                new TreeWillExpandListener() {
+        folderTree = view.getFolderTree();
+        treeModel = view.getTreeModel();
+        fileTable = view.getFileTable();
+        fileTableModel = view.getFileTableModel();
+        repositoryCombo = view.getRepositoryCombo();
+        bucketCombo = view.getBucketCombo();
+        themeCombo = view.getThemeCombo();
+        fileTableRowLimitCombo = view.getFileTableRowLimitCombo();
+        threadCountCombo = view.getThreadCountCombo();
+        breadcrumbPanel = view.getBreadcrumbPanel();
+        fileFolderInfo = view.getFileFolderInfo();
 
-                    @Override
-                    public void treeWillExpand(TreeExpansionEvent event) {
-                        loadChildren((S3TreeNode) event.getPath().getLastPathComponent());
-                    }
-
-                    @Override
-                    public void treeWillCollapse(TreeExpansionEvent event) {
-                    }
-                });
-        FolderTreeCellRenderer treeRenderer = new FolderTreeCellRenderer();
-        folderTree.setCellRenderer(treeRenderer);
-        setFolderTreeLeafIcon();
-
-
-        fileTableModel = new FileTableModel();
-        fileTable = createFileTable(fileTableModel);
-
-        JPanel leftPanel = new JPanel(new BorderLayout());
-        leftPanel.add(createTopBar(), BorderLayout.NORTH);
-        leftPanel.add(new JScrollPane(folderTree), BorderLayout.CENTER);
-
-        JScrollPane tableScrollPane = new JScrollPane(fileTable);
-        installPopup(tableScrollPane.getViewport());
-        installPopup(fileTable);
-
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        JButton newFolderBtn = createIconButton(newFolderAction);
-        JButton uploadBtn = createIconButton(uploadAction);
-        JButton deleteBtn = createIconButton(deleteAction);
-        JButton downloadBtn = createIconButton(downloadAction);
-        JButton copyBtn = createIconButton(copyAction);
-        JButton cutBtn =createIconButton(cutAction);
-        JButton pasteBtn = createIconButton(pasteAction);
-        buttonPanel.add(newFolderBtn);
-        buttonPanel.add(uploadBtn);
-        buttonPanel.add(deleteBtn);
-        buttonPanel.add(downloadBtn);
-        buttonPanel.add(createSeparator());
-        buttonPanel.add(copyBtn);
-        buttonPanel.add(cutBtn);
-        buttonPanel.add(pasteBtn);
-
-        JPanel themePanel =
-                new JPanel(
-                        new GridBagLayout());
-
-        GridBagConstraints c =
-                new GridBagConstraints();
-
-        c.insets =
-                new Insets(10, 5, 5, 5);
-
-        /*
-         * Max item count ComboBox
-         */
-        fileTableRowLimitCombo =
-                new JComboBox<>(FILE_TABLE_ROW_LIMITS);
-
-        fileTableRowLimitCombo.setSelectedItem(500);
-
-        fileTableRowLimitCombo.setToolTipText("Max Item Count");
-        alignComboBoxRight(fileTableRowLimitCombo);
-        
-        fileTableRowLimitCombo.addActionListener(e -> {
-
-            Integer selected =
-                    (Integer)
-                            fileTableRowLimitCombo
-                                    .getSelectedItem();
-
-            if (selected == null) {
-                return;
-            }
-
-            if (fileTableRowLimitSelectionListener != null) {
-                fileTableRowLimitSelectionListener.accept(
-                        selected);
-            }
-        });
-        themePanel.add(
-                fileTableRowLimitCombo,
-                c);
-        
-        /*
-         * Thread count ComboBox
-         */
-        threadCountCombo = new JComboBox<>(THREAD_COUNTS);
-        threadCountCombo.setSelectedItem(15);
-        threadCountCombo.setToolTipText("Thread Count");
-        alignComboBoxRight(threadCountCombo);
-        threadCountCombo.addActionListener(e -> {
-
-            if (suppressThreadCountSelectionEvent) {
-                return;
-            }
-
-            Integer selected =
-                    (Integer)
-                            threadCountCombo
-                                    .getSelectedItem();
-
-            if (selected == null) {
-                return;
-            }
-
-            resizeExplorerPool(selected);
-
-            if (threadCountSelectionListener != null) {
-                threadCountSelectionListener.accept(
-                        selected);
-            }
-        });
-
-        themePanel.add(
-                threadCountCombo,
-                c);
-
-        /*
-         * Theme ComboBox
-         */
-        themeCombo =
-                new JComboBox<>() {
-
-                    @Override
-                    public void setSelectedIndex(
-                            int index) {
-
-                        UITheme theme =
-                                this.getItemAt(index);
-
-                        if (theme.isDisabled()) {
-                            return;
-                        }
-
-                        super.setSelectedIndex(
-                                index);
-                    }
-                };
-        themeCombo.setToolTipText(
-                "Theme");
-
-        UIThemeManager.getThemes()
-                .forEach(
-                        themeCombo::addItem);
-
-        c.insets =
-                new Insets(
-                        10,
-                        5,
-                        5,
-                        10);
-
-        themePanel.add(
-                themeCombo,
-                c);
-
-        JPanel topPanel = new JPanel(new BorderLayout());
-        topPanel.add(buttonPanel, BorderLayout.WEST);
-        topPanel.add(themePanel, BorderLayout.EAST);
-
-        JPanel topButtonPanel = new JPanel(new BorderLayout());
-        topButtonPanel.add(topPanel, BorderLayout.NORTH);
-
-        breadcrumbPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
-        //breadcrumbPanel.setPreferredSize(new Dimension(0,40));
-
-        JPanel bottomButtonPanel = new JPanel(new BorderLayout());
-        bottomButtonPanel.setPreferredSize(new Dimension(0,40));
-        bottomButtonPanel.setBorder(BorderFactory.createBevelBorder(BevelBorder.RAISED));
-        bottomButtonPanel.add(breadcrumbPanel, BorderLayout.CENTER);
-
-        fileFolderInfo = new JLabel("");
-        JPanel fileFolderInfoPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        fileFolderInfoPanel.add(fileFolderInfo);
-        bottomButtonPanel.add(fileFolderInfoPanel, BorderLayout.EAST);
-
-        topButtonPanel.add(bottomButtonPanel, BorderLayout.SOUTH);
-
-        JPanel fileTablePanel = new JPanel(new BorderLayout());
-        fileTablePanel.add(topButtonPanel, BorderLayout.NORTH);
-        fileTablePanel.add(tableScrollPane, BorderLayout.CENTER);
-
-        JSplitPane mainSplit = new JSplitPane(
-                JSplitPane.HORIZONTAL_SPLIT,
-                leftPanel,
-                fileTablePanel);
-
-        createPopupMenu();
+        nodeCache.put(
+                S3TreeNode.ROOT_PREFIX,
+                (S3TreeNode) treeModel.getRoot());
 
         return mainSplit;
     }
 
-    public void setFolderTreeLeafIcon() {
-        DefaultTreeCellRenderer cellRenderer = (DefaultTreeCellRenderer) folderTree.getCellRenderer();
-        cellRenderer.setLeafIcon(cellRenderer.getClosedIcon());
-    }
 
-    public void setButtonIcons() {
-        repositoryLabel.setIcon(IconProvider.ICON_REPOSITORY);
-        bucketLabel.setIcon(IconProvider.ICON_BUCKET);
-        setActionIcon(manageRepositoryAction, IconProvider.ICON_SETTINGS);
-        setActionIcon(refreshAction, IconProvider.ICON_REFRESH);
-        setActionIcon(uploadAction, IconProvider.ICON_UPLOAD);
-        setActionIcon(newFolderAction, IconProvider.ICON_CREATE_FOLDER);
-        setActionIcon(downloadAction, IconProvider.ICON_DOWNLOAD);
-        setActionIcon(deleteAction, IconProvider.ICON_DELETE);
-        setActionIcon(copyAction, IconProvider.ICON_COPY);
-        setActionIcon(cutAction, IconProvider.ICON_CUT);
-        setActionIcon(pasteAction, IconProvider.ICON_PASTE);
-    }
 
-    private void setActionIcon(Action action, Icon newIcon) {
-        action.putValue(Action.LARGE_ICON_KEY, newIcon);
-    }
 
-    private JTable createFileTable(FileTableModel fileTableModel) {
-        JTable fileTable = new JTable(fileTableModel);
-        TableColumn hidden = fileTable.getColumnModel().getColumn(0);
-        hidden.setMinWidth(0);
-        hidden.setMaxWidth(0);
-        hidden.setPreferredWidth(0);
-        hidden.setResizable(false);
-        fileTable.getColumnModel().getColumn(FileTableModel.COL_NAME).setCellRenderer(new FileTableCellRenderer());
-        fileTable.getColumnModel().getColumn(FileTableModel.COL_SIZE).setCellRenderer(new FileSizeRenderer());
-        fileTable.getColumnModel().getColumn(FileTableModel.COL_LAST_MODIFIED).setCellRenderer(new InstantRenderer());
 
-        FileTableRowSorter sorter = new FileTableRowSorter(fileTableModel);
-        fileTable.setRowSorter(sorter);
-        fileTable.getTableHeader().setReorderingAllowed(false);
-        fileTable.getTableHeader()
-                .addMouseListener(
-                        new MouseAdapter() {
 
-                            @Override
-                            public void mouseClicked(
-                                    MouseEvent e) {
 
-                                int viewColumn =
-                                        fileTable
-                                                .columnAtPoint(
-                                                        e.getPoint());
 
-                                if (viewColumn < 0) {
-                                    return;
-                                }
 
-                                int modelColumn =
-                                        fileTable
-                                                .convertColumnIndexToModel(
-                                                        viewColumn);
 
-                                /*
-                                 * Folder/File kolonu özel:
-                                 * Mevcut davranışı bozma.
-                                 */
-                                if (modelColumn == FileTableModel.COL_FOLDER) {
-                                    return;
-                                }
 
-                                SwingUtilities.invokeLater(() -> {
 
-                                    FileTableSortSpec sortSpec =
-                                            getCurrentFileSortSpec();
 
-                                    log.info(
-                                            "[FILE SORT CHANGED] column={} order={}",
-                                            sortSpec.getColumn(),
-                                            sortSpec.isAscending()
-                                                    ? "ASC"
-                                                    : "DESC");
 
-                                    reloadCurrentFileTable();
-                                });
-                            }
-                        });
-
-        final javax.swing.table.TableCellRenderer originalRenderer = fileTable.getTableHeader().getDefaultRenderer();
-        fileTable.getTableHeader().setDefaultRenderer((table, value, isSelected, hasFocus, row, column) -> {
-
-            Component c = originalRenderer.getTableCellRendererComponent(
-                    table, value, isSelected, hasFocus, row, column);
-
-            if (c instanceof JLabel label) {
-                label.setIcon(null);
-
-                if (table.getRowSorter() != null) {
-                    List<? extends RowSorter.SortKey> sortKeys = table.getRowSorter().getSortKeys();
-
-                    for (RowSorter.SortKey key : sortKeys) {
-                        if (key.getColumn() == column && column != 0) {
-                            if (key.getSortOrder() == SortOrder.ASCENDING) {
-                                label.setIcon(UIManager.getIcon("Table.ascendingSortIcon"));
-                            } else if (key.getSortOrder() == SortOrder.DESCENDING) {
-                                label.setIcon(UIManager.getIcon("Table.descendingSortIcon"));
-                            }
-                        }
-                    }
-                }
-            }
-            return c;
-        });
-        fileTable.getRowSorter().toggleSortOrder(1);
-        fileTable.addMouseListener(
-                new MouseAdapter() {
-                    @Override
-                    public void mouseClicked(MouseEvent e) {
-                        if (e.getClickCount() == 2) {
-                            openSelectedFileItem();
-                        }
-                    }
-                });
-        fileTable.getSelectionModel().addListSelectionListener(e -> {
-            if (!e.getValueIsAdjusting()) {
-                updateActionStates();
-            }
-        });
-
-        return fileTable;
-    }
-
-    private void installPopup(JComponent component) {
-        component.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mousePressed(MouseEvent e) {
-                showPopup(e);
-            }
-
-            @Override
-            public void mouseReleased(MouseEvent e) {
-                showPopup(e);
-            }
-        });
-    }
-
-    private void showPopup(MouseEvent e) {
-        if (!e.isPopupTrigger()) {
-            return;
-        }
-
-        Point p = SwingUtilities.convertPoint(e.getComponent(), e.getPoint(), fileTable);
-        int row = fileTable.rowAtPoint(p);
-        if (row < 0) {
-            fileTable.clearSelection();
-        }
-        else {
-            if (!fileTable.isRowSelected(row)) {
-                fileTable.setRowSelectionInterval(row, row);
-            }
-        }
-
-        updateActionStates();
-        filePopup.show(e.getComponent(), e.getX(), e.getY());
-    }
-
-    private void createPopupMenu() {
-        filePopup = new JPopupMenu();
-        JMenuItem createFolderMenu = new JMenuItem(newFolderAction);
-        JMenuItem uploadMenu = new JMenuItem(uploadAction);
-        JMenuItem downloadMenu = new JMenuItem(downloadAction);
-        JMenuItem deleteMenu = new JMenuItem(deleteAction);
-        JMenuItem copyMenu = new JMenuItem(copyAction);
-        JMenuItem cutMenu = new JMenuItem(cutAction);
-        JMenuItem pasteMenu = new JMenuItem(pasteAction);
-
-        filePopup.add(createFolderMenu);
-        filePopup.add(uploadMenu);
-        filePopup.add(downloadMenu);
-        filePopup.add(deleteMenu);
-        filePopup.addSeparator();
-        filePopup.add(copyMenu);
-        filePopup.add(cutMenu);
-        filePopup.add(pasteMenu);
-        filePopup.addPopupMenuListener(
-                new PopupMenuListener() {
-                    @Override
-                    public void popupMenuWillBecomeVisible(PopupMenuEvent e) {
-                        pasteMenu.setEnabled(!clipboard.isEmpty());
-                    }
-
-                    @Override
-                    public void popupMenuWillBecomeInvisible(PopupMenuEvent e) {
-                    }
-
-                    @Override
-                    public void popupMenuCanceled(PopupMenuEvent e) {
-                    }
-                });
-    }
 
     public void updateActionStates() {
         boolean folderSelected = this.getSelectedFolderNode() != null;
@@ -1077,7 +680,7 @@ public class ExplorerPanel extends JPanel {
                     }
                     hideOperationDialog(
                             OperationDialogType.BUCKET);
-                    
+
                     pendingBucketSelection = null;
 
                     fileTableModel.setFiles(
@@ -1171,7 +774,7 @@ public class ExplorerPanel extends JPanel {
 
                     hideOperationDialog(
                             OperationDialogType.BUCKET);
-                    
+
                     loadFiles(
                             bucket,
                             S3TreeNode.ROOT_PREFIX);
@@ -1250,7 +853,7 @@ public class ExplorerPanel extends JPanel {
                         ? "/"
                         : prefix)
                         + "</html>");
-        
+
         int fileLimit =
                 getSelectedFileTableRowLimit();
 
@@ -1277,7 +880,7 @@ public class ExplorerPanel extends JPanel {
                 hideOperationDialog(
                         OperationDialogType.FILE_TABLE);
             }
-            
+
             return;
         }
 
@@ -1413,7 +1016,7 @@ public class ExplorerPanel extends JPanel {
             if (suppressBucketSelectionEvent) {
                 return;
             }
-            
+
             String bucket = this.getCurrentBucket();
             if (bucket == null) {
                 return;
@@ -1458,12 +1061,12 @@ public class ExplorerPanel extends JPanel {
          * işlemleri geçersiz kılar.
          */
         operationGeneration.incrementAndGet();
-        
+
         /*
          * Önceki repository'nin UI state'i artık geçerli değil.
          */
         treeLoadGenerations.clear();
-        
+
         pendingBucketSelection = null;
 
         currentFileBucket = null;
@@ -1533,7 +1136,7 @@ public class ExplorerPanel extends JPanel {
 
         String previousBucket = getCurrentBucket();
         pendingBucketSelection = previousBucket;
-        
+
         bucketCombo.removeAllItems();
 
         S3TreeNode root =
@@ -1563,7 +1166,7 @@ public class ExplorerPanel extends JPanel {
 
         loadBucketsAsync();
     }
-    
+
     private void loadChildren(
             S3TreeNode parentNode) {
 
@@ -1583,7 +1186,7 @@ public class ExplorerPanel extends JPanel {
                         parentNode,
                         1L,
                         Long::sum);
-        
+
         if (!forceRefresh
                 && parentNode.getChildCount() > 0
                 && !((S3TreeNode)
@@ -1634,7 +1237,7 @@ public class ExplorerPanel extends JPanel {
 
                     return;
                 }
-                
+
                 log.debug(
                         "[TREE APPLY START] thread={} prefix={} folders={}",
                         Thread.currentThread().getName(),
@@ -1711,7 +1314,7 @@ public class ExplorerPanel extends JPanel {
             else {
                 navigateToFolder(item);
             }
-            
+
             SwingUtilities.invokeLater(fileTable::requestFocusInWindow);
         } else {
             downloadSelected();
@@ -2054,7 +1657,7 @@ public class ExplorerPanel extends JPanel {
             currentFolderFullContentPrefix = null;
         }
     }
-    
+
     public void updateBreadcrumb(String prefix) {
         if (prefix == null) {
             prefix = getCurrentPrefix();
@@ -2155,7 +1758,7 @@ public class ExplorerPanel extends JPanel {
 
         nodeCache.remove(node.getFullPrefix());
         treeLoadGenerations.remove(node);
-        
+
         Enumeration<?> children = node.children();
         while (children.hasMoreElements()) {
             removeFromCache((S3TreeNode) children.nextElement());
@@ -2575,38 +2178,18 @@ public class ExplorerPanel extends JPanel {
             }
         });
     }
-    
+
     public void setThreadCountSelectionListener(
             Consumer<Integer> listener) {
 
         this.threadCountSelectionListener =
                 listener;
+        view.setThreadCountSelectionListener(listener);
     }
 
     public void selectThreadCount(
             int threadCount) {
-
-        if (threadCount <= 0) {
-            return;
-        }
-
-        if (threadCountCombo != null) {
-
-            suppressThreadCountSelectionEvent = true;
-
-            try {
-
-                threadCountCombo.setSelectedItem(
-                        threadCount);
-
-            } finally {
-
-                suppressThreadCountSelectionEvent = false;
-            }
-        }
-
-        resizeExplorerPool(
-                threadCount);
+        view.selectThreadCount(threadCount);
     }
 
     private FileTableSortSpec getCurrentFileSortSpec() {
@@ -2765,7 +2348,7 @@ public class ExplorerPanel extends JPanel {
         fileTableModel.setFiles(rows);
 
         updateFileFolderInfo(content);
-        
+
         log.debug(
                 "[FILE TABLE APPLY] bucket={} prefix={} folders={} files={} scannedFiles={} limitReached={}",
                 bucket,
@@ -3221,7 +2804,7 @@ public class ExplorerPanel extends JPanel {
 
         SwingUtilities.invokeLater(() -> {
             OperationDialog operationDialog = null;
-            
+
             switch (type) {
 
                 case CONNECTION:
@@ -3266,7 +2849,7 @@ public class ExplorerPanel extends JPanel {
                 visibleOperationDialogs.remove(
                         operationDialog);
             }
-            
+
             positionOperationDialogs();
         });
     }
