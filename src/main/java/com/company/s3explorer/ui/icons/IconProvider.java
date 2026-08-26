@@ -143,16 +143,23 @@ public class IconProvider {
     private static Icon loadFileTypeIcon(
             String iconName) {
 
-        try {
-            return loadSvgIcon(
-                    "file-icons/svg/"
-                            + iconName
-                            + ".svg",
-                    16);
+        String resourcePath =
+                "file-icons/svg/"
+                        + iconName
+                        + ".svg";
 
-        } catch (RuntimeException e) {
+        ClassLoader classLoader =
+                IconProvider.class
+                        .getClassLoader();
+
+        if (classLoader.getResource(
+                resourcePath) == null) {
 
             return ICON_SYSTEM_FILE;
         }
+
+        return loadSvgIcon(
+                resourcePath,
+                16);
     }
 }
