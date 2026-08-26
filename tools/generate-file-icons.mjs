@@ -365,25 +365,63 @@ console.log(
         
 function extractFileIcons(source) {
 
-    const icons = new Map();
+    const marker =
+        "icons: parseByPattern([";
 
-    const iconPattern =
-        /\{\s*name:\s*['"]([^'"]+)['"]([\s\S]*?)\n\s*\},?/g;
+    const markerIndex =
+        source.indexOf(marker);
+
+    if (markerIndex < 0) {
+        throw new Error(
+            "parseByPattern icons array not found in fileIcons.ts");
+    }
+
+    const arrayStart =
+        source.indexOf(
+            "[",
+            markerIndex);
+
+    const arrayEnd =
+        findMatchingBracket(
+            source,
+            arrayStart);
+
+    if (arrayEnd < 0) {
+        throw new Error(
+            "Could not find end of file icon definitions");
+    }
+
+    const iconsSource =
+        source.substring(
+            arrayStart + 1,
+            arrayEnd);
+
+    const icons =
+        new Map();
+
+    const definitionPattern =
+        /\{\s*name:\s*['"]([^'"]+)['"]([\s\S]*?)(?=\n\s*\{\s*name:|\s*$)/g;
 
     let match;
 
-    while ((match = iconPattern.exec(source)) !== null) {
+    while ((match =
+            definitionPattern.exec(
+                iconsSource))
+            !== null) {
 
-        const name = match[1];
-        const body = match[2];
+        const iconName =
+            match[1];
+
+        const body =
+            match[2];
 
         const extensions =
-            extractStringArray(
+            extractArray(
                 body,
                 "fileExtensions");
 
         const files =
-            extractStringArray(
+            extractArray(
                 body,
                 "fileNames");
 
@@ -393,9 +431,9 @@ function extractFileIcons(source) {
         }
 
         icons.set(
-            name,
+            iconName,
             {
-                name,
+                name: iconName,
                 extensions,
                 files
             });
@@ -404,7 +442,67 @@ function extractFileIcons(source) {
     return icons;
 }
 
-function extractStringArray(
+function findMatchingBracket(
+        source,
+        startIndex) {
+
+    let depth = 0;
+    let quote = null;
+    let escaped = false;
+
+    for (let i = startIndex;
+         i < source.length;
+         i++) {
+
+        const character =
+            source[i];
+
+        if (quote !== null) {
+
+            if (escaped) {
+                escaped = false;
+                continue;
+            }
+
+            if (character === "\\") {
+                escaped = true;
+                continue;
+            }
+
+            if (character === quote) {
+                quote = null;
+            }
+
+            continue;
+        }
+
+        if (character === "'"
+                || character === '"'
+                || character === "`") {
+
+            quote = character;
+            continue;
+        }
+
+        if (character === "[") {
+            depth++;
+            continue;
+        }
+
+        if (character === "]") {
+
+            depth--;
+
+            if (depth === 0) {
+                return i;
+            }
+        }
+    }
+
+    return -1;
+}
+
+function extractArray(
         source,
         propertyName) {
 
@@ -425,8 +523,7 @@ function extractStringArray(
         ...match[1].matchAll(
             /['"]([^'"]+)['"]/g)
     ].map(
-        item => item[1]
-    );
+        item => item[1]);
 }
 
 function createDisplayName(
