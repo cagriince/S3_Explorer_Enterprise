@@ -1,13 +1,11 @@
 package com.company.s3explorer.ui.explorer;
 
-import com.company.s3explorer.ui.file.FileTypeResolver;
 import com.company.s3explorer.ui.icons.FileIconRegistry;
 
+import javax.swing.table.AbstractTableModel;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-
-import javax.swing.table.AbstractTableModel;
 
 public class FileTableModel extends AbstractTableModel {
 

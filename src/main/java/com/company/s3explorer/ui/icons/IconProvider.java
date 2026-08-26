@@ -134,32 +134,7 @@ public class IconProvider {
         String iconName =
                 FileIconRegistry.findIconName(
                         filename);
-        System.out.println(
-                "ICON DEBUG: "
-                        + filename
-                        + " -> "
-                        + iconName);
-        String resourcePath =
-                "file-icons/svg/"
-                        + iconName
-                        + ".svg";
 
-        System.out.println(
-                "RESOURCE DEBUG: "
-                        + resourcePath);
-
-        System.out.println(
-                "FOUND: "
-                        + (IconProvider.class
-                        .getClassLoader()
-                        .getResource(
-                                resourcePath)
-                        != null));
-
-        System.out.println(
-                "EXTENSION DEBUG: "
-                        + FileIconRegistry
-                        .debugExtension(filename));
         return FILE_TYPE_ICONS.computeIfAbsent(
                 iconName,
                 IconProvider::loadFileTypeIcon);
