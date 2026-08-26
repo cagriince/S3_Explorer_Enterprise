@@ -33,7 +33,15 @@ public class FileTableCellRenderer extends DefaultTableCellRenderer {
 
         if (value instanceof S3FileItem item) {
             label.setText(S3Util.extractFolderName(item.getKey()));
-            label.setIcon(FileTypeIconProvider.getIcon(item));
+            if (item.isFolder()) {
+                setIcon(
+                        IconProvider
+                                .ICON_SYSTEM_CLOSED_FOLDER);
+            } else {
+                setIcon(
+                        IconProvider.getFileTypeIcon(
+                                item.getKey()));
+            }
         }
 
         return label;
