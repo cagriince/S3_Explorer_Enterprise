@@ -314,4 +314,31 @@ public final class FileIconRegistry {
 
         return findIconName(filename);
     }
+
+    public static String debugExtension(
+            String filename) {
+
+        if (filename == null
+                || filename.isBlank()) {
+
+            return "<empty>";
+        }
+
+        int slashIndex =
+                filename.lastIndexOf('/');
+
+        int dotIndex =
+                filename.lastIndexOf('.');
+
+        if (dotIndex <= slashIndex
+                || dotIndex == filename.length() - 1) {
+
+            return "<none>";
+        }
+
+        return filename
+                .substring(dotIndex + 1)
+                .toLowerCase(
+                        java.util.Locale.ROOT);
+    }
 }
