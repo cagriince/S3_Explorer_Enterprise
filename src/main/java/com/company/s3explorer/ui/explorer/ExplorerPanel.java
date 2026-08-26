@@ -601,9 +601,9 @@ public class ExplorerPanel extends JPanel {
         hidden.setMaxWidth(0);
         hidden.setPreferredWidth(0);
         hidden.setResizable(false);
-        fileTable.getColumnModel().getColumn(1).setCellRenderer(new FileTableCellRenderer());
-        fileTable.getColumnModel().getColumn(2).setCellRenderer(new FileSizeRenderer());
-        fileTable.getColumnModel().getColumn(3).setCellRenderer(new InstantRenderer());
+        fileTable.getColumnModel().getColumn(FileTableModel.COL_NAME).setCellRenderer(new FileTableCellRenderer());
+        fileTable.getColumnModel().getColumn(FileTableModel.COL_SIZE).setCellRenderer(new FileSizeRenderer());
+        fileTable.getColumnModel().getColumn(FileTableModel.COL_LAST_MODIFIED).setCellRenderer(new InstantRenderer());
 
         FileTableRowSorter sorter = new FileTableRowSorter(fileTableModel);
         fileTable.setRowSorter(sorter);
@@ -634,7 +634,7 @@ public class ExplorerPanel extends JPanel {
                                  * Folder/File kolonu özel:
                                  * Mevcut davranışı bozma.
                                  */
-                                if (modelColumn == 0) {
+                                if (modelColumn == FileTableModel.COL_FOLDER) {
                                     return;
                                 }
 

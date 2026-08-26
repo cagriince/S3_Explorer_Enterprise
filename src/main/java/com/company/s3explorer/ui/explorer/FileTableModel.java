@@ -1,5 +1,7 @@
 package com.company.s3explorer.ui.explorer;
 
+import com.company.s3explorer.ui.file.FileTypeResolver;
+
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -10,8 +12,9 @@ public class FileTableModel extends AbstractTableModel {
 
     public static final int COL_FOLDER = 0;
     public static final int COL_NAME = 1;
-    public static final int COL_SIZE = 2;
-    public static final int COL_LAST_MODIFIED = 3;
+    public static final int COL_TYPE = 2;
+    public static final int COL_SIZE = 3;
+    public static final int COL_LAST_MODIFIED = 4;
 
     private final List<S3FileItem> files =
             new ArrayList<>();
@@ -19,6 +22,7 @@ public class FileTableModel extends AbstractTableModel {
     private static final String[] COLUMNS = {
             "",
             "Name",
+            "Type",
             "Size",
             "Last Modified"
     };
@@ -56,6 +60,15 @@ public class FileTableModel extends AbstractTableModel {
             case COL_NAME ->
                     item;
 
+            case COL_TYPE -> {
+
+                yield FileTypeResolver
+                        .resolve(
+                                item.getKey(),
+                                item.isFolder())
+                        .getDisplayName();
+            }
+            
             case COL_SIZE ->
                     item.isFolder()
                             ? null
@@ -80,7 +93,10 @@ public class FileTableModel extends AbstractTableModel {
 
             case COL_NAME ->
                     S3FileItem.class;
-
+            
+            case COL_TYPE ->
+                    String.class;
+            
             case COL_SIZE ->
                     Long.class;
 

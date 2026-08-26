@@ -1,5 +1,6 @@
 package com.company.s3explorer.ui.explorer;
 
+import com.company.s3explorer.ui.file.FileTypeIconProvider;
 import com.company.s3explorer.ui.icons.IconProvider;
 import com.company.s3explorer.util.S3Util;
 
@@ -32,7 +33,7 @@ public class FileTableCellRenderer extends DefaultTableCellRenderer {
 
         if (value instanceof S3FileItem item) {
             label.setText(S3Util.extractFolderName(item.getKey()));
-            label.setIcon(item.isFolder() ? IconProvider.ICON_SYSTEM_CLOSED_FOLDER : IconProvider.ICON_SYSTEM_LEAF_FILE);
+            label.setIcon(FileTypeIconProvider.getIcon(item));
         }
 
         return label;

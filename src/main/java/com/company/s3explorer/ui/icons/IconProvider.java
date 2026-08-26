@@ -2,6 +2,7 @@ package com.company.s3explorer.ui.icons;
 
 import com.company.s3explorer.ui.theme.UITheme;
 import com.company.s3explorer.ui.theme.UIThemeManager;
+import com.formdev.flatlaf.extras.FlatSVGIcon;
 
 import javax.swing.*;
 import java.awt.*;
@@ -18,7 +19,7 @@ public class IconProvider {
 
     public static ImageIcon ICON_LOGO = createImage("src/main/java/com/company/s3explorer/ui/icons/logo.png", 32);
 
-    public static ImageIcon ICON_UPLOAD = null;
+    public static Icon ICON_UPLOAD = null;
     public static ImageIcon ICON_UPLOAD_NORMAL = createImage("src/main/java/com/company/s3explorer/ui/icons/upload.png", 16);
     public static ImageIcon ICON_UPLOAD_REVERSE = createImage("src/main/java/com/company/s3explorer/ui/icons/upload-reverse.png", 16);
     public static ImageIcon ICON_DELETE = null;
@@ -106,5 +107,20 @@ public class IconProvider {
         ICON_SETTINGS = normal ? ICON_SETTINGS_NORMAL : ICON_SETTINGS_REVERSE;
         ICON_CANCEL = normal ? ICON_CANCEL_NORMAL : ICON_CANCEL_REVERSE;
         ICON_CANCEL_ALL = normal ? ICON_CANCEL_ALL_NORMAL : ICON_CANCEL_ALL_REVERSE;
+    }
+
+    public static Icon loadSvgIcon(
+            String resourcePath,
+            int size) {
+
+        String normalizedPath =
+                resourcePath.startsWith("/")
+                        ? resourcePath.substring(1)
+                        : resourcePath;
+
+        return new FlatSVGIcon(
+                normalizedPath,
+                size,
+                size);
     }
 }
