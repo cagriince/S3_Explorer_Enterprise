@@ -6,8 +6,12 @@ import com.formdev.flatlaf.extras.FlatSVGIcon;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class IconProvider {
+    private static final Map<String, Icon> FILE_TYPE_ICONS = new ConcurrentHashMap<>();
+    
     public static Icon ICON_SYSTEM_FOLDER_HOME;
     public static Icon ICON_SYSTEM_UP_FOLDER;
     public static Icon ICON_SYSTEM_NEW_FOLDER;
@@ -122,5 +126,27 @@ public class IconProvider {
                 normalizedPath,
                 size,
                 size);
+    }
+
+    public static Icon getFileTypeIcon(
+            String filename) {
+
+        String iconName =
+                FileIconRegistry.findIconName(
+                        filename);
+
+        return FILE_TYPE_ICONS.computeIfAbsent(
+                iconName,
+                IconProvider::loadFileTypeIcon);
+    }
+
+    private static Icon loadFileTypeIcon(
+            String iconName) {
+
+        return loadSvgIcon(
+                "file-icons/svg/"
+                        + iconName
+                        + ".svg",
+                16);
     }
 }
