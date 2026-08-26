@@ -17,10 +17,11 @@ import java.util.function.Supplier;
 /**
  * Loads folder content for ExplorerPanel.
  *
- * <p>The loader deliberately has no Swing dependency. A single
- * loadFolder(...) operation obtains both direct folders and files through
- * LimitedFolderContent. ExplorerPanel can therefore use the same S3 result
- * for the folder tree and the file table.</p>
+ * <p>
+ * The loader deliberately has no Swing dependency.
+ * A single loadFolder(...) operation obtains both direct folders
+ * and files through LimitedFolderContent.
+ * </p>
  */
 public final class ExplorerContentLoader {
 
@@ -39,9 +40,7 @@ public final class ExplorerContentLoader {
     /**
      * Completed, non-limited content.
      *
-     * We intentionally keep the cache scoped to one bucket/prefix for now.
-     * This matches the current ExplorerPanel cache semantics and keeps this
-     * refactor low-risk.
+     * We intentionally keep the cache scoped to one bucket/prefix.
      */
     private volatile LimitedFolderContent cachedContent;
 
@@ -67,8 +66,10 @@ public final class ExplorerContentLoader {
     /**
      * Loads both folders and files.
      *
-     * <p>The ExecutorService is supplied by ExplorerPanel because that pool
-     * can be resized at runtime.</p>
+     * <p>
+     * The ExecutorService is supplied by ExplorerPanel because
+     * that pool can be resized at runtime.
+     * </p>
      */
     public CompletableFuture<LimitedFolderContent> loadFolder(
             ExecutorService executor,
@@ -105,6 +106,7 @@ public final class ExplorerContentLoader {
                         prefix);
 
         if (cached != null) {
+
             return CompletableFuture.completedFuture(
                     createDisplayContent(
                             cached,
@@ -128,12 +130,13 @@ public final class ExplorerContentLoader {
 
         CompletableFuture<LimitedFolderContent> created =
                 CompletableFuture.supplyAsync(
-                        () -> loadFromS3(
-                                bucket,
-                                prefix,
-                                fileLimit,
-                                sortSpec,
-                                discoveryListener),
+                        () ->
+                                loadFromS3(
+                                        bucket,
+                                        prefix,
+                                        fileLimit,
+                                        sortSpec,
+                                        discoveryListener),
                         executor);
 
         CompletableFuture<LimitedFolderContent> actual =
@@ -176,8 +179,10 @@ public final class ExplorerContentLoader {
     /**
      * Returns a complete cached result.
      *
-     * <p>A result that stopped because of fileLimit cannot be treated as a
-     * complete cache.</p>
+     * <p>
+     * A result that stopped because of fileLimit cannot be treated
+     * as a complete cache.
+     * </p>
      */
     public LimitedFolderContent getCachedContent(
             String bucket,
@@ -193,12 +198,14 @@ public final class ExplorerContentLoader {
         if (!Objects.equals(
                 cachedBucket,
                 bucket)) {
+
             return null;
         }
 
         if (!Objects.equals(
                 cachedPrefix,
                 prefix)) {
+
             return null;
         }
 
@@ -228,12 +235,14 @@ public final class ExplorerContentLoader {
         if (!Objects.equals(
                 cachedBucket,
                 bucket)) {
+
             return;
         }
 
         if (!Objects.equals(
                 cachedPrefix,
                 prefix)) {
+
             return;
         }
 
@@ -263,9 +272,11 @@ public final class ExplorerContentLoader {
     /**
      * Performs the actual S3 listing.
      *
-     * <p>This is intentionally the only S3 content-listing call in this
-     * loader. The returned LimitedFolderContent contains both folders and
-     * files.</p>
+     * <p>
+     * This is intentionally the only S3 content-listing call
+     * in this loader. The returned LimitedFolderContent contains
+     * both folders and files.
+     * </p>
      */
     private LimitedFolderContent loadFromS3(
             String bucket,
@@ -289,7 +300,8 @@ public final class ExplorerContentLoader {
                         discoveryListener);
 
         /*
-         * Only a complete scan may become the reusable full cache.
+         * Only a complete scan may become
+         * the reusable full cache.
          */
         if (!content.fileLimitReached()) {
 
@@ -307,8 +319,8 @@ public final class ExplorerContentLoader {
     }
 
     /**
-     * Creates a display-limited result from a complete cached result without
-     * making another S3 request.
+     * Creates a display-limited result from a complete
+     * cached result without making another S3 request.
      */
     private LimitedFolderContent createDisplayContent(
             LimitedFolderContent cached,
