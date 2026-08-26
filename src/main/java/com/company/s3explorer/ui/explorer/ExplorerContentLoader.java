@@ -1,6 +1,10 @@
 package com.company.s3explorer.ui.explorer;
 
-import com.company.s3explorer.service.*;
+import com.company.s3explorer.service.BoundedSortedFileCollection;
+import com.company.s3explorer.service.FileTableSortSpec;
+import com.company.s3explorer.service.FolderDiscoveryListener;
+import com.company.s3explorer.service.LimitedFolderContent;
+import com.company.s3explorer.service.S3ExplorerService;
 
 import java.text.CollationKey;
 import java.util.Map;
@@ -8,59 +12,51 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
+import java.util.function.Supplier;
 
 /**
- * Loads folder content from S3 and keeps the loading/cache concerns out of
- * ExplorerPanel.
+ * Loads folder content for ExplorerPanel.
  *
- * <p>The loader deliberately has no Swing dependency. ExplorerPanel remains
- * responsible for deciding when/how the result is applied to the UI.</p>
- *
- * <p>A single {@link #loadFolder(String, String, int, FileTableSortSpec)}
- * operation returns both folders and files through {@link LimitedFolderContent}.
- * This is the foundation for using one S3 listing result for both the folder
- * tree and the file table.</p>
+ * <p>The loader deliberately has no Swing dependency. A single
+ * loadFolder(...) operation obtains both direct folders and files through
+ * LimitedFolderContent. ExplorerPanel can therefore use the same S3 result
+ * for the folder tree and the file table.</p>
  */
 public final class ExplorerContentLoader {
 
-    private final S3ExplorerService service;
-    private final ExecutorService executor;
+    private final Supplier<S3ExplorerService> serviceSupplier;
+
+    private final Map<String, CollationKey>
+            collationKeyCache;
 
     /**
-     * Prevents duplicate concurrent requests for the same bucket/prefix/limit/
-     * sort combination.
+     * Identical concurrent requests share the same future.
      */
     private final Map<String, CompletableFuture<LimitedFolderContent>>
-            inFlightLoads = new ConcurrentHashMap<>();
+            inFlightLoads =
+            new ConcurrentHashMap<>();
 
     /**
-     * Completed, unlimited folder contents. We only cache content when the S3
-     * scan was not stopped by the file limit.
+     * Completed, non-limited content.
+     *
+     * We intentionally keep the cache scoped to one bucket/prefix for now.
+     * This matches the current ExplorerPanel cache semantics and keeps this
+     * refactor low-risk.
      */
     private volatile LimitedFolderContent cachedContent;
+
     private volatile String cachedBucket;
+
     private volatile String cachedPrefix;
 
-    /**
-     * Shared with the caller so sorting a previously cached full result keeps
-     * the same collation-key cache used by the existing ExplorerPanel.
-     */
-    private final Map<String, CollationKey> collationKeyCache;
-
     public ExplorerContentLoader(
-            S3ExplorerService service,
-            ExecutorService executor,
+            Supplier<S3ExplorerService> serviceSupplier,
             Map<String, CollationKey> collationKeyCache) {
 
-        this.service =
+        this.serviceSupplier =
                 Objects.requireNonNull(
-                        service,
-                        "service");
-
-        this.executor =
-                Objects.requireNonNull(
-                        executor,
-                        "executor");
+                        serviceSupplier,
+                        "serviceSupplier");
 
         this.collationKeyCache =
                 Objects.requireNonNull(
@@ -69,21 +65,34 @@ public final class ExplorerContentLoader {
     }
 
     /**
-     * Loads both the direct folders and bounded file list for a folder.
+     * Loads both folders and files.
      *
-     * <p>If the complete content is already cached, no S3 request is made.
-     * Otherwise, an identical in-flight request is shared by all callers.</p>
+     * <p>The ExecutorService is supplied by ExplorerPanel because that pool
+     * can be resized at runtime.</p>
      */
     public CompletableFuture<LimitedFolderContent> loadFolder(
+            ExecutorService executor,
             String bucket,
             String prefix,
             int fileLimit,
             FileTableSortSpec sortSpec,
-            FolderDiscoveryListener progressListener) {
+            FolderDiscoveryListener discoveryListener) {
 
-        Objects.requireNonNull(bucket, "bucket");
-        Objects.requireNonNull(prefix, "prefix");
-        Objects.requireNonNull(sortSpec, "sortSpec");
+        Objects.requireNonNull(
+                executor,
+                "executor");
+
+        Objects.requireNonNull(
+                bucket,
+                "bucket");
+
+        Objects.requireNonNull(
+                prefix,
+                "prefix");
+
+        Objects.requireNonNull(
+                sortSpec,
+                "sortSpec");
 
         if (fileLimit <= 0) {
             throw new IllegalArgumentException(
@@ -124,7 +133,7 @@ public final class ExplorerContentLoader {
                                 prefix,
                                 fileLimit,
                                 sortSpec,
-                                progressListener),
+                                discoveryListener),
                         executor);
 
         CompletableFuture<LimitedFolderContent> actual =
@@ -146,15 +155,17 @@ public final class ExplorerContentLoader {
     }
 
     /**
-     * Convenience overload when progress reporting is not needed.
+     * Loads without a progress listener.
      */
     public CompletableFuture<LimitedFolderContent> loadFolder(
+            ExecutorService executor,
             String bucket,
             String prefix,
             int fileLimit,
             FileTableSortSpec sortSpec) {
 
         return loadFolder(
+                executor,
                 bucket,
                 prefix,
                 fileLimit,
@@ -163,45 +174,10 @@ public final class ExplorerContentLoader {
     }
 
     /**
-     * Returns direct child folders from a single folder-content listing.
+     * Returns a complete cached result.
      *
-     * <p>This method intentionally delegates to loadFolder so
-     * callers do not create a second S3 listing just for the tree.</p>
-     */
-    public CompletableFuture<java.util.List<String>> loadFolders(
-            String bucket,
-            String prefix,
-            FileTableSortSpec sortSpec,
-            FolderDiscoveryListener progressListener) {
-
-        /*
-         * Use Integer.MAX_VALUE here only as a compatibility fallback for
-         * tree-only callers. The preferred path is to share the same
-         * loadFolder(...) call with the file-table limit selected by the UI.
-         */
-        return loadFolder(
-                bucket,
-                prefix,
-                Integer.MAX_VALUE,
-                sortSpec,
-                progressListener)
-                .thenApply(LimitedFolderContent::folders);
-    }
-
-    /**
-     * Checks whether a complete result is available for bucket/prefix.
-     */
-    public boolean isCached(
-            String bucket,
-            String prefix) {
-
-        return getCachedContent(
-                bucket,
-                prefix) != null;
-    }
-
-    /**
-     * Returns the complete cached result for bucket/prefix, or null.
+     * <p>A result that stopped because of fileLimit cannot be treated as a
+     * complete cache.</p>
      */
     public LimitedFolderContent getCachedContent(
             String bucket,
@@ -233,8 +209,17 @@ public final class ExplorerContentLoader {
         return content;
     }
 
+    public boolean isCached(
+            String bucket,
+            String prefix) {
+
+        return getCachedContent(
+                bucket,
+                prefix) != null;
+    }
+
     /**
-     * Invalidates the cached complete result for the specified folder.
+     * Invalidates one folder's completed cache.
      */
     public void invalidate(
             String bucket,
@@ -242,8 +227,11 @@ public final class ExplorerContentLoader {
 
         if (!Objects.equals(
                 cachedBucket,
-                bucket)
-                || !Objects.equals(
+                bucket)) {
+            return;
+        }
+
+        if (!Objects.equals(
                 cachedPrefix,
                 prefix)) {
             return;
@@ -255,39 +243,41 @@ public final class ExplorerContentLoader {
     }
 
     /**
-     * Invalidates all completed content.
+     * Invalidates all cached/in-flight bookkeeping.
      */
     public void invalidateAll() {
+
         cachedContent = null;
         cachedBucket = null;
         cachedPrefix = null;
+
+        inFlightLoads.clear();
+
         collationKeyCache.clear();
     }
 
-    /**
-     * Removes all currently tracked in-flight requests.
-     *
-     * <p>This does not forcibly interrupt the underlying S3 call. Existing
-     * futures are allowed to finish, but they are no longer considered part of
-     * the current loading lifecycle by a new loader instance/request.</p>
-     */
-    public void clearInFlightLoads() {
-        inFlightLoads.clear();
-    }
-
-    /**
-     * Returns the number of currently shared in-flight loads.
-     */
     public int getInFlightLoadCount() {
         return inFlightLoads.size();
     }
 
+    /**
+     * Performs the actual S3 listing.
+     *
+     * <p>This is intentionally the only S3 content-listing call in this
+     * loader. The returned LimitedFolderContent contains both folders and
+     * files.</p>
+     */
     private LimitedFolderContent loadFromS3(
             String bucket,
             String prefix,
             int fileLimit,
             FileTableSortSpec sortSpec,
-            FolderDiscoveryListener progressListener) {
+            FolderDiscoveryListener discoveryListener) {
+
+        S3ExplorerService service =
+                Objects.requireNonNull(
+                        serviceSupplier.get(),
+                        "serviceSupplier returned null");
 
         LimitedFolderContent content =
                 service.listFolderWithLimit(
@@ -296,20 +286,30 @@ public final class ExplorerContentLoader {
                         fileLimit,
                         sortSpec,
                         collationKeyCache,
-                        progressListener);
+                        discoveryListener);
 
         /*
-         * Only a complete scan can safely become the reusable cache.
+         * Only a complete scan may become the reusable full cache.
          */
         if (!content.fileLimitReached()) {
-            cachedContent = content;
-            cachedBucket = bucket;
-            cachedPrefix = prefix;
+
+            cachedContent =
+                    content;
+
+            cachedBucket =
+                    bucket;
+
+            cachedPrefix =
+                    prefix;
         }
 
         return content;
     }
 
+    /**
+     * Creates a display-limited result from a complete cached result without
+     * making another S3 request.
+     */
     private LimitedFolderContent createDisplayContent(
             LimitedFolderContent cached,
             int fileLimit,
