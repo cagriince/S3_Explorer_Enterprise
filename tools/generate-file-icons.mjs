@@ -167,6 +167,26 @@ const ICON_ALIASES = {
     svelte_ts: "svelte"
 };
 
+const DISPLAY_NAME_OVERRIDES = {
+    nodejs: "Node.js",
+    javascript: "JavaScript",
+    typescript: "TypeScript",
+    svelte_js: "Svelte",
+    svelte_ts: "Svelte",
+    json: "JSON",
+    xml: "XML",
+    html: "HTML",
+    css: "CSS",
+    yaml: "YAML",
+    markdown: "Markdown",
+    pdf: "PDF",
+    docker: "Docker",
+    maven: "Maven",
+    gradle: "Gradle",
+    npm: "npm",
+    git: "Git"
+};
+
 const outputSvgRoot =
         join(
                 OUTPUT_ROOT,
@@ -268,6 +288,14 @@ for (const definition of
 
     properties.push(
             `icon.${iconName}.files=${files.join(",")}`);
+
+    const displayName =
+            DISPLAY_NAME_OVERRIDES[iconName]
+                    ?? createDisplayName(iconName);
+    
+    properties.push(
+            `icon.${iconName}.displayName=${displayName}`
+    );
 
     properties.push("");
 }
@@ -399,4 +427,16 @@ function extractStringArray(
     ].map(
         item => item[1]
     );
+}
+
+function createDisplayName(
+        iconName) {
+
+    return iconName
+        .replaceAll("-", " ")
+        .replaceAll("_", " ")
+        .replace(
+            /\b\w/g,
+            character =>
+                character.toUpperCase());
 }

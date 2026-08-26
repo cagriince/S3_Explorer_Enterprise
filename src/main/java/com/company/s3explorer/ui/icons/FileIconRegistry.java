@@ -24,6 +24,9 @@ public final class FileIconRegistry {
     private static final Map<String, String>
             EXTENSION_INDEX;
 
+    private static final Map<String, String>
+            DISPLAY_NAMES;
+
     static {
         RegistryData data =
                 loadDefinitions();
@@ -33,6 +36,9 @@ public final class FileIconRegistry {
 
         EXTENSION_INDEX =
                 data.extensions();
+
+        DISPLAY_NAMES =
+                data.displayNames();
     }
 
     private FileIconRegistry() {
@@ -85,6 +91,68 @@ public final class FileIconRegistry {
                 : DEFAULT_ICON;
     }
 
+    public static FileTypeDefinition findFileType(
+            String filename) {
+
+        String iconName =
+                findIconName(filename);
+
+        String displayName =
+                DISPLAY_NAMES.get(iconName);
+
+        if (displayName == null
+                || displayName.isBlank()) {
+
+            displayName =
+                    createDisplayName(iconName);
+        }
+
+        return new FileTypeDefinition(
+                iconName,
+                displayName);
+    }
+
+    private static String createDisplayName(
+            String iconName) {
+
+        if (iconName == null
+                || iconName.isBlank()) {
+
+            return "File";
+        }
+
+        String normalized =
+                iconName.replace(
+                        '-',
+                        ' ');
+
+        StringBuilder result =
+                new StringBuilder();
+
+        for (String word :
+                normalized.split("\\s+")) {
+
+            if (word.isBlank()) {
+                continue;
+            }
+
+            if (!result.isEmpty()) {
+                result.append(' ');
+            }
+
+            result.append(
+                    Character.toUpperCase(
+                            word.charAt(0)));
+
+            if (word.length() > 1) {
+                result.append(
+                        word.substring(1));
+            }
+        }
+
+        return result.toString();
+    }
+    
     private static RegistryData loadDefinitions() {
 
         Properties properties =
@@ -117,6 +185,9 @@ public final class FileIconRegistry {
         Map<String, String> extensions =
                 new HashMap<>();
 
+        Map<String, String> displayNames =
+                new HashMap<>();
+        
         List<String> iconNames =
                 new ArrayList<>();
 
@@ -125,16 +196,18 @@ public final class FileIconRegistry {
 
             if (key.startsWith("icon.")
                     && key.endsWith(
-                    ".extensions")) {
+                    ".displayName")) {
 
                 String iconName =
                         key.substring(
                                 "icon.".length(),
                                 key.length()
-                                        - ".extensions"
+                                        - ".displayName"
                                         .length());
 
-                iconNames.add(iconName);
+                displayNames.put(
+                        iconName,
+                        properties.getProperty(key));
             }
         }
 
@@ -177,7 +250,9 @@ public final class FileIconRegistry {
                 Collections.unmodifiableMap(
                         fileNames),
                 Collections.unmodifiableMap(
-                        extensions));
+                        extensions),
+                Collections.unmodifiableMap(
+                        displayNames));
     }
 
     private static List<String> split(
@@ -208,6 +283,35 @@ public final class FileIconRegistry {
 
     private record RegistryData(
             Map<String, String> fileNames,
-            Map<String, String> extensions) {
+            Map<String, String> extensions,
+            Map<String, String> displayNames) {
+    }
+
+    public static int getRegisteredExtensionCount() {
+        return EXTENSION_INDEX.size();
+    }
+
+    public static int getRegisteredFileNameCount() {
+        return FILE_NAME_INDEX.size();
+    }
+
+    public static int getRegisteredIconCount() {
+
+        java.util.Set<String> icons =
+                new java.util.HashSet<>();
+
+        icons.addAll(
+                EXTENSION_INDEX.values());
+
+        icons.addAll(
+                FILE_NAME_INDEX.values());
+
+        return icons.size();
+    }
+
+    public static String debugFileType(
+            String filename) {
+
+        return findIconName(filename);
     }
 }
