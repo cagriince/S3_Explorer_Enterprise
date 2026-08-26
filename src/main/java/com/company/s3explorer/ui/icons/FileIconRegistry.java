@@ -2,13 +2,7 @@ package com.company.s3explorer.ui.icons;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 
 public final class FileIconRegistry {
 
@@ -187,62 +181,72 @@ public final class FileIconRegistry {
 
         Map<String, String> displayNames =
                 new HashMap<>();
-        
-        List<String> iconNames =
-                new ArrayList<>();
 
         for (String key :
                 properties.stringPropertyNames()) {
 
-            if (key.startsWith("icon.")
-                    && key.endsWith(
-                    ".displayName")) {
-
-                String iconName =
-                        key.substring(
-                                "icon.".length(),
-                                key.length()
-                                        - ".displayName"
-                                        .length());
-
-                displayNames.put(
-                        iconName,
-                        properties.getProperty(key));
-            }
-        }
-
-        for (String iconName : iconNames) {
-
-            String extensionValue =
-                    properties.getProperty(
-                            "icon."
-                                    + iconName
-                                    + ".extensions",
-                            "");
-
-            String fileValue =
-                    properties.getProperty(
-                            "icon."
-                                    + iconName
-                                    + ".files",
-                            "");
-
-            for (String extension :
-                    split(extensionValue)) {
-
-                extensions.put(
-                        extension.toLowerCase(
-                                Locale.ROOT),
-                        iconName);
+            if (!key.startsWith("icon.")) {
+                continue;
             }
 
-            for (String file :
-                    split(fileValue)) {
+            String remainder =
+                    key.substring("icon.".length());
 
-                fileNames.put(
-                        file.toLowerCase(
-                                Locale.ROOT),
-                        iconName);
+            int separator =
+                    remainder.lastIndexOf('.');
+
+            if (separator <= 0) {
+                continue;
+            }
+
+            String iconName =
+                    remainder.substring(
+                            0,
+                            separator);
+
+            String propertyType =
+                    remainder.substring(
+                            separator + 1);
+
+            String value =
+                    properties.getProperty(key);
+
+            switch (propertyType) {
+
+                case "displayName" -> {
+
+                    displayNames.put(
+                            iconName,
+                            value);
+                }
+
+                case "extensions" -> {
+
+                    for (String extension :
+                            split(value)) {
+
+                        extensions.put(
+                                extension.toLowerCase(
+                                        Locale.ROOT),
+                                iconName);
+                    }
+                }
+
+                case "files" -> {
+
+                    for (String file :
+                            split(value)) {
+
+                        fileNames.put(
+                                file.toLowerCase(
+                                        Locale.ROOT),
+                                iconName);
+                    }
+                }
+
+                default -> {
+                    // Unknown property; ignore.
+                }
             }
         }
 
