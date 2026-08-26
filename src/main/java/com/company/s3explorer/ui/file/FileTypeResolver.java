@@ -1,6 +1,6 @@
 package com.company.s3explorer.ui.file;
 
-import java.util.Locale;
+import com.company.s3explorer.ui.icons.FileIconRegistry;
 
 public final class FileTypeResolver {
 
@@ -15,76 +15,31 @@ public final class FileTypeResolver {
             return FileType.FOLDER;
         }
 
-        if (key == null || key.isBlank()) {
-            return FileType.OTHER;
-        }
-
-        int slashIndex =
-                key.lastIndexOf('/');
-
-        int dotIndex =
-                key.lastIndexOf('.');
-
-        if (dotIndex <= slashIndex
-                || dotIndex == key.length() - 1) {
+        if (key == null
+                || key.isBlank()) {
 
             return FileType.OTHER;
         }
 
-        String extension =
-                key.substring(dotIndex + 1)
-                        .toLowerCase(
-                                Locale.ROOT);
+        return FileType.OTHER;
+    }
 
-        return switch (extension) {
+    public static String resolveDisplayName(
+            String key,
+            boolean folder) {
 
-            case "pdf" ->
-                    FileType.PDF;
+        if (folder) {
+            return "Folder";
+        }
 
-            case "doc", "docx",
-                 "odt", "rtf" ->
-                    FileType.WORD;
+        if (key == null
+                || key.isBlank()) {
 
-            case "xls", "xlsx",
-                 "ods" ->
-                    FileType.EXCEL;
+            return "File";
+        }
 
-            case "ppt", "pptx",
-                 "odp" ->
-                    FileType.POWERPOINT;
-
-            case "jpg", "jpeg",
-                 "png", "gif",
-                 "bmp", "webp",
-                 "svg", "tif", "tiff" ->
-                    FileType.IMAGE;
-
-            case "mp3", "wav",
-                 "flac", "aac",
-                 "ogg", "m4a" ->
-                    FileType.AUDIO;
-
-            case "mp4", "avi",
-                 "mkv", "mov",
-                 "wmv", "webm" ->
-                    FileType.VIDEO;
-
-            case "zip", "rar",
-                 "7z", "tar",
-                 "gz", "bz2" ->
-                    FileType.ARCHIVE;
-
-            case "txt", "log",
-                 "md", "xml",
-                 "json", "yaml",
-                 "yml" ->
-                    FileType.TEXT;
-
-            case "csv" ->
-                    FileType.CSV;
-
-            default ->
-                    FileType.OTHER;
-        };
+        return FileIconRegistry
+                .findFileType(key)
+                .displayName();
     }
 }

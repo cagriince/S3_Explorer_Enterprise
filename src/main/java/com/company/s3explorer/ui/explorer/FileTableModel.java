@@ -1,6 +1,7 @@
 package com.company.s3explorer.ui.explorer;
 
 import com.company.s3explorer.ui.file.FileTypeResolver;
+import com.company.s3explorer.ui.icons.FileIconRegistry;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -62,11 +63,14 @@ public class FileTableModel extends AbstractTableModel {
 
             case COL_TYPE -> {
 
-                yield FileTypeResolver
-                        .resolve(
-                                item.getKey(),
-                                item.isFolder())
-                        .getDisplayName();
+                if (item.isFolder()) {
+                    yield "Folder";
+                }
+
+                yield FileIconRegistry
+                        .findFileType(
+                                item.getKey())
+                        .displayName();
             }
             
             case COL_SIZE ->
