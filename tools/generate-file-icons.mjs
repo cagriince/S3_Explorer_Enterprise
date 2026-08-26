@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// Run: node tools/generate-file-icons.mjs
 
 import {
     existsSync,
