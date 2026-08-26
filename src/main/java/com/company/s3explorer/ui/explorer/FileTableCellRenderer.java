@@ -1,6 +1,5 @@
 package com.company.s3explorer.ui.explorer;
 
-import com.company.s3explorer.ui.file.FileTypeIconProvider;
 import com.company.s3explorer.ui.icons.IconProvider;
 import com.company.s3explorer.util.S3Util;
 

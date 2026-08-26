@@ -144,7 +144,6 @@ public class IconProvider {
             String iconName) {
 
         try {
-
             return loadSvgIcon(
                     "file-icons/svg/"
                             + iconName
