@@ -83,7 +83,6 @@ public class ExplorerPanel extends JPanel {
     private String currentFolderFullContentPrefix;
 
     private final Map<String, CollationKey> currentFolderCollationKeyCache = new java.util.concurrent.ConcurrentHashMap<>();
-    private final Map<String, CompletableFuture<LimitedFolderContent>> inFlightFileLoads = new java.util.concurrent.ConcurrentHashMap<>();
 
     private JComboBox<Integer> fileTableRowLimitCombo;
     private Consumer<Integer> fileTableRowLimitSelectionListener;
@@ -671,136 +670,134 @@ public class ExplorerPanel extends JPanel {
         final long operationId =
                 operationGeneration.get();
 
-        explorerPool.submit(() -> {
+        final String prefix =
+                S3TreeNode.ROOT_PREFIX;
 
-            try {
+        contentLoader.loadFolders(
+                        explorerPool,
+                        bucket,
+                        prefix,
+                        null)
+                .thenAccept(content ->
+                        SwingUtilities.invokeLater(() -> {
 
-                java.util.List<String> folders =
-                        getService().listFolders(
-                                bucket,
-                                S3TreeNode.ROOT_PREFIX);
+                            /*
+                             * Bu repository işlemi artık güncel değilse
+                             * UI'ya dokunma.
+                             */
+                            if (operationId !=
+                                    operationGeneration.get()) {
 
-                S3TreeNode root =
-                        new S3TreeNode(
-                                bucket,
-                                bucket,
-                                S3TreeNode.ROOT_PREFIX);
+                                return;
+                            }
 
-                nodeCache.clear();
+                            S3TreeNode root =
+                                    new S3TreeNode(
+                                            bucket,
+                                            bucket,
+                                            prefix);
 
-                nodeCache.put(
-                        root.getFullPrefix(),
-                        root);
+                            nodeCache.clear();
 
-                for (String folder : folders) {
+                            nodeCache.put(
+                                    root.getFullPrefix(),
+                                    root);
 
-                    String displayName =
-                            S3Util.extractFolderName(
-                                    folder);
+                            for (String folder :
+                                    content.folders()) {
 
-                    S3TreeNode child =
-                            new S3TreeNode(
-                                    displayName,
+                                String displayName =
+                                        S3Util.extractFolderName(
+                                                folder);
+
+                                S3TreeNode child =
+                                        new S3TreeNode(
+                                                displayName,
+                                                bucket,
+                                                folder);
+
+                                nodeCache.put(
+                                        folder,
+                                        child);
+
+                                /*
+                                 * Child folders are loaded lazily
+                                 * when the user expands the node.
+                                 */
+                                child.add(
+                                        new S3TreeNode(
+                                                S3TreeNode.LOADING,
+                                                bucket,
+                                                folder));
+
+                                root.add(child);
+                            }
+
+                            treeModel.setRoot(root);
+
+                            folderTree.setSelectionRow(0);
+
+                            hideOperationDialog(
+                                    OperationDialogType.BUCKET);
+
+                            /*
+                             * Root is selected, therefore the File Table
+                             * is loaded separately using FOLDERS_AND_FILES.
+                             */
+                            loadFiles(
                                     bucket,
-                                    folder);
+                                    prefix);
 
-                    nodeCache.put(
-                            folder,
-                            child);
+                            updateBreadcrumb(
+                                    prefix);
 
-                    child.add(
-                            new S3TreeNode(
-                                    S3TreeNode.LOADING,
-                                    bucket,
-                                    S3TreeNode.ROOT_PREFIX));
+                            updateActionStates();
+                        }))
+                .exceptionally(ex -> {
 
-                    root.add(child);
-                }
+                    log.error(
+                            "[FOLDER LOAD] failed: {}",
+                            S3ErrorResolver
+                                    .getDetailedMessage(ex));
 
-                SwingUtilities.invokeLater(() -> {
+                    SwingUtilities.invokeLater(() -> {
 
-                    /*
-                     * Bu repository işlemi artık güncel değilse
-                     * UI'ya dokunma.
-                     */
-                    if (operationId !=
-                            operationGeneration.get()) {
+                        /*
+                         * Başka bir repository artık aktifse
+                         * eski işlemin hatasını gösterme.
+                         */
+                        if (operationId !=
+                                operationGeneration.get()) {
 
-                        return;
-                    }
+                            return;
+                        }
 
-                    treeModel.setRoot(root);
+                        hideOperationDialog(
+                                OperationDialogType.BUCKET);
 
-                    folderTree.setSelectionRow(0);
+                        JOptionPane.showMessageDialog(
+                                this,
+                                S3ErrorResolver.getUserMessage(ex),
+                                "Folder Load Failed",
+                                JOptionPane.ERROR_MESSAGE);
+                    });
 
-                    hideOperationDialog(
-                            OperationDialogType.BUCKET);
-
-                    loadFiles(
-                            bucket,
-                            S3TreeNode.ROOT_PREFIX);
-
-                    updateBreadcrumb(
-                            S3TreeNode.ROOT_PREFIX);
-
-                    updateActionStates();
+                    return null;
                 });
-
-            }
-            catch (Exception ex) {
-
-                log.error(
-                        "[FOLDER LOAD] failed: {}",
-                        S3ErrorResolver.getDetailedMessage(ex),
-                        ex);
-
-                SwingUtilities.invokeLater(() -> {
-
-                    /*
-                     * Başka bir repository artık aktifse
-                     * eski işlemin hatasını gösterme.
-                     */
-                    if (operationId !=
-                            operationGeneration.get()) {
-
-                        return;
-                    }
-
-                    hideOperationDialog(
-                            OperationDialogType.BUCKET);
-
-                    JOptionPane.showMessageDialog(
-                            this,
-                            S3ErrorResolver.getUserMessage(ex),
-                            "Folder Load Failed",
-                            JOptionPane.ERROR_MESSAGE);
-                });
-            }
-        });
     }
 
     private void loadFiles(
             String bucket,
             String prefix) {
 
-        long generation = fileLoadGeneration.incrementAndGet();
-
-        boolean folderChanged =
-                !Objects.equals(
-                        currentFileBucket,
-                        bucket)
-                        || !Objects.equals(
-                        currentFilePrefix,
-                        prefix);
-
-        if (folderChanged) {
-            currentFolderCollationKeyCache.clear();
-        }
+        final long generation =
+                fileLoadGeneration.incrementAndGet();
 
         currentFileBucket = bucket;
         currentFilePrefix = prefix;
 
         setFileTableLoading(true);
+
         showOperationDialog(
                 OperationDialogType.FILE_TABLE,
                 "<html>"
@@ -809,146 +806,87 @@ public class ExplorerPanel extends JPanel {
                         + bucket
                         + "<br><br>"
                         + "<b>Folder:</b> "
-                        + (prefix == null
-                        || prefix.isBlank()
+                        + (prefix == null || prefix.isBlank()
                         ? "/"
                         : prefix)
                         + "</html>");
 
-        int fileLimit =
+        final int fileLimit =
                 getSelectedFileTableRowLimit();
 
-        FileTableSortSpec sortSpec =
+        final FileTableSortSpec sortSpec =
                 getCurrentFileSortSpec();
 
-        /*
-         * Bu klasörün tamamı daha önce alınmış mı?
-         */
-        if (isFullContentCached(
-                bucket,
-                prefix)) {
+        updateFileDiscoveryProgress(
+                0,
+                0);
 
-            applyCachedFolderContent(
-                    bucket,
-                    prefix,
-                    fileLimit,
-                    sortSpec,
-                    generation);
-
-            if (generation ==
-                    fileLoadGeneration.get()) {
-
-                hideOperationDialog(
-                        OperationDialogType.FILE_TABLE);
-            }
-
-            return;
-        }
-
-        /*
-         * Aynı parametrelerle devam eden bir S3 isteği
-         * zaten varsa ikinci bir istek başlatmıyoruz.
-         */
-        String loadKey =
-                createFileLoadKey(
+        contentLoader.loadFolder(
+                        explorerPool,
                         bucket,
                         prefix,
                         fileLimit,
-                        sortSpec);
-
-        CompletableFuture<LimitedFolderContent> future =
-                inFlightFileLoads.computeIfAbsent(
-                        loadKey,
-                        key -> {
+                        sortSpec,
+                        (fileCount, folderCount) -> {
 
                             if (generation ==
                                     fileLoadGeneration.get()) {
 
                                 updateFileDiscoveryProgress(
-                                        0,
-                                        0);
+                                        fileCount,
+                                        folderCount);
+                            }
+                        })
+                .thenAccept(content ->
+                        SwingUtilities.invokeLater(() -> {
+
+                            if (generation !=
+                                    fileLoadGeneration.get()) {
+                                return;
                             }
 
-                            return CompletableFuture.supplyAsync(
-                                    () -> getService()
-                                            .listFolderWithLimit(
-                                                    bucket,
-                                                    prefix,
-                                                    fileLimit,
-                                                    sortSpec,
-                                                    currentFolderCollationKeyCache,
-                                                    (fileCount, folderCount) -> {
-                                                        if (generation == fileLoadGeneration.get()) {
-                                                            updateFileDiscoveryProgress(
-                                                                    fileCount,
-                                                                    folderCount);
-                                                        }
-                                                    }),
-                                    explorerPool);
-                        });
+                            updateFileFolderInfo(
+                                    content);
 
-        future.thenAccept(content -> SwingUtilities.invokeLater(() -> {
+                            applyLimitedFolderContent(
+                                    bucket,
+                                    prefix,
+                                    content);
 
-            if (generation !=
-                    fileLoadGeneration.get()) {
-                return;
-            }
+                            setFileTableLoading(false);
 
-            /*
-             * Eğer bütün dosyaları aldıysak
-             * cache'e koy.
-             */
-            if (!content.fileLimitReached()) {
+                            hideOperationDialog(
+                                    OperationDialogType.FILE_TABLE);
+                        }))
+                .exceptionally(ex -> {
 
-                currentFolderFullContent =
-                        content;
+                    log.error(
+                            "[FILE LOAD] failed: {}",
+                            S3ErrorResolver
+                                    .getDetailedMessage(ex));
 
-                currentFolderFullContentBucket =
-                        bucket;
+                    SwingUtilities.invokeLater(() -> {
 
-                currentFolderFullContentPrefix =
-                        prefix;
-            }
+                        if (generation !=
+                                fileLoadGeneration.get()) {
+                            return;
+                        }
 
-            updateFileFolderInfo(content);
+                        setFileTableLoading(false);
 
-            applyLimitedFolderContent(
-                    bucket,
-                    prefix,
-                    content);
+                        hideOperationDialog(
+                                OperationDialogType.FILE_TABLE);
 
-            setFileTableLoading(false);
-            hideOperationDialog(
-                    OperationDialogType.FILE_TABLE);
-        })).exceptionally(ex -> {
+                        JOptionPane.showMessageDialog(
+                                this,
+                                S3ErrorResolver
+                                        .getUserMessage(ex),
+                                "S3 Operation Failed",
+                                JOptionPane.ERROR_MESSAGE);
+                    });
 
-            log.error(
-                    "Explorer operation failed: {}",
-                    S3ErrorResolver.getDetailedMessage(ex),
-                    ex);
-
-            SwingUtilities.invokeLater(() -> {
-
-                if (generation != fileLoadGeneration.get()) {
-                    return;
-                }
-
-                setFileTableLoading(false);
-                hideOperationDialog(
-                        OperationDialogType.FILE_TABLE);
-                JOptionPane.showMessageDialog(
-                        this,
-                        S3ErrorResolver.getUserMessage(ex),
-                        "S3 Operation Failed",
-                        JOptionPane.ERROR_MESSAGE);
-            });
-
-            return null;
-        }).whenComplete(
-                (result, throwable) ->
-                        inFlightFileLoads.remove(
-                                loadKey,
-                                future));
+                    return null;
+                });
     }
 
     private void bindEvents() {
@@ -1145,8 +1083,7 @@ public class ExplorerPanel extends JPanel {
         final String bucket =
                 getCurrentBucket();
 
-        if (bucket == null
-                || bucket.isBlank()) {
+        if (bucket == null || bucket.isBlank()) {
             return;
         }
 
@@ -1160,8 +1097,8 @@ public class ExplorerPanel extends JPanel {
                         Long::sum);
 
         /*
-         * If the node already has real children and this is not
-         * an explicit refresh, there is nothing to load.
+         * Unless explicitly refreshed, do not reload a node
+         * whose real children have already been discovered.
          */
         if (!forceRefresh
                 && parentNode.getChildCount() > 0) {
@@ -1169,49 +1106,37 @@ public class ExplorerPanel extends JPanel {
             Object firstChild =
                     parentNode.getChildAt(0);
 
-            if (firstChild instanceof S3TreeNode node
-                    && !node.isLoading()) {
+            if (firstChild instanceof S3TreeNode child
+                    && !child.isLoading()) {
 
                 return;
             }
         }
 
         /*
-         * Show a loading placeholder while the asynchronous
-         * folder discovery is running.
+         * Show the lazy-loading placeholder.
          */
         parentNode.removeAllChildren();
 
-        S3TreeNode loadingNode =
+        parentNode.add(
                 new S3TreeNode(
                         S3TreeNode.LOADING,
                         bucket,
-                        prefix);
-
-        parentNode.add(loadingNode);
+                        prefix));
 
         treeModel.reload(parentNode);
 
+        /*
+         * Tree expansion requires folders only.
+         *
+         * This deliberately does NOT load files and therefore
+         * does not modify the File Table.
+         */
         contentLoader.loadFolders(
                         explorerPool,
                         bucket,
                         prefix,
-                        (fileCount, folderCount) -> {
-
-                            /*
-                             * FOLDERS_ONLY mode does not scan files.
-                             * fileCount is therefore not meaningful here.
-                             * folderCount is still useful for progress.
-                             */
-                            if (parentNode
-                                    == getSelectedFolderNode()) {
-
-                                SwingUtilities.invokeLater(() ->
-                                        updateFileDiscoveryProgress(
-                                                fileCount,
-                                                folderCount));
-                            }
-                        })
+                        null)
                 .thenAccept(content ->
                         SwingUtilities.invokeLater(() -> {
 
@@ -1226,12 +1151,11 @@ public class ExplorerPanel extends JPanel {
                             }
 
                             /*
-                             * The node may have been collapsed,
-                             * refreshed or otherwise invalidated
-                             * while the S3 request was running.
+                             * The node may have been removed from
+                             * the tree while the asynchronous request
+                             * was running.
                              */
-                            if (parentNode
-                                    .getParent() == null
+                            if (parentNode.getParent() == null
                                     && parentNode
                                     != treeModel.getRoot()) {
                                 return;
@@ -1257,11 +1181,10 @@ public class ExplorerPanel extends JPanel {
                                         child);
 
                                 /*
-                                 * Lazy expansion marker.
+                                 * Lazy child marker.
                                  *
-                                 * We do NOT load the child's folders
-                                 * yet. They are requested only when
-                                 * the user expands that child.
+                                 * The child's folders are not loaded
+                                 * until the user expands that node.
                                  */
                                 child.add(
                                         new S3TreeNode(
@@ -1298,17 +1221,12 @@ public class ExplorerPanel extends JPanel {
                         parentNode.removeAllChildren();
 
                         treeModel.reload(parentNode);
-
-                        /*
-                         * Tree loading failure should not destroy
-                         * the currently displayed File Table.
-                         */
                     });
 
                     return null;
                 });
     }
-
+    
     private S3FileItem getSelectedFileItem() {
         int viewRow = fileTable.getSelectedRow();
         if (viewRow < 0) {

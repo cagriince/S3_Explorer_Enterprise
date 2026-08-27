@@ -1,7 +1,6 @@
 package com.company.s3explorer.service;
 
 import com.company.s3explorer.util.S3Util;
-import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
@@ -429,54 +428,6 @@ public class S3ExplorerService {
                 files,
                 response.nextContinuationToken(),
                 response.isTruncated());
-    }
-
-    public List<String> listFolders(
-            String bucket,
-            String prefix) {
-
-        List<String> folders =
-                new ArrayList<>();
-
-        String continuationToken = null;
-
-        do {
-
-            ListObjectsV2Request.Builder builder =
-                    ListObjectsV2Request.builder()
-                            .bucket(bucket)
-                            .delimiter("/")
-                            .prefix(
-                                    prefix == null
-                                            ? ""
-                                            : prefix)
-                            .maxKeys(500);
-
-            if (continuationToken != null
-                    && !continuationToken.isBlank()) {
-
-                builder.continuationToken(
-                        continuationToken);
-            }
-
-            ListObjectsV2Response response =
-                    client.listObjectsV2(
-                            builder.build());
-
-            for (CommonPrefix commonPrefix :
-                    response.commonPrefixes()) {
-
-                folders.add(
-                        commonPrefix.prefix());
-            }
-
-            continuationToken =
-                    response.nextContinuationToken();
-
-        } while (continuationToken != null
-                && !continuationToken.isBlank());
-
-        return folders;
     }
 
     public HeadObjectResponse getObject(String bucket, String key) {
