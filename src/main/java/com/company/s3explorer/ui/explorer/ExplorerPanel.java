@@ -688,6 +688,9 @@ public class ExplorerPanel extends JPanel {
                                 return;
                             }
 
+                            /*
+                             * Tek S3 listing sonucundan Folder Tree'yi kur.
+                             */
                             S3TreeNode root =
                                     new S3TreeNode(
                                             bucket,
@@ -718,7 +721,8 @@ public class ExplorerPanel extends JPanel {
                                         child);
 
                                 /*
-                                 * Child folders are loaded lazily.
+                                 * Child folders are discovered lazily
+                                 * when the node is expanded.
                                  */
                                 child.add(
                                         new S3TreeNode(
@@ -739,11 +743,12 @@ public class ExplorerPanel extends JPanel {
                             /*
                              * IMPORTANT:
                              *
-                             * The content was already loaded above.
+                             * content was already obtained above.
                              * Do NOT call loadFiles(bucket, prefix),
-                             * because that could cause another S3 request.
+                             * because that would create another
+                             * content-loading request.
                              *
-                             * Apply the already retrieved content directly.
+                             * Apply the existing result directly.
                              */
                             loadFiles(
                                     bucket,
