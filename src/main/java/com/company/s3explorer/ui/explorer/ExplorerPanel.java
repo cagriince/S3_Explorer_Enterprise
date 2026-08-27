@@ -670,11 +670,18 @@ public class ExplorerPanel extends JPanel {
         final String prefix =
                 S3TreeNode.ROOT_PREFIX;
 
-        contentLoader.loadFolders(
+        final int fileLimit =
+                getSelectedFileTableRowLimit();
+
+        final FileTableSortSpec sortSpec =
+                getCurrentFileSortSpec();
+
+        contentLoader.loadFolder(
                         explorerPool,
                         bucket,
                         prefix,
-                        null)
+                        fileLimit,
+                        sortSpec)
                 .thenAccept(content ->
                         SwingUtilities.invokeLater(() -> {
 
@@ -718,8 +725,7 @@ public class ExplorerPanel extends JPanel {
                                         child);
 
                                 /*
-                                 * Child folders are loaded lazily
-                                 * when the user expands the node.
+                                 * Child folders are loaded lazily.
                                  */
                                 child.add(
                                         new S3TreeNode(
@@ -738,12 +744,18 @@ public class ExplorerPanel extends JPanel {
                                     OperationDialogType.BUCKET);
 
                             /*
-                             * Root is selected, therefore the File Table
-                             * is loaded separately using FOLDERS_AND_FILES.
+                             * IMPORTANT:
+                             *
+                             * The content was already loaded above.
+                             * Do NOT call loadFiles(bucket, prefix),
+                             * because that could cause another S3 request.
+                             *
+                             * Apply the already retrieved content directly.
                              */
                             loadFiles(
                                     bucket,
-                                    prefix);
+                                    prefix,
+                                    content);
 
                             updateBreadcrumb(
                                     prefix);
@@ -774,7 +786,8 @@ public class ExplorerPanel extends JPanel {
 
                         JOptionPane.showMessageDialog(
                                 this,
-                                S3ErrorResolver.getUserMessage(ex),
+                                S3ErrorResolver
+                                        .getUserMessage(ex),
                                 "Folder Load Failed",
                                 JOptionPane.ERROR_MESSAGE);
                     });
@@ -782,7 +795,7 @@ public class ExplorerPanel extends JPanel {
                     return null;
                 });
     }
-
+    
     private void loadFiles(
             String bucket,
             String prefix) {
@@ -886,6 +899,54 @@ public class ExplorerPanel extends JPanel {
                 });
     }
 
+    private void loadFiles(
+            String bucket,
+            String prefix,
+            LimitedFolderContent content) {
+
+        final long generation =
+                fileLoadGeneration.incrementAndGet();
+
+        currentFileBucket = bucket;
+        currentFilePrefix = prefix;
+
+        setFileTableLoading(true);
+
+        showOperationDialog(
+                OperationDialogType.FILE_TABLE,
+                "<html>"
+                        + "<b>Preparing file table...</b><br><br>"
+                        + "<b>Bucket:</b> "
+                        + bucket
+                        + "<br><br>"
+                        + "<b>Folder:</b> "
+                        + (prefix == null || prefix.isBlank()
+                        ? "/"
+                        : prefix)
+                        + "</html>");
+
+        SwingUtilities.invokeLater(() -> {
+
+            if (generation !=
+                    fileLoadGeneration.get()) {
+                return;
+            }
+
+            updateFileFolderInfo(
+                    content);
+
+            applyLimitedFolderContent(
+                    bucket,
+                    prefix,
+                    content);
+
+            setFileTableLoading(false);
+
+            hideOperationDialog(
+                    OperationDialogType.FILE_TABLE);
+        });
+    }
+    
     private void bindEvents() {
         themeCombo.addActionListener(e -> {
             UITheme theme = (UITheme) themeCombo.getSelectedItem();
