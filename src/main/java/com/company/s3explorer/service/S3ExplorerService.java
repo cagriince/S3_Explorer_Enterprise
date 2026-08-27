@@ -299,20 +299,53 @@ public class S3ExplorerService {
                 response.nextContinuationToken(),
                 response.isTruncated());
     }
-    
-    public List<String> listFolders(String bucket, String prefix) {
-        ListObjectsV2Request request =
-                ListObjectsV2Request.builder()
-                        .bucket(bucket)
-                        .delimiter("/")
-                        .prefix(prefix == null ? "" : prefix)
-                        .build();
 
-        return client.listObjectsV2(request)
-                .commonPrefixes()
-                .stream()
-                .map(CommonPrefix::prefix)
-                .toList();
+    public List<String> listFolders(
+            String bucket,
+            String prefix) {
+
+        List<String> folders =
+                new ArrayList<>();
+
+        String continuationToken = null;
+
+        do {
+
+            ListObjectsV2Request.Builder builder =
+                    ListObjectsV2Request.builder()
+                            .bucket(bucket)
+                            .delimiter("/")
+                            .prefix(
+                                    prefix == null
+                                            ? ""
+                                            : prefix)
+                            .maxKeys(500);
+
+            if (continuationToken != null
+                    && !continuationToken.isBlank()) {
+
+                builder.continuationToken(
+                        continuationToken);
+            }
+
+            ListObjectsV2Response response =
+                    client.listObjectsV2(
+                            builder.build());
+
+            for (CommonPrefix commonPrefix :
+                    response.commonPrefixes()) {
+
+                folders.add(
+                        commonPrefix.prefix());
+            }
+
+            continuationToken =
+                    response.nextContinuationToken();
+
+        } while (continuationToken != null
+                && !continuationToken.isBlank());
+
+        return folders;
     }
 
     public HeadObjectResponse getObject(String bucket, String key) {

@@ -12,8 +12,6 @@ import com.company.s3explorer.transfer.event.TransferListener;
 import com.company.s3explorer.transfer.manager.TransferManager;
 import com.company.s3explorer.transfer.model.TransferGroup;
 import com.company.s3explorer.transfer.model.TransferTask;
-import com.company.s3explorer.transfer.renderer.FileSizeRenderer;
-import com.company.s3explorer.transfer.renderer.InstantRenderer;
 import com.company.s3explorer.ui.action.ExplorerAction;
 import com.company.s3explorer.ui.icons.IconProvider;
 import com.company.s3explorer.ui.repository.RepositoryPanel;
@@ -26,15 +24,8 @@ import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import javax.swing.Timer;
-import javax.swing.border.BevelBorder;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.LineBorder;
-import javax.swing.event.PopupMenuEvent;
-import javax.swing.event.PopupMenuListener;
-import javax.swing.event.TreeExpansionEvent;
-import javax.swing.event.TreeWillExpandListener;
-import javax.swing.table.TableColumn;
-import javax.swing.tree.DefaultTreeCellRenderer;
 import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreePath;
 import java.awt.*;
@@ -59,24 +50,10 @@ public class ExplorerPanel extends JPanel {
 
     private static final int OPERATION_DIALOG_DELAY_MS = 250;
     private static final Integer[] FILE_TABLE_ROW_LIMITS = {
-            100,
-            250,
-            500,
-            1000,
-            2000,
-            5000,
-            10000,
-            20000,
-            50000,
-            100000,
-            200000,
-            500000,
-            1000000,
-            10000000
+            100, 250, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000, 10000000
     };
     private static final Integer[] THREAD_COUNTS = {
-            1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
-            15, 20, 25, 30, 40, 50, 60, 80, 100
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30, 40, 50, 60, 80, 100
     };
 
     private ExplorerView view;
@@ -329,12 +306,6 @@ public class ExplorerPanel extends JPanel {
         panelActionMap.put("explorerGoParent", goToParentAction);
     }
 
-
-
-
-
-
-
     private JSplitPane createMainSplit() {
         JSplitPane mainSplit = view.createMainSplit();
 
@@ -356,20 +327,6 @@ public class ExplorerPanel extends JPanel {
 
         return mainSplit;
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     public void updateActionStates() {
         boolean folderSelected = this.getSelectedFolderNode() != null;
