@@ -1,10 +1,6 @@
 package com.company.s3explorer.ui.explorer;
 
-import com.company.s3explorer.service.BoundedSortedFileCollection;
-import com.company.s3explorer.service.FileTableSortSpec;
-import com.company.s3explorer.service.FolderDiscoveryListener;
-import com.company.s3explorer.service.LimitedFolderContent;
-import com.company.s3explorer.service.S3ExplorerService;
+import com.company.s3explorer.service.*;
 
 import java.text.CollationKey;
 import java.util.Map;
@@ -176,6 +172,75 @@ public final class ExplorerContentLoader {
                 null);
     }
 
+    public CompletableFuture<LimitedFolderContent> loadFolders(
+            ExecutorService executor,
+            String bucket,
+            String prefix,
+            FolderDiscoveryListener discoveryListener) {
+
+        Objects.requireNonNull(
+                executor,
+                "executor");
+
+        Objects.requireNonNull(
+                bucket,
+                "bucket");
+
+        Objects.requireNonNull(
+                prefix,
+                "prefix");
+
+        String loadKey =
+                bucket
+                        + "\u0000"
+                        + prefix
+                        + "\u0000FOLDERS_ONLY";
+
+        CompletableFuture<LimitedFolderContent> existing =
+                inFlightLoads.get(loadKey);
+
+        if (existing != null) {
+            return existing;
+        }
+
+        CompletableFuture<LimitedFolderContent> created =
+                CompletableFuture.supplyAsync(
+                        () -> {
+
+                            S3ExplorerService service =
+                                    Objects.requireNonNull(
+                                            serviceSupplier.get(),
+                                            "serviceSupplier returned null");
+
+                            return service.listFolderWithLimit(
+                                    bucket,
+                                    prefix,
+                                    1,
+                                    FileTableSortSpec.defaultSpec(),
+                                    collationKeyCache,
+                                    discoveryListener,
+                                    FolderContentMode.FOLDERS_ONLY);
+                        },
+                        executor);
+
+        CompletableFuture<LimitedFolderContent> actual =
+                inFlightLoads.putIfAbsent(
+                        loadKey,
+                        created);
+
+        if (actual != null) {
+            return actual;
+        }
+
+        created.whenComplete(
+                (result, throwable) ->
+                        inFlightLoads.remove(
+                                loadKey,
+                                created));
+
+        return created;
+    }
+    
     /**
      * Returns a complete cached result.
      *

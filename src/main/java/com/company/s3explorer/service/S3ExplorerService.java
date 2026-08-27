@@ -255,6 +255,137 @@ public class S3ExplorerService {
                 fileLimitReached,
                 scannedFileCount);
     }
+
+    public LimitedFolderContent listFolderWithLimit(
+            String bucket,
+            String prefix,
+            int fileLimit,
+            FileTableSortSpec sortSpec,
+            Map<String, CollationKey> collationKeyCache,
+            FolderDiscoveryListener discoveryListener,
+            FolderContentMode contentMode) {
+
+        if (fileLimit <= 0) {
+            throw new IllegalArgumentException(
+                    "fileLimit must be greater than zero");
+        }
+
+        if (sortSpec == null) {
+            sortSpec =
+                    FileTableSortSpec.defaultSpec();
+        }
+
+        if (contentMode == null) {
+            contentMode =
+                    FolderContentMode.FOLDERS_AND_FILES;
+        }
+
+        Set<String> folders =
+                new LinkedHashSet<>();
+
+        BoundedSortedFileCollection files =
+                contentMode == FolderContentMode.FOLDERS_AND_FILES
+                        ? new BoundedSortedFileCollection(
+                        fileLimit,
+                        sortSpec.createFileComparator(
+                                collationKeyCache))
+                        : null;
+
+        String continuationToken = null;
+
+        long scannedFileCount = 0;
+
+        do {
+
+            ListObjectsV2Request.Builder builder =
+                    ListObjectsV2Request.builder()
+                            .bucket(bucket)
+                            .prefix(
+                                    prefix == null
+                                            ? ""
+                                            : prefix)
+                            .delimiter("/")
+                            .maxKeys(500);
+
+            if (continuationToken != null
+                    && !continuationToken.isBlank()) {
+
+                builder.continuationToken(
+                        continuationToken);
+            }
+
+            ListObjectsV2Response response =
+                    client.listObjectsV2(
+                            builder.build());
+
+            /*
+             * Folders are always collected,
+             * regardless of the file limit.
+             */
+            for (CommonPrefix commonPrefix :
+                    response.commonPrefixes()) {
+
+                folders.add(
+                        commonPrefix.prefix());
+            }
+
+            /*
+             * In FOLDERS_ONLY mode we deliberately
+             * do not inspect file objects.
+             */
+            if (contentMode
+                    == FolderContentMode.FOLDERS_AND_FILES) {
+
+                for (S3Object object :
+                        response.contents()) {
+
+                    if (object.key().equals(prefix)) {
+                        continue;
+                    }
+
+                    if (object.key().endsWith("/")) {
+                        continue;
+                    }
+
+                    scannedFileCount++;
+
+                    files.add(object);
+                }
+            }
+
+            if (discoveryListener != null) {
+
+                discoveryListener.onDiscovery(
+                        scannedFileCount,
+                        folders.size());
+            }
+
+            continuationToken =
+                    response.nextContinuationToken();
+
+        } while (continuationToken != null
+                && !continuationToken.isBlank());
+
+        /*
+         * FOLDERS_ONLY never reaches a file limit.
+         */
+        boolean fileLimitReached =
+                contentMode
+                        == FolderContentMode.FOLDERS_AND_FILES
+                        && scannedFileCount > files.size();
+
+        List<S3Object> fileList =
+                contentMode
+                        == FolderContentMode.FOLDERS_AND_FILES
+                        ? files.toList()
+                        : List.of();
+
+        return new LimitedFolderContent(
+                new ArrayList<>(folders),
+                fileList,
+                fileLimitReached,
+                scannedFileCount);
+    }
     
     public FolderContentPage listFolderPage(
             String bucket,
