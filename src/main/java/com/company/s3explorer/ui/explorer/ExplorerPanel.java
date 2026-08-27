@@ -35,10 +35,8 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
 import java.nio.file.Path;
-import java.text.CollationKey;
 import java.util.*;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
@@ -1605,7 +1603,7 @@ public class ExplorerPanel extends JPanel {
         String prefix =
                 getCurrentPrefix();
 
-        invalidateFileContentCache(
+        contentLoader.invalidate(
                 bucket,
                 prefix);
 
@@ -1616,26 +1614,6 @@ public class ExplorerPanel extends JPanel {
                 prefix);
 
         updateActionStates();
-    }
-
-    private void invalidateFileContentCache(
-            String bucket,
-            String prefix) {
-
-        if (bucket == null
-                || prefix == null) {
-
-            return;
-        }
-
-        log.debug(
-                "[FILE CACHE INVALIDATE] bucket={} prefix={}",
-                bucket,
-                prefix);
-
-        contentLoader.invalidate(
-                bucket,
-                prefix);
     }
 
     public void updateBreadcrumb(String prefix) {
