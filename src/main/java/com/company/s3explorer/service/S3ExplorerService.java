@@ -157,102 +157,14 @@ public class S3ExplorerService {
             Map<String, CollationKey> collationKeyCache,
             FolderDiscoveryListener discoveryListener) {
 
-        if (fileLimit <= 0) {
-            throw new IllegalArgumentException(
-                    "fileLimit must be greater than zero");
-        }
-
-        if (sortSpec == null) {
-            sortSpec =
-                    FileTableSortSpec.defaultSpec();
-        }
-
-        Set<String> folders =
-                new LinkedHashSet<>();
-
-        BoundedSortedFileCollection files =
-                new BoundedSortedFileCollection(
-                        fileLimit,
-                        sortSpec.createFileComparator(
-                                collationKeyCache));
-
-        String continuationToken = null;
-
-        long scannedFileCount = 0;
-
-        do {
-
-            ListObjectsV2Request.Builder builder =
-                    ListObjectsV2Request.builder()
-                            .bucket(bucket)
-                            .prefix(
-                                    prefix == null
-                                            ? ""
-                                            : prefix)
-                            .delimiter("/")
-                            .maxKeys(500);
-
-            if (continuationToken != null
-                    && !continuationToken.isBlank()) {
-
-                builder.continuationToken(
-                        continuationToken);
-            }
-
-            ListObjectsV2Response response =
-                    client.listObjectsV2(
-                            builder.build());
-
-            for (CommonPrefix commonPrefix :
-                    response.commonPrefixes()) {
-
-                folders.add(
-                        commonPrefix.prefix());
-            }
-
-            for (S3Object object :
-                    response.contents()) {
-
-                if (object.key().equals(prefix)) {
-                    continue;
-                }
-
-                if (object.key().endsWith("/")) {
-                    continue;
-                }
-
-                scannedFileCount++;
-
-                files.add(object);
-            }
-
-            /*
-             * Bu noktada bir S3 sayfası tamamen işlendi.
-             *
-             * Her dosyada callback çağırmıyoruz.
-             * Böylece UI tarafına gereksiz yük bindirmiyoruz.
-             */
-            if (discoveryListener != null) {
-
-                discoveryListener.onDiscovery(
-                        scannedFileCount,
-                        folders.size());
-            }
-
-            continuationToken =
-                    response.nextContinuationToken();
-
-        } while (continuationToken != null
-                && !continuationToken.isBlank());
-
-        boolean fileLimitReached =
-                scannedFileCount > files.size();
-
-        return new LimitedFolderContent(
-                new ArrayList<>(folders),
-                files.toList(),
-                fileLimitReached,
-                scannedFileCount);
+        return listFolderWithLimit(
+                bucket,
+                prefix,
+                fileLimit,
+                sortSpec,
+                collationKeyCache,
+                discoveryListener,
+                FolderContentMode.FOLDERS_AND_FILES);
     }
 
     public LimitedFolderContent listFolderWithLimit(
