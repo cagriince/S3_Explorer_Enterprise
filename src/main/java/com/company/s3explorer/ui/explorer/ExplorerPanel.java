@@ -78,9 +78,6 @@ public class ExplorerPanel extends JPanel {
     private final Map<S3TreeNode, Long> treeLoadGenerations = new IdentityHashMap<>();
     private String currentFileBucket;
     private String currentFilePrefix;
-    private LimitedFolderContent currentFolderFullContent;
-    private String currentFolderFullContentBucket;
-    private String currentFolderFullContentPrefix;
 
     private JComboBox<Integer> fileTableRowLimitCombo;
     private Consumer<Integer> fileTableRowLimitSelectionListener;
@@ -646,10 +643,6 @@ public class ExplorerPanel extends JPanel {
                     currentFileBucket = null;
                     currentFilePrefix = null;
 
-                    currentFolderFullContent = null;
-                    currentFolderFullContentBucket = null;
-                    currentFolderFullContentPrefix = null;
-
                     contentLoader.clearCollationKeyCache();
 
                     JOptionPane.showMessageDialog(
@@ -1028,10 +1021,6 @@ public class ExplorerPanel extends JPanel {
 
         currentFileBucket = null;
         currentFilePrefix = null;
-
-        currentFolderFullContent = null;
-        currentFolderFullContentBucket = null;
-        currentFolderFullContentPrefix = null;
 
         contentLoader.clearCollationKeyCache();
 
@@ -1634,22 +1623,14 @@ public class ExplorerPanel extends JPanel {
             return;
         }
 
-        if (Objects.equals(
-                currentFolderFullContentBucket,
-                bucket)
-                && Objects.equals(
-                currentFolderFullContentPrefix,
-                prefix)) {
+        log.debug(
+                "[FILE CACHE INVALIDATE] bucket={} prefix={}",
+                bucket,
+                prefix);
 
-            log.debug(
-                    "[FILE CACHE INVALIDATE] bucket={} prefix={}",
-                    bucket,
-                    prefix);
-
-            currentFolderFullContent = null;
-            currentFolderFullContentBucket = null;
-            currentFolderFullContentPrefix = null;
-        }
+        contentLoader.invalidate(
+                bucket,
+                prefix);
     }
 
     public void updateBreadcrumb(String prefix) {
@@ -2380,98 +2361,6 @@ public class ExplorerPanel extends JPanel {
                 folderCount
                         + " folder(s) and "
                         + fileText);
-    }
-
-    private boolean isFullContentCached(
-            String bucket,
-            String prefix) {
-
-        if (currentFolderFullContent == null) {
-            return false;
-        }
-
-        if (currentFolderFullContentBucket == null
-                || currentFolderFullContentPrefix == null) {
-
-            return false;
-        }
-
-        /*
-         * Cache yalnızca aynı bucket + prefix için
-         * kullanılabilir.
-         */
-        if (!Objects.equals(
-                currentFolderFullContentBucket,
-                bucket)) {
-
-            return false;
-        }
-
-        if (!Objects.equals(
-                currentFolderFullContentPrefix,
-                prefix)) {
-
-            return false;
-        }
-
-        /*
-         * Cache'in temsil ettiği içerik gerçekten
-         * tamamlanmış olmalı.
-         *
-         * fileLimitReached=true ise elimizde yalnızca
-         * ilk sayfa vardır ve bunu "tam cache" olarak
-         * kullanamayız.
-         */
-        return !currentFolderFullContent.fileLimitReached();
-    }
-
-    private void applyCachedFolderContent(
-            String bucket,
-            String prefix,
-            int fileLimit,
-            FileTableSortSpec sortSpec,
-            long generation) {
-
-        if (generation != fileLoadGeneration.get()) {
-            return;
-        }
-
-        LimitedFolderContent cached =
-                currentFolderFullContent;
-
-        if (cached == null) {
-            return;
-        }
-
-        BoundedSortedFileCollection bounded =
-                new BoundedSortedFileCollection(
-                        fileLimit,
-                        sortSpec.createFileComparator(
-                                contentLoader.getCollationKeyCache()));
-
-        /*
-         * Cache'teki TÜM dosyaları yeniden sırala.
-         * Burada S3 çağrısı yok.
-         */
-        bounded.addAll(cached.files());
-
-        boolean fileLimitReached =
-                cached.scannedFileCount()
-                        > bounded.size();
-
-        LimitedFolderContent displayContent =
-                new LimitedFolderContent(
-                        cached.folders(),
-                        bounded.toList(),
-                        fileLimitReached,
-                        cached.scannedFileCount());
-
-        applyLimitedFolderContent(
-                bucket,
-                prefix,
-                displayContent);
-
-        setFileTableLoading(false);
     }
 
     private static void alignComboBoxRight(
