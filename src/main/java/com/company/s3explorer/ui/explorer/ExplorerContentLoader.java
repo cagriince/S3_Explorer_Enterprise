@@ -45,8 +45,7 @@ public final class ExplorerContentLoader {
     private volatile String cachedPrefix;
 
     public ExplorerContentLoader(
-            Supplier<S3ExplorerService> serviceSupplier,
-            Map<String, CollationKey> collationKeyCache) {
+            Supplier<S3ExplorerService> serviceSupplier) {
 
         this.serviceSupplier =
                 Objects.requireNonNull(
@@ -54,11 +53,17 @@ public final class ExplorerContentLoader {
                         "serviceSupplier");
 
         this.collationKeyCache =
-                Objects.requireNonNull(
-                        collationKeyCache,
-                        "collationKeyCache");
+                new ConcurrentHashMap<>();
     }
 
+    public Map<String, CollationKey> getCollationKeyCache() {
+        return collationKeyCache;
+    }
+
+    public void clearCollationKeyCache() {
+        collationKeyCache.clear();
+    }
+    
     /**
      * Loads both folders and files.
      *

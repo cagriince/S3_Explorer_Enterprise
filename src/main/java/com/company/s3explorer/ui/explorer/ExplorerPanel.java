@@ -82,8 +82,6 @@ public class ExplorerPanel extends JPanel {
     private String currentFolderFullContentBucket;
     private String currentFolderFullContentPrefix;
 
-    private final Map<String, CollationKey> currentFolderCollationKeyCache = new java.util.concurrent.ConcurrentHashMap<>();
-
     private JComboBox<Integer> fileTableRowLimitCombo;
     private Consumer<Integer> fileTableRowLimitSelectionListener;
 
@@ -163,8 +161,7 @@ public class ExplorerPanel extends JPanel {
                         this::refreshCurrentTable);
         this.contentLoader =
                 new ExplorerContentLoader(
-                        this::getService,
-                        currentFolderCollationKeyCache);
+                        this::getService);
         initialize();
     }
 
@@ -653,7 +650,7 @@ public class ExplorerPanel extends JPanel {
                     currentFolderFullContentBucket = null;
                     currentFolderFullContentPrefix = null;
 
-                    currentFolderCollationKeyCache.clear();
+                    contentLoader.clearCollationKeyCache();
 
                     JOptionPane.showMessageDialog(
                             this,
@@ -975,7 +972,7 @@ public class ExplorerPanel extends JPanel {
         currentFolderFullContentBucket = null;
         currentFolderFullContentPrefix = null;
 
-        currentFolderCollationKeyCache.clear();
+        contentLoader.clearCollationKeyCache();
 
         nodeCache.clear();
 
@@ -2389,7 +2386,7 @@ public class ExplorerPanel extends JPanel {
                 new BoundedSortedFileCollection(
                         fileLimit,
                         sortSpec.createFileComparator(
-                                currentFolderCollationKeyCache));
+                                contentLoader.getCollationKeyCache()));
 
         /*
          * Cache'teki TÜM dosyaları yeniden sırala.
