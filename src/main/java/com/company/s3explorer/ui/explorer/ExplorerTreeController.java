@@ -32,9 +32,6 @@ public final class ExplorerTreeController {
     private final Map<S3TreeNode, Long> treeLoadGenerations =
             new IdentityHashMap<>();
 
-    private volatile String selectedPrefix =
-            S3TreeNode.ROOT_PREFIX;
-
     public ExplorerTreeController(
             JTree folderTree,
             DefaultTreeModel treeModel,
@@ -77,9 +74,6 @@ public final class ExplorerTreeController {
                 root.getFullPrefix(),
                 root);
         
-        selectedPrefix =
-                S3TreeNode.ROOT_PREFIX;
-        
         treeModel.reload();
 
         folderTree.clearSelection();
@@ -107,9 +101,6 @@ public final class ExplorerTreeController {
         treeLoadGenerations.clear();
         nodeCache.clear();
 
-        selectedPrefix =
-                S3TreeNode.ROOT_PREFIX;
-        
         nodeCache.put(
                 root.getFullPrefix(),
                 root);
@@ -446,7 +437,14 @@ public final class ExplorerTreeController {
 
     public String getSelectedPrefix() {
 
-        return selectedPrefix;
+        S3TreeNode selectedNode =
+                getSelectedNode();
+
+        if (selectedNode == null) {
+            return S3TreeNode.ROOT_PREFIX;
+        }
+
+        return selectedNode.getFullPrefix();
     }
 
     public S3TreeNode findNodeByPrefix(
