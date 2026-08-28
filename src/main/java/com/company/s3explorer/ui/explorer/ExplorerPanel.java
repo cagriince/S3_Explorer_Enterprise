@@ -52,6 +52,7 @@ public class ExplorerPanel extends JPanel {
     private ExplorerRefreshScheduler refreshScheduler;
     private final ExplorerContentLoader contentLoader;
     private ExplorerTreeController treeController;
+    private ExplorerFileOperationController fileOperationController;
     
     private final AtomicLong fileLoadGeneration = new AtomicLong();
     private final AtomicLong operationGeneration = new AtomicLong();
@@ -313,6 +314,19 @@ public class ExplorerPanel extends JPanel {
                         () -> explorerPool,
                         this::getCurrentBucket);
 
+        fileOperationController =
+                new ExplorerFileOperationController(
+                        transferManager,
+                        () -> {
+                            RepositoryDefinition repository =
+                                    getCurrentRepository();
+
+                            return repository == null
+                                    ? null
+                                    : repository.getName();
+                        },
+                        this::getCurrentBucket);
+        
         return mainSplit;
     }
 
@@ -332,23 +346,13 @@ public class ExplorerPanel extends JPanel {
     }
 
     private void deleteObject(S3FileItem item) {
-        if (item.isParentFolder()) {
-            return;
-        }
-
-        String bucket = this.getCurrentBucket();
-        if (bucket == null) {
-            return;
-        }
 
         try {
-            if (item.isFolder()) {
-                transferManager.submitFolderDelete(item.getRepositoryName(), bucket, item.getKey());
-            }
-            else {
-                transferManager.submitDelete(item.getRepositoryName(), bucket, item.getKey(), item.getSize());
-            }
+
+            fileOperationController.delete(item);
+
         } catch (Exception ex) {
+
             SwingUtilities.invokeLater(() ->
                     JOptionPane.showMessageDialog(
                             this,
@@ -1236,24 +1240,19 @@ public class ExplorerPanel extends JPanel {
 
         treeController.selectPrefix(targetPrefix);
     }
-    
-    private void startDownload(S3FileItem item, Path destination) {
-        if (item.isParentFolder()) {
-            return;
-        }
 
-        String bucket = this.getCurrentBucket();
-        if (bucket == null) {
-            return;
-        }
+    private void startDownload(
+            S3FileItem item,
+            Path destination) {
 
         try {
-            if (item.isFolder()) {
-                transferManager.submitFolderDownload(item.getRepositoryName(), bucket, item.getKey(), destination);
-            } else {
-                transferManager.submitDownload(item.getRepositoryName(), bucket, item.getKey(), destination, item.getSize());
-            }
+
+            fileOperationController.download(
+                    item,
+                    destination);
+
         } catch (Exception ex) {
+
             SwingUtilities.invokeLater(() ->
                     JOptionPane.showMessageDialog(
                             this,
@@ -1649,76 +1648,90 @@ public class ExplorerPanel extends JPanel {
         updateActionStates();
     }
 
-    private void submitCopy(S3FileItem item, String targetBucket, String targetKey) {
-        if (item.isFolder()) {
-            transferManager.submitFolderCopy(
-                    item.getRepositoryName(),
-                    item.getBucket(),
-                    item.getKey(),
-                    this.getCurrentRepository().getName(),
-                    targetBucket,
-                    targetKey);
+    private void submitCopy(
+            S3FileItem item,
+            String targetBucket,
+            String targetKey) {
 
+        if (item == null) {
             return;
         }
 
-        if (item.getKey().equals(targetKey) && item.getBucket().equals(targetBucket)) {
+        if (item.getKey().equals(targetKey)
+                && item.getBucket().equals(targetBucket)) {
             return;
         }
 
-        if (exists(targetKey)) {
-            int result = JOptionPane.showConfirmDialog(
-                    this,
-                    "Dosya mevcut. Üzerine yazılsın mı?");
+        if (!item.isFolder()
+                && exists(targetKey)) {
+
+            int result =
+                    JOptionPane.showConfirmDialog(
+                            this,
+                            "Dosya mevcut. Üzerine yazılsın mı?");
+
             if (result != JOptionPane.YES_OPTION) {
                 return;
             }
         }
 
-        transferManager.submitCopy(
-                item.getRepositoryName(),
-                item.getBucket(),
-                item.getKey(),
-                this.getCurrentRepository().getName(),
-                targetBucket,
-                targetKey,
-                item.getSize());
+        try {
+
+            fileOperationController.copy(
+                    item,
+                    targetBucket,
+                    targetKey);
+
+        } catch (Exception ex) {
+
+            SwingUtilities.invokeLater(() ->
+                    JOptionPane.showMessageDialog(
+                            this,
+                            ex.getMessage()));
+        }
     }
 
-    private void submitMove(S3FileItem item, String targetBucket, String targetKey) {
-        if (item.isFolder()) {
-            transferManager.submitFolderMove(
-                    item.getRepositoryName(),
-                    item.getBucket(),
-                    item.getKey(),
-                    this.getCurrentRepository().getName(),
-                    targetBucket,
-                    targetKey);
+    private void submitMove(
+            S3FileItem item,
+            String targetBucket,
+            String targetKey) {
 
+        if (item == null) {
             return;
         }
 
-        if (item.getKey().equals(targetKey) && item.getBucket().equals(targetBucket)) {
+        if (item.getKey().equals(targetKey)
+                && item.getBucket().equals(targetBucket)) {
             return;
         }
 
-        if (exists(targetKey)) {
-            int result = JOptionPane.showConfirmDialog(
-                    this,
-                    "Dosya mevcut. Üzerine yazılsın mı?");
+        if (!item.isFolder()
+                && exists(targetKey)) {
+
+            int result =
+                    JOptionPane.showConfirmDialog(
+                            this,
+                            "Dosya mevcut. Üzerine yazılsın mı?");
+
             if (result != JOptionPane.YES_OPTION) {
                 return;
             }
         }
 
-        transferManager.submitMove(
-                item.getRepositoryName(),
-                item.getBucket(),
-                item.getKey(),
-                this.getCurrentRepository().getName(),
-                targetBucket,
-                targetKey,
-                item.getSize());
+        try {
+
+            fileOperationController.move(
+                    item,
+                    targetBucket,
+                    targetKey);
+
+        } catch (Exception ex) {
+
+            SwingUtilities.invokeLater(() ->
+                    JOptionPane.showMessageDialog(
+                            this,
+                            ex.getMessage()));
+        }
     }
 
     private List<S3FileItem> getSelectedItems() {
