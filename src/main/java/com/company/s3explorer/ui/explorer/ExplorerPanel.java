@@ -264,7 +264,7 @@ public class ExplorerPanel extends JPanel {
         uploadAction = new ExplorerAction("Upload", this::uploadFile);
         newFolderAction = new ExplorerAction("New Folder", this::createFolder);
         downloadAction = new ExplorerAction("Download", this::downloadSelected);
-        deleteAction = new ExplorerAction("Delete", this::deleteSelected);
+        deleteAction = new ExplorerAction("Delete", this::deleteSelectedWithFocusRestore);
         copyAction = new ExplorerAction("Copy", this::copySelected);
         cutAction = new ExplorerAction("Cut", this::moveSelected);
         pasteAction = new ExplorerAction("Paste", this::pasteClipboard);
@@ -1886,9 +1886,6 @@ public class ExplorerPanel extends JPanel {
     }
 
     public void deleteSelected() {
-        restoreFileTableFocusAfterDelete =
-                fileTable.hasFocus();
-
         log.info(
                 "[DELETE] invoked selectedRows={} tableFocus={} restoreFocus={}",
                 fileTable.getSelectedRowCount(),
@@ -1929,6 +1926,22 @@ public class ExplorerPanel extends JPanel {
         }
     }
 
+    private void deleteSelectedWithFocusRestore() {
+
+        boolean hasFileSelection =
+                fileTable.getSelectedRowCount() > 0;
+
+        restoreFileTableFocusAfterDelete =
+                hasFileSelection;
+
+        log.info(
+                "[DELETE] trigger selectedRows={} restoreFocus={}",
+                fileTable.getSelectedRowCount(),
+                restoreFileTableFocusAfterDelete);
+
+        deleteSelected();
+    }
+    
     private void showRepositoryManager() {
         RepositoryPanel panel =
                 new RepositoryPanel(
