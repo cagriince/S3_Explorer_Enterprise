@@ -44,15 +44,19 @@ public final class ExplorerClipboardController {
         return clipboard.isEmpty();
     }
 
+    public void clear() {
+        clipboard.clear();
+    }
+
+    public boolean canPaste() {
+        return !clipboard.isEmpty();
+    }
+
     public List<S3FileItem> getItems() {
         return clipboard.getItems();
     }
 
     public ExplorerClipboard.Operation getOperation() {
         return clipboard.getOperation();
-    }
-
-    public void clear() {
-        clipboard.clear();
     }
 }

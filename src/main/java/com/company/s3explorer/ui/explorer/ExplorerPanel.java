@@ -1629,37 +1629,102 @@ public class ExplorerPanel extends JPanel {
 
         updateActionStates();
     }
-    
+
     private void pasteClipboard() {
+
         if (clipboard.isEmpty()) {
             return;
         }
 
-        String targetBucket = this.getCurrentBucket();
-        String targetPrefix = this.getCurrentPrefix();
+        String targetBucket =
+                this.getCurrentBucket();
 
-        for (S3FileItem item : clipboard.getItems()) {
-            String targetKey = S3Util.combineKey(targetPrefix, item.getName());
+        String targetPrefix =
+                this.getCurrentPrefix();
 
-            // Aynı klasöre yapıştırmayı engelle
-            if (item.getBucket().equals(targetBucket) && item.getKey().equals(targetKey)) {
+        if (targetBucket == null
+                || targetPrefix == null) {
+            return;
+        }
+
+        List<S3FileItem> items =
+                new ArrayList<>(
+                        clipboard.getItems());
+
+        ExplorerClipboard.Operation operation =
+                clipboard.getOperation();
+
+        executePaste(
+                targetBucket,
+                targetPrefix,
+                items,
+                operation);
+    }
+
+    private void executePaste(
+            String targetBucket,
+            String targetPrefix,
+            List<S3FileItem> items,
+            ExplorerClipboard.Operation operation) {
+
+        if (targetBucket == null
+                || targetPrefix == null
+                || items == null
+                || items.isEmpty()
+                || operation == null) {
+            return;
+        }
+
+        for (S3FileItem item : items) {
+
+            if (item == null) {
                 continue;
             }
 
-            if (clipboard.getOperation() == ExplorerClipboard.Operation.COPY) {
-                submitCopy(item, targetBucket, targetKey);
+            String targetKey =
+                    S3Util.combineKey(
+                            targetPrefix,
+                            item.getName());
+
+            /*
+             * Aynı klasöre aynı isimle yapıştırmayı engelle.
+             */
+            if (item.getBucket().equals(targetBucket)
+                    && item.getKey().equals(targetKey)) {
+
+                continue;
+            }
+
+            if (operation ==
+                    ExplorerClipboard.Operation.COPY) {
+
+                submitCopy(
+                        item,
+                        targetBucket,
+                        targetKey);
+
             } else {
-                submitMove(item, targetBucket, targetKey);
+
+                submitMove(
+                        item,
+                        targetBucket,
+                        targetKey);
             }
         }
 
-        if (clipboard.getOperation() == ExplorerClipboard.Operation.MOVE) {
+        /*
+         * MOVE işleminden sonra clipboard temizlenir.
+         * COPY işleminde clipboard korunur.
+         */
+        if (operation ==
+                ExplorerClipboard.Operation.MOVE) {
+
             clipboard.clear();
         }
 
         updateActionStates();
     }
-
+    
     private void submitCopy(
             S3FileItem item,
             String targetBucket,
@@ -1848,7 +1913,7 @@ public class ExplorerPanel extends JPanel {
 
     private void deleteSelectedWithFocusRestore() {
         restoreFileTableFocusAfterDelete =
-                view.getFileTable().getSelectedRowCount() > 0;;
+                view.getFileTable().getSelectedRowCount() > 0;
 
         log.info(
                 "[DELETE] trigger selectedRows={} restoreFocus={}",
