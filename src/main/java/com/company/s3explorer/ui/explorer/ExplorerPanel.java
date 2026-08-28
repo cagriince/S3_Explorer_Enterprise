@@ -890,19 +890,7 @@ public class ExplorerPanel extends JPanel {
                                     OperationDialogType.FILE_TABLE);
 
                             if (restoreFocus) {
-
-                                SwingUtilities.invokeLater(() -> {
-
-                                    fileTable.setFocusable(true);
-                                    fileTable.requestFocusInWindow();
-
-                                    log.info(
-                                            "[FILE TABLE FOCUS RESTORE] focusOwner={} tableFocus={}",
-                                            KeyboardFocusManager
-                                                    .getCurrentKeyboardFocusManager()
-                                                    .getFocusOwner(),
-                                            fileTable.hasFocus());
-                                });
+                                restoreFileTableFocus();
                             }
                         }))
                 .exceptionally(ex -> {
@@ -2707,23 +2695,51 @@ public class ExplorerPanel extends JPanel {
 
     private void restoreFileTableFocus() {
 
+        restoreFileTableFocus(0);
+    }
+
+    private void restoreFileTableFocus(int attempt) {
+
         SwingUtilities.invokeLater(() -> {
 
-            fileTable.requestFocusInWindow();
+            if (fileTable.hasFocus()) {
 
-            SwingUtilities.invokeLater(() -> {
-
-                boolean result =
-                        fileTable.requestFocusInWindow();
-
-                log.debug(
-                        "[FILE TABLE FOCUS RESTORE] result={} focusOwner={} tableFocus={}",
-                        result,
+                log.info(
+                        "[FILE TABLE FOCUS RESTORE] success attempt={} focusOwner={} tableFocus=true",
+                        attempt,
                         KeyboardFocusManager
                                 .getCurrentKeyboardFocusManager()
-                                .getFocusOwner(),
-                        fileTable.hasFocus());
-            });
+                                .getFocusOwner());
+
+                return;
+            }
+
+            boolean requested =
+                    fileTable.requestFocusInWindow();
+
+            Component focusOwner =
+                    KeyboardFocusManager
+                            .getCurrentKeyboardFocusManager()
+                            .getFocusOwner();
+
+            log.debug(
+                    "[FILE TABLE FOCUS RESTORE] attempt={} requested={} focusOwner={} tableFocus={}",
+                    attempt,
+                    requested,
+                    focusOwner,
+                    fileTable.hasFocus());
+
+            if (attempt < 5) {
+
+                Timer retry =
+                        new Timer(
+                                40,
+                                e -> restoreFileTableFocus(
+                                        attempt + 1));
+
+                retry.setRepeats(false);
+                retry.start();
+            }
         });
     }
 }
