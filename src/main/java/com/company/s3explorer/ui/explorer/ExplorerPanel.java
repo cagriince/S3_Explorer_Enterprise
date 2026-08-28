@@ -1098,11 +1098,17 @@ public class ExplorerPanel extends JPanel {
 
                 SwingUtilities.invokeLater(() -> {
 
-                    fileTable.requestFocusInWindow();
+                    boolean focusResult =
+                            fileTable.requestFocusInWindow();
 
                     log.info(
-                            "[FILE TABLE FOCUS] requested after tree selection prefix={}",
-                            prefix);
+                            "[FILE TABLE FOCUS] requested prefix={} result={} focusOwner={} tableFocus={}",
+                            prefix,
+                            focusResult,
+                            KeyboardFocusManager
+                                    .getCurrentKeyboardFocusManager()
+                                    .getFocusOwner(),
+                            fileTable.hasFocus());
                 });
             });
         });

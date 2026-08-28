@@ -299,31 +299,32 @@ public final class ExplorerTreeController {
                         bucket,
                         prefix,
                         null)
-                .thenAccept(content ->
-                        SwingUtilities.invokeLater(() -> {
+                .thenCompose(content -> {
+
+                    CompletableFuture<Void> applied =
+                            new CompletableFuture<>();
+
+                    SwingUtilities.invokeLater(() -> {
+
+                        try {
 
                             Long currentGeneration =
                                     treeLoadGenerations.get(
                                             parentNode);
 
-                            /*
-                             * Old async result.
-                             */
                             if (!Objects.equals(
                                     generation,
                                     currentGeneration)) {
 
+                                applied.complete(null);
                                 return;
                             }
 
-                            /*
-                             * Node disappeared while request
-                             * was running.
-                             */
                             if (parentNode.getParent() == null
                                     && parentNode
                                     != treeModel.getRoot()) {
 
+                                applied.complete(null);
                                 return;
                             }
 
@@ -346,9 +347,6 @@ public final class ExplorerTreeController {
                                         folder,
                                         child);
 
-                                /*
-                                 * Child folders remain lazy.
-                                 */
                                 child.add(
                                         new S3TreeNode(
                                                 S3TreeNode.LOADING,
@@ -357,88 +355,83 @@ public final class ExplorerTreeController {
 
                                 parentNode.add(child);
                             }
+
+                            TreePath selectionBeforeReload =
+                                    folderTree.getSelectionPath();
+
                             log.info(
                                     "[TREE MODEL RELOAD] parent={} childCount={} selectedPath={}",
                                     parentNode.getFullPrefix(),
                                     parentNode.getChildCount(),
-                                    folderTree.getSelectionPath());
-                            TreePath selectionBeforeReload =
-                                    folderTree.getSelectionPath();
+                                    selectionBeforeReload);
 
                             treeModel.reload(parentNode);
 
                             if (selectionBeforeReload != null) {
 
-                                SwingUtilities.invokeLater(() -> {
-
-                                    Object last =
-                                            selectionBeforeReload.getLastPathComponent();
-
-                                    if (!(last instanceof S3TreeNode selectedNode)) {
-                                        return;
-                                    }
-
-                                    S3TreeNode restoredNode =
-                                            findNodeByPrefix(
-                                                    selectedNode.getFullPrefix());
-
-                                    if (restoredNode == null) {
-                                        return;
-                                    }
-
-                                    TreePath restoredPath =
-                                            new TreePath(
-                                                    restoredNode.getPath());
-
-                                    folderTree.setSelectionPath(
-                                            restoredPath);
-
-                                    folderTree.scrollPathToVisible(
-                                            restoredPath);
-
-                                    log.info(
-                                            "[TREE SELECTION RESTORE] prefix={} selected={} path={}",
-                                            restoredNode.getFullPrefix(),
-                                            folderTree.isPathSelected(
-                                                    restoredPath),
-                                            restoredPath);
-                                });
+                                SwingUtilities.invokeLater(() ->
+                                        restoreSelection(
+                                                selectionBeforeReload));
                             }
-                        }))
-                .exceptionally(ex -> {
 
-                    log.error(
-                            "[TREE LOAD] failed bucket={} prefix={}",
-                            bucket,
-                            prefix,
-                            ex);
+                            /*
+                             * ÖNEMLİ:
+                             *
+                             * Tree child'larının gerçekten model'e
+                             * uygulanmasından sonra Future tamamlanıyor.
+                             */
+                            applied.complete(null);
 
-                    SwingUtilities.invokeLater(() -> {
+                        } catch (Exception ex) {
 
-                        Long currentGeneration =
-                                treeLoadGenerations.get(
-                                        parentNode);
-
-                        if (!Objects.equals(
-                                generation,
-                                currentGeneration)) {
-
-                            return;
+                            applied.completeExceptionally(ex);
                         }
-
-                        parentNode.removeAllChildren();
-                        log.info(
-                                "[TREE MODEL RELOAD] parent={} childCount={} selectedPath={}",
-                                parentNode.getFullPrefix(),
-                                parentNode.getChildCount(),
-                                folderTree.getSelectionPath());
-                        treeModel.reload(parentNode);
                     });
 
-                    return null;
+                    return applied;
                 });
     }
 
+    private void restoreSelection(
+            TreePath selectionPath) {
+
+        if (selectionPath == null) {
+            return;
+        }
+
+        Object last =
+                selectionPath.getLastPathComponent();
+
+        if (!(last instanceof S3TreeNode selectedNode)) {
+            return;
+        }
+
+        S3TreeNode restoredNode =
+                findNodeByPrefix(
+                        selectedNode.getFullPrefix());
+
+        if (restoredNode == null) {
+            return;
+        }
+
+        TreePath restoredPath =
+                new TreePath(
+                        restoredNode.getPath());
+
+        folderTree.setSelectionPath(
+                restoredPath);
+
+        folderTree.scrollPathToVisible(
+                restoredPath);
+
+        log.info(
+                "[TREE SELECTION RESTORE] prefix={} selected={} path={}",
+                restoredNode.getFullPrefix(),
+                folderTree.isPathSelected(
+                        restoredPath),
+                restoredPath);
+    }
+    
     /*
      * ---------------------------------------------------------
      * NODE LOOKUP
@@ -801,9 +794,6 @@ public final class ExplorerTreeController {
 
             return null;
         }
-
-        String parentPrefix =
-                parent.getFullPrefix();
 
         S3TreeNode best =
                 null;
