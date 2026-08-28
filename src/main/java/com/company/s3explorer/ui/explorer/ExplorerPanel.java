@@ -26,7 +26,6 @@ import javax.swing.*;
 import javax.swing.Timer;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.LineBorder;
-import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreePath;
 import java.awt.*;
 import java.awt.event.ActionEvent;
@@ -47,12 +46,6 @@ public class ExplorerPanel extends JPanel {
     private static final Logger log = LoggerFactory.getLogger(ExplorerPanel.class);
 
     private static final int OPERATION_DIALOG_DELAY_MS = 250;
-    private static final Integer[] FILE_TABLE_ROW_LIMITS = {
-            100, 250, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000, 10000000
-    };
-    private static final Integer[] THREAD_COUNTS = {
-            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30, 40, 50, 60, 80, 100
-    };
 
     private ExplorerView view;
 
@@ -60,28 +53,11 @@ public class ExplorerPanel extends JPanel {
     private final ExplorerContentLoader contentLoader;
     private ExplorerTreeController treeController;
     
-    private JComboBox<UITheme> themeCombo;
-    private JComboBox<RepositoryDefinition> repositoryCombo;
-    private JLabel repositoryLabel;
-    private JComboBox<String> bucketCombo;
-    private JLabel bucketLabel;
-
-    private DefaultTreeModel treeModel;
-
     private FileTableModel fileTableModel;
     private final AtomicLong fileLoadGeneration = new AtomicLong();
     private final AtomicLong operationGeneration = new AtomicLong();
     private String currentFileBucket;
     private String currentFilePrefix;
-
-    private JComboBox<Integer> fileTableRowLimitCombo;
-    private Consumer<Integer> fileTableRowLimitSelectionListener;
-
-    private JComboBox<Integer> threadCountCombo;
-    private Consumer<Integer> threadCountSelectionListener;
-
-    private JPanel breadcrumbPanel;
-    private JLabel fileFolderInfo;
 
     private OperationDialog connectionDialog;
     private OperationDialog bucketDialog;
@@ -93,8 +69,6 @@ public class ExplorerPanel extends JPanel {
         FILE_TABLE
     }
     private final List<OperationDialog> visibleOperationDialogs = new ArrayList<>();
-
-    private JPopupMenu filePopup;
 
     private File lastOpenedFolderToUpload;
     private File lastOpenedFolderToDownload;
@@ -117,7 +91,6 @@ public class ExplorerPanel extends JPanel {
     private String pendingBucketSelection;
     private boolean suppressBucketSelectionEvent;
     private boolean forceBucketReload;
-    private boolean suppressThreadCountSelectionEvent;
 
     private final ExplorerClipboard clipboard = new ExplorerClipboard();
 
@@ -201,7 +174,7 @@ public class ExplorerPanel extends JPanel {
 
         defineShortCuts();
 
-        fileTableRowLimitSelectionListener =
+        Consumer<Integer> fileTableRowLimitSelectionListener =
                 selectedLimit -> {
 
                     log.debug(
@@ -333,37 +306,13 @@ public class ExplorerPanel extends JPanel {
         JSplitPane mainSplit =
                 view.createMainSplit();
 
-        treeModel =
-                view.getTreeModel();
-
         fileTableModel =
                 view.getFileTableModel();
-
-        repositoryCombo =
-                view.getRepositoryCombo();
-
-        bucketCombo =
-                view.getBucketCombo();
-
-        themeCombo =
-                view.getThemeCombo();
-
-        fileTableRowLimitCombo =
-                view.getFileTableRowLimitCombo();
-
-        threadCountCombo =
-                view.getThreadCountCombo();
-
-        breadcrumbPanel =
-                view.getBreadcrumbPanel();
-
-        fileFolderInfo =
-                view.getFileFolderInfo();
 
         treeController =
                 new ExplorerTreeController(
                         view.getFolderTree(),
-                        treeModel,
+                        view.getTreeModel(),
                         contentLoader,
                         () -> explorerPool,
                         this::getCurrentBucket);
@@ -416,16 +365,16 @@ public class ExplorerPanel extends JPanel {
             try {
                 List<RepositoryDefinition> repositories = repositoryManager.getRepositories();
                 SwingUtilities.invokeLater(() -> {
-                    repositoryCombo.removeAllItems();
-                    repositoryCombo.addItem(RepositoryDefinition.EMPTY_REPOSITORY);
-                    repositories.forEach(repositoryCombo::addItem);
+                    view.getRepositoryCombo().removeAllItems();
+                    view.getRepositoryCombo().addItem(RepositoryDefinition.EMPTY_REPOSITORY);
+                    repositories.forEach(view.getRepositoryCombo()::addItem);
 
                     if (pendingRepositorySelection != null) {
-                        repositoryCombo.setSelectedItem(pendingRepositorySelection);
+                        view.getRepositoryCombo().setSelectedItem(pendingRepositorySelection);
                         pendingRepositorySelection = null;
                     }
                     else {
-                        repositoryCombo.setSelectedItem(RepositoryDefinition.EMPTY_REPOSITORY);
+                        view.getRepositoryCombo().setSelectedItem(RepositoryDefinition.EMPTY_REPOSITORY);
                     }
                 });
             } catch (Exception ex) {
@@ -445,7 +394,7 @@ public class ExplorerPanel extends JPanel {
 
         RepositoryDefinition selectedRepository =
                 (RepositoryDefinition)
-                        repositoryCombo.getSelectedItem();
+                        view.getRepositoryCombo().getSelectedItem();
 
         if (selectedRepository == null
                 || selectedRepository ==
@@ -567,12 +516,12 @@ public class ExplorerPanel extends JPanel {
                         /*
                          * ComboBox'ı yeniden doldur.
                          */
-                        bucketCombo.removeAllItems();
+                        view.getBucketCombo().removeAllItems();
 
                         for (String bucket :
                                 allBuckets) {
 
-                            bucketCombo.addItem(bucket);
+                            view.getBucketCombo().addItem(bucket);
                         }
 
                         /*
@@ -582,7 +531,7 @@ public class ExplorerPanel extends JPanel {
                                 && allBuckets.contains(
                                 previousBucket)) {
 
-                            bucketCombo.setSelectedItem(
+                            view.getBucketCombo().setSelectedItem(
                                     previousBucket);
                         }
 
@@ -590,14 +539,14 @@ public class ExplorerPanel extends JPanel {
                          * Mevcut bucket artık yoksa
                          * ilk bucket'ı seç.
                          */
-                        else if (bucketCombo.getItemCount() > 0) {
+                        else if (view.getBucketCombo().getItemCount() > 0) {
 
-                            bucketCombo.setSelectedIndex(0);
+                            view.getBucketCombo().setSelectedIndex(0);
                         }
 
                         selectedBucket =
                                 (String)
-                                        bucketCombo.getSelectedItem();
+                                        view.getBucketCombo().getSelectedItem();
 
                         log.debug(
                                 "[BUCKET LOAD RESULT] repository={} buckets={} previous={} selected={}",
@@ -964,10 +913,10 @@ public class ExplorerPanel extends JPanel {
 
     private void bindEvents() {
 
-        themeCombo.addActionListener(e -> {
+        view.getThemeCombo().addActionListener(e -> {
 
             UITheme theme =
-                    (UITheme) themeCombo.getSelectedItem();
+                    (UITheme) view.getThemeCombo().getSelectedItem();
 
             themeManager.changeTheme(theme);
 
@@ -977,7 +926,7 @@ public class ExplorerPanel extends JPanel {
             }
         });
 
-        repositoryCombo.addActionListener(e -> {
+        view.getRepositoryCombo().addActionListener(e -> {
 
             RepositoryDefinition repository =
                     this.getCurrentRepository();
@@ -995,7 +944,7 @@ public class ExplorerPanel extends JPanel {
             setSelectedRepository(repository);
         });
 
-        bucketCombo.addActionListener(e -> {
+        view.getBucketCombo().addActionListener(e -> {
 
             if (suppressBucketSelectionEvent) {
                 return;
@@ -1139,7 +1088,7 @@ public class ExplorerPanel extends JPanel {
         fileTableModel.setFiles(
                 Collections.emptyList());
 
-        bucketCombo.removeAllItems();
+        view.getBucketCombo().removeAllItems();
 
         treeController.initializeRoot();
 
@@ -1178,7 +1127,7 @@ public class ExplorerPanel extends JPanel {
     }
 
     public void reloadRepositories() {
-        repositoryCombo.removeAllItems();
+        view.getRepositoryCombo().removeAllItems();
         loadRepositoriesAsync();
     }
 
@@ -1190,7 +1139,7 @@ public class ExplorerPanel extends JPanel {
         pendingBucketSelection =
                 previousBucket;
 
-        bucketCombo.removeAllItems();
+        view.getBucketCombo().removeAllItems();
 
         treeController.initializeRoot();
 
@@ -1292,27 +1241,6 @@ public class ExplorerPanel extends JPanel {
         treeController.selectPrefix(targetPrefix);
     }
     
-    private TreePath findNodePath(
-            S3TreeNode root,
-            String targetPrefix) {
-
-        if (root.getFullPrefix().equals(targetPrefix)) {
-            return new TreePath(root.getPath());
-        }
-
-        for (int i = 0; i < root.getChildCount(); i++) {
-            Object child = root.getChildAt(i);
-            if (child instanceof S3TreeNode node) {
-                TreePath result = findNodePath(node, targetPrefix);
-                if (result != null) {
-                    return result;
-                }
-            }
-        }
-
-        return null;
-    }
-
     private void startDownload(S3FileItem item, Path destination) {
         if (item.isParentFolder()) {
             return;
@@ -1417,12 +1345,12 @@ public class ExplorerPanel extends JPanel {
     }
 
     public void selectTheme(String themeName) {
-        this.themeCombo.setSelectedItem(UIThemeManager.getThemeByName(themeName));
+        view.getThemeCombo().setSelectedItem(UIThemeManager.getThemeByName(themeName));
     }
 
     public void selectRepository(RepositoryDefinition repository) {
         pendingRepositorySelection = repository;
-        repositoryCombo.setSelectedItem(repository);
+        view.getRepositoryCombo().setSelectedItem(repository);
     }
 
     public void selectBucket(String bucketName) {
@@ -1430,7 +1358,7 @@ public class ExplorerPanel extends JPanel {
         if (bucketName == null) {
             return;
         }
-        bucketCombo.setSelectedItem(bucketName);
+        view.getBucketCombo().setSelectedItem(bucketName);
     }
 
     public void onTransferEvent(
@@ -1586,7 +1514,7 @@ public class ExplorerPanel extends JPanel {
             prefix = getCurrentPrefix();
         }
 
-        breadcrumbPanel.removeAll();
+        view.getBreadcrumbPanel().removeAll();
 
         String bucket = this.getCurrentBucket();
         if (bucket == null) {
@@ -1608,8 +1536,8 @@ public class ExplorerPanel extends JPanel {
             }
         }
 
-        breadcrumbPanel.revalidate();
-        breadcrumbPanel.repaint();
+        view.getBreadcrumbPanel().revalidate();
+        view.getBreadcrumbPanel().repaint();
     }
 
     private void addBreadcrumbButton(String text, String prefix) {
@@ -1647,7 +1575,7 @@ public class ExplorerPanel extends JPanel {
         });
 
         button.addActionListener(e -> navigateToPrefix(prefix));
-        breadcrumbPanel.add(button);
+        view.getBreadcrumbPanel().add(button);
     }
 
     public Color getContrastColor(Color color) {
@@ -1811,11 +1739,11 @@ public class ExplorerPanel extends JPanel {
     }
 
     private RepositoryDefinition getCurrentRepository() {
-        return (RepositoryDefinition) repositoryCombo.getSelectedItem();
+        return (RepositoryDefinition) view.getRepositoryCombo().getSelectedItem();
     }
 
     private String getCurrentBucket() {
-        return (String) bucketCombo.getSelectedItem();
+        return (String) view.getBucketCombo().getSelectedItem();
     }
 
     private S3TreeNode getSelectedFolderNode() {
@@ -1898,12 +1826,8 @@ public class ExplorerPanel extends JPanel {
     }
 
     private void deleteSelectedWithFocusRestore() {
-
-        boolean hasFileSelection =
-                view.getFileTable().getSelectedRowCount() > 0;
-
         restoreFileTableFocusAfterDelete =
-                hasFileSelection;
+                view.getFileTable().getSelectedRowCount() > 0;;
 
         log.info(
                 "[DELETE] trigger selectedRows={} restoreFocus={}",
@@ -1944,7 +1868,7 @@ public class ExplorerPanel extends JPanel {
         // change combobox model accordingly if any change done in repository dialog
         RepositoryDefinition currentRepository = this.getCurrentRepository();
         List<RepositoryDefinition> repositoryList = repositoryManager.getRepositories();
-        DefaultComboBoxModel<RepositoryDefinition> model = (DefaultComboBoxModel<RepositoryDefinition>) repositoryCombo.getModel();
+        DefaultComboBoxModel<RepositoryDefinition> model = (DefaultComboBoxModel<RepositoryDefinition>) view.getRepositoryCombo().getModel();
 
         // delete from combo if not found in the list
         for (int i = model.getSize() - 1; i >= 1; i--) {
@@ -2053,11 +1977,11 @@ public class ExplorerPanel extends JPanel {
             int index = -1;
 
             for (int i = 0;
-                 i < repositoryCombo.getItemCount();
+                 i < view.getRepositoryCombo().getItemCount();
                  i++) {
 
                 RepositoryDefinition item =
-                        repositoryCombo.getItemAt(i);
+                        view.getRepositoryCombo().getItemAt(i);
 
                 if (item != null
                         && Objects.equals(
@@ -2082,8 +2006,8 @@ public class ExplorerPanel extends JPanel {
                             activeRepository.getName(),
                             changedName);
 
-            repositoryCombo.removeItemAt(index);
-            repositoryCombo.insertItemAt(
+            view.getRepositoryCombo().removeItemAt(index);
+            view.getRepositoryCombo().insertItemAt(
                     changedRepository,
                     index);
 
@@ -2092,7 +2016,7 @@ public class ExplorerPanel extends JPanel {
                 context.setActiveRepository(
                         changedRepository);
 
-                repositoryCombo.setSelectedIndex(
+                view.getRepositoryCombo().setSelectedIndex(
                         index);
 
                 reloadBuckets();
@@ -2103,8 +2027,6 @@ public class ExplorerPanel extends JPanel {
     public void setThreadCountSelectionListener(
             Consumer<Integer> listener) {
 
-        this.threadCountSelectionListener =
-                listener;
         view.setThreadCountSelectionListener(listener);
     }
 
@@ -2140,13 +2062,13 @@ public class ExplorerPanel extends JPanel {
 
     private int getSelectedFileTableRowLimit() {
 
-        if (fileTableRowLimitCombo == null) {
+        if (view.getFileTableRowLimitCombo() == null) {
             return 500;
         }
 
         Integer selected =
                 (Integer)
-                        fileTableRowLimitCombo
+                        view.getFileTableRowLimitCombo()
                                 .getSelectedItem();
 
         if (selected == null
@@ -2303,41 +2225,10 @@ public class ExplorerPanel extends JPanel {
                             + " file(s)";
         }
 
-        fileFolderInfo.setText(
+        view.getFileFolderInfo().setText(
                 folderCount
                         + " folder(s) and "
                         + fileText);
-    }
-
-    private static void alignComboBoxRight(
-            JComboBox<?> comboBox) {
-
-        comboBox.setRenderer(
-                new DefaultListCellRenderer() {
-                    @Override
-                    public Component
-                    getListCellRendererComponent(
-                            JList<?> list,
-                            Object value,
-                            int index,
-                            boolean isSelected,
-                            boolean cellHasFocus) {
-
-                        JLabel label =
-                                (JLabel) super
-                                        .getListCellRendererComponent(
-                                                list,
-                                                value,
-                                                index,
-                                                isSelected,
-                                                cellHasFocus);
-
-                        label.setHorizontalAlignment(
-                                SwingConstants.RIGHT);
-
-                        return label;
-                    }
-                });
     }
 
     private void updateFileDiscoveryProgress(
@@ -2345,29 +2236,12 @@ public class ExplorerPanel extends JPanel {
             long folderCount) {
 
         SwingUtilities.invokeLater(() ->
-                fileFolderInfo.setText(
+                view.getFileFolderInfo().setText(
                         "Preparing... "
                                 + folderCount
                                 + " folders / "
                                 + fileCount
                                 + " files discovered"));
-    }
-
-    private String createFileLoadKey(
-            String bucket,
-            String prefix,
-            int fileLimit,
-            FileTableSortSpec sortSpec) {
-
-        return bucket
-                + "\u0000"
-                + prefix
-                + "\u0000"
-                + fileLimit
-                + "\u0000"
-                + sortSpec.getColumn()
-                + "\u0000"
-                + sortSpec.isAscending();
     }
 
     private synchronized void resizeExplorerPool(
