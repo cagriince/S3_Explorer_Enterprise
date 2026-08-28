@@ -56,10 +56,10 @@ public class ExplorerPanel extends JPanel {
 
     private ExplorerView view;
 
-    private final ExplorerRefreshScheduler refreshScheduler;
+    private ExplorerRefreshScheduler refreshScheduler;
     private final ExplorerContentLoader contentLoader;
-    private final Map<String, S3TreeNode> nodeCache = new HashMap<>();
-
+    private ExplorerTreeController treeController;
+    
     private JComboBox<UITheme> themeCombo;
     private JComboBox<RepositoryDefinition> repositoryCombo;
     private JLabel repositoryLabel;
@@ -73,7 +73,6 @@ public class ExplorerPanel extends JPanel {
     private FileTableModel fileTableModel;
     private final AtomicLong fileLoadGeneration = new AtomicLong();
     private final AtomicLong operationGeneration = new AtomicLong();
-    private final Map<S3TreeNode, Long> treeLoadGenerations = new IdentityHashMap<>();
     private String currentFileBucket;
     private String currentFilePrefix;
 
@@ -148,19 +147,21 @@ public class ExplorerPanel extends JPanel {
         this.transferManager = transferManager;
         this.repositoryManager = repositoryManager;
         this.clientManager = clientManager;
-        this.themeManager = new UIThemeManager(this, transferPanel);
 
-        refreshScheduler =
-                new ExplorerRefreshScheduler(
-                        this::refreshNode,
-                        this::refreshCurrentTable);
+        this.themeManager =
+                new UIThemeManager(
+                        this,
+                        transferPanel);
+
         this.contentLoader =
                 new ExplorerContentLoader(
                         this::getService);
+
         initialize();
     }
 
     private void initialize() {
+
         createActions();
 
         view = new ExplorerView(
@@ -173,7 +174,7 @@ public class ExplorerPanel extends JPanel {
                 newFolderAction,
                 refreshAction,
                 manageRepositoryAction,
-                this::loadChildren,
+                node -> treeController.loadChildren(node),
                 this::openSelectedFileItem,
                 this::reloadCurrentFileTable,
                 this::updateActionStates,
@@ -181,10 +182,26 @@ public class ExplorerPanel extends JPanel {
                 this::resizeExplorerPool,
                 this::getCurrentFileSortSpec);
 
-        setLayout(new BorderLayout());
-        add(createMainSplit(), BorderLayout.CENTER);
+        setLayout(
+                new BorderLayout());
+
+        add(
+                createMainSplit(),
+                BorderLayout.CENTER);
+
+        /*
+         * createMainSplit() içinde
+         * treeController artık oluşturulmuş durumda.
+         */
+        refreshScheduler =
+                new ExplorerRefreshScheduler(
+                        treeController::refreshNode,
+                        this::refreshCurrentTable);
+
         bindEvents();
+
         defineShortCuts();
+
         fileTableRowLimitSelectionListener =
                 selectedLimit -> {
 
@@ -194,20 +211,25 @@ public class ExplorerPanel extends JPanel {
 
                     reloadCurrentFileTable();
                 };
+
         view.setFileTableRowLimitSelectionListener(
                 fileTableRowLimitSelectionListener);
+
         reloadRepositories();
 
         repositoryManager.addRepositoryChangeListener(
                 this::onRepositoryChanged);
 
-        eventBus.subscribe(this::onTransferEvent);
+        eventBus.subscribe(
+                this::onTransferEvent);
+
         eventBus.subscribe(
                 new TransferListener() {
 
                     @Override
                     public void onTransferUpdated(
                             TransferRuntime runtime) {
+
                         onTransferEvent(runtime);
                     }
 
@@ -215,10 +237,13 @@ public class ExplorerPanel extends JPanel {
                     public void onTransferGroupCompleted(
                             TransferGroupCompletedEvent event) {
 
-                        log.info("[EXPLORER LISTENER ENTERED] event={}", event);
+                        log.info(
+                                "[EXPLORER LISTENER ENTERED] event={}",
+                                event);
 
                         ExplorerPanel.this
-                                .onTransferGroupCompleted(event);
+                                .onTransferGroupCompleted(
+                                        event);
                     }
                 });
     }
@@ -302,23 +327,50 @@ public class ExplorerPanel extends JPanel {
     }
 
     private JSplitPane createMainSplit() {
-        JSplitPane mainSplit = view.createMainSplit();
 
-        folderTree = view.getFolderTree();
-        treeModel = view.getTreeModel();
-        fileTable = view.getFileTable();
-        fileTableModel = view.getFileTableModel();
-        repositoryCombo = view.getRepositoryCombo();
-        bucketCombo = view.getBucketCombo();
-        themeCombo = view.getThemeCombo();
-        fileTableRowLimitCombo = view.getFileTableRowLimitCombo();
-        threadCountCombo = view.getThreadCountCombo();
-        breadcrumbPanel = view.getBreadcrumbPanel();
-        fileFolderInfo = view.getFileFolderInfo();
+        JSplitPane mainSplit =
+                view.createMainSplit();
 
-        nodeCache.put(
-                S3TreeNode.ROOT_PREFIX,
-                (S3TreeNode) treeModel.getRoot());
+        folderTree =
+                view.getFolderTree();
+
+        treeModel =
+                view.getTreeModel();
+
+        fileTable =
+                view.getFileTable();
+
+        fileTableModel =
+                view.getFileTableModel();
+
+        repositoryCombo =
+                view.getRepositoryCombo();
+
+        bucketCombo =
+                view.getBucketCombo();
+
+        themeCombo =
+                view.getThemeCombo();
+
+        fileTableRowLimitCombo =
+                view.getFileTableRowLimitCombo();
+
+        threadCountCombo =
+                view.getThreadCountCombo();
+
+        breadcrumbPanel =
+                view.getBreadcrumbPanel();
+
+        fileFolderInfo =
+                view.getFileFolderInfo();
+
+        treeController =
+                new ExplorerTreeController(
+                        folderTree,
+                        treeModel,
+                        contentLoader,
+                        () -> explorerPool,
+                        this::getCurrentBucket);
 
         return mainSplit;
     }
@@ -689,51 +741,9 @@ public class ExplorerPanel extends JPanel {
                             /*
                              * Tek S3 listing sonucundan Folder Tree'yi kur.
                              */
-                            S3TreeNode root =
-                                    new S3TreeNode(
-                                            bucket,
-                                            bucket,
-                                            prefix);
-
-                            nodeCache.clear();
-
-                            nodeCache.put(
-                                    root.getFullPrefix(),
-                                    root);
-
-                            for (String folder :
-                                    content.folders()) {
-
-                                String displayName =
-                                        S3Util.extractFolderName(
-                                                folder);
-
-                                S3TreeNode child =
-                                        new S3TreeNode(
-                                                displayName,
-                                                bucket,
-                                                folder);
-
-                                nodeCache.put(
-                                        folder,
-                                        child);
-
-                                /*
-                                 * Child folders are discovered lazily
-                                 * when the node is expanded.
-                                 */
-                                child.add(
-                                        new S3TreeNode(
-                                                S3TreeNode.LOADING,
-                                                bucket,
-                                                folder));
-
-                                root.add(child);
-                            }
-
-                            treeModel.setRoot(root);
-
-                            folderTree.setSelectionRow(0);
+                            treeController.applyRootFolders(
+                                    bucket,
+                                    content.folders());
 
                             hideOperationDialog(
                                     OperationDialogType.BUCKET);
@@ -942,61 +952,162 @@ public class ExplorerPanel extends JPanel {
                     OperationDialogType.FILE_TABLE);
         });
     }
-    
+
     private void bindEvents() {
+
         themeCombo.addActionListener(e -> {
-            UITheme theme = (UITheme) themeCombo.getSelectedItem();
+
+            UITheme theme =
+                    (UITheme) themeCombo.getSelectedItem();
+
             themeManager.changeTheme(theme);
+
             if (themeSelectionListener != null) {
+
                 themeSelectionListener.accept(theme);
             }
         });
 
         repositoryCombo.addActionListener(e -> {
-            RepositoryDefinition repository = this.getCurrentRepository();
+
+            RepositoryDefinition repository =
+                    this.getCurrentRepository();
+
             if (repository == null) {
                 return;
             }
 
             if (repositorySelectionListener != null) {
-                repositorySelectionListener.accept(repository);
+
+                repositorySelectionListener.accept(
+                        repository);
             }
 
             setSelectedRepository(repository);
         });
 
         bucketCombo.addActionListener(e -> {
+
             if (suppressBucketSelectionEvent) {
                 return;
             }
 
-            String bucket = this.getCurrentBucket();
+            String bucket =
+                    this.getCurrentBucket();
+
             if (bucket == null) {
                 return;
             }
 
             if (bucketSelectionListener != null) {
-                bucketSelectionListener.accept(bucket);
+
+                bucketSelectionListener.accept(
+                        bucket);
             }
 
+            /*
+             * Bucket değiştiğinde:
+             *
+             *     Tree root
+             *     +
+             *     File Table root
+             *
+             * aynı S3 listing sonucundan yüklenir.
+             */
             loadRootFolders(bucket);
         });
 
+        /*
+         * ---------------------------------------------------------
+         * TREE SELECTION
+         * ---------------------------------------------------------
+         *
+         * Selection artık Tree children yüklemez.
+         *
+         * Tree children yalnızca ExplorerTreeController
+         * tarafından Tree EXPAND olayında yüklenir.
+         *
+         * Burada yalnızca seçilen klasörün File Table'ı
+         * yüklenir.
+         */
         folderTree.addTreeSelectionListener(e -> {
-            String bucket = this.getCurrentBucket();
+
+            String bucket =
+                    this.getCurrentBucket();
+
             if (bucket == null) {
                 return;
             }
 
-            String prefix = this.getCurrentPrefix();
+            TreePath selectedPath =
+                    e.getNewLeadSelectionPath();
 
-            loadChildren(this.getSelectedFolderNode());
-            loadFiles(bucket, prefix);
-            updateBreadcrumb(prefix);
-            //updateActionStates();
+            if (selectedPath == null) {
+                return;
+            }
+
+            Object selectedObject =
+                    selectedPath.getLastPathComponent();
+
+            if (!(selectedObject instanceof S3TreeNode selectedNode)) {
+                return;
+            }
+
+            String prefix =
+                    selectedNode.getFullPrefix();
+
+            log.info(
+                    "[TREE SELECTION] bucket={} prefix={} node={}",
+                    bucket,
+                    prefix,
+                    selectedNode);
+
+            /*
+             * Tree selection event'i tamamen bitsin.
+             *
+             * Özellikle programatik selection sırasında
+             * setSelectionPath() henüz tamamlanmadan
+             * File Table işlemlerine girmiyoruz.
+             */
+            SwingUtilities.invokeLater(() -> {
+
+                /*
+                 * Selection hâlâ aynı mı?
+                 */
+                TreePath actualPath =
+                        folderTree.getSelectionPath();
+
+                if (actualPath == null
+                        || !actualPath.equals(selectedPath)) {
+
+                    log.warn(
+                            "[TREE SELECTION] selection changed before processing prefix={}",
+                            prefix);
+
+                    return;
+                }
+
+                loadFiles(
+                        bucket,
+                        prefix);
+
+                updateBreadcrumb(
+                        prefix);
+
+                updateActionStates();
+
+                SwingUtilities.invokeLater(() -> {
+
+                    fileTable.requestFocusInWindow();
+
+                    log.info(
+                            "[FILE TABLE FOCUS] requested after tree selection prefix={}",
+                            prefix);
+                });
+            });
         });
     }
-
+    
     private S3ExplorerService getService() {
         RepositoryDefinition repo = context.getActiveRepository();
         if (repo == null) {
@@ -1015,11 +1126,6 @@ public class ExplorerPanel extends JPanel {
          */
         operationGeneration.incrementAndGet();
 
-        /*
-         * Önceki repository'nin UI state'i artık geçerli değil.
-         */
-        treeLoadGenerations.clear();
-
         pendingBucketSelection = null;
 
         currentFileBucket = null;
@@ -1027,20 +1133,14 @@ public class ExplorerPanel extends JPanel {
 
         contentLoader.clearCollationKeyCache();
 
-        nodeCache.clear();
+        treeController.clearState();
 
         fileTableModel.setFiles(
                 Collections.emptyList());
 
         bucketCombo.removeAllItems();
 
-        treeModel.setRoot(
-                new S3TreeNode(
-                        S3TreeNode.ROOT_PREFIX,
-                        S3TreeNode.ROOT_PREFIX,
-                        S3TreeNode.ROOT_PREFIX));
-
-        folderTree.clearSelection();
+        treeController.initializeRoot();
 
         setFileTableLoading(false);
 
@@ -1083,27 +1183,19 @@ public class ExplorerPanel extends JPanel {
 
     public void reloadBuckets() {
 
-        String previousBucket = getCurrentBucket();
-        pendingBucketSelection = previousBucket;
+        String previousBucket =
+                getCurrentBucket();
+
+        pendingBucketSelection =
+                previousBucket;
 
         bucketCombo.removeAllItems();
 
-        S3TreeNode root =
-                new S3TreeNode(
-                        S3TreeNode.ROOT_PREFIX,
-                        S3TreeNode.ROOT_PREFIX,
-                        S3TreeNode.ROOT_PREFIX);
+        treeController.initializeRoot();
 
-        treeModel.setRoot(root);
-        treeLoadGenerations.clear();
-        nodeCache.clear();
-        nodeCache.put(
-                root.getFullPrefix(),
-                root);
-
-        treeModel.reload();
         updateBreadcrumb(
                 S3TreeNode.ROOT_PREFIX);
+
         updateActionStates();
 
         if (!context.hasActiveRepository()) {
@@ -1116,167 +1208,6 @@ public class ExplorerPanel extends JPanel {
         loadBucketsAsync();
     }
 
-    private void loadChildren(
-            S3TreeNode parentNode) {
-
-        loadChildren(parentNode, false);
-    }
-
-    private void loadChildren(
-            S3TreeNode parentNode,
-            boolean forceRefresh) {
-
-        if (parentNode == null) {
-            return;
-        }
-
-        final String bucket =
-                getCurrentBucket();
-
-        if (bucket == null || bucket.isBlank()) {
-            return;
-        }
-
-        final String prefix =
-                parentNode.getFullPrefix();
-
-        final long generation =
-                treeLoadGenerations.merge(
-                        parentNode,
-                        1L,
-                        Long::sum);
-
-        /*
-         * Unless explicitly refreshed, do not reload a node
-         * whose real children have already been discovered.
-         */
-        if (!forceRefresh
-                && parentNode.getChildCount() > 0) {
-
-            Object firstChild =
-                    parentNode.getChildAt(0);
-
-            if (firstChild instanceof S3TreeNode child
-                    && !child.isLoading()) {
-
-                return;
-            }
-        }
-
-        /*
-         * Show the lazy-loading placeholder.
-         */
-        parentNode.removeAllChildren();
-
-        parentNode.add(
-                new S3TreeNode(
-                        S3TreeNode.LOADING,
-                        bucket,
-                        prefix));
-
-        treeModel.reload(parentNode);
-
-        /*
-         * Tree expansion requires folders only.
-         *
-         * This deliberately does NOT load files and therefore
-         * does not modify the File Table.
-         */
-        contentLoader.loadFolders(
-                        explorerPool,
-                        bucket,
-                        prefix,
-                        null)
-                .thenAccept(content ->
-                        SwingUtilities.invokeLater(() -> {
-
-                            Long currentGeneration =
-                                    treeLoadGenerations.get(
-                                            parentNode);
-
-                            if (!Objects.equals(
-                                    generation,
-                                    currentGeneration)) {
-                                return;
-                            }
-
-                            /*
-                             * The node may have been removed from
-                             * the tree while the asynchronous request
-                             * was running.
-                             */
-                            if (parentNode.getParent() == null
-                                    && parentNode
-                                    != treeModel.getRoot()) {
-                                return;
-                            }
-
-                            parentNode.removeAllChildren();
-
-                            for (String folder :
-                                    content.folders()) {
-
-                                String displayName =
-                                        S3Util.extractFolderName(
-                                                folder);
-
-                                S3TreeNode child =
-                                        new S3TreeNode(
-                                                displayName,
-                                                bucket,
-                                                folder);
-
-                                nodeCache.put(
-                                        folder,
-                                        child);
-
-                                /*
-                                 * Lazy child marker.
-                                 *
-                                 * The child's folders are not loaded
-                                 * until the user expands that node.
-                                 */
-                                child.add(
-                                        new S3TreeNode(
-                                                S3TreeNode.LOADING,
-                                                bucket,
-                                                folder));
-
-                                parentNode.add(child);
-                            }
-
-                            treeModel.reload(parentNode);
-                        }))
-                .exceptionally(ex -> {
-
-                    log.error(
-                            "[TREE LOAD] failed for bucket={} prefix={}: {}",
-                            bucket,
-                            prefix,
-                            S3ErrorResolver
-                                    .getDetailedMessage(ex));
-
-                    SwingUtilities.invokeLater(() -> {
-
-                        Long currentGeneration =
-                                treeLoadGenerations.get(
-                                        parentNode);
-
-                        if (!Objects.equals(
-                                generation,
-                                currentGeneration)) {
-                            return;
-                        }
-
-                        parentNode.removeAllChildren();
-
-                        treeModel.reload(parentNode);
-                    });
-
-                    return null;
-                });
-    }
-    
     private S3FileItem getSelectedFileItem() {
         int viewRow = fileTable.getSelectedRow();
         if (viewRow < 0) {
@@ -1288,42 +1219,78 @@ public class ExplorerPanel extends JPanel {
     }
 
     private void openSelectedFileItem() {
-        S3FileItem item = getSelectedFileItem();
+
+        log.info(
+                "[FILE TABLE OPEN] invoked selectedRow={} rowCount={}",
+                fileTable.getSelectedRow(),
+                fileTable.getSelectedRowCount());
+
+        S3FileItem item =
+                getSelectedFileItem();
+
+        if (item == null) {
+            log.warn(
+                    "[FILE TABLE OPEN] selected item is NULL");
+            return;
+        }
+
+        log.info(
+                "[FILE TABLE OPEN] item name={} key={} folder={} parent={}",
+                item.getName(),
+                item.getKey(),
+                item.isFolder(),
+                item.isParentFolder());
+
+        if (item.isFolder()) {
+            navigateToFolder(item);
+
+            SwingUtilities.invokeLater(
+                    fileTable::requestFocusInWindow);
+
+            return;
+        }
+
+        downloadSelected();
+    }
+
+    private void navigateToFolder(S3FileItem item) {
+
         if (item == null) {
             return;
         }
 
-        if (item.isFolder()) {
-            if (item.isParentFolder()) {
-                goToParentFolder();
-            }
-            else {
-                navigateToFolder(item);
-            }
+        String bucket = getCurrentBucket();
 
-            SwingUtilities.invokeLater(fileTable::requestFocusInWindow);
-        } else {
-            downloadSelected();
-        }
-    }
-
-    private void navigateToFolder(S3FileItem item) {
-        String bucket = this.getCurrentBucket();
         if (bucket == null) {
             return;
         }
 
-        String targetPrefix = (item.isParentFolder() ? S3Util.extractParentPrefix(item.getKey()) : item.getKey());
-        S3TreeNode root = (S3TreeNode) treeModel.getRoot();
+        String targetPrefix;
 
-        TreePath path = findNodePath(root, targetPrefix);
-        if (path != null) {
-            folderTree.expandPath(path);
-            folderTree.setSelectionPath(path);
-            folderTree.scrollPathToVisible(path);
+        if (item.isParentFolder()) {
+
+            targetPrefix =
+                    S3Util.extractParentPrefix(
+                            currentFilePrefix);
+
+        } else {
+
+            targetPrefix =
+                    item.getKey();
         }
-    }
 
+        if (targetPrefix == null) {
+            return;
+        }
+
+        log.info(
+                "[FILE TABLE NAVIGATION] bucket={} targetPrefix={}",
+                bucket,
+                targetPrefix);
+
+        treeController.selectPrefix(targetPrefix);
+    }
+    
     private TreePath findNodePath(
             S3TreeNode root,
             String targetPrefix) {
@@ -1573,24 +1540,6 @@ public class ExplorerPanel extends JPanel {
         }
     }
 
-    private S3TreeNode findNodeByPrefix(S3TreeNode root, String prefix) {
-        if (prefix.equals(root.getFullPrefix())) {
-            return root;
-        }
-
-        for (int i = 0; i < root.getChildCount(); i++) {
-            S3TreeNode child = (S3TreeNode) root.getChildAt(i);
-            if (prefix.startsWith(child.getFullPrefix())) {
-                S3TreeNode result = findNodeByPrefix(child, prefix);
-                if (result != null) {
-                    return result;
-                }
-            }
-        }
-
-        return null;
-    }
-
     private void refreshCurrentTable() {
 
         String bucket =
@@ -1690,66 +1639,21 @@ public class ExplorerPanel extends JPanel {
         return (yiq >= 128) ? Color.BLACK : Color.WHITE;
     }
 
-    private void navigateToPrefix(String prefix) {
-        String bucket = this.getCurrentBucket();
+    private void navigateToPrefix(
+            String prefix) {
+
+        String bucket =
+                this.getCurrentBucket();
+
         if (bucket == null) {
             return;
         }
 
-        S3TreeNode root = (S3TreeNode) treeModel.getRoot();
-        S3TreeNode node = findNodeByPrefix(root, prefix);
+        treeController.selectPrefix(prefix);
 
-        if (node != null) {
-            TreePath treePath = new TreePath(node.getPath());
-            folderTree.setSelectionPath( treePath);
-            folderTree.scrollPathToVisible(treePath);
-        }
-
-        loadFiles(bucket, prefix);
-    }
-
-    private void removeFromCache(S3TreeNode node) {
-        if (node.isLoading()) {
-            // Root'un prefix'i aynı olduğundan hata veriyor.
-            return;
-        }
-
-        nodeCache.remove(node.getFullPrefix());
-        treeLoadGenerations.remove(node);
-
-        Enumeration<?> children = node.children();
-        while (children.hasMoreElements()) {
-            removeFromCache((S3TreeNode) children.nextElement());
-        }
-    }
-
-    private void refreshNode(
-            RefreshTreeNode request) {
-
-        String prefix = request.prefix();
-
-        log.debug(
-                "[EXPLORER TREE REFRESH] prefix={} operation={}",
-                prefix,
-                request.operation());
-
-        S3TreeNode node =
-                nodeCache.get(prefix);
-
-        log.debug(
-                "[EXPLORER TREE REFRESH NODE] prefix={} node={} childCount={}",
-                prefix,
-                node,
-                node == null ? -1 : node.getChildCount());
-
-        if (node == null) {
-
-            log.debug("[EXPLORER TREE REFRESH NODE] NODE NOT FOUND");
-
-            return;
-        }
-
-        loadChildren(node, true);
+        loadFiles(
+                bucket,
+                prefix);
     }
 
     private void copySelected() {
@@ -1896,16 +1800,11 @@ public class ExplorerPanel extends JPanel {
     }
 
     private S3TreeNode getSelectedFolderNode() {
-        return (S3TreeNode) folderTree.getLastSelectedPathComponent();
+        return treeController.getSelectedNode();
     }
 
     private String getCurrentPrefix() {
-        S3TreeNode node = getSelectedFolderNode();
-        if (node == null) {
-            return S3TreeNode.ROOT_PREFIX;
-        }
-
-        return node.getFullPrefix();
+        return treeController.getSelectedPrefix();
     }
 
     private boolean exists(String key) {
@@ -2035,25 +1934,48 @@ public class ExplorerPanel extends JPanel {
     }
 
     private void goToParentFolder() {
-        S3TreeNode selectedNode = (S3TreeNode) folderTree.getLastSelectedPathComponent();
-        if (selectedNode == null) {
+
+        log.info("[PARENT NAV] ENTER");
+
+        String currentPrefix =
+                currentFilePrefix;
+
+        log.info(
+                "[PARENT NAV] currentFilePrefix={}",
+                currentPrefix);
+
+        if (currentPrefix == null
+                || currentPrefix.isBlank()) {
+
+            log.warn(
+                    "[PARENT NAV] currentFilePrefix is NULL/BLANK");
+
             return;
         }
 
-        S3TreeNode parent = (S3TreeNode) selectedNode.getParent();
-        if (parent == null) {
+        String parentPrefix =
+                S3Util.extractParentPrefix(
+                        currentPrefix);
+
+        log.info(
+                "[PARENT NAV] parentPrefix={}",
+                parentPrefix);
+
+        if (parentPrefix == null) {
             return;
         }
 
-        TreePath parentPath = new TreePath(parent.getPath());
-        folderTree.setSelectionPath(parentPath);
-        folderTree.scrollPathToVisible(parentPath);
+        log.info(
+                "[PARENT NAV] navigating to parent={}",
+                parentPrefix);
+
+        treeController.selectPrefix(
+                parentPrefix);
 
         SwingUtilities.invokeLater(() ->
-                fileTable.requestFocusInWindow()
-        );
+                fileTable.requestFocusInWindow());
     }
-
+    
     private String getParentPrefix(String prefix) {
 
         if (prefix == null || prefix.isBlank()) {
