@@ -893,12 +893,11 @@ public class ExplorerPanel extends JPanel {
 
                                 SwingUtilities.invokeLater(() -> {
 
-                                    boolean result =
-                                            fileTable.requestFocusInWindow();
+                                    fileTable.setFocusable(true);
+                                    fileTable.requestFocusInWindow();
 
-                                    log.debug(
-                                            "[FILE TABLE FOCUS RESTORE] result={} focusOwner={} tableFocus={}",
-                                            result,
+                                    log.info(
+                                            "[FILE TABLE FOCUS RESTORE] focusOwner={} tableFocus={}",
                                             KeyboardFocusManager
                                                     .getCurrentKeyboardFocusManager()
                                                     .getFocusOwner(),
@@ -1121,27 +1120,13 @@ public class ExplorerPanel extends JPanel {
 
                 loadFiles(
                         bucket,
-                        prefix);
+                        prefix,
+                        true);
 
                 updateBreadcrumb(
                         prefix);
 
                 updateActionStates();
-
-                SwingUtilities.invokeLater(() -> {
-
-                    boolean focusResult =
-                            fileTable.requestFocusInWindow();
-
-                    log.info(
-                            "[FILE TABLE FOCUS] requested prefix={} result={} focusOwner={} tableFocus={}",
-                            prefix,
-                            focusResult,
-                            KeyboardFocusManager
-                                    .getCurrentKeyboardFocusManager()
-                                    .getFocusOwner(),
-                            fileTable.hasFocus());
-                });
             });
         });
     }
