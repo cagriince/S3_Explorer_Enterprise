@@ -805,7 +805,16 @@ public class ExplorerPanel extends JPanel {
     private void loadFiles(
             String bucket,
             String prefix) {
+        loadFiles(
+                bucket,
+                prefix,
+                false);
+    }
 
+    private void loadFiles(
+            String bucket,
+            String prefix,
+            boolean restoreFocus) {
         final long generation =
                 fileLoadGeneration.incrementAndGet();
 
@@ -873,6 +882,23 @@ public class ExplorerPanel extends JPanel {
 
                             hideOperationDialog(
                                     OperationDialogType.FILE_TABLE);
+
+                            if (restoreFocus) {
+
+                                SwingUtilities.invokeLater(() -> {
+
+                                    boolean result =
+                                            fileTable.requestFocusInWindow();
+
+                                    log.debug(
+                                            "[FILE TABLE FOCUS RESTORE] result={} focusOwner={} tableFocus={}",
+                                            result,
+                                            KeyboardFocusManager
+                                                    .getCurrentKeyboardFocusManager()
+                                                    .getFocusOwner(),
+                                            fileTable.hasFocus());
+                                });
+                            }
                         }))
                 .exceptionally(ex -> {
 
@@ -1558,6 +1584,15 @@ public class ExplorerPanel extends JPanel {
         String prefix =
                 getCurrentPrefix();
 
+        boolean restoreFocus =
+                fileTable.hasFocus();
+
+        log.debug(
+                "[FILE TABLE REFRESH] bucket={} prefix={} restoreFocus={}",
+                bucket,
+                prefix,
+                restoreFocus);
+
         contentLoader.invalidate(
                 bucket,
                 prefix);
@@ -1566,7 +1601,8 @@ public class ExplorerPanel extends JPanel {
 
         loadFiles(
                 bucket,
-                prefix);
+                prefix,
+                restoreFocus);
 
         updateActionStates();
     }
@@ -2645,6 +2681,28 @@ public class ExplorerPanel extends JPanel {
             }
 
             positionOperationDialogs();
+        });
+    }
+
+    private void restoreFileTableFocus() {
+
+        SwingUtilities.invokeLater(() -> {
+
+            fileTable.requestFocusInWindow();
+
+            SwingUtilities.invokeLater(() -> {
+
+                boolean result =
+                        fileTable.requestFocusInWindow();
+
+                log.debug(
+                        "[FILE TABLE FOCUS RESTORE] result={} focusOwner={} tableFocus={}",
+                        result,
+                        KeyboardFocusManager
+                                .getCurrentKeyboardFocusManager()
+                                .getFocusOwner(),
+                        fileTable.hasFocus());
+            });
         });
     }
 }
