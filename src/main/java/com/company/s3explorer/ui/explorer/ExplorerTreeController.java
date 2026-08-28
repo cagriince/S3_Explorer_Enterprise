@@ -1,6 +1,5 @@
 package com.company.s3explorer.ui.explorer;
 
-import com.company.s3explorer.service.S3ErrorResolver;
 import com.company.s3explorer.util.S3Util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -88,7 +87,6 @@ public final class ExplorerTreeController {
 
     /**
      * Bucket değiştiğinde root'a gelen klasörleri uygular.
-     *
      * Burada yalnızca Tree güncellenir.
      * File Table yüklenmez.
      */
@@ -529,39 +527,6 @@ public final class ExplorerTreeController {
 
     /*
      * ---------------------------------------------------------
-     * CACHE
-     * ---------------------------------------------------------
-     */
-
-    public void removeFromCache(
-            S3TreeNode node) {
-
-        if (node == null) {
-            return;
-        }
-
-        if (node.isLoading()) {
-            return;
-        }
-
-        nodeCache.remove(
-                node.getFullPrefix());
-
-        treeLoadGenerations.remove(node);
-
-        Enumeration<?> children =
-                node.children();
-
-        while (children.hasMoreElements()) {
-
-            removeFromCache(
-                    (S3TreeNode)
-                            children.nextElement());
-        }
-    }
-
-    /*
-     * ---------------------------------------------------------
      * NAVIGATION
      * ---------------------------------------------------------
      */
@@ -692,18 +657,33 @@ public final class ExplorerTreeController {
         }
 
         /*
-         * Önce mevcut Tree'ye bak.
+         * Hedef zaten Tree'de varsa doğrudan dön.
          */
         S3TreeNode existing =
                 findNodeByPrefix(prefix);
 
         if (existing != null) {
+
+            log.info(
+                    "[TREE NAVIGATION] target already exists prefix={}",
+                    prefix);
+
             return CompletableFuture.completedFuture(
                     existing);
         }
 
         /*
-         * Hedefin Tree'de mevcut olan en yakın parent'ını bul.
+         * Hedefe ulaşabildiğimiz en yakın mevcut node.
+         *
+         * Örnek:
+         *
+         * Tree'de:
+         *   SIL3/
+         *
+         * hedef:
+         *   SIL3/DOWNLOAD/2026/
+         *
+         * parent = SIL3/
          */
         S3TreeNode parent =
                 findNearestExistingNode(prefix);
@@ -718,140 +698,115 @@ public final class ExplorerTreeController {
                     null);
         }
 
+        return ensurePrefixLoadedFromNode(
+                parent,
+                prefix);
+    }
+
+    private CompletableFuture<S3TreeNode> ensurePrefixLoadedFromNode(
+            S3TreeNode parent,
+            String targetPrefix) {
+
+        if (parent == null
+                || targetPrefix == null) {
+
+            return CompletableFuture.completedFuture(
+                    null);
+        }
+
+        /*
+         * Hedef artık mevcut olabilir.
+         */
+        S3TreeNode existing =
+                findNodeByPrefix(targetPrefix);
+
+        if (existing != null) {
+
+            return CompletableFuture.completedFuture(
+                    existing);
+        }
+
         String parentPrefix =
                 parent.getFullPrefix();
 
         log.info(
                 "[TREE NAVIGATION LOAD] parent={} target={}",
                 parentPrefix,
-                prefix);
+                targetPrefix);
 
-        ExecutorService pool =
-                explorerPoolSupplier.get();
+        /*
+         * Parent'ın doğrudan çocuklarını yükle.
+         *
+         * loadChildrenAsync() zaten:
+         * - loading marker
+         * - async S3 çağrısı
+         * - Tree model reload
+         * - selection restore
+         * işlemlerini yapıyor.
+         */
+        return loadChildrenAsync(
+                parent,
+                false)
 
-        if (pool == null
-                || pool.isShutdown()
-                || pool.isTerminated()) {
+                .thenCompose(ignored -> {
 
-            log.warn(
-                    "[TREE NAVIGATION] explorer pool unavailable target={}",
-                    prefix);
+                    /*
+                     * Yükleme sonrasında hedef doğrudan
+                     * oluşmuş olabilir.
+                     */
+                    S3TreeNode target =
+                            findNodeByPrefix(targetPrefix);
 
-            return CompletableFuture.completedFuture(
-                    null);
-        }
+                    if (target != null) {
 
-        return contentLoader.loadFolders(
-                        pool,
-                        currentBucketSupplier.get(),
-                        parentPrefix,
-                        null)
-                .thenCompose(content -> {
-
-                    CompletableFuture<S3TreeNode> result =
-                            new CompletableFuture<>();
-
-                    SwingUtilities.invokeLater(() -> {
-
-                        /*
-                         * loadFolders() yalnızca S3 içeriğini döndürür.
-                         * Burada Tree node'larını oluşturuyoruz.
-                         */
-                        for (String folder :
-                                content.folders()) {
-
-                            S3TreeNode child =
-                                    findDirectChild(
-                                            parent,
-                                            folder);
-
-                            if (child != null) {
-                                continue;
-                            }
-
-                            String displayName =
-                                    S3Util.extractFolderName(
-                                            folder);
-
-                            child =
-                                    new S3TreeNode(
-                                            displayName,
-                                            currentBucketSupplier.get(),
-                                            folder);
-
-                            nodeCache.put(
-                                    folder,
-                                    child);
-
-                            /*
-                             * Child'ın kendi children'ı
-                             * yine lazy kalır.
-                             */
-                            child.add(
-                                    new S3TreeNode(
-                                            S3TreeNode.LOADING,
-                                            currentBucketSupplier.get(),
-                                            folder));
-
-                            parent.add(child);
-                        }
-
-                        treeModel.reload(parent);
-
-                        /*
-                         * İlk yükleme sonrasında hedef oluşmuş olabilir.
-                         */
-                        S3TreeNode target =
-                                findNodeByPrefix(prefix);
-
-                        if (target != null) {
-
-                            result.complete(target);
-
-                            return;
-                        }
-
-                        /*
-                         * Hedef bir sonraki seviyedeyse
-                         * zincirleme devam edeceğiz.
-                         */
-                        result.complete(null);
-                    });
-
-                    return result;
-                })
-                .thenCompose(node -> {
-
-                    if (node != null) {
                         return CompletableFuture.completedFuture(
-                                node);
+                                target);
                     }
 
                     /*
-                     * Bir sonraki seviyede tekrar dene.
+                     * Parent'ın çocukları arasında hedefe
+                     * giden bir sonraki node'u bul.
                      */
-                    return ensurePrefixLoaded(prefix);
-                })
-                .exceptionally(ex -> {
+                    S3TreeNode next =
+                            findNextNodeTowardsPrefix(
+                                    parent,
+                                    targetPrefix);
 
-                    log.error(
-                            "[TREE NAVIGATION LOAD] failed target={}",
-                            prefix,
-                            ex);
+                    if (next == null) {
 
-                    return null;
+                        log.warn(
+                                "[TREE NAVIGATION] next node not found parent={} target={}",
+                                parentPrefix,
+                                targetPrefix);
+
+                        return CompletableFuture.completedFuture(
+                                null);
+                    }
+
+                    /*
+                     * Bir sonraki seviyeye ilerle.
+                     */
+                    return ensurePrefixLoadedFromNode(
+                            next,
+                            targetPrefix);
                 });
     }
-
-    private S3TreeNode findDirectChild(
+    
+    private S3TreeNode findNextNodeTowardsPrefix(
             S3TreeNode parent,
-            String prefix) {
+            String targetPrefix) {
 
         if (parent == null
-                || prefix == null) {
+                || targetPrefix == null) {
 
             return null;
         }
+
+        String parentPrefix =
+                parent.getFullPrefix();
+
+        S3TreeNode best =
+                null;
 
         for (int i = 0;
              i < parent.getChildCount();
@@ -864,20 +819,43 @@ public final class ExplorerTreeController {
                 continue;
             }
 
+            /*
+             * Loading marker gerçek node değildir.
+             */
             if (child.isLoading()) {
                 continue;
             }
 
-            if (prefix.equals(
-                    child.getFullPrefix())) {
+            String childPrefix =
+                    child.getFullPrefix();
 
-                return child;
+            if (childPrefix == null) {
+                continue;
+            }
+
+            /*
+             * Child hedef prefix'in altında olmalı.
+             */
+            if (!targetPrefix.startsWith(childPrefix)) {
+                continue;
+            }
+
+            /*
+             * Parent'ın doğrudan bir sonraki seviyesi olmalı.
+             *
+             * En uzun eşleşmeyi seçiyoruz.
+             */
+            if (best == null
+                    || childPrefix.length()
+                    > best.getFullPrefix().length()) {
+
+                best = child;
             }
         }
 
-        return null;
+        return best;
     }
-
+    
     public void selectPrefix(String prefix) {
 
         if (prefix == null) {
@@ -954,74 +932,5 @@ public final class ExplorerTreeController {
                     root.getFullPrefix(),
                     root);
         }
-    }
-
-    private S3TreeNode findNearestExistingParent(
-            String prefix) {
-
-        S3TreeNode root =
-                (S3TreeNode)
-                        treeModel.getRoot();
-
-        if (root == null) {
-            return null;
-        }
-
-        return findNearestExistingParentRecursive(
-                root,
-                prefix);
-    }
-
-    private S3TreeNode findNearestExistingParentRecursive(
-            S3TreeNode node,
-            String prefix) {
-
-        if (node == null
-                || prefix == null) {
-
-            return null;
-        }
-
-        String nodePrefix =
-                node.getFullPrefix();
-
-        if (nodePrefix == null
-                || !prefix.startsWith(nodePrefix)) {
-
-            return null;
-        }
-
-        S3TreeNode best =
-                node;
-
-        for (int i = 0;
-             i < node.getChildCount();
-             i++) {
-
-            Object childObject =
-                    node.getChildAt(i);
-
-            if (!(childObject instanceof S3TreeNode child)) {
-                continue;
-            }
-
-            if (child.isLoading()) {
-                continue;
-            }
-
-            S3TreeNode candidate =
-                    findNearestExistingParentRecursive(
-                            child,
-                            prefix);
-
-            if (candidate != null
-                    && candidate.getFullPrefix().length()
-                    > best.getFullPrefix().length()) {
-
-                best = candidate;
-            }
-        }
-
-        return best;
     }
 }
