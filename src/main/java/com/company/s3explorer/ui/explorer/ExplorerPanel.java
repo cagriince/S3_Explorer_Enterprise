@@ -66,10 +66,8 @@ public class ExplorerPanel extends JPanel {
     private JComboBox<String> bucketCombo;
     private JLabel bucketLabel;
 
-    private JTree folderTree;
     private DefaultTreeModel treeModel;
 
-    private JTable fileTable;
     private FileTableModel fileTableModel;
     private final AtomicLong fileLoadGeneration = new AtomicLong();
     private final AtomicLong operationGeneration = new AtomicLong();
@@ -275,8 +273,8 @@ public class ExplorerPanel extends JPanel {
         // File Table
         // -------------------------------------------------
 
-        InputMap inputMap = fileTable.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
-        ActionMap actionMap = fileTable.getActionMap();
+        InputMap inputMap = view.getFileTable().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
+        ActionMap actionMap = view.getFileTable().getActionMap();
 
         inputMap.put(
                 KeyStroke.getKeyStroke("ENTER"),
@@ -311,8 +309,8 @@ public class ExplorerPanel extends JPanel {
         // Tree
         // -------------------------------------------------
 
-        InputMap treeInputMap = folderTree.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
-        ActionMap treeActionMap = folderTree.getActionMap();
+        InputMap treeInputMap = view.getFolderTree().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
+        ActionMap treeActionMap = view.getFolderTree().getActionMap();
         treeInputMap.put(KeyStroke.getKeyStroke("BACK_SPACE"), "explorerGoParent");
         treeActionMap.put("explorerGoParent", goToParentAction);
 
@@ -332,18 +330,11 @@ public class ExplorerPanel extends JPanel {
     }
 
     private JSplitPane createMainSplit() {
-
         JSplitPane mainSplit =
                 view.createMainSplit();
 
-        folderTree =
-                view.getFolderTree();
-
         treeModel =
                 view.getTreeModel();
-
-        fileTable =
-                view.getFileTable();
 
         fileTableModel =
                 view.getFileTableModel();
@@ -371,7 +362,7 @@ public class ExplorerPanel extends JPanel {
 
         treeController =
                 new ExplorerTreeController(
-                        folderTree,
+                        view.getFolderTree(),
                         treeModel,
                         contentLoader,
                         () -> explorerPool,
@@ -382,7 +373,7 @@ public class ExplorerPanel extends JPanel {
 
     public void updateActionStates() {
         boolean folderSelected = this.getSelectedFolderNode() != null;
-        boolean hasSelection = folderSelected && (fileTable.getSelectedRowCount() > 1 || (fileTable.getSelectedRowCount() == 1 && !fileTableModel.getItem(fileTable.convertRowIndexToModel(fileTable.getSelectedRow())).isParentFolder()));
+        boolean hasSelection = folderSelected && (view.getFileTable().getSelectedRowCount() > 1 || (view.getFileTable().getSelectedRowCount() == 1 && !fileTableModel.getItem(view.getFileTable().convertRowIndexToModel(view.getFileTable().getSelectedRow())).isParentFolder()));
         boolean hasClipboard = folderSelected && !clipboard.isEmpty();
 
         newFolderAction.setEnabled(folderSelected);
@@ -1048,7 +1039,7 @@ public class ExplorerPanel extends JPanel {
          * Burada yalnızca seçilen klasörün File Table'ı
          * yüklenir.
          */
-        folderTree.addTreeSelectionListener(e -> {
+        view.getFolderTree().addTreeSelectionListener(e -> {
 
             String bucket =
                     this.getCurrentBucket();
@@ -1093,7 +1084,7 @@ public class ExplorerPanel extends JPanel {
                  * Selection hâlâ aynı mı?
                  */
                 TreePath actualPath =
-                        folderTree.getSelectionPath();
+                        view.getFolderTree().getSelectionPath();
 
                 if (actualPath == null
                         || !actualPath.equals(selectedPath)) {
@@ -1219,12 +1210,12 @@ public class ExplorerPanel extends JPanel {
     }
 
     private S3FileItem getSelectedFileItem() {
-        int viewRow = fileTable.getSelectedRow();
+        int viewRow = view.getFileTable().getSelectedRow();
         if (viewRow < 0) {
             return null;
         }
 
-        int modelRow = fileTable.convertRowIndexToModel(viewRow);
+        int modelRow = view.getFileTable().convertRowIndexToModel(viewRow);
         return fileTableModel.getItem(modelRow);
     }
 
@@ -1232,8 +1223,8 @@ public class ExplorerPanel extends JPanel {
 
         log.info(
                 "[FILE TABLE OPEN] invoked selectedRow={} rowCount={}",
-                fileTable.getSelectedRow(),
-                fileTable.getSelectedRowCount());
+                view.getFileTable().getSelectedRow(),
+                view.getFileTable().getSelectedRowCount());
 
         S3FileItem item =
                 getSelectedFileItem();
@@ -1255,7 +1246,7 @@ public class ExplorerPanel extends JPanel {
             navigateToFolder(item);
 
             SwingUtilities.invokeLater(
-                    fileTable::requestFocusInWindow);
+                    view.getFileTable()::requestFocusInWindow);
 
             return;
         }
@@ -1563,7 +1554,7 @@ public class ExplorerPanel extends JPanel {
                 getCurrentPrefix();
 
         boolean restoreFocus =
-                fileTable.hasFocus()
+                view.getFileTable().hasFocus()
                         || restoreFileTableFocusAfterDelete;
 
         log.debug(
@@ -1571,7 +1562,7 @@ public class ExplorerPanel extends JPanel {
                 bucket,
                 prefix,
                 restoreFocus,
-                fileTable.hasFocus(),
+                view.getFileTable().hasFocus(),
                 restoreFileTableFocusAfterDelete);
 
         contentLoader.invalidate(
@@ -1807,10 +1798,10 @@ public class ExplorerPanel extends JPanel {
     }
 
     private List<S3FileItem> getSelectedItems() {
-        int[] viewRows = fileTable.getSelectedRows();
+        int[] viewRows = view.getFileTable().getSelectedRows();
         List<S3FileItem> items = new ArrayList<>();
         for (int row : viewRows) {
-            S3FileItem item = fileTableModel.getItem(fileTable.convertRowIndexToModel(row));
+            S3FileItem item = fileTableModel.getItem(view.getFileTable().convertRowIndexToModel(row));
             if (!item.isParentFolder()) {
                 items.add(item);
             }
@@ -1868,8 +1859,8 @@ public class ExplorerPanel extends JPanel {
     public void deleteSelected() {
         log.info(
                 "[DELETE] invoked selectedRows={} tableFocus={} restoreFocus={}",
-                fileTable.getSelectedRowCount(),
-                fileTable.hasFocus(),
+                view.getFileTable().getSelectedRowCount(),
+                view.getFileTable().hasFocus(),
                 restoreFileTableFocusAfterDelete);
         
         List<S3FileItem> items = getSelectedItems();
@@ -1909,14 +1900,14 @@ public class ExplorerPanel extends JPanel {
     private void deleteSelectedWithFocusRestore() {
 
         boolean hasFileSelection =
-                fileTable.getSelectedRowCount() > 0;
+                view.getFileTable().getSelectedRowCount() > 0;
 
         restoreFileTableFocusAfterDelete =
                 hasFileSelection;
 
         log.info(
                 "[DELETE] trigger selectedRows={} restoreFocus={}",
-                fileTable.getSelectedRowCount(),
+                view.getFileTable().getSelectedRowCount(),
                 restoreFileTableFocusAfterDelete);
 
         deleteSelected();
@@ -1975,10 +1966,10 @@ public class ExplorerPanel extends JPanel {
     }
 
     private void setFileTableLoading(boolean loading) {
-        fileTable.setEnabled(!loading);
+        view.getFileTable().setEnabled(!loading);
 
         if (loading) {
-            fileTable.clearSelection();
+            view.getFileTable().clearSelection();
             fileTableModel.clearAndRepaint();
         }
     }
@@ -2023,7 +2014,7 @@ public class ExplorerPanel extends JPanel {
                 parentPrefix);
 
         SwingUtilities.invokeLater(() ->
-                fileTable.requestFocusInWindow());
+                view.getFileTable().requestFocusInWindow());
     }
     
     private String getParentPrefix(String prefix) {
@@ -2124,7 +2115,7 @@ public class ExplorerPanel extends JPanel {
 
     private FileTableSortSpec getCurrentFileSortSpec() {
 
-        if (!(fileTable.getRowSorter()
+        if (!(view.getFileTable().getRowSorter()
                 instanceof FileTableRowSorter sorter)) {
 
             return FileTableSortSpec.defaultSpec();
@@ -2701,7 +2692,7 @@ public class ExplorerPanel extends JPanel {
 
         SwingUtilities.invokeLater(() -> {
 
-            if (fileTable.hasFocus()) {
+            if (view.getFileTable().hasFocus()) {
 
                 log.info(
                         "[FILE TABLE FOCUS RESTORE] success attempt={} focusOwner={} tableFocus=true",
@@ -2714,7 +2705,7 @@ public class ExplorerPanel extends JPanel {
             }
 
             boolean requested =
-                    fileTable.requestFocusInWindow();
+                    view.getFileTable().requestFocusInWindow();
 
             Component focusOwner =
                     KeyboardFocusManager
@@ -2726,7 +2717,7 @@ public class ExplorerPanel extends JPanel {
                     attempt,
                     requested,
                     focusOwner,
-                    fileTable.hasFocus());
+                    view.getFileTable().hasFocus());
 
             if (attempt < 5) {
 
