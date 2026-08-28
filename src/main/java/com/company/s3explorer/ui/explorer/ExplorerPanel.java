@@ -101,6 +101,8 @@ public class ExplorerPanel extends JPanel {
     private File lastOpenedFolderToUpload;
     private File lastOpenedFolderToDownload;
 
+    private boolean restoreFileTableFocusAfterDelete;
+    
     private ExecutorService explorerPool = Executors.newFixedThreadPool(5);
     private final UIThemeManager themeManager;
     private final ActiveRepositoryContext context;
@@ -302,6 +304,10 @@ public class ExplorerPanel extends JPanel {
         inputMap.put(KeyStroke.getKeyStroke("BACK_SPACE"),"explorerGoParent");
         actionMap.put("explorerGoParent", goToParentAction);
 
+        // Delete
+        inputMap.put(KeyStroke.getKeyStroke("DELETE"), "deleteSelected");
+        actionMap.put("deleteSelected", deleteAction);
+        
         // -------------------------------------------------
         // Tree
         // -------------------------------------------------
@@ -1880,6 +1886,15 @@ public class ExplorerPanel extends JPanel {
     }
 
     public void deleteSelected() {
+        restoreFileTableFocusAfterDelete =
+                fileTable.hasFocus();
+
+        log.info(
+                "[DELETE] invoked selectedRows={} tableFocus={} restoreFocus={}",
+                fileTable.getSelectedRowCount(),
+                fileTable.hasFocus(),
+                restoreFileTableFocusAfterDelete);
+        
         List<S3FileItem> items = getSelectedItems();
         if (items.isEmpty()) {
             return;
