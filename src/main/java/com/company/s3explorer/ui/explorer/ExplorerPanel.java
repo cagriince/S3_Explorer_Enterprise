@@ -1692,8 +1692,11 @@ public class ExplorerPanel extends JPanel {
         return (yiq >= 128) ? Color.BLACK : Color.WHITE;
     }
 
-    private void navigateToPrefix(
-            String prefix) {
+    private void navigateToPrefix(String prefix) {
+
+        if (prefix == null) {
+            return;
+        }
 
         String bucket =
                 this.getCurrentBucket();
@@ -1702,11 +1705,11 @@ public class ExplorerPanel extends JPanel {
             return;
         }
 
-        treeController.selectPrefix(prefix);
-
-        loadFiles(
-                bucket,
+        log.info(
+                "[NAVIGATION] prefix={}",
                 prefix);
+
+        treeController.selectPrefix(prefix);
     }
 
     private void copySelected() {
