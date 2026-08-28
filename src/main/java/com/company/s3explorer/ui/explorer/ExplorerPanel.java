@@ -53,6 +53,7 @@ public class ExplorerPanel extends JPanel {
     private final ExplorerContentLoader contentLoader;
     private ExplorerTreeController treeController;
     private ExplorerFileOperationController fileOperationController;
+    private ExplorerClipboardController clipboardController;
     
     private final AtomicLong fileLoadGeneration = new AtomicLong();
     private final AtomicLong operationGeneration = new AtomicLong();
@@ -137,6 +138,10 @@ public class ExplorerPanel extends JPanel {
 
         createActions();
 
+        clipboardController =
+                new ExplorerClipboardController(
+                        clipboard);
+        
         view = new ExplorerView(
                 downloadAction,
                 deleteAction,
@@ -151,7 +156,7 @@ public class ExplorerPanel extends JPanel {
                 this::openSelectedFileItem,
                 this::reloadCurrentFileTable,
                 this::updateActionStates,
-                clipboard::isEmpty,
+                clipboardController::isEmpty,
                 this::resizeExplorerPool);
 
         setLayout(
@@ -1599,25 +1604,32 @@ public class ExplorerPanel extends JPanel {
     }
 
     private void copySelected() {
-        List<S3FileItem> items = getSelectedItems();
+        List<S3FileItem> items =
+                getSelectedItems();
+
         if (items.isEmpty()) {
             return;
         }
 
-        clipboard.copy(items);
+        clipboardController.copy(items);
+
         updateActionStates();
     }
 
     private void moveSelected() {
-        List<S3FileItem> items = getSelectedItems();
+
+        List<S3FileItem> items =
+                getSelectedItems();
+
         if (items.isEmpty()) {
             return;
         }
 
-        clipboard.move(items);
+        clipboardController.move(items);
+
         updateActionStates();
     }
-
+    
     private void pasteClipboard() {
         if (clipboard.isEmpty()) {
             return;
