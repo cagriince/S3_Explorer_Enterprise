@@ -53,7 +53,6 @@ public class ExplorerPanel extends JPanel {
     private final ExplorerContentLoader contentLoader;
     private ExplorerTreeController treeController;
     
-    private FileTableModel fileTableModel;
     private final AtomicLong fileLoadGeneration = new AtomicLong();
     private final AtomicLong operationGeneration = new AtomicLong();
     private String currentFileBucket;
@@ -306,9 +305,6 @@ public class ExplorerPanel extends JPanel {
         JSplitPane mainSplit =
                 view.createMainSplit();
 
-        fileTableModel =
-                view.getFileTableModel();
-
         treeController =
                 new ExplorerTreeController(
                         view.getFolderTree(),
@@ -322,7 +318,7 @@ public class ExplorerPanel extends JPanel {
 
     public void updateActionStates() {
         boolean folderSelected = this.getSelectedFolderNode() != null;
-        boolean hasSelection = folderSelected && (view.getFileTable().getSelectedRowCount() > 1 || (view.getFileTable().getSelectedRowCount() == 1 && !fileTableModel.getItem(view.getFileTable().convertRowIndexToModel(view.getFileTable().getSelectedRow())).isParentFolder()));
+        boolean hasSelection = folderSelected && (view.getFileTable().getSelectedRowCount() > 1 || (view.getFileTable().getSelectedRowCount() == 1 && !view.getFileTableModel().getItem(view.getFileTable().convertRowIndexToModel(view.getFileTable().getSelectedRow())).isParentFolder()));
         boolean hasClipboard = folderSelected && !clipboard.isEmpty();
 
         newFolderAction.setEnabled(folderSelected);
@@ -632,7 +628,7 @@ public class ExplorerPanel extends JPanel {
 
                     pendingBucketSelection = null;
 
-                    fileTableModel.setFiles(
+                    view.getFileTableModel().setFiles(
                             Collections.emptyList());
 
                     currentFileBucket = null;
@@ -1085,7 +1081,7 @@ public class ExplorerPanel extends JPanel {
 
         treeController.clearState();
 
-        fileTableModel.setFiles(
+        view.getFileTableModel().setFiles(
                 Collections.emptyList());
 
         view.getBucketCombo().removeAllItems();
@@ -1165,7 +1161,7 @@ public class ExplorerPanel extends JPanel {
         }
 
         int modelRow = view.getFileTable().convertRowIndexToModel(viewRow);
-        return fileTableModel.getItem(modelRow);
+        return view.getFileTableModel().getItem(modelRow);
     }
 
     private void openSelectedFileItem() {
@@ -1729,7 +1725,7 @@ public class ExplorerPanel extends JPanel {
         int[] viewRows = view.getFileTable().getSelectedRows();
         List<S3FileItem> items = new ArrayList<>();
         for (int row : viewRows) {
-            S3FileItem item = fileTableModel.getItem(view.getFileTable().convertRowIndexToModel(row));
+            S3FileItem item = view.getFileTableModel().getItem(view.getFileTable().convertRowIndexToModel(row));
             if (!item.isParentFolder()) {
                 items.add(item);
             }
@@ -1755,7 +1751,7 @@ public class ExplorerPanel extends JPanel {
     }
 
     private boolean exists(String key) {
-        return fileTableModel.getItems()
+        return view.getFileTableModel().getItems()
                 .stream()
                 .anyMatch(i -> i.getKey().equals(key));
     }
@@ -1894,7 +1890,7 @@ public class ExplorerPanel extends JPanel {
 
         if (loading) {
             view.getFileTable().clearSelection();
-            fileTableModel.clearAndRepaint();
+            view.getFileTableModel().clearAndRepaint();
         }
     }
 
@@ -2188,7 +2184,7 @@ public class ExplorerPanel extends JPanel {
          *
          * Lazy loading yok.
          */
-        fileTableModel.setFiles(rows);
+        view.getFileTableModel().setFiles(rows);
 
         updateFileFolderInfo(content);
 
