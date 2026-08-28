@@ -181,8 +181,7 @@ public class ExplorerPanel extends JPanel {
                 this::reloadCurrentFileTable,
                 this::updateActionStates,
                 clipboard::isEmpty,
-                this::resizeExplorerPool,
-                this::getCurrentFileSortSpec);
+                this::resizeExplorerPool);
 
         setLayout(
                 new BorderLayout());

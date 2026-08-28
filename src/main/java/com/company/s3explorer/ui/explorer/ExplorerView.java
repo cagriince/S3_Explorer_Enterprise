@@ -1,11 +1,8 @@
 package com.company.s3explorer.ui.explorer;
 
 import com.company.s3explorer.repository.RepositoryDefinition;
-import com.company.s3explorer.service.FileTableSortSpec;
-import com.company.s3explorer.ui.explorer.S3TreeNode;
 import com.company.s3explorer.transfer.renderer.FileSizeRenderer;
 import com.company.s3explorer.transfer.renderer.InstantRenderer;
-import com.company.s3explorer.ui.action.ExplorerAction;
 import com.company.s3explorer.ui.icons.IconProvider;
 import com.company.s3explorer.ui.theme.UITheme;
 import com.company.s3explorer.ui.theme.UIThemeManager;
@@ -25,7 +22,6 @@ import java.awt.event.MouseEvent;
 import java.util.List;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 
 /**
  * Swing view for the explorer. It owns explorer UI components and wiring
@@ -59,7 +55,6 @@ public final class ExplorerView {
     private final Runnable updateActionStates;
     private final BooleanSupplier clipboardEmpty;
     private final Consumer<Integer> resizeExplorerPool;
-    private final Supplier<FileTableSortSpec> currentFileSortSpec;
 
     private JComboBox<UITheme> themeCombo;
     private JComboBox<RepositoryDefinition> repositoryCombo;
@@ -95,8 +90,7 @@ public final class ExplorerView {
             Runnable reloadCurrentFileTable,
             Runnable updateActionStates,
             BooleanSupplier clipboardEmpty,
-            Consumer<Integer> resizeExplorerPool,
-            Supplier<FileTableSortSpec> currentFileSortSpec) {
+            Consumer<Integer> resizeExplorerPool) {
 
         this.downloadAction = downloadAction;
         this.deleteAction = deleteAction;
@@ -113,7 +107,6 @@ public final class ExplorerView {
         this.updateActionStates = updateActionStates;
         this.clipboardEmpty = clipboardEmpty;
         this.resizeExplorerPool = resizeExplorerPool;
-        this.currentFileSortSpec = currentFileSortSpec;
     }
 
     public JSplitPane createMainSplit() {
@@ -338,12 +331,6 @@ public final class ExplorerView {
                     return;
                 }
                 SwingUtilities.invokeLater(() -> {
-                    if (currentFileSortSpec != null) {
-                        FileTableSortSpec sortSpec = currentFileSortSpec.get();
-                        if (sortSpec != null) {
-                            // Logging remains intentionally outside the view.
-                        }
-                    }
                     if (reloadCurrentFileTable != null) {
                         reloadCurrentFileTable.run();
                     }
@@ -494,7 +481,6 @@ public final class ExplorerView {
     public JComboBox<Integer> getThreadCountCombo() { return threadCountCombo; }
     public JPanel getBreadcrumbPanel() { return breadcrumbPanel; }
     public JLabel getFileFolderInfo() { return fileFolderInfo; }
-    public JPopupMenu getFilePopup() { return filePopup; }
 
     public void setFileTableRowLimitSelectionListener(Consumer<Integer> listener) {
         this.fileTableRowLimitSelectionListener = listener;
