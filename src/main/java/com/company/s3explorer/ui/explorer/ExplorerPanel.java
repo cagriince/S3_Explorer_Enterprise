@@ -1591,13 +1591,16 @@ public class ExplorerPanel extends JPanel {
                 getCurrentPrefix();
 
         boolean restoreFocus =
-                fileTable.hasFocus();
+                fileTable.hasFocus()
+                        || restoreFileTableFocusAfterDelete;
 
         log.debug(
-                "[FILE TABLE REFRESH] bucket={} prefix={} restoreFocus={}",
+                "[FILE TABLE REFRESH] bucket={} prefix={} restoreFocus={} tableFocus={} deleteRestore={}",
                 bucket,
                 prefix,
-                restoreFocus);
+                restoreFocus,
+                fileTable.hasFocus(),
+                restoreFileTableFocusAfterDelete);
 
         contentLoader.invalidate(
                 bucket,
@@ -1609,6 +1612,8 @@ public class ExplorerPanel extends JPanel {
                 bucket,
                 prefix,
                 restoreFocus);
+
+        restoreFileTableFocusAfterDelete = false;
 
         updateActionStates();
     }
