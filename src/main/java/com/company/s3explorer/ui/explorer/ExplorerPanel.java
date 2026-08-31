@@ -1455,6 +1455,16 @@ public class ExplorerPanel extends JPanel {
         for (File file : files) {
             String objectKey = prefix + file.getName();
 
+            pendingFileTableSelectionKey =
+                    objectKey;
+
+            restoreFileTableFocusAfterOperation =
+                    true;
+
+            log.info(
+                    "[UPLOAD FILE] pending selection key={} restoreFocus={}",
+                    pendingFileTableSelectionKey,
+                    restoreFileTableFocusAfterOperation);
             try {
                 if (file.isFile()) {
                     lastOpenedFolderToUpload = file.getParentFile();
