@@ -76,6 +76,9 @@ public class ExplorerPanel extends JPanel {
 
     private boolean restoreFileTableFocusAfterDelete;
     private int pendingDeleteSelectionViewRow = -1;
+
+    private String pendingFileTableSelectionKey;
+    private boolean restoreFileTableFocusAfterOperation;
     
     private ExecutorService explorerPool = Executors.newFixedThreadPool(5);
     private final UIThemeManager themeManager;
@@ -337,18 +340,81 @@ public class ExplorerPanel extends JPanel {
     }
 
     public void updateActionStates() {
-        boolean folderSelected = this.getSelectedFolderNode() != null;
-        boolean hasSelection = folderSelected && (view.getFileTable().getSelectedRowCount() > 1 || (view.getFileTable().getSelectedRowCount() == 1 && !view.getFileTableModel().getItem(view.getFileTable().convertRowIndexToModel(view.getFileTable().getSelectedRow())).isParentFolder()));
-        boolean hasClipboard = folderSelected && !clipboard.isEmpty();
 
-        newFolderAction.setEnabled(folderSelected);
-        uploadAction.setEnabled(folderSelected);
+        S3TreeNode selectedFolderNode =
+                getSelectedFolderNode();
 
-        downloadAction.setEnabled(hasSelection);
-        deleteAction.setEnabled(hasSelection);
-        copyAction.setEnabled(hasSelection);
-        cutAction.setEnabled(hasSelection);
-        pasteAction.setEnabled(hasClipboard);
+        boolean folderSelected =
+                selectedFolderNode != null;
+
+        JTable table =
+                view.getFileTable();
+
+        int selectedRowCount =
+                table.getSelectedRowCount();
+
+        boolean hasSelection = false;
+
+        if (folderSelected
+                && selectedRowCount > 0) {
+
+            if (selectedRowCount > 1) {
+
+                hasSelection = true;
+
+            } else {
+
+                int viewRow =
+                        table.getSelectedRow();
+
+                if (viewRow >= 0) {
+
+                    int modelRow =
+                            table.convertRowIndexToModel(
+                                    viewRow);
+
+                    S3FileItem item =
+                            view.getFileTableModel()
+                                    .getItem(modelRow);
+
+                    hasSelection =
+                            item != null
+                                    && !item.isParentFolder();
+                }
+            }
+        }
+
+        boolean hasClipboard =
+                folderSelected
+                        && !clipboard.isEmpty();
+
+        newFolderAction.setEnabled(
+                folderSelected);
+
+        uploadAction.setEnabled(
+                folderSelected);
+
+        downloadAction.setEnabled(
+                hasSelection);
+
+        deleteAction.setEnabled(
+                hasSelection);
+
+        copyAction.setEnabled(
+                hasSelection);
+
+        cutAction.setEnabled(
+                hasSelection);
+
+        pasteAction.setEnabled(
+                hasClipboard);
+
+        log.debug(
+                "[ACTION STATES] folderSelected={} selectedRows={} hasSelection={} hasClipboard={}",
+                folderSelected,
+                selectedRowCount,
+                hasSelection,
+                hasClipboard);
     }
 
     private void deleteObject(S3FileItem item) {
@@ -834,6 +900,14 @@ public class ExplorerPanel extends JPanel {
                             hideOperationDialog(
                                     OperationDialogType.FILE_TABLE);
 
+                            if (pendingFileTableSelectionKey != null) {
+
+                                restoreFileTableSelectionByKey(
+                                        pendingFileTableSelectionKey);
+
+                                pendingFileTableSelectionKey = null;
+                            }
+
                             if (pendingDeleteSelectionViewRow >= 0) {
 
                                 restoreFileTableSelectionAfterDelete();
@@ -841,8 +915,12 @@ public class ExplorerPanel extends JPanel {
                                 pendingDeleteSelectionViewRow = -1;
                             }
 
-                            if (restoreFocus) {
+                            if (restoreFocus
+                                    || restoreFileTableFocusAfterOperation) {
+
                                 restoreFileTableFocus();
+
+                                restoreFileTableFocusAfterOperation = false;
                             }
                         }))
                 .exceptionally(ex -> {
@@ -1069,6 +1147,17 @@ public class ExplorerPanel extends JPanel {
                 updateActionStates();
             });
         });
+
+        view.getFileTable()
+                .getSelectionModel()
+                .addListSelectionListener(e -> {
+
+                    if (e.getValueIsAdjusting()) {
+                        return;
+                    }
+
+                    updateActionStates();
+                });
     }
     
     private S3ExplorerService getService() {
@@ -1274,27 +1363,72 @@ public class ExplorerPanel extends JPanel {
     }
 
     private void createFolder() {
-        String folderName = JOptionPane.showInputDialog(this, "Folder Name");
-        if (folderName == null || folderName.isBlank()) {
+
+        String folderName =
+                JOptionPane.showInputDialog(
+                        this,
+                        "Folder Name");
+
+        if (folderName == null
+                || folderName.isBlank()) {
             return;
         }
 
-        String bucket = this.getCurrentBucket();
+        String bucket =
+                this.getCurrentBucket();
+
         if (bucket == null) {
             return;
         }
 
-        String repositoryName = this.getCurrentRepository().getName();
-        String prefix = getCurrentPrefix();
-        String folderKey = prefix + folderName + "/";
+        String repositoryName =
+                this.getCurrentRepository().getName();
+
+        String prefix =
+                getCurrentPrefix();
+
+        String folderKey =
+                prefix + folderName + "/";
+
+        /*
+         * İşlem tamamlandığında File Table'da
+         * oluşturulan klasörü seç.
+         */
+        pendingFileTableSelectionKey =
+                folderKey;
+
+        restoreFileTableFocusAfterOperation = true;
+
+        log.info(
+                "[CREATE FOLDER] key={} restoreFocus={}",
+                folderKey,
+                restoreFileTableFocusAfterOperation);
+
         explorerPool.submit(() -> {
+
             try {
-                transferManager.submitCreateFolder(repositoryName, bucket, folderKey, folderKey);
+
+                transferManager.submitCreateFolder(
+                        repositoryName,
+                        bucket,
+                        folderKey,
+                        folderKey);
+
             } catch (Exception ex) {
-                SwingUtilities.invokeLater(() ->
-                        JOptionPane.showMessageDialog(
-                                this,
-                                ex.getMessage()));
+
+                /*
+                 * İşlem başlatılamadıysa pending selection
+                 * artık geçerli değil.
+                 */
+                SwingUtilities.invokeLater(() -> {
+
+                    pendingFileTableSelectionKey = null;
+                    restoreFileTableFocusAfterOperation = false;
+
+                    JOptionPane.showMessageDialog(
+                            this,
+                            ex.getMessage());
+                });
             }
         });
     }
@@ -2748,10 +2882,69 @@ public class ExplorerPanel extends JPanel {
                         0,
                         true));
 
+        updateActionStates();
+
         log.info(
                 "[DELETE SELECTION RESTORE] deletedViewRow={} targetViewRow={} rowCount={}",
                 pendingDeleteSelectionViewRow,
                 targetViewRow,
                 rowCount);
+    }
+
+    private void restoreFileTableSelectionByKey(
+            String key) {
+
+        if (key == null) {
+            return;
+        }
+
+        JTable table =
+                view.getFileTable();
+
+        for (int viewRow = 0;
+             viewRow < table.getRowCount();
+             viewRow++) {
+
+            int modelRow =
+                    table.convertRowIndexToModel(
+                            viewRow);
+
+            S3FileItem item =
+                    view.getFileTableModel()
+                            .getItem(modelRow);
+
+            if (item == null) {
+                continue;
+            }
+
+            if (Objects.equals(
+                    item.getKey(),
+                    key)) {
+
+                table.setRowSelectionInterval(
+                        viewRow,
+                        viewRow);
+
+                table.scrollRectToVisible(
+                        table.getCellRect(
+                                viewRow,
+                                0,
+                                true));
+
+                updateActionStates();
+
+                log.info(
+                        "[FILE TABLE SELECTION RESTORE] key={} viewRow={} modelRow={}",
+                        key,
+                        viewRow,
+                        modelRow);
+
+                return;
+            }
+        }
+
+        log.warn(
+                "[FILE TABLE SELECTION RESTORE] key not found={}",
+                key);
     }
 }
