@@ -341,11 +341,9 @@ public class ExplorerPanel extends JPanel {
 
     public void updateActionStates() {
 
-        S3TreeNode selectedFolderNode =
-                getSelectedFolderNode();
-
         boolean folderSelected =
-                selectedFolderNode != null;
+                currentFileBucket != null
+                        && currentFilePrefix != null;
 
         JTable table =
                 view.getFileTable();
