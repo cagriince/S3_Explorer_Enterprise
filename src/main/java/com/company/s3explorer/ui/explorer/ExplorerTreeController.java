@@ -94,7 +94,7 @@ public final class ExplorerTreeController {
 
         S3TreeNode root =
                 new S3TreeNode(
-                        S3TreeNode.ROOT_PREFIX,
+                        bucket,
                         S3TreeNode.ROOT_PREFIX,
                         S3TreeNode.ROOT_PREFIX);
 
