@@ -75,6 +75,7 @@ public class ExplorerPanel extends JPanel {
     private File lastOpenedFolderToDownload;
 
     private boolean restoreFileTableFocusAfterDelete;
+    private int pendingDeleteSelectionModelRow = -1;
     
     private ExecutorService explorerPool = Executors.newFixedThreadPool(5);
     private final UIThemeManager themeManager;
@@ -1912,13 +1913,34 @@ public class ExplorerPanel extends JPanel {
     }
 
     private void deleteSelectedWithFocusRestore() {
+
+        JTable table =
+                view.getFileTable();
+
         restoreFileTableFocusAfterDelete =
-                view.getFileTable().getSelectedRowCount() > 0;
+                table.getSelectedRowCount() > 0;
+
+        pendingDeleteSelectionModelRow = -1;
+
+        if (restoreFileTableFocusAfterDelete) {
+
+            int selectedViewRow =
+                    table.getSelectedRow();
+
+            if (selectedViewRow >= 0) {
+
+                pendingDeleteSelectionModelRow =
+                        table.convertRowIndexToModel(
+                                selectedViewRow);
+            }
+        }
 
         log.info(
-                "[DELETE] trigger selectedRows={} restoreFocus={}",
-                view.getFileTable().getSelectedRowCount(),
-                restoreFileTableFocusAfterDelete);
+                "[DELETE] trigger selectedRows={} restoreFocus={} selectedViewRow={} selectedModelRow={}",
+                table.getSelectedRowCount(),
+                restoreFileTableFocusAfterDelete,
+                table.getSelectedRow(),
+                pendingDeleteSelectionModelRow);
 
         deleteSelected();
     }
