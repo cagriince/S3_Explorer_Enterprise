@@ -75,7 +75,7 @@ public class ExplorerPanel extends JPanel {
     private File lastOpenedFolderToDownload;
 
     private boolean restoreFileTableFocusAfterDelete;
-    private int pendingDeleteSelectionModelRow = -1;
+    private int pendingDeleteSelectionViewRow = -1;
     
     private ExecutorService explorerPool = Executors.newFixedThreadPool(5);
     private final UIThemeManager themeManager;
@@ -833,6 +833,13 @@ public class ExplorerPanel extends JPanel {
 
                             hideOperationDialog(
                                     OperationDialogType.FILE_TABLE);
+
+                            if (pendingDeleteSelectionViewRow >= 0) {
+
+                                restoreFileTableSelectionAfterDelete();
+
+                                pendingDeleteSelectionViewRow = -1;
+                            }
 
                             if (restoreFocus) {
                                 restoreFileTableFocus();
@@ -1920,27 +1927,14 @@ public class ExplorerPanel extends JPanel {
         restoreFileTableFocusAfterDelete =
                 table.getSelectedRowCount() > 0;
 
-        pendingDeleteSelectionModelRow = -1;
-
-        if (restoreFileTableFocusAfterDelete) {
-
-            int selectedViewRow =
-                    table.getSelectedRow();
-
-            if (selectedViewRow >= 0) {
-
-                pendingDeleteSelectionModelRow =
-                        table.convertRowIndexToModel(
-                                selectedViewRow);
-            }
-        }
+        pendingDeleteSelectionViewRow =
+                table.getSelectedRow();
 
         log.info(
-                "[DELETE] trigger selectedRows={} restoreFocus={} selectedViewRow={} selectedModelRow={}",
+                "[DELETE] trigger selectedRows={} restoreFocus={} selectedViewRow={}",
                 table.getSelectedRowCount(),
                 restoreFileTableFocusAfterDelete,
-                table.getSelectedRow(),
-                pendingDeleteSelectionModelRow);
+                pendingDeleteSelectionViewRow);
 
         deleteSelected();
     }
@@ -2713,5 +2707,51 @@ public class ExplorerPanel extends JPanel {
                 retry.start();
             }
         });
+    }
+
+    private void restoreFileTableSelectionAfterDelete() {
+
+        JTable table =
+                view.getFileTable();
+
+        int rowCount =
+                table.getRowCount();
+
+        if (rowCount <= 0) {
+
+            log.info(
+                    "[DELETE SELECTION RESTORE] table empty");
+
+            return;
+        }
+
+        if (pendingDeleteSelectionViewRow < 0) {
+
+            log.debug(
+                    "[DELETE SELECTION RESTORE] no pending selection");
+
+            return;
+        }
+
+        int targetViewRow =
+                Math.min(
+                        pendingDeleteSelectionViewRow,
+                        rowCount - 1);
+
+        table.setRowSelectionInterval(
+                targetViewRow,
+                targetViewRow);
+
+        table.scrollRectToVisible(
+                table.getCellRect(
+                        targetViewRow,
+                        0,
+                        true));
+
+        log.info(
+                "[DELETE SELECTION RESTORE] deletedViewRow={} targetViewRow={} rowCount={}",
+                pendingDeleteSelectionViewRow,
+                targetViewRow,
+                rowCount);
     }
 }
