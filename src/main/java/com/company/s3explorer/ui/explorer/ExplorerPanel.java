@@ -1432,48 +1432,127 @@ public class ExplorerPanel extends JPanel {
     }
 
     private void uploadFile() {
-        String repositoryName = this.getCurrentRepository().getName();
-        String bucket = this.getCurrentBucket();
+
+        String repositoryName =
+                this.getCurrentRepository().getName();
+
+        String bucket =
+                this.getCurrentBucket();
+
         if (bucket == null) {
             return;
         }
 
-        JFileChooser chooser = new JFileChooser();
+        JFileChooser chooser =
+                new JFileChooser();
+
         chooser.setMultiSelectionEnabled(true);
-        chooser.setFileSelectionMode(JFileChooser.FILES_AND_DIRECTORIES);
+
+        chooser.setFileSelectionMode(
+                JFileChooser.FILES_AND_DIRECTORIES);
+
         if (lastOpenedFolderToUpload != null) {
-            chooser.setCurrentDirectory(lastOpenedFolderToUpload);
+
+            chooser.setCurrentDirectory(
+                    lastOpenedFolderToUpload);
         }
-        int result = chooser.showOpenDialog(this);
+
+        int result =
+                chooser.showOpenDialog(this);
+
         if (result != JFileChooser.APPROVE_OPTION) {
             return;
         }
 
-        String prefix = getCurrentPrefix();
+        String prefix =
+                getCurrentPrefix();
 
-        File[] files = chooser.getSelectedFiles();
+        File[] files =
+                chooser.getSelectedFiles();
+
         for (File file : files) {
-            String objectKey = prefix + file.getName();
 
-            pendingFileTableSelectionKey =
-                    objectKey;
-
-            restoreFileTableFocusAfterOperation =
-                    true;
-
-            log.info(
-                    "[UPLOAD FILE] pending selection key={} restoreFocus={}",
-                    pendingFileTableSelectionKey,
-                    restoreFileTableFocusAfterOperation);
             try {
+
+                /*
+                 * -------------------------------------------------
+                 * DOSYA
+                 * -------------------------------------------------
+                 */
                 if (file.isFile()) {
-                    lastOpenedFolderToUpload = file.getParentFile();
-                    transferManager.submitUpload(repositoryName, bucket, objectKey, file.toPath(), file.length());
-                } else {
-                    lastOpenedFolderToUpload = file;
-                    transferManager.submitFolderUpload(repositoryName, bucket, prefix, file.toPath());
+
+                    String objectKey =
+                            prefix + file.getName();
+
+                    pendingFileTableSelectionKey =
+                            objectKey;
+
+                    restoreFileTableFocusAfterOperation =
+                            true;
+
+                    log.info(
+                            "[UPLOAD FILE] pending selection key={} restoreFocus={}",
+                            pendingFileTableSelectionKey,
+                            restoreFileTableFocusAfterOperation);
+
+                    lastOpenedFolderToUpload =
+                            file.getParentFile();
+
+                    transferManager.submitUpload(
+                            repositoryName,
+                            bucket,
+                            objectKey,
+                            file.toPath(),
+                            file.length());
+
                 }
+
+                /*
+                 * -------------------------------------------------
+                 * KLASÖR
+                 * -------------------------------------------------
+                 */
+                else {
+
+                    String folderKey =
+                            S3Util.combineKey(
+                                    prefix,
+                                    file.getName())
+                                    + "/";
+
+                    pendingFileTableSelectionKey =
+                            folderKey;
+
+                    restoreFileTableFocusAfterOperation =
+                            true;
+
+                    log.info(
+                            "[UPLOAD FOLDER] pending selection key={} restoreFocus={}",
+                            pendingFileTableSelectionKey,
+                            restoreFileTableFocusAfterOperation);
+
+                    lastOpenedFolderToUpload =
+                            file;
+
+                    transferManager.submitFolderUpload(
+                            repositoryName,
+                            bucket,
+                            prefix,
+                            file.toPath());
+                }
+
             } catch (Exception ex) {
+
+                /*
+                 * İşlem submit edilemediyse
+                 * bekleyen selection artık geçerli değil.
+                 */
+                pendingFileTableSelectionKey =
+                        null;
+
+                restoreFileTableFocusAfterOperation =
+                        false;
+
                 SwingUtilities.invokeLater(() ->
                         JOptionPane.showMessageDialog(
                                 this,
