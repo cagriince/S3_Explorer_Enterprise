@@ -1318,7 +1318,8 @@ public class ExplorerPanel extends JPanel {
             return;
         }
 
-        String bucket = getCurrentBucket();
+        String bucket =
+                getCurrentBucket();
 
         if (bucket == null) {
             return;
@@ -1328,9 +1329,46 @@ public class ExplorerPanel extends JPanel {
 
         if (item.isParentFolder()) {
 
+            /*
+             * Şu an bulunduğumuz klasörü sakla.
+             *
+             * Örnek:
+             *
+             * currentFilePrefix = SIL3/DOWNLOAD/
+             *
+             * parent'a çıktığımızda:
+             *
+             * SIL3/
+             *   DOWNLOAD/  <- selected
+             */
+            String currentPrefix =
+                    currentFilePrefix;
+
+            if (currentPrefix == null
+                    || currentPrefix.isBlank()
+                    || S3TreeNode.ROOT_PREFIX.equals(currentPrefix)) {
+
+                return;
+            }
+
             targetPrefix =
                     S3Util.extractParentPrefix(
-                            currentFilePrefix);
+                            currentPrefix);
+
+            /*
+             * Parent File Table yüklendiğinde
+             * az önce çıktığımız klasörü seç.
+             */
+            pendingFileTableSelectionKey =
+                    currentPrefix;
+
+            restoreFileTableFocus =
+                    true;
+
+            log.info(
+                    "[PARENT NAV] FILE TABLE parent item restore selection key={} parentPrefix={}",
+                    pendingFileTableSelectionKey,
+                    targetPrefix);
 
         } else {
 
@@ -1347,9 +1385,10 @@ public class ExplorerPanel extends JPanel {
                 bucket,
                 targetPrefix);
 
-        treeController.selectPrefix(targetPrefix);
+        treeController.selectPrefix(
+                targetPrefix);
     }
-
+    
     private void startDownload(
             S3FileItem item,
             Path destination) {
