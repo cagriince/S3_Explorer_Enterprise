@@ -3148,7 +3148,7 @@ public class ExplorerPanel extends JPanel {
         String newName =
                 JOptionPane.showInputDialog(
                         this,
-                        "Yeni ad:",
+                        "New name:",
                         oldName);
 
         if (newName == null) {
@@ -3162,7 +3162,7 @@ public class ExplorerPanel extends JPanel {
 
             JOptionPane.showMessageDialog(
                     this,
-                    "Yeni ad boş olamaz.",
+                    "New name can not be empty.",
                     "Rename",
                     JOptionPane.WARNING_MESSAGE);
 
@@ -3181,7 +3181,7 @@ public class ExplorerPanel extends JPanel {
 
             JOptionPane.showMessageDialog(
                     this,
-                    "Yeni ad klasör yolu içeremez.",
+                    "New name can not contain folder.",
                     "Rename",
                     JOptionPane.WARNING_MESSAGE);
 
@@ -3201,6 +3201,23 @@ public class ExplorerPanel extends JPanel {
             newKey += "/";
         }
 
+        if (exists(newKey)) {
+
+            log.warn(
+                    "[RENAME] target already exists source={} target={}",
+                    oldKey,
+                    newKey);
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    newName + " is already used.\n"
+                            + "Please select a different one.",
+                    "Rename",
+                    JOptionPane.WARNING_MESSAGE);
+
+            return;
+        }
+        
         String repositoryName =
                 item.getRepositoryName();
 
