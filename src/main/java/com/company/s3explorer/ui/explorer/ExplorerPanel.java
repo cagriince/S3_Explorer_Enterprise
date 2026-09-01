@@ -3465,7 +3465,7 @@ public class ExplorerPanel extends JPanel {
         int result =
                 JOptionPane.showConfirmDialog(
                         this,
-                        "A file with this name already exists.\n\n"
+                        item.getName() + " already exists.\n"
                                 + "Do you want to overwrite it?",
                         "File Conflict",
                         JOptionPane.YES_NO_OPTION,
