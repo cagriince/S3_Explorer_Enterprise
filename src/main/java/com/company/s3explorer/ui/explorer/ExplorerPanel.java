@@ -81,6 +81,7 @@ public class ExplorerPanel extends JPanel {
     private boolean restoreFileTableFocus;
     private boolean pasteSelectionCollectionInProgress;
     private List<String> preservedFileTableSelectionKeys;
+    private boolean forceFileTableFocusAfterRefresh;
     
     private ExecutorService explorerPool = Executors.newFixedThreadPool(5);
     private final UIThemeManager themeManager;
@@ -1839,7 +1840,8 @@ public class ExplorerPanel extends JPanel {
 
         boolean restoreFocus =
                 table.hasFocus()
-                        || restoreFileTableFocus;
+                        || restoreFileTableFocus
+                        || forceFileTableFocusAfterRefresh;
 
         log.debug(
                 "[FILE TABLE REFRESH] bucket={} prefix={} restoreFocus={} tableFocus={} deleteRestore={} preservedSelection={}",
@@ -2132,12 +2134,17 @@ public class ExplorerPanel extends JPanel {
             pendingFileTableSelectionKeys =
                     new ArrayList<>(selectionKeys);
 
-            restoreFileTableFocus = true;
+            restoreFileTableFocus =
+                    true;
+
+            forceFileTableFocusAfterRefresh =
+                    true;
 
             log.info(
-                    "[PASTE SELECTION] final pending keys={} restoreFocus={}",
+                    "[PASTE SELECTION] final pending keys={} restoreFocus={} forceFocus={}",
                     pendingFileTableSelectionKeys,
-                    restoreFileTableFocus);
+                    restoreFileTableFocus,
+                    forceFileTableFocusAfterRefresh);
 
             /*
              * A transfer may have completed while the overwrite
@@ -3693,7 +3700,8 @@ public class ExplorerPanel extends JPanel {
         }
 
         List<String> keys =
-                new ArrayList<>(pendingFileTableSelectionKeys);
+                new ArrayList<>(
+                        pendingFileTableSelectionKeys);
 
         JTable table =
                 view.getFileTable();
@@ -3710,13 +3718,14 @@ public class ExplorerPanel extends JPanel {
             S3FileItem item =
                     model.getItem(modelRow);
 
-            if (item == null
-                    || !keys.contains(item.getKey())) {
+            if (item == null) {
                 continue;
             }
 
-            found = true;
-            break;
+            if (keys.contains(item.getKey())) {
+                found = true;
+                break;
+            }
         }
 
         if (!found) {
@@ -3732,7 +3741,21 @@ public class ExplorerPanel extends JPanel {
 
         pendingFileTableSelectionKeys = null;
 
+        /*
+         * Selection has been restored successfully.
+         */
+        forceFileTableFocusAfterRefresh = false;
+
+        /*
+         * Keep the existing focus-restore mechanism.
+         * It contains the retry logic required by Swing.
+         */
         restoreFileTableFocus = true;
+
+        updateActionStates();
+
+        SwingUtilities.invokeLater(
+                this::restoreFileTableFocus);
 
         log.info(
                 "[PASTE SELECTION] restored and completed keys={}",
