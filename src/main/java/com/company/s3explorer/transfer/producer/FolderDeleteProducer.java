@@ -31,14 +31,15 @@ public class FolderDeleteProducer
     }
 
     @Override
-    protected TransferTask createTask(S3Object object) {
+    protected TransferTask createTask(
+            S3Object object) {
 
         return TransferTask.delete()
                 .repositoryName(repository)
                 .bucket(bucket)
                 .objectKey(object.key())
                 .size(object.size())
-                .affectsObjectList(false)
+                .affectsObjectList(true)
                 .affectsFolderTree(false)
                 .group(group)
                 .build();

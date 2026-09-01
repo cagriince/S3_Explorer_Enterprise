@@ -2056,7 +2056,7 @@ public class ExplorerPanel extends JPanel {
             String targetKey =
                     S3Util.combineKey(
                             targetPrefix,
-                            item.getName());
+                            (item.isFolder() ? "" : item.getName()));
 
             if (item.isFolder()
                     && !targetKey.endsWith("/")) {
