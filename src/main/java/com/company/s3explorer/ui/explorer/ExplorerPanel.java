@@ -77,6 +77,7 @@ public class ExplorerPanel extends JPanel {
     private int pendingDeleteSelectionViewRow = -1;
 
     private String pendingFileTableSelectionKey;
+    private List<String> pendingFileTableSelectionKeys;
     private boolean restoreFileTableFocus;
     
     private ExecutorService explorerPool = Executors.newFixedThreadPool(5);
@@ -907,7 +908,15 @@ public class ExplorerPanel extends JPanel {
                             hideOperationDialog(
                                     OperationDialogType.FILE_TABLE);
 
-                            if (pendingFileTableSelectionKey != null) {
+                            if (pendingFileTableSelectionKeys != null
+                                    && !pendingFileTableSelectionKeys.isEmpty()) {
+
+                                restoreFileTableSelectionByKeys(
+                                        pendingFileTableSelectionKeys);
+
+                                pendingFileTableSelectionKeys = null;
+
+                            } else if (pendingFileTableSelectionKey != null) {
 
                                 restoreFileTableSelectionByKey(
                                         pendingFileTableSelectionKey);
@@ -1952,17 +1961,32 @@ public class ExplorerPanel extends JPanel {
             return;
         }
 
+        List<String> selectionKeys =
+                new ArrayList<>();
+
         for (S3FileItem item : items) {
 
             if (item == null) {
                 continue;
             }
-
+/*
             String targetKey =
                     S3Util.combineKey(
                             targetPrefix,
-                            (item.isFolder() ? "" : item.getName()));
+                            (item.isFolder()
+                                    ? ""
+                                    : item.getName()));
+*/
+            String targetKey =
+                    S3Util.combineKey(
+                            targetPrefix,
+                            item.getName());
 
+            if (item.isFolder()
+                    && !targetKey.endsWith("/")) {
+
+                targetKey += "/";
+            }
             /*
              * Aynı klasöre aynı isimle yapıştırmayı engelle.
              */
@@ -1987,6 +2011,35 @@ public class ExplorerPanel extends JPanel {
                         targetBucket,
                         targetKey);
             }
+
+            /*
+             * Paste başarılı şekilde submit edildiyse
+             * refresh sonrasında bu item seçilecek.
+             */
+            selectionKeys.add(targetKey);
+
+            log.info(
+                    "[PASTE SELECTION] pending key={} item={}",
+                    targetKey,
+                    item.getName());
+        }
+
+        /*
+         * Paste edilen tüm item'ları
+         * refresh sonrasında seç.
+         */
+        if (!selectionKeys.isEmpty()) {
+
+            pendingFileTableSelectionKeys =
+                    selectionKeys;
+
+            restoreFileTableFocus =
+                    true;
+
+            log.info(
+                    "[PASTE SELECTION] pending keys={} restoreFocus={}",
+                    pendingFileTableSelectionKeys,
+                    restoreFileTableFocus);
         }
 
         /*
@@ -3288,6 +3341,82 @@ public class ExplorerPanel extends JPanel {
                             ex.getMessage(),
                             "Rename Failed",
                             JOptionPane.ERROR_MESSAGE));
+        }
+    }
+
+    private void restoreFileTableSelectionByKeys(
+            List<String> keys) {
+
+        if (keys == null
+                || keys.isEmpty()) {
+
+            return;
+        }
+
+        JTable table =
+                view.getFileTable();
+
+        FileTableModel model =
+                view.getFileTableModel();
+
+        table.clearSelection();
+
+        int firstViewRow = -1;
+        int selectedCount = 0;
+
+        for (int modelRow = 0;
+             modelRow < model.getRowCount();
+             modelRow++) {
+
+            S3FileItem item =
+                    model.getItem(modelRow);
+
+            if (item == null) {
+                continue;
+            }
+
+            if (!keys.contains(item.getKey())) {
+                continue;
+            }
+
+            int viewRow =
+                    table.convertRowIndexToView(
+                            modelRow);
+
+            if (viewRow < 0) {
+                continue;
+            }
+
+            table.addRowSelectionInterval(
+                    viewRow,
+                    viewRow);
+
+            if (firstViewRow < 0) {
+                firstViewRow = viewRow;
+            }
+
+            selectedCount++;
+        }
+
+        if (firstViewRow >= 0) {
+
+            table.scrollRectToVisible(
+                    table.getCellRect(
+                            firstViewRow,
+                            0,
+                            true));
+
+            log.info(
+                    "[FILE TABLE SELECTION RESTORE] multiple success selectedCount={} firstViewRow={} keys={}",
+                    selectedCount,
+                    firstViewRow,
+                    keys);
+
+        } else {
+
+            log.warn(
+                    "[FILE TABLE SELECTION RESTORE] multiple no matching rows keys={}",
+                    keys);
         }
     }
 }
