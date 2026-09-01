@@ -74,7 +74,6 @@ public class ExplorerPanel extends JPanel {
     private File lastOpenedFolderToUpload;
     private File lastOpenedFolderToDownload;
 
-    private boolean restoreFileTableFocusAfterDelete;
     private int pendingDeleteSelectionViewRow = -1;
 
     private String pendingFileTableSelectionKey;
@@ -1722,7 +1721,7 @@ public class ExplorerPanel extends JPanel {
 
         boolean restoreFocus =
                 view.getFileTable().hasFocus()
-                        || restoreFileTableFocusAfterDelete;
+                        || restoreFileTableFocus;
 
         log.debug(
                 "[FILE TABLE REFRESH] bucket={} prefix={} restoreFocus={} tableFocus={} deleteRestore={}",
@@ -1730,7 +1729,7 @@ public class ExplorerPanel extends JPanel {
                 prefix,
                 restoreFocus,
                 view.getFileTable().hasFocus(),
-                restoreFileTableFocusAfterDelete);
+                restoreFileTableFocus);
 
         contentLoader.invalidate(
                 bucket,
@@ -1743,7 +1742,7 @@ public class ExplorerPanel extends JPanel {
                 prefix,
                 restoreFocus);
 
-        restoreFileTableFocusAfterDelete = false;
+        restoreFileTableFocus = false;
 
         updateActionStates();
     }
@@ -2114,7 +2113,7 @@ public class ExplorerPanel extends JPanel {
                 "[DELETE] invoked selectedRows={} tableFocus={} restoreFocus={}",
                 view.getFileTable().getSelectedRowCount(),
                 view.getFileTable().hasFocus(),
-                restoreFileTableFocusAfterDelete);
+                restoreFileTableFocus);
         
         List<S3FileItem> items = getSelectedItems();
         if (items.isEmpty()) {
@@ -2155,7 +2154,7 @@ public class ExplorerPanel extends JPanel {
         JTable table =
                 view.getFileTable();
 
-        restoreFileTableFocusAfterDelete =
+        restoreFileTableFocus =
                 table.getSelectedRowCount() > 0;
 
         pendingDeleteSelectionViewRow =
@@ -2164,7 +2163,7 @@ public class ExplorerPanel extends JPanel {
         log.info(
                 "[DELETE] trigger selectedRows={} restoreFocus={} selectedViewRow={}",
                 table.getSelectedRowCount(),
-                restoreFileTableFocusAfterDelete,
+                restoreFileTableFocus,
                 pendingDeleteSelectionViewRow);
 
         deleteSelected();
