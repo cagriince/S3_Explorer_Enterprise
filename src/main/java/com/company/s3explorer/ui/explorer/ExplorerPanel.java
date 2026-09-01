@@ -80,6 +80,7 @@ public class ExplorerPanel extends JPanel {
     private List<String> pendingFileTableSelectionKeys;
     private boolean restoreFileTableFocus;
     private boolean pasteSelectionCollectionInProgress;
+    private List<String> preservedFileTableSelectionKeys;
     
     private ExecutorService explorerPool = Executors.newFixedThreadPool(5);
     private final UIThemeManager themeManager;
@@ -923,6 +924,23 @@ public class ExplorerPanel extends JPanel {
 
                                     pendingFileTableSelectionKey =
                                             null;
+
+                                } else if (preservedFileTableSelectionKeys != null
+                                        && !preservedFileTableSelectionKeys.isEmpty()) {
+
+                                    List<String> preservedKeys =
+                                            new ArrayList<>(
+                                                    preservedFileTableSelectionKeys);
+
+                                    restoreFileTableSelectionByKeys(
+                                            preservedKeys);
+
+                                    preservedFileTableSelectionKeys =
+                                            null;
+
+                                    log.debug(
+                                            "[FILE TABLE SELECTION] restored preserved selection keys={}",
+                                            preservedKeys);
                                 }
                             }
 
@@ -1017,6 +1035,40 @@ public class ExplorerPanel extends JPanel {
 
             hideOperationDialog(
                     OperationDialogType.FILE_TABLE);
+
+            if (!pasteSelectionCollectionInProgress) {
+
+                if (pendingFileTableSelectionKeys != null
+                        && !pendingFileTableSelectionKeys.isEmpty()) {
+
+                    restorePendingPasteSelection();
+
+                } else if (pendingFileTableSelectionKey != null) {
+
+                    restoreFileTableSelectionByKey(
+                            pendingFileTableSelectionKey);
+
+                    pendingFileTableSelectionKey =
+                            null;
+
+                } else if (preservedFileTableSelectionKeys != null
+                        && !preservedFileTableSelectionKeys.isEmpty()) {
+
+                    List<String> preservedKeys =
+                            new ArrayList<>(
+                                    preservedFileTableSelectionKeys);
+
+                    restoreFileTableSelectionByKeys(
+                            preservedKeys);
+
+                    preservedFileTableSelectionKeys =
+                            null;
+
+                    log.debug(
+                            "[FILE TABLE SELECTION] restored preserved selection keys={}",
+                            preservedKeys);
+                }
+            }
         });
     }
 
@@ -1762,17 +1814,41 @@ public class ExplorerPanel extends JPanel {
         String prefix =
                 getCurrentPrefix();
 
+        JTable table =
+                view.getFileTable();
+
+        /*
+         * Preserve the current File Table selection before
+         * the refresh clears the table model.
+         *
+         * This is intentionally independent from paste selection.
+         * A normal refresh must not destroy a user's current selection.
+         */
+        List<String> currentSelectionKeys =
+                getSelectedFileTableKeys();
+
+        if (!currentSelectionKeys.isEmpty()) {
+
+            preservedFileTableSelectionKeys =
+                    new ArrayList<>(currentSelectionKeys);
+
+            log.debug(
+                    "[FILE TABLE REFRESH] preserving selection keys={}",
+                    preservedFileTableSelectionKeys);
+        }
+
         boolean restoreFocus =
-                view.getFileTable().hasFocus()
+                table.hasFocus()
                         || restoreFileTableFocus;
 
         log.debug(
-                "[FILE TABLE REFRESH] bucket={} prefix={} restoreFocus={} tableFocus={} deleteRestore={}",
+                "[FILE TABLE REFRESH] bucket={} prefix={} restoreFocus={} tableFocus={} deleteRestore={} preservedSelection={}",
                 bucket,
                 prefix,
                 restoreFocus,
-                view.getFileTable().hasFocus(),
-                restoreFileTableFocus);
+                table.hasFocus(),
+                restoreFileTableFocus,
+                preservedFileTableSelectionKeys);
 
         contentLoader.invalidate(
                 bucket,
@@ -3446,6 +3522,50 @@ public class ExplorerPanel extends JPanel {
         }
     }
 
+    private List<String> getSelectedFileTableKeys() {
+
+        JTable table =
+                view.getFileTable();
+
+        FileTableModel model =
+                view.getFileTableModel();
+
+        int[] selectedRows =
+                table.getSelectedRows();
+
+        if (selectedRows == null
+                || selectedRows.length == 0) {
+
+            return Collections.emptyList();
+        }
+
+        List<String> keys =
+                new ArrayList<>();
+
+        for (int viewRow : selectedRows) {
+
+            if (viewRow < 0) {
+                continue;
+            }
+
+            int modelRow =
+                    table.convertRowIndexToModel(
+                            viewRow);
+
+            S3FileItem item =
+                    model.getItem(modelRow);
+
+            if (item == null
+                    || item.isParentFolder()) {
+                continue;
+            }
+
+            keys.add(item.getKey());
+        }
+
+        return keys;
+    }
+    
     private void restoreFileTableSelectionByKeys(
             List<String> keys) {
 
