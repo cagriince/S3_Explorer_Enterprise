@@ -79,6 +79,7 @@ public class ExplorerPanel extends JPanel {
     private String pendingFileTableSelectionKey;
     private List<String> pendingFileTableSelectionKeys;
     private boolean restoreFileTableFocus;
+    private boolean pasteSelectionCollectionInProgress;
     
     private ExecutorService explorerPool = Executors.newFixedThreadPool(5);
     private final UIThemeManager themeManager;
@@ -908,20 +909,25 @@ public class ExplorerPanel extends JPanel {
                             hideOperationDialog(
                                     OperationDialogType.FILE_TABLE);
 
-                            if (pendingFileTableSelectionKeys != null
-                                    && !pendingFileTableSelectionKeys.isEmpty()) {
+                            if (!pasteSelectionCollectionInProgress) {
 
-                                restoreFileTableSelectionByKeys(
-                                        pendingFileTableSelectionKeys);
+                                if (pendingFileTableSelectionKeys != null
+                                        && !pendingFileTableSelectionKeys.isEmpty()) {
 
-                                pendingFileTableSelectionKeys = null;
+                                    restoreFileTableSelectionByKeys(
+                                            pendingFileTableSelectionKeys);
 
-                            } else if (pendingFileTableSelectionKey != null) {
+                                    pendingFileTableSelectionKeys =
+                                            null;
 
-                                restoreFileTableSelectionByKey(
-                                        pendingFileTableSelectionKey);
+                                } else if (pendingFileTableSelectionKey != null) {
 
-                                pendingFileTableSelectionKey = null;
+                                    restoreFileTableSelectionByKey(
+                                            pendingFileTableSelectionKey);
+
+                                    pendingFileTableSelectionKey =
+                                            null;
+                                }
                             }
 
                             if (pendingDeleteSelectionViewRow >= 0) {
@@ -1962,6 +1968,15 @@ public class ExplorerPanel extends JPanel {
             return;
         }
 
+        /*
+         * The paste operation may trigger file-table reloads
+         * before all overwrite dialogs have been answered.
+         *
+         * Selection restoration must therefore remain suspended
+         * until the complete paste decision phase has finished.
+         */
+        pasteSelectionCollectionInProgress = true;
+
         List<String> selectionKeys =
                 new ArrayList<>();
 
@@ -1980,6 +1995,20 @@ public class ExplorerPanel extends JPanel {
                     && !targetKey.endsWith("/")) {
 
                 targetKey += "/";
+            }
+
+            /*
+             * Do not paste an item onto itself.
+             */
+            if (item.getBucket().equals(targetBucket)
+                    && item.getKey().equals(targetKey)) {
+
+                log.info(
+                        "[PASTE] skipped self-target source={} target={}",
+                        item.getKey(),
+                        targetKey);
+
+                continue;
             }
 
             boolean submitted;
@@ -2005,12 +2034,6 @@ public class ExplorerPanel extends JPanel {
             /*
              * Only items accepted by the user are added
              * to the pending selection list.
-             *
-             * For example:
-             *
-             * A -> YES -> selected
-             * B -> NO  -> not selected
-             * C -> YES -> selected
              */
             if (submitted) {
 
@@ -2018,25 +2041,37 @@ public class ExplorerPanel extends JPanel {
                         targetKey);
 
                 log.info(
-                        "[PASTE SELECTION] accepted key={}",
-                        targetKey);
+                        "[PASTE SELECTION] accepted key={} item={}",
+                        targetKey,
+                        item.getName());
+
+            } else {
+
+                log.info(
+                        "[PASTE SELECTION] not selected key={} item={}",
+                        targetKey,
+                        item.getName());
             }
         }
 
         /*
-         * Restore only the items that were actually
-         * accepted for the paste operation.
+         * All overwrite dialogs have now been answered.
+         *
+         * From this point on, normal transfer-triggered
+         * File Table reloads may restore the final selection.
          */
+        pasteSelectionCollectionInProgress = false;
+
         if (!selectionKeys.isEmpty()) {
 
             pendingFileTableSelectionKeys =
-                    selectionKeys;
+                    new ArrayList<>(selectionKeys);
 
             restoreFileTableFocus =
                     true;
 
             log.info(
-                    "[PASTE SELECTION] pending keys={} restoreFocus={}",
+                    "[PASTE SELECTION] final pending keys={} restoreFocus={}",
                     pendingFileTableSelectionKeys,
                     restoreFileTableFocus);
 
@@ -2050,10 +2085,8 @@ public class ExplorerPanel extends JPanel {
         }
 
         /*
-         * MOVE clears the clipboard after the operation
-         * has been submitted.
-         *
-         * COPY keeps the clipboard available.
+         * MOVE clears the clipboard after all decisions have
+         * been made. COPY keeps it available.
          */
         if (operation ==
                 ExplorerClipboard.Operation.MOVE) {
@@ -2063,7 +2096,7 @@ public class ExplorerPanel extends JPanel {
 
         updateActionStates();
     }
-
+    
     private boolean submitCopy(
             S3FileItem item,
             String targetBucket,
