@@ -914,11 +914,7 @@ public class ExplorerPanel extends JPanel {
                                 if (pendingFileTableSelectionKeys != null
                                         && !pendingFileTableSelectionKeys.isEmpty()) {
 
-                                    restoreFileTableSelectionByKeys(
-                                            pendingFileTableSelectionKeys);
-
-                                    pendingFileTableSelectionKeys =
-                                            null;
+                                    restorePendingPasteSelection();
 
                                 } else if (pendingFileTableSelectionKey != null) {
 
@@ -1730,7 +1726,8 @@ public class ExplorerPanel extends JPanel {
 
         if (!event.isSuccessful()) {
 
-            log.debug("[EXPLORER GROUP COMPLETED] not successful");
+            log.debug(
+                    "[EXPLORER GROUP COMPLETED] not successful");
 
             return;
         }
@@ -1751,14 +1748,6 @@ public class ExplorerPanel extends JPanel {
                         new RefreshTreeNode(
                                 parentPrefix,
                                 RefreshTreeOperation.DELETE)));
-
-        if (Objects.equals(
-                parentPrefix,
-                currentFilePrefix)) {
-
-            refreshScheduler
-                    .scheduleCurrentTableRefresh();
-        }
     }
 
     private void refreshCurrentTable() {
@@ -2067,13 +2056,23 @@ public class ExplorerPanel extends JPanel {
             pendingFileTableSelectionKeys =
                     new ArrayList<>(selectionKeys);
 
-            restoreFileTableFocus =
-                    true;
+            restoreFileTableFocus = true;
 
             log.info(
                     "[PASTE SELECTION] final pending keys={} restoreFocus={}",
                     pendingFileTableSelectionKeys,
                     restoreFileTableFocus);
+
+            /*
+             * A transfer may have completed while the overwrite
+             * dialogs for the remaining items were still open.
+             *
+             * If the accepted item is already present in the table,
+             * restore its selection immediately without triggering
+             * another reload.
+             */
+            SwingUtilities.invokeLater(
+                    this::restorePendingPasteSelection);
 
         } else {
 
@@ -3557,6 +3556,67 @@ public class ExplorerPanel extends JPanel {
                 "[FILE CONFLICT] overwrite confirmed source={} target={}",
                 item.getKey(),
                 targetKey);
+
+        return true;
+    }
+
+    private boolean restorePendingPasteSelection() {
+
+        if (pasteSelectionCollectionInProgress) {
+            return false;
+        }
+
+        if (pendingFileTableSelectionKeys == null
+                || pendingFileTableSelectionKeys.isEmpty()) {
+
+            return false;
+        }
+
+        List<String> keys =
+                new ArrayList<>(pendingFileTableSelectionKeys);
+
+        JTable table =
+                view.getFileTable();
+
+        FileTableModel model =
+                view.getFileTableModel();
+
+        boolean found = false;
+
+        for (int modelRow = 0;
+             modelRow < model.getRowCount();
+             modelRow++) {
+
+            S3FileItem item =
+                    model.getItem(modelRow);
+
+            if (item == null
+                    || !keys.contains(item.getKey())) {
+                continue;
+            }
+
+            found = true;
+            break;
+        }
+
+        if (!found) {
+
+            log.debug(
+                    "[PASTE SELECTION] pending items not yet in table keys={}",
+                    keys);
+
+            return false;
+        }
+
+        restoreFileTableSelectionByKeys(keys);
+
+        pendingFileTableSelectionKeys = null;
+
+        restoreFileTableFocus = true;
+
+        log.info(
+                "[PASTE SELECTION] restored and completed keys={}",
+                keys);
 
         return true;
     }
