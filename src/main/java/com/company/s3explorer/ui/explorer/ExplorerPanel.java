@@ -78,7 +78,7 @@ public class ExplorerPanel extends JPanel {
     private int pendingDeleteSelectionViewRow = -1;
 
     private String pendingFileTableSelectionKey;
-    private boolean restoreFileTableFocusAfterOperation;
+    private boolean restoreFileTableFocus;
     
     private ExecutorService explorerPool = Executors.newFixedThreadPool(5);
     private final UIThemeManager themeManager;
@@ -924,11 +924,11 @@ public class ExplorerPanel extends JPanel {
                             }
 
                             if (restoreFocus
-                                    || restoreFileTableFocusAfterOperation) {
+                                    || restoreFileTableFocus) {
 
                                 restoreFileTableFocus();
 
-                                restoreFileTableFocusAfterOperation = false;
+                                restoreFileTableFocus = false;
                             }
                         }))
                 .exceptionally(ex -> {
@@ -1405,12 +1405,12 @@ public class ExplorerPanel extends JPanel {
         pendingFileTableSelectionKey =
                 folderKey;
 
-        restoreFileTableFocusAfterOperation = true;
+        restoreFileTableFocus = true;
 
         log.info(
                 "[CREATE FOLDER] key={} restoreFocus={}",
                 folderKey,
-                restoreFileTableFocusAfterOperation);
+                restoreFileTableFocus);
 
         explorerPool.submit(() -> {
 
@@ -1431,7 +1431,7 @@ public class ExplorerPanel extends JPanel {
                 SwingUtilities.invokeLater(() -> {
 
                     pendingFileTableSelectionKey = null;
-                    restoreFileTableFocusAfterOperation = false;
+                    restoreFileTableFocus = false;
 
                     JOptionPane.showMessageDialog(
                             this,
@@ -1497,13 +1497,13 @@ public class ExplorerPanel extends JPanel {
                     pendingFileTableSelectionKey =
                             objectKey;
 
-                    restoreFileTableFocusAfterOperation =
+                    restoreFileTableFocus =
                             true;
 
                     log.info(
                             "[UPLOAD FILE] pending selection key={} restoreFocus={}",
                             pendingFileTableSelectionKey,
-                            restoreFileTableFocusAfterOperation);
+                            restoreFileTableFocus);
 
                     lastOpenedFolderToUpload =
                             file.getParentFile();
@@ -1533,13 +1533,13 @@ public class ExplorerPanel extends JPanel {
                     pendingFileTableSelectionKey =
                             folderKey;
 
-                    restoreFileTableFocusAfterOperation =
+                    restoreFileTableFocus =
                             true;
 
                     log.info(
                             "[UPLOAD FOLDER] pending selection key={} restoreFocus={}",
                             pendingFileTableSelectionKey,
-                            restoreFileTableFocusAfterOperation);
+                            restoreFileTableFocus);
 
                     lastOpenedFolderToUpload =
                             file;
@@ -1560,7 +1560,7 @@ public class ExplorerPanel extends JPanel {
                 pendingFileTableSelectionKey =
                         null;
 
-                restoreFileTableFocusAfterOperation =
+                restoreFileTableFocus =
                         false;
 
                 SwingUtilities.invokeLater(() ->
@@ -2238,15 +2238,12 @@ public class ExplorerPanel extends JPanel {
         String currentPrefix =
                 currentFilePrefix;
 
-        log.info(
-                "[PARENT NAV] currentFilePrefix={}",
-                currentPrefix);
-
         if (currentPrefix == null
-                || currentPrefix.isBlank()) {
+                || currentPrefix.isBlank()
+                || S3TreeNode.ROOT_PREFIX.equals(currentPrefix)) {
 
-            log.warn(
-                    "[PARENT NAV] currentFilePrefix is NULL/BLANK");
+            log.info(
+                    "[PARENT NAV] already at root");
 
             return;
         }
@@ -2255,13 +2252,34 @@ public class ExplorerPanel extends JPanel {
                 S3Util.extractParentPrefix(
                         currentPrefix);
 
-        log.info(
-                "[PARENT NAV] parentPrefix={}",
-                parentPrefix);
-
         if (parentPrefix == null) {
             return;
         }
+
+        /*
+         * Parent klasöre döndüğümüzde,
+         * az önce içinde bulunduğumuz klasörü
+         * File Table'da seçmek istiyoruz.
+         *
+         * Örnek:
+         *
+         * current = SIL3/DOWNLOAD/
+         * parent  = SIL3/
+         *
+         * parent File Table'da:
+         *
+         * DOWNLOAD/  <- selected
+         */
+        pendingFileTableSelectionKey =
+                currentPrefix;
+
+        restoreFileTableFocus =
+                true;
+
+        log.info(
+                "[PARENT NAV] restore selection key={} parentPrefix={}",
+                pendingFileTableSelectionKey,
+                parentPrefix);
 
         log.info(
                 "[PARENT NAV] navigating to parent={}",
@@ -2269,9 +2287,6 @@ public class ExplorerPanel extends JPanel {
 
         treeController.selectPrefix(
                 parentPrefix);
-
-        SwingUtilities.invokeLater(() ->
-                view.getFileTable().requestFocusInWindow());
     }
     
     private String getParentPrefix(String prefix) {
@@ -3170,7 +3185,7 @@ public class ExplorerPanel extends JPanel {
         pendingFileTableSelectionKey =
                 newKey;
 
-        restoreFileTableFocusAfterOperation =
+        restoreFileTableFocus =
                 true;
 
         log.info(
@@ -3204,7 +3219,7 @@ public class ExplorerPanel extends JPanel {
         } catch (Exception ex) {
 
             pendingFileTableSelectionKey = null;
-            restoreFileTableFocusAfterOperation = false;
+            restoreFileTableFocus = false;
 
             log.error(
                     "[RENAME] submit failed source={} target={}",
