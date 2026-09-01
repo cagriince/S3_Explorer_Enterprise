@@ -441,6 +441,23 @@ public class S3ExplorerService {
         client.copyObject(request);
     }
 
+    public void copyObjectOverwrite(
+            String sourceBucket,
+            String sourceKey,
+            String targetBucket,
+            String targetKey) {
+
+        CopyObjectRequest request =
+                CopyObjectRequest.builder()
+                        .sourceBucket(sourceBucket)
+                        .sourceKey(sourceKey)
+                        .destinationBucket(targetBucket)
+                        .destinationKey(targetKey)
+                        .build();
+
+        client.copyObject(request);
+    }
+
     public void copyObjectBetweenRepositories(String sourceBucket, String sourceKey, S3Client targetRepositoryClient, String targetBucket, String targetKey, TransferProgressListener listener) throws IOException {
         if (objectExists(targetRepositoryClient, targetBucket, targetKey)) {
             throw new RuntimeException("Already exists: " + targetBucket + "/" + targetKey);

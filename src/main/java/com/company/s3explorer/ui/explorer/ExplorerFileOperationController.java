@@ -98,7 +98,8 @@ public final class ExplorerFileOperationController {
     public void copy(
             S3FileItem item,
             String targetBucket,
-            String targetKey) {
+            String targetKey,
+            boolean overwrite) {
 
         if (item == null
                 || targetBucket == null
@@ -133,13 +134,15 @@ public final class ExplorerFileOperationController {
                 repositoryName,
                 targetBucket,
                 targetKey,
-                item.getSize());
+                item.getSize(),
+                overwrite);
     }
 
     public void move(
             S3FileItem item,
             String targetBucket,
-            String targetKey) {
+            String targetKey,
+            boolean overwrite) {
 
         if (item == null
                 || targetBucket == null
@@ -174,6 +177,7 @@ public final class ExplorerFileOperationController {
                 repositoryName,
                 targetBucket,
                 targetKey,
-                item.getSize());
+                item.getSize(),
+                overwrite);
     }
 }

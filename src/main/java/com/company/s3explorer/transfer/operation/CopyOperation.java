@@ -13,11 +13,24 @@ public class CopyOperation extends AbstractTransferOperation {
             updateProgressPercent(runtime, transferContext, 10);
 
             try {
-                transferContext.getService(task.getRepositoryName()).copyObject(
-                        runtime.getTask().getBucket(),
-                        runtime.getTask().getObjectKey(),
-                        runtime.getTask().getTargetBucket(),
-                        runtime.getTask().getTargetObjectKey());
+                if (task.isOverwrite()) {
+                    transferContext
+                            .getService(task.getRepositoryName())
+                            .copyObjectOverwrite(
+                                    task.getBucket(),
+                                    task.getObjectKey(),
+                                    task.getTargetBucket(),
+                                    task.getTargetObjectKey());
+
+                } else {
+                    transferContext
+                            .getService(task.getRepositoryName())
+                            .copyObject(
+                                    task.getBucket(),
+                                    task.getObjectKey(),
+                                    task.getTargetBucket(),
+                                    task.getTargetObjectKey());
+                }
             }
             finally {
                 updateProgressCompleted(runtime, transferContext);

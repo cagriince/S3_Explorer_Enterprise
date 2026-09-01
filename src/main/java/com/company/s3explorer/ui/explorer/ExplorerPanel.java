@@ -2054,7 +2054,7 @@ public class ExplorerPanel extends JPanel {
 
         updateActionStates();
     }
-    
+
     private void submitCopy(
             S3FileItem item,
             String targetBucket,
@@ -2066,20 +2066,26 @@ public class ExplorerPanel extends JPanel {
 
         if (item.getKey().equals(targetKey)
                 && item.getBucket().equals(targetBucket)) {
+
             return;
         }
 
-        if (!item.isFolder()
-                && exists(targetKey)) {
+        boolean targetExists =
+                !item.isFolder()
+                        && exists(targetKey);
 
-            int result =
-                    JOptionPane.showConfirmDialog(
-                            this,
-                            "Dosya mevcut. Üzerine yazılsın mı?");
+        boolean overwrite = false;
 
-            if (result != JOptionPane.YES_OPTION) {
+        if (targetExists) {
+
+            if (!confirmFileConflict(
+                    item,
+                    targetKey)) {
+
                 return;
             }
+
+            overwrite = true;
         }
 
         try {
@@ -2087,14 +2093,23 @@ public class ExplorerPanel extends JPanel {
             fileOperationController.copy(
                     item,
                     targetBucket,
-                    targetKey);
+                    targetKey,
+                    overwrite);
 
         } catch (Exception ex) {
+
+            log.error(
+                    "[COPY] failed source={} target={}",
+                    item.getKey(),
+                    targetKey,
+                    ex);
 
             SwingUtilities.invokeLater(() ->
                     JOptionPane.showMessageDialog(
                             this,
-                            ex.getMessage()));
+                            ex.getMessage(),
+                            "Copy Failed",
+                            JOptionPane.ERROR_MESSAGE));
         }
     }
 
@@ -2109,20 +2124,26 @@ public class ExplorerPanel extends JPanel {
 
         if (item.getKey().equals(targetKey)
                 && item.getBucket().equals(targetBucket)) {
+
             return;
         }
 
-        if (!item.isFolder()
-                && exists(targetKey)) {
+        boolean targetExists =
+                !item.isFolder()
+                        && exists(targetKey);
 
-            int result =
-                    JOptionPane.showConfirmDialog(
-                            this,
-                            "Dosya mevcut. Üzerine yazılsın mı?");
+        boolean overwrite = false;
 
-            if (result != JOptionPane.YES_OPTION) {
+        if (targetExists) {
+
+            if (!confirmFileConflict(
+                    item,
+                    targetKey)) {
+
                 return;
             }
+
+            overwrite = true;
         }
 
         try {
@@ -2130,14 +2151,23 @@ public class ExplorerPanel extends JPanel {
             fileOperationController.move(
                     item,
                     targetBucket,
-                    targetKey);
+                    targetKey,
+                    overwrite);
 
         } catch (Exception ex) {
+
+            log.error(
+                    "[MOVE] failed source={} target={}",
+                    item.getKey(),
+                    targetKey,
+                    ex);
 
             SwingUtilities.invokeLater(() ->
                     JOptionPane.showMessageDialog(
                             this,
-                            ex.getMessage()));
+                            ex.getMessage(),
+                            "Move Failed",
+                            JOptionPane.ERROR_MESSAGE));
         }
     }
 
@@ -3321,7 +3351,8 @@ public class ExplorerPanel extends JPanel {
                         repositoryName,
                         bucket,
                         newKey,
-                        item.getSize());
+                        item.getSize(),
+                        false);
             }
 
         } catch (Exception ex) {
@@ -3418,5 +3449,43 @@ public class ExplorerPanel extends JPanel {
                     "[FILE TABLE SELECTION RESTORE] multiple no matching rows keys={}",
                     keys);
         }
+    }
+
+    private boolean confirmFileConflict(
+            S3FileItem item,
+            String targetKey) {
+
+        if (item == null
+                || item.isFolder()
+                || !exists(targetKey)) {
+
+            return true;
+        }
+
+        int result =
+                JOptionPane.showConfirmDialog(
+                        this,
+                        "A file with this name already exists.\n\n"
+                                + "Do you want to overwrite it?",
+                        "File Conflict",
+                        JOptionPane.YES_NO_OPTION,
+                        JOptionPane.WARNING_MESSAGE);
+
+        if (result != JOptionPane.YES_OPTION) {
+
+            log.info(
+                    "[FILE CONFLICT] operation cancelled source={} target={}",
+                    item.getKey(),
+                    targetKey);
+
+            return false;
+        }
+
+        log.info(
+                "[FILE CONFLICT] overwrite confirmed source={} target={}",
+                item.getKey(),
+                targetKey);
+
+        return true;
     }
 }

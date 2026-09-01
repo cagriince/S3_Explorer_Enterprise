@@ -27,7 +27,8 @@ public class TransferTask {
     private Set<RefreshTreeNode> affectedPrefixes = new HashSet<>();
     private boolean affectsObjectList;
     private boolean affectsFolderTree;
-
+    private boolean overwrite;
+    
     private long size;
 
     public TransferTask() {
@@ -91,6 +92,10 @@ public class TransferTask {
 
     public boolean isAffectsFolderTree() {
         return affectsFolderTree;
+    }
+
+    public boolean isOverwrite() {
+        return overwrite;
     }
 
     public long getSize() {
@@ -182,6 +187,11 @@ public class TransferTask {
 
         public Builder affectsFolderTree(boolean affectsFolderTree) {
             task.affectsFolderTree = affectsFolderTree;
+            return this;
+        }
+
+        public Builder overwrite(boolean overwrite) {
+            task.overwrite = overwrite;
             return this;
         }
 

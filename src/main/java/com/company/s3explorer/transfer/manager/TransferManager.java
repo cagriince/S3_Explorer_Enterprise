@@ -128,33 +128,55 @@ public class TransferManager {
         );
     }
 
-    public void submitCopy(String repositoryName, String bucket, String keySource, String targetRepositoryName, String targetBucket, String keyTarget, long size) {
-        submit(TransferTask.copy()
-                .repositoryName(repositoryName)
-                .bucket(bucket)
-                .objectKey(keySource)
-                .targetRepositoryName(targetRepositoryName)
-                .targetBucket(targetBucket)
-                .targetObjectKey(keyTarget)
-                .size(size)
-                .affectsObjectList(true)
-                .affectsFolderTree(false)
-                .build()
+    public void submitCopy(
+            String repositoryName,
+            String bucket,
+            String keySource,
+            String targetRepositoryName,
+            String targetBucket,
+            String keyTarget,
+            long size,
+            boolean overwrite) {
+
+        submit(
+                TransferTask.copy()
+                        .repositoryName(repositoryName)
+                        .bucket(bucket)
+                        .objectKey(keySource)
+                        .targetRepositoryName(targetRepositoryName)
+                        .targetBucket(targetBucket)
+                        .targetObjectKey(keyTarget)
+                        .size(size)
+                        .overwrite(overwrite)
+                        .affectsObjectList(true)
+                        .affectsFolderTree(false)
+                        .build()
         );
     }
 
-    public void submitMove(String repositoryName, String bucket, String keySource, String targetRepositoryName, String targetBucket, String keyTarget, long size) {
-        submit(TransferTask.move()
-                .repositoryName(repositoryName)
-                .bucket(bucket)
-                .objectKey(keySource)
-                .targetRepositoryName(targetRepositoryName)
-                .targetBucket(targetBucket)
-                .targetObjectKey(keyTarget)
-                .size(size)
-                .affectsObjectList(true)
-                .affectsFolderTree(true)
-                .build()
+    public void submitMove(
+            String repositoryName,
+            String bucket,
+            String keySource,
+            String targetRepositoryName,
+            String targetBucket,
+            String keyTarget,
+            long size,
+            boolean overwrite) {
+
+        submit(
+                TransferTask.move()
+                        .repositoryName(repositoryName)
+                        .bucket(bucket)
+                        .objectKey(keySource)
+                        .targetRepositoryName(targetRepositoryName)
+                        .targetBucket(targetBucket)
+                        .targetObjectKey(keyTarget)
+                        .size(size)
+                        .overwrite(overwrite)
+                        .affectsObjectList(true)
+                        .affectsFolderTree(true)
+                        .build()
         );
     }
 
