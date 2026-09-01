@@ -1958,6 +1958,7 @@ public class ExplorerPanel extends JPanel {
                 || items == null
                 || items.isEmpty()
                 || operation == null) {
+
             return;
         }
 
@@ -1969,14 +1970,7 @@ public class ExplorerPanel extends JPanel {
             if (item == null) {
                 continue;
             }
-/*
-            String targetKey =
-                    S3Util.combineKey(
-                            targetPrefix,
-                            (item.isFolder()
-                                    ? ""
-                                    : item.getName()));
-*/
+
             String targetKey =
                     S3Util.combineKey(
                             targetPrefix,
@@ -1987,46 +1981,51 @@ public class ExplorerPanel extends JPanel {
 
                 targetKey += "/";
             }
-            /*
-             * Aynı klasöre aynı isimle yapıştırmayı engelle.
-             */
-            if (item.getBucket().equals(targetBucket)
-                    && item.getKey().equals(targetKey)) {
 
-                continue;
-            }
+            boolean submitted;
 
             if (operation ==
                     ExplorerClipboard.Operation.COPY) {
 
-                submitCopy(
-                        item,
-                        targetBucket,
-                        targetKey);
+                submitted =
+                        submitCopy(
+                                item,
+                                targetBucket,
+                                targetKey);
 
             } else {
 
-                submitMove(
-                        item,
-                        targetBucket,
-                        targetKey);
+                submitted =
+                        submitMove(
+                                item,
+                                targetBucket,
+                                targetKey);
             }
 
             /*
-             * Paste başarılı şekilde submit edildiyse
-             * refresh sonrasında bu item seçilecek.
+             * Only items accepted by the user are added
+             * to the pending selection list.
+             *
+             * For example:
+             *
+             * A -> YES -> selected
+             * B -> NO  -> not selected
+             * C -> YES -> selected
              */
-            selectionKeys.add(targetKey);
+            if (submitted) {
 
-            log.info(
-                    "[PASTE SELECTION] pending key={} item={}",
-                    targetKey,
-                    item.getName());
+                selectionKeys.add(
+                        targetKey);
+
+                log.info(
+                        "[PASTE SELECTION] accepted key={}",
+                        targetKey);
+            }
         }
 
         /*
-         * Paste edilen tüm item'ları
-         * refresh sonrasında seç.
+         * Restore only the items that were actually
+         * accepted for the paste operation.
          */
         if (!selectionKeys.isEmpty()) {
 
@@ -2040,11 +2039,21 @@ public class ExplorerPanel extends JPanel {
                     "[PASTE SELECTION] pending keys={} restoreFocus={}",
                     pendingFileTableSelectionKeys,
                     restoreFileTableFocus);
+
+        } else {
+
+            pendingFileTableSelectionKeys =
+                    null;
+
+            log.info(
+                    "[PASTE SELECTION] no items accepted");
         }
 
         /*
-         * MOVE işleminden sonra clipboard temizlenir.
-         * COPY işleminde clipboard korunur.
+         * MOVE clears the clipboard after the operation
+         * has been submitted.
+         *
+         * COPY keeps the clipboard available.
          */
         if (operation ==
                 ExplorerClipboard.Operation.MOVE) {
@@ -2055,19 +2064,19 @@ public class ExplorerPanel extends JPanel {
         updateActionStates();
     }
 
-    private void submitCopy(
+    private boolean submitCopy(
             S3FileItem item,
             String targetBucket,
             String targetKey) {
 
         if (item == null) {
-            return;
+            return false;
         }
 
         if (item.getKey().equals(targetKey)
                 && item.getBucket().equals(targetBucket)) {
 
-            return;
+            return false;
         }
 
         boolean targetExists =
@@ -2082,7 +2091,12 @@ public class ExplorerPanel extends JPanel {
                     item,
                     targetKey)) {
 
-                return;
+                log.info(
+                        "[COPY] skipped by user source={} target={}",
+                        item.getKey(),
+                        targetKey);
+
+                return false;
             }
 
             overwrite = true;
@@ -2095,6 +2109,14 @@ public class ExplorerPanel extends JPanel {
                     targetBucket,
                     targetKey,
                     overwrite);
+
+            log.info(
+                    "[COPY] submitted source={} target={} overwrite={}",
+                    item.getKey(),
+                    targetKey,
+                    overwrite);
+
+            return true;
 
         } catch (Exception ex) {
 
@@ -2110,22 +2132,24 @@ public class ExplorerPanel extends JPanel {
                             ex.getMessage(),
                             "Copy Failed",
                             JOptionPane.ERROR_MESSAGE));
+
+            return false;
         }
     }
 
-    private void submitMove(
+    private boolean submitMove(
             S3FileItem item,
             String targetBucket,
             String targetKey) {
 
         if (item == null) {
-            return;
+            return false;
         }
 
         if (item.getKey().equals(targetKey)
                 && item.getBucket().equals(targetBucket)) {
 
-            return;
+            return false;
         }
 
         boolean targetExists =
@@ -2140,7 +2164,12 @@ public class ExplorerPanel extends JPanel {
                     item,
                     targetKey)) {
 
-                return;
+                log.info(
+                        "[MOVE] skipped by user source={} target={}",
+                        item.getKey(),
+                        targetKey);
+
+                return false;
             }
 
             overwrite = true;
@@ -2153,6 +2182,14 @@ public class ExplorerPanel extends JPanel {
                     targetBucket,
                     targetKey,
                     overwrite);
+
+            log.info(
+                    "[MOVE] submitted source={} target={} overwrite={}",
+                    item.getKey(),
+                    targetKey,
+                    overwrite);
+
+            return true;
 
         } catch (Exception ex) {
 
@@ -2168,9 +2205,11 @@ public class ExplorerPanel extends JPanel {
                             ex.getMessage(),
                             "Move Failed",
                             JOptionPane.ERROR_MESSAGE));
+
+            return false;
         }
     }
-
+    
     private List<S3FileItem> getSelectedItems() {
         int[] viewRows = view.getFileTable().getSelectedRows();
         List<S3FileItem> items = new ArrayList<>();
