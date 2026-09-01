@@ -233,6 +233,22 @@ public class TransferManager {
         );
     }
 
+    public void submitFolderRename(
+            String repositoryName,
+            String bucket,
+            String prefix,
+            String targetPrefix) {
+
+        producerExecutor.submit(
+                new FolderRenameProducer(
+                        transferContext,
+                        queue,
+                        repositoryName,
+                        bucket,
+                        prefix,
+                        targetPrefix));
+    }
+    
     public void close() {
 
         cancellationExecutor.shutdownNow();

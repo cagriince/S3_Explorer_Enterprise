@@ -41,6 +41,7 @@ public final class ExplorerView {
 
     private final Action downloadAction;
     private final Action deleteAction;
+    private final Action renameAction;
     private final Action copyAction;
     private final Action cutAction;
     private final Action pasteAction;
@@ -79,6 +80,7 @@ public final class ExplorerView {
             Action downloadAction,
             Action deleteAction,
             Action copyAction,
+            Action renameAction,
             Action cutAction,
             Action pasteAction,
             Action uploadAction,
@@ -95,6 +97,7 @@ public final class ExplorerView {
         this.downloadAction = downloadAction;
         this.deleteAction = deleteAction;
         this.copyAction = copyAction;
+        this.renameAction = renameAction;
         this.cutAction = cutAction;
         this.pasteAction = pasteAction;
         this.uploadAction = uploadAction;
@@ -150,8 +153,9 @@ public final class ExplorerView {
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         buttonPanel.add(createIconButton(newFolderAction));
         buttonPanel.add(createIconButton(uploadAction));
-        buttonPanel.add(createIconButton(deleteAction));
         buttonPanel.add(createIconButton(downloadAction));
+        buttonPanel.add(createIconButton(deleteAction));
+        buttonPanel.add(createIconButton(renameAction));
         buttonPanel.add(createSeparator());
         buttonPanel.add(createIconButton(copyAction));
         buttonPanel.add(createIconButton(cutAction));
@@ -418,6 +422,7 @@ public final class ExplorerView {
         JMenuItem uploadMenu = new JMenuItem(uploadAction);
         JMenuItem downloadMenu = new JMenuItem(downloadAction);
         JMenuItem deleteMenu = new JMenuItem(deleteAction);
+        JMenuItem renameMenu = new JMenuItem(renameAction);
         JMenuItem copyMenu = new JMenuItem(copyAction);
         JMenuItem cutMenu = new JMenuItem(cutAction);
         JMenuItem pasteMenu = new JMenuItem(pasteAction);
@@ -426,6 +431,7 @@ public final class ExplorerView {
         filePopup.add(uploadMenu);
         filePopup.add(downloadMenu);
         filePopup.add(deleteMenu);
+        filePopup.add(renameMenu);
         filePopup.addSeparator();
         filePopup.add(copyMenu);
         filePopup.add(cutMenu);
@@ -461,6 +467,7 @@ public final class ExplorerView {
         setActionIcon(newFolderAction, IconProvider.ICON_CREATE_FOLDER);
         setActionIcon(downloadAction, IconProvider.ICON_DOWNLOAD);
         setActionIcon(deleteAction, IconProvider.ICON_DELETE);
+        setActionIcon(renameAction, IconProvider.ICON_RENAME);
         setActionIcon(copyAction, IconProvider.ICON_COPY);
         setActionIcon(cutAction, IconProvider.ICON_CUT);
         setActionIcon(pasteAction, IconProvider.ICON_PASTE);

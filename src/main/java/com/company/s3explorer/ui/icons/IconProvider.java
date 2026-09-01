@@ -21,7 +21,7 @@ public class IconProvider {
     public static Icon ICON_SYSTEM_CLOSED_FOLDER;
     public static Icon ICON_SYSTEM_LEAF_FILE;
 
-    public static ImageIcon ICON_LOGO = createImage("icons/logo.png", 32);
+    public static ImageIcon ICON_LOGO = createImage("src/main/resources/icons/logo.png", 32);
 
     public static Icon ICON_UPLOAD = null;
     public static ImageIcon ICON_UPLOAD_NORMAL = createImage("src/main/resources/icons/upload.png", 16);
@@ -29,6 +29,9 @@ public class IconProvider {
     public static ImageIcon ICON_DELETE = null;
     public static ImageIcon ICON_DELETE_NORMAL = createImage("src/main/resources/icons/delete.png", 16);
     public static ImageIcon ICON_DELETE_REVERSE = createImage("src/main/resources/icons/delete-reverse.png", 16);
+    public static ImageIcon ICON_RENAME = null;
+    public static ImageIcon ICON_RENAME_NORMAL = createImage("src/main/resources/icons/rename.png", 16);
+    public static ImageIcon ICON_RENAME_REVERSE = createImage("src/main/resources/icons/rename-reverse.png", 16);
     public static ImageIcon ICON_REFRESH = null;
     public static ImageIcon ICON_REFRESH_NORMAL = createImage("src/main/resources/icons/refresh.png", 16);
     public static ImageIcon ICON_REFRESH_REVERSE = createImage("src/main/resources/icons/refresh-reverse.png", 16);
@@ -100,6 +103,7 @@ public class IconProvider {
 
         ICON_UPLOAD = normal ? ICON_UPLOAD_NORMAL : ICON_UPLOAD_REVERSE;
         ICON_DELETE = normal ? ICON_DELETE_NORMAL : ICON_DELETE_REVERSE;
+        ICON_RENAME = normal ? ICON_RENAME_NORMAL : ICON_RENAME_REVERSE;
         ICON_REFRESH = normal ? ICON_REFRESH_NORMAL : ICON_REFRESH_REVERSE;
         ICON_CUT = normal ? ICON_CUT_NORMAL : ICON_CUT_REVERSE;
         ICON_PASTE = normal ? ICON_PASTE_NORMAL : ICON_PASTE_REVERSE;

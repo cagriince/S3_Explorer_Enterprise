@@ -65,10 +65,11 @@ public class S3FileItem {
     }
 
     public String getName() {
-
-        int index =
-                key.lastIndexOf('/');
-
+        if (this.isFolder()) {
+            return S3Util.extractFolderName(this.getKey());
+        }
+        
+        int index = key.lastIndexOf('/');
         if (index < 0) {
             return key;
         }

@@ -109,6 +109,7 @@ public class ExplorerPanel extends JPanel {
     private Action refreshAction;
     private Action manageRepositoryAction;
     private Action goToParentAction;
+    private Action renameAction;
 
     public ExplorerPanel(
             ActiveRepositoryContext context,
@@ -150,6 +151,7 @@ public class ExplorerPanel extends JPanel {
                 downloadAction,
                 deleteAction,
                 copyAction,
+                renameAction,
                 cutAction,
                 pasteAction,
                 uploadAction,
@@ -248,6 +250,7 @@ public class ExplorerPanel extends JPanel {
         cutAction = new ExplorerAction("Cut", this::moveSelected);
         pasteAction = new ExplorerAction("Paste", this::pasteClipboard);
         goToParentAction = new ExplorerAction("GoToParent", this::goToParentFolder);
+        renameAction = new ExplorerAction("Rename", this::renameSelected);
     }
 
     private void defineShortCuts() {
@@ -286,6 +289,10 @@ public class ExplorerPanel extends JPanel {
         // Delete
         inputMap.put(KeyStroke.getKeyStroke("DELETE"), "deleteSelected");
         actionMap.put("deleteSelected", deleteAction);
+
+        // Rename
+        inputMap.put(KeyStroke.getKeyStroke("F2"),"renameSelected");
+        actionMap.put("renameSelected", renameAction);
         
         // -------------------------------------------------
         // Tree
@@ -398,6 +405,9 @@ public class ExplorerPanel extends JPanel {
         deleteAction.setEnabled(
                 hasSelection);
 
+        renameAction.setEnabled(
+                hasSelection);
+        
         copyAction.setEnabled(
                 hasSelection);
 
@@ -1913,7 +1923,7 @@ public class ExplorerPanel extends JPanel {
             String targetKey =
                     S3Util.combineKey(
                             targetPrefix,
-                            item.getName());
+                            (item.isFolder() ? "" : item.getName()));
 
             /*
              * Aynı klasöre aynı isimle yapıştırmayı engelle.
@@ -3033,5 +3043,181 @@ public class ExplorerPanel extends JPanel {
         log.warn(
                 "[FILE TABLE SELECTION RESTORE] key not found={}",
                 key);
+    }
+
+    private void renameSelected() {
+
+        JTable table =
+                view.getFileTable();
+
+        int selectedRowCount =
+                table.getSelectedRowCount();
+
+        if (selectedRowCount != 1) {
+
+            log.warn(
+                    "[RENAME] exactly one item must be selected selectedRows={}",
+                    selectedRowCount);
+
+            return;
+        }
+
+        int viewRow =
+                table.getSelectedRow();
+
+        if (viewRow < 0) {
+            return;
+        }
+
+        int modelRow =
+                table.convertRowIndexToModel(
+                        viewRow);
+
+        S3FileItem item =
+                view.getFileTableModel()
+                        .getItem(modelRow);
+
+        if (item == null
+                || item.isParentFolder()) {
+
+            log.warn(
+                    "[RENAME] invalid selected item");
+
+            return;
+        }
+
+        String oldKey =
+                item.getKey();
+
+        String oldName =
+                item.getName();
+
+        String newName =
+                JOptionPane.showInputDialog(
+                        this,
+                        "Yeni ad:",
+                        oldName);
+
+        if (newName == null) {
+            return;
+        }
+
+        newName =
+                newName.trim();
+
+        if (newName.isBlank()) {
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Yeni ad boş olamaz.",
+                    "Rename",
+                    JOptionPane.WARNING_MESSAGE);
+
+            return;
+        }
+
+        if (newName.equals(oldName)) {
+            return;
+        }
+
+        /*
+         * Yeni ad içinde path ayırıcı kullanmayalım.
+         */
+        if (newName.contains("/")
+                || newName.contains("\\")) {
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Yeni ad klasör yolu içeremez.",
+                    "Rename",
+                    JOptionPane.WARNING_MESSAGE);
+
+            return;
+        }
+
+        String parentPrefix =
+                S3Util.extractParentPrefix(
+                        oldKey);
+
+        String newKey =
+                S3Util.combineKey(
+                        parentPrefix,
+                        newName);
+
+        if (item.isFolder()) {
+            newKey += "/";
+        }
+
+        String repositoryName =
+                item.getRepositoryName();
+
+        String bucket =
+                item.getBucket();
+
+        if (repositoryName == null
+                || bucket == null) {
+
+            log.warn(
+                    "[RENAME] repository/bucket missing oldKey={}",
+                    oldKey);
+
+            return;
+        }
+
+        /*
+         * Refresh sonrasında yeni item'ı seç.
+         */
+        pendingFileTableSelectionKey =
+                newKey;
+
+        restoreFileTableFocusAfterOperation =
+                true;
+
+        log.info(
+                "[RENAME] source={} target={} folder={}",
+                oldKey,
+                newKey,
+                item.isFolder());
+
+        try {
+
+            if (item.isFolder()) {
+
+                transferManager.submitFolderRename(
+                        repositoryName,
+                        bucket,
+                        oldKey,
+                        newKey);
+
+            } else {
+
+                transferManager.submitMove(
+                        repositoryName,
+                        bucket,
+                        oldKey,
+                        repositoryName,
+                        bucket,
+                        newKey,
+                        item.getSize());
+            }
+
+        } catch (Exception ex) {
+
+            pendingFileTableSelectionKey = null;
+            restoreFileTableFocusAfterOperation = false;
+
+            log.error(
+                    "[RENAME] submit failed source={} target={}",
+                    oldKey,
+                    newKey,
+                    ex);
+
+            SwingUtilities.invokeLater(() ->
+                    JOptionPane.showMessageDialog(
+                            this,
+                            ex.getMessage(),
+                            "Rename Failed",
+                            JOptionPane.ERROR_MESSAGE));
+        }
     }
 }
