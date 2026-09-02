@@ -8,17 +8,21 @@ public class TransferGroupCompletedEvent {
     private final String repository;
     private final String bucket;
     private final String prefix;
+    private final boolean sourceRefreshRequired;
 
     public TransferGroupCompletedEvent(
             TransferGroup group,
             String repository,
             String bucket,
-            String prefix) {
+            String prefix,
+            boolean sourceRefreshRequired) {
 
         this.group = group;
         this.repository = repository;
         this.bucket = bucket;
         this.prefix = prefix;
+        this.sourceRefreshRequired =
+                sourceRefreshRequired;
     }
 
     public TransferGroup getGroup() {
@@ -35,6 +39,10 @@ public class TransferGroupCompletedEvent {
 
     public String getPrefix() {
         return prefix;
+    }
+
+    public boolean isSourceRefreshRequired() {
+        return sourceRefreshRequired;
     }
 
     public boolean isSuccessful() {

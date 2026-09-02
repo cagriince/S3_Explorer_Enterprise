@@ -31,27 +31,50 @@ public class TransferContext {
                 clientManager.getClient(repositoryName));
     }
 
-    public void publish(TransferRuntime runtime) {
+    public void publish(
+            TransferRuntime runtime) {
+
         eventBus.publish(runtime);
     }
 
-    public void publishRunning(TransferRuntime runtime) {
-        runtime.setStartTime(Instant.now());
-        runtime.setStatus(TransferStatus.RUNNING);
+    public void publishRunning(
+            TransferRuntime runtime) {
+
+        runtime.setStartTime(
+                Instant.now());
+
+        runtime.setStatus(
+                TransferStatus.RUNNING);
+
         publish(runtime);
     }
 
-    public void publishCompleted(TransferRuntime runtime) {
-        runtime.setEndTime(Instant.now());
+    public void publishCompleted(
+            TransferRuntime runtime) {
+
+        runtime.setEndTime(
+                Instant.now());
+
         runtime.progressCompleted();
-        runtime.setStatus(TransferStatus.COMPLETED);
+
+        runtime.setStatus(
+                TransferStatus.COMPLETED);
+
         publish(runtime);
     }
 
-    public void publishCancelled(TransferRuntime runtime) {
-        runtime.setEndTime(Instant.now());
-        runtime.setMessage("Transfer cancelled");
-        runtime.setStatus(TransferStatus.CANCELLED);
+    public void publishCancelled(
+            TransferRuntime runtime) {
+
+        runtime.setEndTime(
+                Instant.now());
+
+        runtime.setMessage(
+                "Transfer cancelled");
+
+        runtime.setStatus(
+                TransferStatus.CANCELLED);
+
         publish(runtime);
     }
 
@@ -59,7 +82,8 @@ public class TransferContext {
             TransferRuntime runtime,
             Exception ex) {
 
-        runtime.setEndTime(Instant.now());
+        runtime.setEndTime(
+                Instant.now());
 
         runtime.setException(ex);
 
@@ -72,7 +96,9 @@ public class TransferContext {
         publish(runtime);
     }
 
-    public void publishProgress(TransferRuntime runtime) {
+    public void publishProgress(
+            TransferRuntime runtime) {
+
         eventBus.publish(runtime);
     }
 
@@ -82,6 +108,24 @@ public class TransferContext {
         eventBus.publishProducer(runtime);
     }
 
+    public void publishGroupCompleted(
+            TransferGroup group,
+            String repository,
+            String bucket,
+            String prefix,
+            boolean sourceRefreshRequired) {
+
+        eventBus.publishGroupCompleted(
+                group,
+                repository,
+                bucket,
+                prefix,
+                sourceRefreshRequired);
+    }
+
+    /**
+     * Backward-compatible group completion publication.
+     */
     public void publishGroupCompleted(
             TransferGroup group,
             String repository,

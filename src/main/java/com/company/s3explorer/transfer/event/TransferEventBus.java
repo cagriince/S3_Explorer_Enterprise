@@ -62,23 +62,36 @@ public class TransferEventBus {
         }
     }
 
+    /**
+     * Publishes a group completion event while
+     * explicitly describing whether the source side
+     * requires a refresh.
+     *
+     * This prevents COPY operations from being
+     * interpreted as source DELETE operations.
+     */
     public void publishGroupCompleted(
             TransferGroup group,
             String repository,
             String bucket,
-            String prefix) {
+            String prefix,
+            boolean sourceRefreshRequired) {
 
         TransferGroupCompletedEvent event =
                 new TransferGroupCompletedEvent(
                         group,
                         repository,
                         bucket,
-                        prefix);
+                        prefix,
+                        sourceRefreshRequired);
 
         log.debug(
-                "[EVENT BUS] publishGroupCompleted listeners={} group={}",
+                "[EVENT BUS] publishGroupCompleted " +
+                        "listeners={} group={} " +
+                        "sourceRefreshRequired={}",
                 listeners.size(),
-                group.getDisplayName());
+                group.getDisplayName(),
+                sourceRefreshRequired);
 
         for (TransferListener listener :
                 listeners) {
@@ -90,5 +103,26 @@ public class TransferEventBus {
             listener.onTransferGroupCompleted(
                     event);
         }
+    }
+
+    /**
+     * Backward-compatible publication path.
+     *
+     * Existing folder producers continue to use
+     * this method until their source-refresh policy
+     * is explicitly supplied.
+     */
+    public void publishGroupCompleted(
+            TransferGroup group,
+            String repository,
+            String bucket,
+            String prefix) {
+
+        publishGroupCompleted(
+                group,
+                repository,
+                bucket,
+                prefix,
+                true);
     }
 }
