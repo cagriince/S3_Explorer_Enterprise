@@ -182,6 +182,12 @@ public class TransferManager {
                 createOperationGroup(
                         "Copy");
 
+        configureGroupCompletion(
+                group,
+                repositoryName,
+                bucket,
+                keySource);
+
         TransferTask task =
                 TransferTask.copy()
                         .repositoryName(
@@ -205,10 +211,9 @@ public class TransferManager {
 
         submitGroupedTask(
                 task,
-                group,
-                repositoryName,
-                bucket,
-                keySource);
+                group);
+
+        group.markProductionCompleted();
 
         return group;
     }
@@ -224,6 +229,11 @@ public class TransferManager {
             boolean overwrite,
             TransferGroup group) {
 
+        if (group == null) {
+            throw new IllegalArgumentException(
+                    "Transfer group must not be null");
+        }
+
         TransferTask task =
                 TransferTask.copy()
                         .repositoryName(
@@ -247,12 +257,9 @@ public class TransferManager {
 
         submitGroupedTask(
                 task,
-                group,
-                repositoryName,
-                bucket,
-                keySource);
+                group);
     }
-    
+
     public TransferGroup submitMove(
             String repositoryName,
             String bucket,
@@ -266,6 +273,12 @@ public class TransferManager {
         TransferGroup group =
                 createOperationGroup(
                         "Move");
+
+        configureGroupCompletion(
+                group,
+                repositoryName,
+                bucket,
+                keySource);
 
         TransferTask task =
                 TransferTask.move()
@@ -290,10 +303,9 @@ public class TransferManager {
 
         submitGroupedTask(
                 task,
-                group,
-                repositoryName,
-                bucket,
-                keySource);
+                group);
+
+        group.markProductionCompleted();
 
         return group;
     }
@@ -309,6 +321,11 @@ public class TransferManager {
             boolean overwrite,
             TransferGroup group) {
 
+        if (group == null) {
+            throw new IllegalArgumentException(
+                    "Transfer group must not be null");
+        }
+
         TransferTask task =
                 TransferTask.move()
                         .repositoryName(
@@ -332,12 +349,9 @@ public class TransferManager {
 
         submitGroupedTask(
                 task,
-                group,
-                repositoryName,
-                bucket,
-                keySource);
+                group);
     }
-    
+
     public void submitCreateFolder(
             String repositoryName,
             String bucket,
@@ -484,12 +498,22 @@ public class TransferManager {
         queue.add(task);
     }
 
-    private void submitGroupedTask(
-            TransferTask task,
+    /**
+     * Configures the completion callback for a group.
+     *
+     * This method must be called once for a batch group,
+     * before the group's tasks are submitted.
+     */
+    public void configureGroupCompletion(
             TransferGroup group,
             String repositoryName,
             String bucket,
             String prefix) {
+
+        if (group == null) {
+            throw new IllegalArgumentException(
+                    "Transfer group must not be null");
+        }
 
         group.setCompletionCallback(
                 () -> {
@@ -519,18 +543,31 @@ public class TransferManager {
                             bucket,
                             prefix);
                 });
+    }
+
+    /**
+     * Adds a task to an already configured group.
+     *
+     * This method intentionally does not mark production
+     * as completed. The caller owns the group production
+     * lifecycle and must call markProductionCompleted()
+     * after all tasks have been submitted.
+     */
+    private void submitGroupedTask(
+            TransferTask task,
+            TransferGroup group) {
+
+        if (task == null) {
+            throw new IllegalArgumentException(
+                    "Transfer task must not be null");
+        }
+
+        if (group == null) {
+            throw new IllegalArgumentException(
+                    "Transfer group must not be null");
+        }
 
         queue.add(task);
-
-        /*
-         * There will be no additional tasks for this
-         * single-task operation.
-         *
-         * The group may already have completed by the
-         * time this method is reached, so markProductionCompleted()
-         * is deliberately called after queue.add().
-         */
-        group.markProductionCompleted();
     }
 
     private TransferGroup createOperationGroup(
