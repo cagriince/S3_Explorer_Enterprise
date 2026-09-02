@@ -53,7 +53,15 @@ public abstract class AbstractFolderTransferProducer
                                     " failed=" + this.group.getFailed() +
                                     " cancelled=" + this.group.getCancelled());
 
-                    if (this.group.isFullySuccessful()) {
+                    /*
+                     * The group completion event represents the final
+                     * state of the operation, not only successful
+                     * operations.
+                     *
+                     * Tree/source cleanup decisions must continue to
+                     * use group.isFullySuccessful() where required.
+                     */
+                    if (this.group.isFinished()) {
 
                         System.out.println(
                                 "[GROUP CALLBACK] publishing group completed");
@@ -98,10 +106,10 @@ public abstract class AbstractFolderTransferProducer
         } finally {
 
             /*
-             * Producer artık yeni task üretmeyecek.
+             * Producer will not create any new tasks after this point.
              *
-             * Eğer cancellation nedeniyle çıkıldıysa da
-             * bu bilgi yine verilmelidir.
+             * If production ended because of cancellation,
+             * this state must also be published.
              */
             group.markProductionCompleted();
 
@@ -110,7 +118,7 @@ public abstract class AbstractFolderTransferProducer
             context.publishProducer(runtime);
         }
     }
-    
+
     protected abstract TransferTask createTask(
             S3Object object);
 }
