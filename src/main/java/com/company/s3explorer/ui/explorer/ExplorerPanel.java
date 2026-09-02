@@ -1770,37 +1770,72 @@ public class ExplorerPanel extends JPanel {
     private void onTransferGroupCompleted(
             TransferGroupCompletedEvent event) {
 
-        TransferGroup group =
-                event.getGroup();
-
-        log.debug(
-                "[EXPLORER GROUP COMPLETED] {}",
-                group.getDisplayName());
-
-        if (!event.isSuccessful()) {
-
-            log.debug(
-                    "[EXPLORER GROUP COMPLETED] not successful");
-
+        if (event == null) {
             return;
         }
 
-        String prefix =
-                event.getPrefix();
+        TransferGroup group =
+                event.getGroup();
 
-        String parentPrefix =
-                getParentPrefix(prefix);
+        if (group == null) {
+            return;
+        }
 
         log.debug(
-                "[EXPLORER REFRESH] prefix={} parent={}",
-                prefix,
-                parentPrefix);
+                "[EXPLORER GROUP COMPLETED] group={} " +
+                        "finished={} successful={} " +
+                        "queued={} running={} completed={} " +
+                        "failed={} cancelled={}",
+                group.getDisplayName(),
+                group.isFinished(),
+                group.isFullySuccessful(),
+                group.getQueued(),
+                group.getRunning(),
+                group.getCompleted(),
+                group.getFailed(),
+                group.getCancelled());
 
-        refreshScheduler.scheduleRefresh(
-                List.of(
-                        new RefreshTreeNode(
-                                parentPrefix,
-                                RefreshTreeOperation.DELETE)));
+        /*
+         * A group completion event means that the complete
+         * operation has reached its final state.
+         *
+         * Source-side deletion must only happen for a
+         * fully successful move/delete operation.
+         */
+        if (event.isSuccessful()) {
+
+            String prefix =
+                    event.getPrefix();
+
+            String parentPrefix =
+                    getParentPrefix(prefix);
+
+            log.debug(
+                    "[EXPLORER REFRESH] prefix={} parent={}",
+                    prefix,
+                    parentPrefix);
+
+            refreshScheduler.scheduleRefresh(
+                    List.of(
+                            new RefreshTreeNode(
+                                    parentPrefix,
+                                    RefreshTreeOperation.DELETE)));
+
+            if (Objects.equals(
+                    parentPrefix,
+                    currentFilePrefix)) {
+
+                refreshScheduler
+                        .scheduleCurrentTableRefresh();
+            }
+        }
+        else {
+
+            log.debug(
+                    "[EXPLORER GROUP COMPLETED] " +
+                            "operation finished with errors; " +
+                            "source refresh is not triggered");
+        }
     }
 
     private void refreshCurrentTable() {
