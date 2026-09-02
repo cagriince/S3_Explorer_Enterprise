@@ -50,6 +50,19 @@ public class FolderMoveProducer
                         buildTargetKey(object))
                 .group(group)
                 .size(object.size())
+
+                /*
+                 * Folder move is a silent merge.
+                 *
+                 * Existing target objects must NOT be
+                 * overwritten.
+                 *
+                 * If the copy fails because the target
+                 * already exists, MoveOperation will not
+                 * reach deleteObject(), so the source remains.
+                 */
+                .overwrite(false)
+
                 .affectsObjectList(true)
                 .affectsFolderTree(true)
                 .addRefreshPrefix(

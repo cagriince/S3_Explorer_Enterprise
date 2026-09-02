@@ -50,6 +50,17 @@ public class FolderCopyProducer
                         buildTargetKey(object))
                 .group(group)
                 .size(object.size())
+
+                /*
+                 * Folder copy is a silent merge.
+                 *
+                 * Existing target objects must NOT be
+                 * overwritten. The copy operation will fail
+                 * for an existing object and the source will
+                 * remain untouched.
+                 */
+                .overwrite(false)
+
                 .affectsObjectList(true)
                 .affectsFolderTree(true)
                 .addRefreshPrefix(
