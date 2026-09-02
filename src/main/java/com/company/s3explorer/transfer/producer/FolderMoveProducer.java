@@ -65,10 +65,21 @@ public class FolderMoveProducer
 
                 .affectsObjectList(true)
                 .affectsFolderTree(true)
-                .addRefreshPrefix(
-                        new RefreshTreeNode(
-                                prefix,
-                                RefreshTreeOperation.DELETE))
+
+                /*
+                 * IMPORTANT:
+                 *
+                 * Do NOT remove the source folder from the
+                 * tree at task level.
+                 *
+                 * A folder move is composed of multiple tasks.
+                 * If some tasks succeed and some fail, deleting
+                 * the source tree node here would hide the
+                 * objects whose move failed.
+                 *
+                 * The source tree is removed only after the
+                 * entire TransferGroup is fully successful.
+                 */
                 .addRefreshPrefix(
                         new RefreshTreeNode(
                                 getTargetChildPrefix(),
