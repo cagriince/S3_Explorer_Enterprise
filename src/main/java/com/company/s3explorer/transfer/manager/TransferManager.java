@@ -213,6 +213,46 @@ public class TransferManager {
         return group;
     }
 
+    public void submitCopy(
+            String repositoryName,
+            String bucket,
+            String keySource,
+            String targetRepositoryName,
+            String targetBucket,
+            String keyTarget,
+            long size,
+            boolean overwrite,
+            TransferGroup group) {
+
+        TransferTask task =
+                TransferTask.copy()
+                        .repositoryName(
+                                repositoryName)
+                        .bucket(
+                                bucket)
+                        .objectKey(
+                                keySource)
+                        .targetRepositoryName(
+                                targetRepositoryName)
+                        .targetBucket(
+                                targetBucket)
+                        .targetObjectKey(
+                                keyTarget)
+                        .size(size)
+                        .overwrite(overwrite)
+                        .affectsObjectList(true)
+                        .affectsFolderTree(false)
+                        .group(group)
+                        .build();
+
+        submitGroupedTask(
+                task,
+                group,
+                repositoryName,
+                bucket,
+                keySource);
+    }
+    
     public TransferGroup submitMove(
             String repositoryName,
             String bucket,
@@ -258,6 +298,46 @@ public class TransferManager {
         return group;
     }
 
+    public void submitMove(
+            String repositoryName,
+            String bucket,
+            String keySource,
+            String targetRepositoryName,
+            String targetBucket,
+            String keyTarget,
+            long size,
+            boolean overwrite,
+            TransferGroup group) {
+
+        TransferTask task =
+                TransferTask.move()
+                        .repositoryName(
+                                repositoryName)
+                        .bucket(
+                                bucket)
+                        .objectKey(
+                                keySource)
+                        .targetRepositoryName(
+                                targetRepositoryName)
+                        .targetBucket(
+                                targetBucket)
+                        .targetObjectKey(
+                                keyTarget)
+                        .size(size)
+                        .overwrite(overwrite)
+                        .affectsObjectList(true)
+                        .affectsFolderTree(true)
+                        .group(group)
+                        .build();
+
+        submitGroupedTask(
+                task,
+                group,
+                repositoryName,
+                bucket,
+                keySource);
+    }
+    
     public void submitCreateFolder(
             String repositoryName,
             String bucket,

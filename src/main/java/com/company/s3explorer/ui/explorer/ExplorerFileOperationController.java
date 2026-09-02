@@ -1,6 +1,7 @@
 package com.company.s3explorer.ui.explorer;
 
 import com.company.s3explorer.transfer.manager.TransferManager;
+import com.company.s3explorer.transfer.model.TransferGroup;
 
 import java.nio.file.Path;
 import java.util.Objects;
@@ -101,6 +102,21 @@ public final class ExplorerFileOperationController {
             String targetKey,
             boolean overwrite) {
 
+        copy(
+                item,
+                targetBucket,
+                targetKey,
+                overwrite,
+                null);
+    }
+
+    public void copy(
+            S3FileItem item,
+            String targetBucket,
+            String targetKey,
+            boolean overwrite,
+            TransferGroup group) {
+
         if (item == null
                 || targetBucket == null
                 || targetKey == null) {
@@ -116,6 +132,11 @@ public final class ExplorerFileOperationController {
 
         if (item.isFolder()) {
 
+            /*
+             * Folder copy continues to use the producer-based
+             * execution path. Group-aware folder production
+             * will be introduced separately.
+             */
             transferManager.submitFolderCopy(
                     item.getRepositoryName(),
                     item.getBucket(),
@@ -127,15 +148,31 @@ public final class ExplorerFileOperationController {
             return;
         }
 
-        transferManager.submitCopy(
-                item.getRepositoryName(),
-                item.getBucket(),
-                item.getKey(),
-                repositoryName,
-                targetBucket,
-                targetKey,
-                item.getSize(),
-                overwrite);
+        if (group == null) {
+
+            transferManager.submitCopy(
+                    item.getRepositoryName(),
+                    item.getBucket(),
+                    item.getKey(),
+                    repositoryName,
+                    targetBucket,
+                    targetKey,
+                    item.getSize(),
+                    overwrite);
+
+        } else {
+
+            transferManager.submitCopy(
+                    item.getRepositoryName(),
+                    item.getBucket(),
+                    item.getKey(),
+                    repositoryName,
+                    targetBucket,
+                    targetKey,
+                    item.getSize(),
+                    overwrite,
+                    group);
+        }
     }
 
     public void move(
@@ -143,6 +180,21 @@ public final class ExplorerFileOperationController {
             String targetBucket,
             String targetKey,
             boolean overwrite) {
+
+        move(
+                item,
+                targetBucket,
+                targetKey,
+                overwrite,
+                null);
+    }
+
+    public void move(
+            S3FileItem item,
+            String targetBucket,
+            String targetKey,
+            boolean overwrite,
+            TransferGroup group) {
 
         if (item == null
                 || targetBucket == null
@@ -159,6 +211,11 @@ public final class ExplorerFileOperationController {
 
         if (item.isFolder()) {
 
+            /*
+             * Folder move continues to use the producer-based
+             * execution path. Group-aware folder production
+             * will be introduced separately.
+             */
             transferManager.submitFolderMove(
                     item.getRepositoryName(),
                     item.getBucket(),
@@ -170,14 +227,30 @@ public final class ExplorerFileOperationController {
             return;
         }
 
-        transferManager.submitMove(
-                item.getRepositoryName(),
-                item.getBucket(),
-                item.getKey(),
-                repositoryName,
-                targetBucket,
-                targetKey,
-                item.getSize(),
-                overwrite);
+        if (group == null) {
+
+            transferManager.submitMove(
+                    item.getRepositoryName(),
+                    item.getBucket(),
+                    item.getKey(),
+                    repositoryName,
+                    targetBucket,
+                    targetKey,
+                    item.getSize(),
+                    overwrite);
+
+        } else {
+
+            transferManager.submitMove(
+                    item.getRepositoryName(),
+                    item.getBucket(),
+                    item.getKey(),
+                    repositoryName,
+                    targetBucket,
+                    targetKey,
+                    item.getSize(),
+                    overwrite,
+                    group);
+        }
     }
 }
