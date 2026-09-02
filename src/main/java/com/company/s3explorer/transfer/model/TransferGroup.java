@@ -3,7 +3,11 @@ package com.company.s3explorer.transfer.model;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class TransferGroup {
@@ -28,6 +32,16 @@ public class TransferGroup {
 
     private final AtomicInteger cancelled =
             new AtomicInteger();
+
+    /*
+     * Keeps the tasks that failed during execution.
+     *
+     * This is intentionally separate from the failed counter.
+     * The counter is used for completion state while this list
+     * is used by consumers that need to know which tasks failed.
+     */
+    private final List<TransferTask> failedTasks =
+            new CopyOnWriteArrayList<>();
 
     /*
      * Producer artık yeni task üretmeyecek
@@ -106,12 +120,42 @@ public class TransferGroup {
         checkCompletion();
     }
 
+    /**
+     * Marks a task as failed and keeps the task reference
+     * available for group-level completion handling.
+     */
+    public void failed(
+            TransferTask task) {
+
+        if (task != null) {
+
+            failedTasks.add(task);
+        }
+
+        failed();
+    }
+
+    /**
+     * Backward-compatible failure method.
+     */
     public void failed() {
 
         running.decrementAndGet();
         failed.incrementAndGet();
 
         checkCompletion();
+    }
+
+    /**
+     * Returns the tasks that failed during this group.
+     *
+     * The returned list is a snapshot and cannot be modified
+     * by the caller.
+     */
+    public List<TransferTask> getFailedTasks() {
+
+        return Collections.unmodifiableList(
+                new ArrayList<>(failedTasks));
     }
 
     public void cancelled() {

@@ -74,7 +74,15 @@ public abstract class AbstractTransferOperation
         catch (Exception ex) {
 
             if (group != null) {
-                group.failed();
+
+                /*
+                 * Keep the failed task reference in the group.
+                 *
+                 * This allows group-level completion handling
+                 * to distinguish successful and failed objects.
+                 */
+                group.failed(
+                        runtime.getTask());
             }
 
             transferContext.publishFailed(
