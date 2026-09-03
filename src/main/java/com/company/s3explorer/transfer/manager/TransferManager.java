@@ -7,7 +7,16 @@ import com.company.s3explorer.transfer.event.TransferEventBus;
 import com.company.s3explorer.transfer.factory.TransferOperationFactory;
 import com.company.s3explorer.transfer.model.TransferGroup;
 import com.company.s3explorer.transfer.model.TransferTask;
-import com.company.s3explorer.transfer.producer.*;
+import com.company.s3explorer.transfer.producer.FolderCopyProducer;
+import com.company.s3explorer.transfer.producer.FolderDeleteProducer;
+import com.company.s3explorer.transfer.producer.FolderDownloadProducer;
+import com.company.s3explorer.transfer.producer.FolderMoveProducer;
+import com.company.s3explorer.transfer.producer.FolderRenameProducer;
+import com.company.s3explorer.transfer.producer.FolderRuntime;
+import com.company.s3explorer.transfer.producer.FolderTransferProducer;
+import com.company.s3explorer.transfer.producer.FolderUploadProducer;
+import com.company.s3explorer.transfer.producer.ProducerExecutor;
+import com.company.s3explorer.transfer.producer.ProducerRuntime;
 import com.company.s3explorer.transfer.queue.TransferQueue;
 import com.company.s3explorer.ui.explorer.RefreshTreeNode;
 import com.company.s3explorer.ui.explorer.RefreshTreeOperation;
@@ -449,6 +458,39 @@ public class TransferManager {
         );
     }
 
+    /**
+     * Submits a folder copy producer to an existing transfer group.
+     *
+     * The caller owns the shared group lifecycle.
+     */
+    public void submitFolderCopy(
+            String repositoryName,
+            String sourceBucket,
+            String sourcePrefix,
+            String targetRepositoryName,
+            String targetBucket,
+            String targetPrefix,
+            TransferGroup group) {
+
+        if (group == null) {
+            throw new IllegalArgumentException(
+                    "Transfer group must not be null");
+        }
+
+        producerExecutor.submit(
+                new FolderCopyProducer(
+                        transferContext,
+                        queue,
+                        repositoryName,
+                        sourceBucket,
+                        sourcePrefix,
+                        targetRepositoryName,
+                        targetBucket,
+                        targetPrefix,
+                        group)
+        );
+    }
+
     public void submitFolderMove(
             String repositoryName,
             String sourceBucket,
@@ -467,6 +509,39 @@ public class TransferManager {
                         targetRepositoryName,
                         targetBucket,
                         targetPrefix)
+        );
+    }
+
+    /**
+     * Submits a folder move producer to an existing transfer group.
+     *
+     * The caller owns the shared group lifecycle.
+     */
+    public void submitFolderMove(
+            String repositoryName,
+            String sourceBucket,
+            String sourcePrefix,
+            String targetRepositoryName,
+            String targetBucket,
+            String targetPrefix,
+            TransferGroup group) {
+
+        if (group == null) {
+            throw new IllegalArgumentException(
+                    "Transfer group must not be null");
+        }
+
+        producerExecutor.submit(
+                new FolderMoveProducer(
+                        transferContext,
+                        queue,
+                        repositoryName,
+                        sourceBucket,
+                        sourcePrefix,
+                        targetRepositoryName,
+                        targetBucket,
+                        targetPrefix,
+                        group)
         );
     }
 
@@ -504,7 +579,7 @@ public class TransferManager {
      * Configures the completion callback for a group.
      *
      * This method must be called once for a batch group,
-     * before the group's tasks are submitted.
+     * before the group's tasks or producers are submitted.
      */
     public void configureGroupCompletion(
             TransferGroup group,
@@ -554,7 +629,7 @@ public class TransferManager {
     /**
      * Backward-compatible group completion configuration.
      *
-     * Existing folder producers use this path.
+     * Existing callers use source refresh by default.
      */
     public void configureGroupCompletion(
             TransferGroup group,
@@ -569,14 +644,13 @@ public class TransferManager {
                 prefix,
                 true);
     }
-    
+
     /**
      * Adds a task to an already configured group.
      *
      * This method intentionally does not mark production
      * as completed. The caller owns the group production
-     * lifecycle and must call markProductionCompleted()
-     * after all tasks have been submitted.
+     * lifecycle.
      */
     private void submitGroupedTask(
             TransferTask task,
