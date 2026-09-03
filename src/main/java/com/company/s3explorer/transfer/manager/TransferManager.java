@@ -186,7 +186,8 @@ public class TransferManager {
                 group,
                 repositoryName,
                 bucket,
-                keySource);
+                keySource,
+                false);
 
         TransferTask task =
                 TransferTask.copy()
@@ -278,7 +279,8 @@ public class TransferManager {
                 group,
                 repositoryName,
                 bucket,
-                keySource);
+                keySource,
+                true);
 
         TransferTask task =
                 TransferTask.move()
@@ -508,7 +510,8 @@ public class TransferManager {
             TransferGroup group,
             String repositoryName,
             String bucket,
-            String prefix) {
+            String prefix,
+            boolean sourceRefreshRequired) {
 
         if (group == null) {
             throw new IllegalArgumentException(
@@ -535,16 +538,38 @@ public class TransferManager {
                                     " failed=" +
                                     group.getFailed() +
                                     " cancelled=" +
-                                    group.getCancelled());
+                                    group.getCancelled() +
+                                    " sourceRefreshRequired=" +
+                                    sourceRefreshRequired);
 
                     transferContext.publishGroupCompleted(
                             group,
                             repositoryName,
                             bucket,
-                            prefix);
+                            prefix,
+                            sourceRefreshRequired);
                 });
     }
 
+    /**
+     * Backward-compatible group completion configuration.
+     *
+     * Existing folder producers use this path.
+     */
+    public void configureGroupCompletion(
+            TransferGroup group,
+            String repositoryName,
+            String bucket,
+            String prefix) {
+
+        configureGroupCompletion(
+                group,
+                repositoryName,
+                bucket,
+                prefix,
+                true);
+    }
+    
     /**
      * Adds a task to an already configured group.
      *
