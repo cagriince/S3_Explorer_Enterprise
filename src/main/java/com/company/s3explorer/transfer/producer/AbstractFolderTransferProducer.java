@@ -21,25 +21,16 @@ public abstract class AbstractFolderTransferProducer
 
     protected final TransferGroup group;
 
-    /*
-     * True when this producer owns the lifecycle of the group.
-     *
-     * Existing folder operations create and complete their
-     * own group, so this remains true for the existing
-     * constructors.
-     *
-     * A future shared Paste operation can provide an external
-     * group and keep production lifecycle ownership outside
-     * this producer.
-     */
     private final boolean ownsGroupLifecycle;
+    private final boolean sourceRefreshRequired;
 
     protected AbstractFolderTransferProducer(
             TransferContext context,
             TransferQueue queue,
             String repository,
             String bucket,
-            String prefix) {
+            String prefix,
+            boolean sourceRefreshRequired) {
 
         this(
                 context,
@@ -47,7 +38,8 @@ public abstract class AbstractFolderTransferProducer
                 repository,
                 bucket,
                 prefix,
-                null);
+                null,
+                sourceRefreshRequired);
     }
 
     protected AbstractFolderTransferProducer(
@@ -56,7 +48,8 @@ public abstract class AbstractFolderTransferProducer
             String repository,
             String bucket,
             String prefix,
-            TransferGroup externalGroup) {
+            TransferGroup externalGroup,
+            boolean sourceRefreshRequired) {
 
         this.context = context;
         this.queue = queue;
@@ -64,6 +57,9 @@ public abstract class AbstractFolderTransferProducer
         this.repository = repository;
         this.bucket = bucket;
         this.prefix = prefix;
+
+        this.sourceRefreshRequired =
+                sourceRefreshRequired;
 
         if (externalGroup == null) {
 
@@ -73,14 +69,17 @@ public abstract class AbstractFolderTransferProducer
 
             this.ownsGroupLifecycle = true;
 
-            configureOwnGroupCompletion();
-
-        }
-        else {
+        } else {
 
             this.group = externalGroup;
 
             this.ownsGroupLifecycle = false;
+        }
+
+        this.group.registerProducer();
+
+        if (ownsGroupLifecycle) {
+            configureOwnGroupCompletion();
         }
     }
 
@@ -100,14 +99,6 @@ public abstract class AbstractFolderTransferProducer
                                     " failed=" + this.group.getFailed() +
                                     " cancelled=" + this.group.getCancelled());
 
-                    /*
-                     * The group completion event represents the final
-                     * state of the operation, not only successful
-                     * operations.
-                     *
-                     * Tree/source cleanup decisions must continue to
-                     * use group.isFullySuccessful() where required.
-                     */
                     if (this.group.isFinished()) {
 
                         System.out.println(
@@ -117,7 +108,8 @@ public abstract class AbstractFolderTransferProducer
                                 this.group,
                                 repository,
                                 bucket,
-                                prefix);
+                                prefix,
+                                sourceRefreshRequired);
                     }
                 });
     }
@@ -154,16 +146,12 @@ public abstract class AbstractFolderTransferProducer
         finally {
 
             /*
-             * A producer using its own group owns the production
-             * lifecycle and must mark the group complete here.
+             * Every producer releases its producer registration.
              *
-             * A shared group belongs to the caller. The caller
-             * will mark production completed after all producers
-             * contributing to that group have finished.
+             * TransferGroup changes productionCompleted to true
+             * only when the last registered producer finishes.
              */
-            if (ownsGroupLifecycle) {
-                group.markProductionCompleted();
-            }
+            group.producerCompleted();
 
             runtime.forceNextUiPublish();
 

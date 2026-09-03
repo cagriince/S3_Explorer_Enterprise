@@ -23,7 +23,8 @@ public abstract class AbstractCopyMoveProducer
             String prefix,
             String targetRepository,
             String targetBucket,
-            String targetPrefix) {
+            String targetPrefix,
+            boolean sourceRefreshRequired) {
 
         this(
                 context,
@@ -34,7 +35,8 @@ public abstract class AbstractCopyMoveProducer
                 targetRepository,
                 targetBucket,
                 targetPrefix,
-                null);
+                null,
+                sourceRefreshRequired);
     }
 
     protected AbstractCopyMoveProducer(
@@ -46,7 +48,8 @@ public abstract class AbstractCopyMoveProducer
             String targetRepository,
             String targetBucket,
             String targetPrefix,
-            TransferGroup externalGroup) {
+            TransferGroup externalGroup,
+            boolean sourceRefreshRequired) {
 
         super(
                 context,
@@ -54,7 +57,8 @@ public abstract class AbstractCopyMoveProducer
                 repository,
                 bucket,
                 prefix,
-                externalGroup);
+                externalGroup,
+                sourceRefreshRequired);
 
         this.targetRepository = targetRepository;
         this.targetBucket = targetBucket;
@@ -64,7 +68,8 @@ public abstract class AbstractCopyMoveProducer
                 S3Util.extractParentPrefix(prefix);
     }
 
-    protected String buildTargetKey(S3Object object) {
+    protected String buildTargetKey(
+            S3Object object) {
 
         String relative =
                 object.key()

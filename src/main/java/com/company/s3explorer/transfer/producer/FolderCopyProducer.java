@@ -29,7 +29,8 @@ public class FolderCopyProducer
                 prefix,
                 targetRepository,
                 targetBucket,
-                targetPrefix);
+                targetPrefix,
+                false);
     }
 
     public FolderCopyProducer(
@@ -52,7 +53,8 @@ public class FolderCopyProducer
                 targetRepository,
                 targetBucket,
                 targetPrefix,
-                group);
+                group,
+                false);
     }
 
     @Override
@@ -78,10 +80,8 @@ public class FolderCopyProducer
                 /*
                  * Folder copy is a silent merge.
                  *
-                 * Existing target objects must NOT be
-                 * overwritten. The copy operation will fail
-                 * for an existing object and the source will
-                 * remain untouched.
+                 * Existing target objects must not be
+                 * overwritten.
                  */
                 .overwrite(false)
 

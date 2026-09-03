@@ -29,7 +29,8 @@ public class FolderMoveProducer
                 prefix,
                 targetRepository,
                 targetBucket,
-                targetPrefix);
+                targetPrefix,
+                true);
     }
 
     public FolderMoveProducer(
@@ -52,7 +53,8 @@ public class FolderMoveProducer
                 targetRepository,
                 targetBucket,
                 targetPrefix,
-                group);
+                group,
+                true);
     }
 
     @Override
@@ -78,12 +80,11 @@ public class FolderMoveProducer
                 /*
                  * Folder move is a silent merge.
                  *
-                 * Existing target objects must NOT be
+                 * Existing target objects must not be
                  * overwritten.
                  *
-                 * If the copy fails because the target
-                 * already exists, MoveOperation will not
-                 * reach deleteObject(), so the source remains.
+                 * If the target object already exists,
+                 * the move task fails before source deletion.
                  */
                 .overwrite(false)
 
@@ -91,18 +92,11 @@ public class FolderMoveProducer
                 .affectsFolderTree(true)
 
                 /*
-                 * IMPORTANT:
+                 * The source tree must not be removed at
+                 * individual task level.
                  *
-                 * Do NOT remove the source folder from the
-                 * tree at task level.
-                 *
-                 * A folder move is composed of multiple tasks.
-                 * If some tasks succeed and some fail, deleting
-                 * the source tree node here would hide the
-                 * objects whose move failed.
-                 *
-                 * The source tree is removed only after the
-                 * entire TransferGroup is fully successful.
+                 * Source cleanup is handled only after the
+                 * complete group succeeds.
                  */
                 .addRefreshPrefix(
                         new RefreshTreeNode(
