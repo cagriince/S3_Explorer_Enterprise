@@ -2099,35 +2099,142 @@ public class ExplorerPanel extends JPanel {
         List<String> selectionKeys =
                 new ArrayList<>();
 
+        TransferGroup group = null;
+
         for (S3FileItem item : items) {
 
             if (item == null) {
                 continue;
             }
 
-            String targetKey =
-                    S3Util.combineKey(
-                            targetPrefix,
-                            (item.isFolder() ? "" : item.getName()));
+            /*
+             * For files:
+             *
+             *     targetSubmissionKey = targetPrefix + fileName
+             *     targetSelectionKey  = targetPrefix + fileName
+             *
+             * For folders:
+             *
+             *     targetSubmissionPrefix = targetPrefix
+             *     targetSelectionKey     = targetPrefix + folderName + "/"
+             *
+             * Folder producers build the actual destination folder
+             * from the source folder name.
+             */
+            String targetSubmissionKey;
+            String targetSelectionKey;
 
-            if (item.isFolder()
-                    && !targetKey.endsWith("/")) {
+            if (item.isFolder()) {
 
-                targetKey += "/";
+                targetSubmissionKey =
+                        targetPrefix;
+
+                targetSelectionKey =
+                        S3Util.combineKey(
+                                targetPrefix,
+                                item.getName());
+
+                if (!targetSelectionKey.endsWith("/")) {
+                    targetSelectionKey += "/";
+                }
+
+            } else {
+
+                targetSubmissionKey =
+                        S3Util.combineKey(
+                                targetPrefix,
+                                item.getName());
+
+                targetSelectionKey =
+                        targetSubmissionKey;
             }
 
             /*
              * Do not paste an item onto itself.
+             *
+             * For folders the selection key represents the actual
+             * destination folder, while the producer receives the
+             * destination prefix.
              */
             if (item.getBucket().equals(targetBucket)
-                    && item.getKey().equals(targetKey)) {
+                    && item.getKey().equals(targetSelectionKey)) {
 
                 log.info(
                         "[PASTE] skipped self-target source={} target={}",
                         item.getKey(),
-                        targetKey);
+                        targetSelectionKey);
 
                 continue;
+            }
+
+            /*
+             * Folder Copy/Move silently merges.
+             *
+             * File Copy/Move requires the existing overwrite
+             * confirmation flow.
+             */
+            boolean overwrite = false;
+
+            if (!item.isFolder()
+                    && exists(targetSubmissionKey)) {
+
+                if (!confirmFileConflict(
+                        item,
+                        targetSubmissionKey)) {
+
+                    log.info(
+                            operation == ExplorerClipboard.Operation.COPY
+                                    ? "[COPY] skipped by user source={} target={}"
+                                    : "[MOVE] skipped by user source={} target={}",
+                            item.getKey(),
+                            targetSubmissionKey);
+
+                    log.info(
+                            "[PASTE SELECTION] not selected key={} item={}",
+                            targetSelectionKey,
+                            item.getName());
+
+                    continue;
+                }
+
+                overwrite = true;
+            }
+
+            /*
+             * Create the shared group only after the item has
+             * actually been accepted.
+             *
+             * This prevents an empty group when all conflict
+             * dialogs are answered NO.
+             */
+            if (group == null) {
+
+                group =
+                        transferManager.createOperationGroup(
+                                operation ==
+                                        ExplorerClipboard.Operation.COPY
+                                        ? "Copy"
+                                        : "Move");
+
+                String sourcePrefix =
+                        S3Util.extractParentPrefix(
+                                item.getKey());
+
+                transferManager.configureGroupCompletion(
+                        group,
+                        item.getRepositoryName(),
+                        item.getBucket(),
+                        sourcePrefix,
+                        operation ==
+                                ExplorerClipboard.Operation.MOVE);
+
+                log.info(
+                        "[PASTE GROUP] created operation={} group={} sourcePrefix={} sourceRefreshRequired={}",
+                        operation,
+                        group.getDisplayName(),
+                        sourcePrefix,
+                        operation ==
+                                ExplorerClipboard.Operation.MOVE);
             }
 
             boolean submitted;
@@ -2139,7 +2246,9 @@ public class ExplorerPanel extends JPanel {
                         submitCopy(
                                 item,
                                 targetBucket,
-                                targetKey);
+                                targetSubmissionKey,
+                                overwrite,
+                                group);
 
             } else {
 
@@ -2147,50 +2256,65 @@ public class ExplorerPanel extends JPanel {
                         submitMove(
                                 item,
                                 targetBucket,
-                                targetKey);
+                                targetSubmissionKey,
+                                overwrite,
+                                group);
             }
 
             /*
-             * Only items accepted by the user are added
-             * to the pending selection list.
+             * Only items actually submitted to the shared
+             * transfer group are added to the pending selection.
              */
             if (submitted) {
 
                 selectionKeys.add(
-                        targetKey);
+                        targetSelectionKey);
 
                 log.info(
                         "[PASTE SELECTION] accepted key={} item={}",
-                        targetKey,
+                        targetSelectionKey,
                         item.getName());
 
             } else {
 
                 log.info(
                         "[PASTE SELECTION] not selected key={} item={}",
-                        targetKey,
+                        targetSelectionKey,
                         item.getName());
             }
         }
 
         /*
-         * All overwrite dialogs have now been answered.
+         * All overwrite dialogs have now been answered and all
+         * accepted items have been submitted.
          *
-         * From this point on, normal transfer-triggered
-         * File Table reloads may restore the final selection.
+         * The group may still contain active folder producers.
+         * TransferGroup handles that lifecycle internally.
          */
         pasteSelectionCollectionInProgress = false;
+
+        if (group != null) {
+
+            group.markProductionCompleted();
+
+            log.info(
+                    "[PASTE GROUP] production completed group={} queued={} running={} completed={} failed={} cancelled={}",
+                    group.getDisplayName(),
+                    group.getQueued(),
+                    group.getRunning(),
+                    group.getCompleted(),
+                    group.getFailed(),
+                    group.getCancelled());
+        }
 
         if (!selectionKeys.isEmpty()) {
 
             pendingFileTableSelectionKeys =
                     new ArrayList<>(selectionKeys);
 
-            restoreFileTableFocus =
-                    true;
+            restoreFileTableFocus = true;
 
-            forceFileTableFocusAfterRefresh =
-                    true;
+            forceFileTableFocusAfterRefresh = true;
 
             log.info(
                     "[PASTE SELECTION] final pending keys={} restoreFocus={} forceFocus={}",
@@ -2230,43 +2354,18 @@ public class ExplorerPanel extends JPanel {
 
         updateActionStates();
     }
-    
+
     private boolean submitCopy(
             S3FileItem item,
             String targetBucket,
-            String targetKey) {
+            String targetKey,
+            boolean overwrite,
+            TransferGroup group) {
 
-        if (item == null) {
-            return false;
-        }
-
-        if (item.getKey().equals(targetKey)
-                && item.getBucket().equals(targetBucket)) {
+        if (item == null
+                || group == null) {
 
             return false;
-        }
-
-        boolean targetExists =
-                !item.isFolder()
-                        && exists(targetKey);
-
-        boolean overwrite = false;
-
-        if (targetExists) {
-
-            if (!confirmFileConflict(
-                    item,
-                    targetKey)) {
-
-                log.info(
-                        "[COPY] skipped by user source={} target={}",
-                        item.getKey(),
-                        targetKey);
-
-                return false;
-            }
-
-            overwrite = true;
         }
 
         try {
@@ -2275,22 +2374,25 @@ public class ExplorerPanel extends JPanel {
                     item,
                     targetBucket,
                     targetKey,
-                    overwrite);
+                    overwrite,
+                    group);
 
             log.info(
-                    "[COPY] submitted source={} target={} overwrite={}",
+                    "[COPY] submitted source={} target={} overwrite={} group={}",
                     item.getKey(),
                     targetKey,
-                    overwrite);
+                    overwrite,
+                    group.getDisplayName());
 
             return true;
 
         } catch (Exception ex) {
 
             log.error(
-                    "[COPY] failed source={} target={}",
+                    "[COPY] failed source={} target={} group={}",
                     item.getKey(),
                     targetKey,
+                    group.getDisplayName(),
                     ex);
 
             SwingUtilities.invokeLater(() ->
@@ -2307,39 +2409,14 @@ public class ExplorerPanel extends JPanel {
     private boolean submitMove(
             S3FileItem item,
             String targetBucket,
-            String targetKey) {
+            String targetKey,
+            boolean overwrite,
+            TransferGroup group) {
 
-        if (item == null) {
-            return false;
-        }
-
-        if (item.getKey().equals(targetKey)
-                && item.getBucket().equals(targetBucket)) {
+        if (item == null
+                || group == null) {
 
             return false;
-        }
-
-        boolean targetExists =
-                !item.isFolder()
-                        && exists(targetKey);
-
-        boolean overwrite = false;
-
-        if (targetExists) {
-
-            if (!confirmFileConflict(
-                    item,
-                    targetKey)) {
-
-                log.info(
-                        "[MOVE] skipped by user source={} target={}",
-                        item.getKey(),
-                        targetKey);
-
-                return false;
-            }
-
-            overwrite = true;
         }
 
         try {
@@ -2348,22 +2425,25 @@ public class ExplorerPanel extends JPanel {
                     item,
                     targetBucket,
                     targetKey,
-                    overwrite);
+                    overwrite,
+                    group);
 
             log.info(
-                    "[MOVE] submitted source={} target={} overwrite={}",
+                    "[MOVE] submitted source={} target={} overwrite={} group={}",
                     item.getKey(),
                     targetKey,
-                    overwrite);
+                    overwrite,
+                    group.getDisplayName());
 
             return true;
 
         } catch (Exception ex) {
 
             log.error(
-                    "[MOVE] failed source={} target={}",
+                    "[MOVE] failed source={} target={} group={}",
                     item.getKey(),
                     targetKey,
+                    group.getDisplayName(),
                     ex);
 
             SwingUtilities.invokeLater(() ->
