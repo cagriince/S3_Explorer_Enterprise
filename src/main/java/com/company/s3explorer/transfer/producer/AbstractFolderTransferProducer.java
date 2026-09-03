@@ -21,12 +21,42 @@ public abstract class AbstractFolderTransferProducer
 
     protected final TransferGroup group;
 
+    /*
+     * True when this producer owns the lifecycle of the group.
+     *
+     * Existing folder operations create and complete their
+     * own group, so this remains true for the existing
+     * constructors.
+     *
+     * A future shared Paste operation can provide an external
+     * group and keep production lifecycle ownership outside
+     * this producer.
+     */
+    private final boolean ownsGroupLifecycle;
+
     protected AbstractFolderTransferProducer(
             TransferContext context,
             TransferQueue queue,
             String repository,
             String bucket,
             String prefix) {
+
+        this(
+                context,
+                queue,
+                repository,
+                bucket,
+                prefix,
+                null);
+    }
+
+    protected AbstractFolderTransferProducer(
+            TransferContext context,
+            TransferQueue queue,
+            String repository,
+            String bucket,
+            String prefix,
+            TransferGroup externalGroup) {
 
         this.context = context;
         this.queue = queue;
@@ -35,9 +65,26 @@ public abstract class AbstractFolderTransferProducer
         this.bucket = bucket;
         this.prefix = prefix;
 
-        this.group = new TransferGroup(
-                UUID.randomUUID(),
-                S3Util.extractFolderName(prefix));
+        if (externalGroup == null) {
+
+            this.group = new TransferGroup(
+                    UUID.randomUUID(),
+                    S3Util.extractFolderName(prefix));
+
+            this.ownsGroupLifecycle = true;
+
+            configureOwnGroupCompletion();
+
+        }
+        else {
+
+            this.group = externalGroup;
+
+            this.ownsGroupLifecycle = false;
+        }
+    }
+
+    private void configureOwnGroupCompletion() {
 
         this.group.setCompletionCallback(
                 () -> {
@@ -103,15 +150,20 @@ public abstract class AbstractFolderTransferProducer
                                 }
                             });
 
-        } finally {
+        }
+        finally {
 
             /*
-             * Producer will not create any new tasks after this point.
+             * A producer using its own group owns the production
+             * lifecycle and must mark the group complete here.
              *
-             * If production ended because of cancellation,
-             * this state must also be published.
+             * A shared group belongs to the caller. The caller
+             * will mark production completed after all producers
+             * contributing to that group have finished.
              */
-            group.markProductionCompleted();
+            if (ownsGroupLifecycle) {
+                group.markProductionCompleted();
+            }
 
             runtime.forceNextUiPublish();
 
