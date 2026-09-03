@@ -27,7 +27,8 @@ public class FolderRenameProducer
                 prefix,
                 repository,
                 bucket,
-                targetPrefix);
+                targetPrefix,
+                true);
     }
 
     @Override
