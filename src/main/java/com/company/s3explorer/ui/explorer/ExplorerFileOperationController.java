@@ -132,18 +132,27 @@ public final class ExplorerFileOperationController {
 
         if (item.isFolder()) {
 
-            /*
-             * Folder copy continues to use the producer-based
-             * execution path. Group-aware folder production
-             * will be introduced separately.
-             */
-            transferManager.submitFolderCopy(
-                    item.getRepositoryName(),
-                    item.getBucket(),
-                    item.getKey(),
-                    repositoryName,
-                    targetBucket,
-                    targetKey);
+            if (group == null) {
+
+                transferManager.submitFolderCopy(
+                        item.getRepositoryName(),
+                        item.getBucket(),
+                        item.getKey(),
+                        repositoryName,
+                        targetBucket,
+                        targetKey);
+
+            } else {
+
+                transferManager.submitFolderCopy(
+                        item.getRepositoryName(),
+                        item.getBucket(),
+                        item.getKey(),
+                        repositoryName,
+                        targetBucket,
+                        targetKey,
+                        group);
+            }
 
             return;
         }
@@ -211,18 +220,27 @@ public final class ExplorerFileOperationController {
 
         if (item.isFolder()) {
 
-            /*
-             * Folder move continues to use the producer-based
-             * execution path. Group-aware folder production
-             * will be introduced separately.
-             */
-            transferManager.submitFolderMove(
-                    item.getRepositoryName(),
-                    item.getBucket(),
-                    item.getKey(),
-                    repositoryName,
-                    targetBucket,
-                    targetKey);
+            if (group == null) {
+
+                transferManager.submitFolderMove(
+                        item.getRepositoryName(),
+                        item.getBucket(),
+                        item.getKey(),
+                        repositoryName,
+                        targetBucket,
+                        targetKey);
+
+            } else {
+
+                transferManager.submitFolderMove(
+                        item.getRepositoryName(),
+                        item.getBucket(),
+                        item.getKey(),
+                        repositoryName,
+                        targetBucket,
+                        targetKey,
+                        group);
+            }
 
             return;
         }
