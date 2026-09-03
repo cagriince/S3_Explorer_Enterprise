@@ -33,6 +33,9 @@ public class TransferGroup {
     private final AtomicInteger cancelled =
             new AtomicInteger();
 
+    private final AtomicInteger skipped =
+            new AtomicInteger();
+
     /*
      * Keeps the tasks that failed during execution.
      *
@@ -99,13 +102,14 @@ public class TransferGroup {
                 running.incrementAndGet();
 
         log.debug(
-                "[GROUP RUNNING] {} queued={} running={} completed={} failed={} cancelled={} productionCompleted={} activeProducers={}",
+                "[GROUP RUNNING] {} queued={} running={} completed={} failed={} cancelled={} skipped={} productionCompleted={} activeProducers={}",
                 displayName,
                 q,
                 r,
                 completed.get(),
                 failed.get(),
                 cancelled.get(),
+                skipped.get(),
                 productionCompleted,
                 activeProducers.get());
     }
@@ -119,13 +123,14 @@ public class TransferGroup {
                 completed.incrementAndGet();
 
         log.debug(
-                "[GROUP COMPLETED TASK] {} queued={} running={} completed={} failed={} cancelled={} productionCompleted={} activeProducers={}",
+                "[GROUP COMPLETED TASK] {} queued={} running={} completed={} failed={} cancelled={} skipped={} productionCompleted={} activeProducers={}",
                 displayName,
                 queued.get(),
                 r,
                 c,
                 failed.get(),
                 cancelled.get(),
+                skipped.get(),
                 productionCompleted,
                 activeProducers.get());
 
@@ -156,6 +161,39 @@ public class TransferGroup {
         failed.incrementAndGet();
 
         checkCompletion();
+    }
+
+    /**
+     * Marks one accepted operation as skipped.
+     *
+     * A skipped operation is not a transfer task and therefore
+     * does not affect queued/running/completed/failed counters.
+     *
+     * It is nevertheless part of the final group result.
+     */
+    public void skipped() {
+
+        int count =
+                skipped.incrementAndGet();
+
+        log.debug(
+                "[GROUP SKIPPED] {} queued={} running={} completed={} failed={} cancelled={} skipped={}",
+                displayName,
+                queued.get(),
+                running.get(),
+                completed.get(),
+                failed.get(),
+                cancelled.get(),
+                count);
+    }
+
+    /**
+     * Returns the number of operations skipped before
+     * transfer submission.
+     */
+    public int getSkipped() {
+
+        return skipped.get();
     }
 
     /**
@@ -228,27 +266,29 @@ public class TransferGroup {
         }
 
         log.debug(
-                "[GROUP PRODUCER COMPLETED] {} activeProducers={} queued={} running={} completed={} failed={} cancelled={}",
+                "[GROUP PRODUCER COMPLETED] {} activeProducers={} queued={} running={} completed={} failed={} cancelled={} skipped={}",
                 displayName,
                 remaining,
                 queued.get(),
                 running.get(),
                 completed.get(),
                 failed.get(),
-                cancelled.get());
+                cancelled.get(),
+                skipped.get());
 
         if (remaining == 0) {
 
             productionCompleted = true;
 
             log.debug(
-                    "[GROUP PRODUCTION COMPLETED] {} queued={} running={} completed={} failed={} cancelled={}",
+                    "[GROUP PRODUCTION COMPLETED] {} queued={} running={} completed={} failed={} cancelled={} skipped={}",
                     displayName,
                     queued.get(),
                     running.get(),
                     completed.get(),
                     failed.get(),
-                    cancelled.get());
+                    cancelled.get(),
+                    skipped.get());
 
             checkCompletion();
         }
@@ -274,13 +314,14 @@ public class TransferGroup {
         productionCompleted = true;
 
         log.debug(
-                "[GROUP PRODUCTION COMPLETED] {} queued={} running={} completed={} failed={} cancelled={}",
+                "[GROUP PRODUCTION COMPLETED] {} queued={} running={} completed={} failed={} cancelled={} skipped={}",
                 displayName,
                 queued.get(),
                 running.get(),
                 completed.get(),
                 failed.get(),
-                cancelled.get());
+                cancelled.get(),
+                skipped.get());
 
         checkCompletion();
     }
@@ -325,6 +366,7 @@ public class TransferGroup {
         return completed.get()
                 + failed.get()
                 + cancelled.get()
+                + skipped.get()
                 + queued.get()
                 + running.get();
     }
@@ -341,19 +383,21 @@ public class TransferGroup {
 
         return isFinished()
                 && failed.get() == 0
-                && cancelled.get() == 0;
+                && cancelled.get() == 0
+                && skipped.get() == 0;
     }
 
     private void checkCompletion() {
 
         log.debug(
-                "[GROUP CHECK] {} queued={} running={} completed={} failed={} cancelled={} productionCompleted={} activeProducers={}",
+                "[GROUP CHECK] {} queued={} running={} completed={} failed={} cancelled={} skipped={} productionCompleted={} activeProducers={}",
                 displayName,
                 queued.get(),
                 running.get(),
                 completed.get(),
                 failed.get(),
                 cancelled.get(),
+                skipped.get(),
                 productionCompleted,
                 activeProducers.get());
 
