@@ -1,6 +1,7 @@
 package com.company.s3explorer.transfer.producer;
 
 import com.company.s3explorer.transfer.context.TransferContext;
+import com.company.s3explorer.transfer.model.TransferGroup;
 import com.company.s3explorer.transfer.queue.TransferQueue;
 import com.company.s3explorer.util.S3Util;
 import software.amazon.awssdk.services.s3.model.S3Object;
@@ -24,12 +25,36 @@ public abstract class AbstractCopyMoveProducer
             String targetBucket,
             String targetPrefix) {
 
+        this(
+                context,
+                queue,
+                repository,
+                bucket,
+                prefix,
+                targetRepository,
+                targetBucket,
+                targetPrefix,
+                null);
+    }
+
+    protected AbstractCopyMoveProducer(
+            TransferContext context,
+            TransferQueue queue,
+            String repository,
+            String bucket,
+            String prefix,
+            String targetRepository,
+            String targetBucket,
+            String targetPrefix,
+            TransferGroup externalGroup) {
+
         super(
                 context,
                 queue,
                 repository,
                 bucket,
-                prefix);
+                prefix,
+                externalGroup);
 
         this.targetRepository = targetRepository;
         this.targetBucket = targetBucket;
