@@ -660,7 +660,7 @@ public class TransferManager {
         queue.add(task);
     }
 
-    private TransferGroup createOperationGroup(
+    public TransferGroup createOperationGroup(
             String operationName) {
 
         return new TransferGroup(
