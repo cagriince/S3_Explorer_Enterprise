@@ -24,6 +24,34 @@ public abstract class AbstractFolderTransferProducer
     private final boolean ownsGroupLifecycle;
     private final boolean sourceRefreshRequired;
 
+    /**
+     * Backward-compatible constructor.
+     *
+     * Existing folder producers use this constructor.
+     * Source refresh remains enabled for these legacy
+     * folder operations.
+     */
+    protected AbstractFolderTransferProducer(
+            TransferContext context,
+            TransferQueue queue,
+            String repository,
+            String bucket,
+            String prefix) {
+
+        this(
+                context,
+                queue,
+                repository,
+                bucket,
+                prefix,
+                null,
+                true);
+    }
+
+    /**
+     * Constructor for folder operations that explicitly
+     * define their source refresh behavior.
+     */
     protected AbstractFolderTransferProducer(
             TransferContext context,
             TransferQueue queue,
@@ -42,6 +70,10 @@ public abstract class AbstractFolderTransferProducer
                 sourceRefreshRequired);
     }
 
+    /**
+     * Constructor for a producer using an external/shared
+     * TransferGroup.
+     */
     protected AbstractFolderTransferProducer(
             TransferContext context,
             TransferQueue queue,
