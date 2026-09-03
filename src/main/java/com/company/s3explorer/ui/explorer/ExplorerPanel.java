@@ -3841,7 +3841,20 @@ public class ExplorerPanel extends JPanel {
         FileTableModel model =
                 view.getFileTableModel();
 
-        boolean found = false;
+        /*
+         * IMPORTANT:
+         *
+         * A multi-file paste must not be considered complete
+         * when only one of the pending items is present.
+         *
+         * Transfers complete asynchronously and the File Table
+         * may therefore be refreshed while only a subset of the
+         * accepted items has appeared.
+         *
+         * Wait until ALL pending keys are present in the table.
+         */
+        Set<String> availableKeys =
+                new HashSet<>();
 
         for (int modelRow = 0;
              modelRow < model.getRowCount();
@@ -3854,21 +3867,25 @@ public class ExplorerPanel extends JPanel {
                 continue;
             }
 
-            if (keys.contains(item.getKey())) {
-                found = true;
-                break;
-            }
+            availableKeys.add(
+                    item.getKey());
         }
 
-        if (!found) {
+        if (!availableKeys.containsAll(keys)) {
 
             log.debug(
-                    "[PASTE SELECTION] pending items not yet in table keys={}",
-                    keys);
+                    "[PASTE SELECTION] pending items not yet in table keys={} available={}",
+                    keys,
+                    availableKeys);
 
             return false;
         }
 
+        /*
+         * All accepted paste items are now present.
+         *
+         * Restore the complete selection in one operation.
+         */
         restoreFileTableSelectionByKeys(keys);
 
         pendingFileTableSelectionKeys = null;
