@@ -44,6 +44,16 @@ public class TransferGroup {
             new CopyOnWriteArrayList<>();
 
     /*
+     * Number of producers that are currently responsible for
+     * producing tasks for this group.
+     *
+     * This allows multiple folder producers to share the same
+     * TransferGroup safely.
+     */
+    private final AtomicInteger activeProducers =
+            new AtomicInteger();
+
+    /*
      * Producer artık yeni task üretmeyecek
      * anlamına gelir.
      */
@@ -89,14 +99,15 @@ public class TransferGroup {
                 running.incrementAndGet();
 
         log.debug(
-                "[GROUP RUNNING] {} queued={} running={} completed={} failed={} cancelled={} productionCompleted={}",
+                "[GROUP RUNNING] {} queued={} running={} completed={} failed={} cancelled={} productionCompleted={} activeProducers={}",
                 displayName,
                 q,
                 r,
                 completed.get(),
                 failed.get(),
                 cancelled.get(),
-                productionCompleted);
+                productionCompleted,
+                activeProducers.get());
     }
 
     public void completed() {
@@ -108,14 +119,15 @@ public class TransferGroup {
                 completed.incrementAndGet();
 
         log.debug(
-                "[GROUP COMPLETED TASK] {} queued={} running={} completed={} failed={} cancelled={} productionCompleted={}",
+                "[GROUP COMPLETED TASK] {} queued={} running={} completed={} failed={} cancelled={} productionCompleted={} activeProducers={}",
                 displayName,
                 queued.get(),
                 r,
                 c,
                 failed.get(),
                 cancelled.get(),
-                productionCompleted);
+                productionCompleted,
+                activeProducers.get());
 
         checkCompletion();
     }
@@ -175,10 +187,89 @@ public class TransferGroup {
     }
 
     /**
-     * Producer'ın artık yeni task üretmeyeceğini
-     * bildirir.
+     * Registers a producer as an active producer of this group.
+     *
+     * This must be called before the producer starts producing
+     * tasks.
+     */
+    public void registerProducer() {
+
+        int count =
+                activeProducers.incrementAndGet();
+
+        productionCompleted = false;
+
+        log.debug(
+                "[GROUP PRODUCER REGISTERED] {} activeProducers={}",
+                displayName,
+                count);
+    }
+
+    /**
+     * Marks one registered producer as finished.
+     *
+     * Production is considered completed only when the last
+     * registered producer has finished.
+     */
+    public void producerCompleted() {
+
+        int remaining =
+                activeProducers.decrementAndGet();
+
+        if (remaining < 0) {
+
+            activeProducers.incrementAndGet();
+
+            log.warn(
+                    "[GROUP PRODUCER COMPLETION] {} producerCompleted called without a registered producer",
+                    displayName);
+
+            return;
+        }
+
+        log.debug(
+                "[GROUP PRODUCER COMPLETED] {} activeProducers={} queued={} running={} completed={} failed={} cancelled={}",
+                displayName,
+                remaining,
+                queued.get(),
+                running.get(),
+                completed.get(),
+                failed.get(),
+                cancelled.get());
+
+        if (remaining == 0) {
+
+            productionCompleted = true;
+
+            log.debug(
+                    "[GROUP PRODUCTION COMPLETED] {} queued={} running={} completed={} failed={} cancelled={}",
+                    displayName,
+                    queued.get(),
+                    running.get(),
+                    completed.get(),
+                    failed.get(),
+                    cancelled.get());
+
+            checkCompletion();
+        }
+    }
+
+    /**
+     * Backward-compatible lifecycle completion method.
+     *
+     * Used by operations that do not register producers.
      */
     public void markProductionCompleted() {
+
+        if (activeProducers.get() > 0) {
+
+            log.debug(
+                    "[GROUP PRODUCTION COMPLETED] {} ignored because activeProducers={}",
+                    displayName,
+                    activeProducers.get());
+
+            return;
+        }
 
         productionCompleted = true;
 
@@ -197,6 +288,11 @@ public class TransferGroup {
     public boolean isProductionCompleted() {
 
         return productionCompleted;
+    }
+
+    public int getActiveProducers() {
+
+        return activeProducers.get();
     }
 
     public int getQueued() {
@@ -236,6 +332,7 @@ public class TransferGroup {
     public boolean isFinished() {
 
         return productionCompleted
+                && activeProducers.get() == 0
                 && queued.get() == 0
                 && running.get() == 0;
     }
@@ -250,14 +347,15 @@ public class TransferGroup {
     private void checkCompletion() {
 
         log.debug(
-                "[GROUP CHECK] {} queued={} running={} completed={} failed={} cancelled={} productionCompleted={}",
+                "[GROUP CHECK] {} queued={} running={} completed={} failed={} cancelled={} productionCompleted={} activeProducers={}",
                 displayName,
                 queued.get(),
                 running.get(),
                 completed.get(),
                 failed.get(),
                 cancelled.get(),
-                productionCompleted);
+                productionCompleted,
+                activeProducers.get());
 
         if (!isFinished()) {
             return;
