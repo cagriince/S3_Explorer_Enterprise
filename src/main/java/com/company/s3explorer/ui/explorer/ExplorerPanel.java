@@ -2100,6 +2100,7 @@ public class ExplorerPanel extends JPanel {
                 new ArrayList<>();
 
         TransferGroup group = null;
+        int skippedCount = 0;
 
         for (S3FileItem item : items) {
 
@@ -2182,6 +2183,12 @@ public class ExplorerPanel extends JPanel {
                         item,
                         targetSubmissionKey)) {
 
+                    if (group != null) {
+                        group.skipped();
+                    } else {
+                        skippedCount++;
+                    }
+                    
                     log.info(
                             operation == ExplorerClipboard.Operation.COPY
                                     ? "[COPY] skipped by user source={} target={}"
@@ -2235,6 +2242,23 @@ public class ExplorerPanel extends JPanel {
                         sourcePrefix,
                         operation ==
                                 ExplorerClipboard.Operation.MOVE);
+
+                if (skippedCount > 0) {
+
+                    for (int i = 0;
+                         i < skippedCount;
+                         i++) {
+
+                        group.skipped();
+                    }
+
+                    log.info(
+                            "[PASTE GROUP] transferred skipped decisions count={} group={}",
+                            skippedCount,
+                            group.getDisplayName());
+
+                    skippedCount = 0;
+                }
             }
 
             boolean submitted;
