@@ -82,8 +82,8 @@ public abstract class AbstractCopyMoveProducer
 
     protected String getTargetChildPrefix() {
 
-        return targetPrefix
-                + group.getDisplayName()
-                + "/";
+        return S3Util.combineKey(
+                targetPrefix,
+                S3Util.extractFolderName(prefix));
     }
 }
