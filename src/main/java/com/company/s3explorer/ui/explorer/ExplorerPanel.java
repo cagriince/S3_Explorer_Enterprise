@@ -1785,7 +1785,8 @@ public class ExplorerPanel extends JPanel {
                 "[EXPLORER GROUP COMPLETED] group={} " +
                         "finished={} successful={} " +
                         "queued={} running={} completed={} " +
-                        "failed={} cancelled={}",
+                        "failed={} cancelled={} " +
+                        "sourceRefreshRequired={}",
                 group.getDisplayName(),
                 group.isFinished(),
                 group.isFullySuccessful(),
@@ -1793,51 +1794,67 @@ public class ExplorerPanel extends JPanel {
                 group.getRunning(),
                 group.getCompleted(),
                 group.getFailed(),
-                group.getCancelled());
+                group.getCancelled(),
+                event.isSourceRefreshRequired());
 
         /*
          * A group completion event means that the complete
          * operation has reached its final state.
          *
-         * Source-side deletion must only happen for a
-         * fully successful move/delete operation.
+         * Source-side refresh is required only for operations
+         * that actually remove the source object.
+         *
+         * COPY:
+         *     sourceRefreshRequired = false
+         *
+         * MOVE:
+         *     sourceRefreshRequired = true
          */
-        if (event.isSuccessful()) {
-
-            String prefix =
-                    event.getPrefix();
-
-            String parentPrefix =
-                    getParentPrefix(prefix);
-
-            log.debug(
-                    "[EXPLORER REFRESH] prefix={} parent={}",
-                    prefix,
-                    parentPrefix);
-
-            refreshScheduler.scheduleRefresh(
-                    List.of(
-                            new RefreshTreeNode(
-                                    parentPrefix,
-                                    RefreshTreeOperation.DELETE)));
-
-            if (Objects.equals(
-                    parentPrefix,
-                    currentFilePrefix)) {
-
-                refreshScheduler
-                        .scheduleCurrentTableRefresh();
-            }
-        }
-        else {
+        if (!event.isSuccessful()) {
 
             log.debug(
                     "[EXPLORER GROUP COMPLETED] " +
                             "operation finished with errors; " +
                             "source refresh is not triggered");
+
+            return;
+        }
+
+        if (!event.isSourceRefreshRequired()) {
+
+            log.debug(
+                    "[EXPLORER GROUP COMPLETED] " +
+                            "source refresh not required");
+
+            return;
+        }
+
+        String prefix =
+                event.getPrefix();
+
+        String parentPrefix =
+                getParentPrefix(prefix);
+
+        log.debug(
+                "[EXPLORER REFRESH] prefix={} parent={}",
+                prefix,
+                parentPrefix);
+
+        refreshScheduler.scheduleRefresh(
+                List.of(
+                        new RefreshTreeNode(
+                                parentPrefix,
+                                RefreshTreeOperation.DELETE)));
+
+        if (Objects.equals(
+                parentPrefix,
+                currentFilePrefix)) {
+
+            refreshScheduler
+                    .scheduleCurrentTableRefresh();
         }
     }
-
+    
     private void refreshCurrentTable() {
 
         String bucket =
