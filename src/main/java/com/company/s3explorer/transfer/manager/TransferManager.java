@@ -180,7 +180,9 @@ public class TransferManager {
 
         TransferGroup group =
                 createOperationGroup(
-                        "Copy");
+                        buildOperationGroupName(
+                                "Copy",
+                                keySource));
 
         configureGroupCompletion(
                 group,
@@ -273,7 +275,9 @@ public class TransferManager {
 
         TransferGroup group =
                 createOperationGroup(
-                        "Move");
+                        buildOperationGroupName(
+                                "Move",
+                                keySource));
 
         configureGroupCompletion(
                 group,
@@ -682,5 +686,28 @@ public class TransferManager {
 
         return transferContext.getService(
                 repositoryName);
+    }
+
+    private String buildOperationGroupName(
+            String operation,
+            String key) {
+
+        String name = S3Util.extractFolderName(key);
+
+        if (name == null
+                || name.isBlank()) {
+
+            name = S3Util.extractFileName(key);
+        }
+
+        if (name == null
+                || name.isBlank()) {
+
+            name = key;
+        }
+
+        return operation
+                + " — "
+                + name;
     }
 }
