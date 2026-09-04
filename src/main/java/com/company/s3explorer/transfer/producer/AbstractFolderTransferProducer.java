@@ -23,12 +23,37 @@ public abstract class AbstractFolderTransferProducer
 
     protected final TransferGroup group;
 
+    /**
+     * Producer kendi group'unu oluşturur.
+     */
     protected AbstractFolderTransferProducer(
             TransferContext context,
             TransferQueue queue,
             String repository,
             String bucket,
             String prefix) {
+
+        this(
+                context,
+                queue,
+                repository,
+                bucket,
+                prefix,
+                null);
+    }
+
+    /**
+     * Dışarıdan group verilmişse aynı group kullanılır.
+     * Böylece TransferManager / UI tarafından oluşturulan
+     * logical group ile producer aynı group üzerinde çalışır.
+     */
+    protected AbstractFolderTransferProducer(
+            TransferContext context,
+            TransferQueue queue,
+            String repository,
+            String bucket,
+            String prefix,
+            TransferGroup externalGroup) {
 
         this.context = context;
         this.queue = queue;
@@ -37,9 +62,12 @@ public abstract class AbstractFolderTransferProducer
         this.bucket = bucket;
         this.prefix = prefix;
 
-        this.group = new TransferGroup(
-                UUID.randomUUID(),
-                S3Util.extractFolderName(prefix));
+        this.group =
+                externalGroup != null
+                        ? externalGroup
+                        : new TransferGroup(
+                        UUID.randomUUID(),
+                        S3Util.extractFolderName(prefix));
     }
 
     public TransferGroup getGroup() {
@@ -47,7 +75,9 @@ public abstract class AbstractFolderTransferProducer
     }
 
     @Override
-    public void produce(ProducerRuntime runtime) throws IOException {
+    public void produce(
+            ProducerRuntime runtime)
+            throws IOException {
 
         group.producerStarted();
 
@@ -73,9 +103,11 @@ public abstract class AbstractFolderTransferProducer
         }
     }
 
-    private void produceObject(S3Object object) {
+    private void produceObject(
+            S3Object object) {
 
-        TransferTask task = createTask(object);
+        TransferTask task =
+                createTask(object);
 
         group.detected(object.size());
         group.queued();
@@ -88,5 +120,6 @@ public abstract class AbstractFolderTransferProducer
         return group.getDisplayName();
     }
 
-    protected abstract TransferTask createTask(S3Object object);
+    protected abstract TransferTask createTask(
+            S3Object object);
 }
