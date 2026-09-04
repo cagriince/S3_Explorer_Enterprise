@@ -34,7 +34,6 @@ public abstract class AbstractTransferOperation
 
             publishGroupUpdated(
                     group,
-                    runtime,
                     transferContext);
         }
 
@@ -62,7 +61,6 @@ public abstract class AbstractTransferOperation
 
                 publishGroupUpdated(
                         group,
-                        runtime,
                         transferContext);
             }
 
@@ -82,7 +80,6 @@ public abstract class AbstractTransferOperation
 
                 publishGroupUpdated(
                         group,
-                        runtime,
                         transferContext);
             }
 
@@ -98,7 +95,6 @@ public abstract class AbstractTransferOperation
 
                 publishGroupUpdated(
                         group,
-                        runtime,
                         transferContext);
             }
 
@@ -112,14 +108,33 @@ public abstract class AbstractTransferOperation
 
     private void publishGroupUpdated(
             TransferGroup group,
-            TransferRuntime runtime,
             TransferContext transferContext) {
+
+        String repository =
+                group.getSourceRepository();
+
+        String bucket =
+                group.getSourceBucket();
+
+        String prefix =
+                group.getSourcePrefix();
+
+        /*
+         * Eski/generic single-object gruplar için
+         * geriye dönük uyumluluk.
+         */
+        if (repository == null
+                || bucket == null
+                || prefix == null) {
+
+            return;
+        }
 
         transferContext.publishGroupUpdated(
                 group,
-                runtime.getTask().getRepositoryName(),
-                runtime.getTask().getBucket(),
-                runtime.getTask().getObjectKey(),
+                repository,
+                bucket,
+                prefix,
                 "MOVE".equalsIgnoreCase(
                         group.getOperation()));
     }
