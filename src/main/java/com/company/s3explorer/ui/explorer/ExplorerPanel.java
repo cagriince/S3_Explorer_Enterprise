@@ -2216,16 +2216,35 @@ public class ExplorerPanel extends JPanel {
              */
             if (group == null) {
 
+                String groupName;
+
+                if (item.isFolder()) {
+
+                    groupName = item.getName();
+
+                } else {
+
+                    groupName = item.getName();
+
+                }
+
                 group =
                         transferManager.createOperationGroup(
-                                operation ==
-                                        ExplorerClipboard.Operation.COPY
-                                        ? "Copy"
-                                        : "Move");
+                                groupName);
 
-                String sourcePrefix =
-                        S3Util.extractParentPrefix(
-                                item.getKey());
+                String sourcePrefix;
+
+                if (item.isFolder()) {
+
+                    sourcePrefix =
+                            item.getKey();
+
+                } else {
+
+                    sourcePrefix =
+                            S3Util.extractParentPrefix(
+                                    item.getKey());
+                }
 
                 transferManager.configureGroupCompletion(
                         group,
