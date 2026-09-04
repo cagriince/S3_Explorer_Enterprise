@@ -20,6 +20,22 @@ public class TransferGroup {
     private final UUID id;
     private final String displayName;
 
+    /*
+     * Logical operation metadata.
+     *
+     * operation:
+     *     COPY / MOVE
+     *
+     * source:
+     *     repository/bucket/prefix
+     *
+     * target:
+     *     repository/bucket/prefix
+     */
+    private final String operation;
+    private final String source;
+    private final String target;
+
     /* Discovery / preparation */
     private final AtomicLong detected = new AtomicLong();
     private final AtomicLong detectedBytes = new AtomicLong();
@@ -48,9 +64,39 @@ public class TransferGroup {
     private final AtomicReference<Runnable> completionCallback =
             new AtomicReference<>();
 
-    public TransferGroup(UUID id, String displayName) {
+    /**
+     * Backward-compatible constructor.
+     *
+     * Existing callers that only know the group name
+     * continue to work.
+     */
+    public TransferGroup(
+            UUID id,
+            String displayName) {
+
+        this(
+                id,
+                displayName,
+                null,
+                null,
+                null);
+    }
+
+    /**
+     * Full logical group metadata constructor.
+     */
+    public TransferGroup(
+            UUID id,
+            String displayName,
+            String operation,
+            String source,
+            String target) {
+
         this.id = id;
         this.displayName = displayName;
+        this.operation = operation;
+        this.source = source;
+        this.target = target;
     }
 
     public UUID getId() {
@@ -59,6 +105,18 @@ public class TransferGroup {
 
     public String getDisplayName() {
         return displayName;
+    }
+
+    public String getOperation() {
+        return operation;
+    }
+
+    public String getSource() {
+        return source;
+    }
+
+    public String getTarget() {
+        return target;
     }
 
     // ---------------------------------------------------------------------
@@ -70,6 +128,7 @@ public class TransferGroup {
     }
 
     public void detected(long size) {
+
         detected.incrementAndGet();
 
         if (size > 0) {
@@ -90,7 +149,9 @@ public class TransferGroup {
     }
 
     public void producerFinished() {
+
         decrementIfPositive(activeProducers);
+
         fireCompletionIfNecessary();
     }
 
@@ -99,13 +160,17 @@ public class TransferGroup {
     }
 
     public void markProductionCompleted() {
+
         productionCompleted.set(true);
+
         fireCompletionIfNecessary();
     }
 
     public void markProductionFailed() {
+
         productionFailed.set(true);
         productionCompleted.set(true);
+
         fireCompletionIfNecessary();
     }
 
@@ -126,12 +191,16 @@ public class TransferGroup {
     }
 
     public void running() {
+
         decrementIfPositive(queued);
+
         running.incrementAndGet();
     }
 
     public void completed() {
+
         decrementIfPositive(running);
+
         completed.incrementAndGet();
 
         fireCompletionIfNecessary();
@@ -142,13 +211,16 @@ public class TransferGroup {
     }
 
     public void failed() {
+
         decrementIfPositive(running);
+
         failed.incrementAndGet();
 
         fireCompletionIfNecessary();
     }
 
     public void failed(TransferTask task) {
+
         failed();
 
         if (task != null) {
@@ -157,9 +229,11 @@ public class TransferGroup {
     }
 
     public void cancelled() {
+
         if (queued.get() > 0) {
             decrementIfPositive(queued);
-        } else {
+        }
+        else {
             decrementIfPositive(running);
         }
 
@@ -173,7 +247,9 @@ public class TransferGroup {
     }
 
     public void skipped() {
+
         skipped.incrementAndGet();
+
         fireCompletionIfNecessary();
     }
 
@@ -228,11 +304,13 @@ public class TransferGroup {
     // ---------------------------------------------------------------------
 
     public boolean isPreparing() {
+
         return !productionCompleted.get()
                 && activeProducers.get() > 0;
     }
 
     public boolean isRunning() {
+
         return !isFinished()
                 && (
                 queued.get() > 0
@@ -249,6 +327,7 @@ public class TransferGroup {
      * task kalmamışsa grup bitmiştir.
      */
     public boolean isFinished() {
+
         return productionCompleted.get()
                 && activeProducers.get() == 0
                 && queued.get() == 0
@@ -256,12 +335,14 @@ public class TransferGroup {
     }
 
     public boolean isCompleted() {
+
         return isFinished()
                 && !productionFailed.get()
                 && failed.get() == 0;
     }
 
     public boolean isFailed() {
+
         return productionFailed.get()
                 || failed.get() > 0;
     }
@@ -298,8 +379,11 @@ public class TransferGroup {
     // COMPLETION CALLBACK
     // ---------------------------------------------------------------------
 
-    public void setCompletionCallback(Runnable callback) {
+    public void setCompletionCallback(
+            Runnable callback) {
+
         completionCallback.set(callback);
+
         fireCompletionIfNecessary();
     }
 
@@ -325,6 +409,8 @@ public class TransferGroup {
             AtomicInteger value) {
 
         value.updateAndGet(current ->
-                current > 0 ? current - 1 : 0);
+                current > 0
+                        ? current - 1
+                        : 0);
     }
 }
