@@ -4,6 +4,7 @@ import com.company.s3explorer.transfer.TransferRuntime;
 import com.company.s3explorer.transfer.TransferStatus;
 import com.company.s3explorer.transfer.event.TransferEventBus;
 import com.company.s3explorer.transfer.event.TransferGroupCompletedEvent;
+import com.company.s3explorer.transfer.event.TransferGroupUpdatedEvent;
 import com.company.s3explorer.transfer.event.TransferListener;
 import com.company.s3explorer.transfer.manager.TransferManager;
 import com.company.s3explorer.transfer.model.TransferGroup;
@@ -472,6 +473,22 @@ public class TransferPanel
         pendingProducerUpdate = runtime;
     }
 
+    @Override
+    public void onTransferGroupUpdated(
+            TransferGroupUpdatedEvent event) {
+
+        if (event == null || event.getGroup() == null) {
+            return;
+        }
+
+        SwingUtilities.invokeLater(() -> {
+
+            groupStateStore.upsert(event);
+
+            refreshGroupTables();
+        });
+    }
+    
     /*
      * Final logical group completion.
      *
@@ -1489,22 +1506,6 @@ public class TransferPanel
                 .setPreferredWidth(220);
 
         return table;
-    }
-
-    @Override
-    public void onTransferGroupUpdated(
-            com.company.s3explorer.transfer.event.TransferGroupUpdatedEvent event) {
-
-        if (event == null || event.getGroup() == null) {
-            return;
-        }
-
-        SwingUtilities.invokeLater(() -> {
-
-            groupStateStore.upsert(event);
-
-            refreshGroupTables();
-        });
     }
 
     private void refreshGroupTables() {
