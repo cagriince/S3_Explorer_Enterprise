@@ -4,9 +4,7 @@ import com.company.s3explorer.transfer.TransferStatus;
 import com.company.s3explorer.transfer.event.TransferEventBus;
 
 import java.time.Instant;
-import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -20,8 +18,29 @@ public class ProducerExecutor
 
     private final Map<
             ProducerRuntime,
-            Future<?>> runningProducers =
+            ProducerHandle> runningProducers =
             new ConcurrentHashMap<>();
+
+    /*
+     * submit() ile cancel()/cancelAll() arasındaki
+     * lifecycle yarışını kontrol eder.
+     */
+    private final Object lifecycleLock =
+            new Object();
+
+    private static class ProducerHandle {
+
+        private final FolderTransferProducer producer;
+        private final Future<?> future;
+
+        private ProducerHandle(
+                FolderTransferProducer producer,
+                Future<?> future) {
+
+            this.producer = producer;
+            this.future = future;
+        }
+    }
 
     public ProducerExecutor(
             TransferEventBus eventBus) {
@@ -52,27 +71,26 @@ public class ProducerExecutor
         runtime.setProgressCallback(
                 () -> eventBus.publishProducer(runtime));
 
-        Future<?> future =
-                executor.submit(() ->
-                        runProducer(
-                                producer,
-                                runtime));
+        synchronized (lifecycleLock) {
 
-        runningProducers.put(
-                runtime,
-                future);
+            Future<?> future =
+                    executor.submit(() ->
+                            runProducer(
+                                    producer,
+                                    runtime));
 
-        /*
-         * submit() ile runningProducers.put() arasındaki
-         * yarış durumunda producer tamamlanmış/cancel edilmiş
-         * olabilir.
-         *
-         * Böyle bir durumda map'te gereksiz kayıt bırakma.
-         */
-        if (future.isDone()
-                || future.isCancelled()) {
-
-            runningProducers.remove(runtime);
+            /*
+             * Future oluşturulduktan hemen sonra runtime
+             * mutlaka map'e eklenir.
+             *
+             * cancel() / cancelAll() lifecycleLock kullandığı
+             * için burada yarış oluşamaz.
+             */
+            runningProducers.put(
+                    runtime,
+                    new ProducerHandle(
+                            producer,
+                            future));
         }
 
         return runtime;
@@ -85,37 +103,13 @@ public class ProducerExecutor
             return false;
         }
 
-        runtime.requestCancel();
+        synchronized (lifecycleLock) {
 
-        Future<?> future =
-                runningProducers.get(runtime);
+            ProducerHandle handle =
+                    runningProducers.get(runtime);
 
-        if (future == null) {
-            return false;
-        }
-
-        future.cancel(true);
-
-        eventBus.publishProducer(runtime);
-
-        return true;
-    }
-
-    public void cancelAll() {
-
-        for (Map.Entry<
-                ProducerRuntime,
-                Future<?>> entry
-                : runningProducers.entrySet()) {
-
-            ProducerRuntime runtime =
-                    entry.getKey();
-
-            Future<?> future =
-                    entry.getValue();
-
-            if (runtime == null) {
-                continue;
+            if (handle == null) {
+                return false;
             }
 
             /*
@@ -123,10 +117,6 @@ public class ProducerExecutor
              */
             runtime.requestCancel();
 
-            /*
-             * Preparing işlemini UI'da hemen
-             * CANCELLED olarak göster.
-             */
             runtime.setMessage(
                     "Producer cancelled");
 
@@ -138,10 +128,81 @@ public class ProducerExecutor
             eventBus.publishProducer(runtime);
 
             /*
-             * Sonra çalışan producer thread'ini interrupt et.
+             * Producer thread'i henüz başlamadıysa
+             * group lifecycle'ını burada kapat.
              */
-            if (future != null) {
-                future.cancel(true);
+            if (runtime.tryCancelBeforeStart()) {
+
+                handle.producer
+                        .cancelBeforeStart();
+            }
+
+            /*
+             * Producer çalışıyorsa interrupt edilir.
+             * Çalışmıyorsa Future CANCELLED olur ve
+             * runProducer() execution'a giremez.
+             */
+            handle.future.cancel(true);
+
+            return true;
+        }
+    }
+
+    public void cancelAll() {
+
+        synchronized (lifecycleLock) {
+
+            for (Map.Entry<
+                    ProducerRuntime,
+                    ProducerHandle> entry
+                    : runningProducers.entrySet()) {
+
+                ProducerRuntime runtime =
+                        entry.getKey();
+
+                ProducerHandle handle =
+                        entry.getValue();
+
+                if (runtime == null
+                        || handle == null) {
+
+                    continue;
+                }
+
+                /*
+                 * Önce mantıksal cancellation.
+                 */
+                runtime.requestCancel();
+
+                runtime.setMessage(
+                        "Producer cancelled");
+
+                runtime.setStatus(
+                        TransferStatus.CANCELLED);
+
+                runtime.forceNextUiPublish();
+
+                eventBus.publishProducer(runtime);
+
+                /*
+                 * Producer henüz execution'a başlamadıysa
+                 * group lifecycle'ını burada kapat.
+                 *
+                 * Eğer runProducer() önce başladıysa
+                 * tryCancelBeforeStart() false döner ve
+                 * producer kendi finally lifecycle'ını yönetir.
+                 */
+                if (runtime.tryCancelBeforeStart()) {
+
+                    handle.producer
+                            .cancelBeforeStart();
+                }
+
+                /*
+                 * Çalışan thread'i interrupt et.
+                 * Henüz başlamadıysa Future CANCELLED olur.
+                 */
+                handle.future.cancel(true);
             }
         }
     }
@@ -149,6 +210,17 @@ public class ProducerExecutor
     private void runProducer(
             FolderTransferProducer producer,
             ProducerRuntime runtime) {
+
+        /*
+         * Cancel All producer başlamadan önce lifecycle'ı
+         * kapattıysa bu producer kesinlikle çalışmamalı.
+         */
+        if (!runtime.tryStartExecution()) {
+
+            runningProducers.remove(runtime);
+
+            return;
+        }
 
         runtime.setStartTime(
                 Instant.now());

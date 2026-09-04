@@ -6,5 +6,10 @@ public interface FolderTransferProducer {
 
     String getDescription();
 
-    void produce(ProducerRuntime runtime) throws IOException;
+    void produce(
+            ProducerRuntime runtime)
+            throws IOException;
+
+    default void cancelBeforeStart() {
+    }
 }
