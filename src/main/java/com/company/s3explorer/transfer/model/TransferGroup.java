@@ -1,6 +1,8 @@
 package com.company.s3explorer.transfer.model;
 
+import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -29,6 +31,10 @@ public class TransferGroup {
     private final AtomicInteger failed = new AtomicInteger();
     private final AtomicInteger cancelled = new AtomicInteger();
     private final AtomicInteger skipped = new AtomicInteger();
+
+    /* Failed task details */
+    private final List<TransferTask> failedTasks =
+            new CopyOnWriteArrayList<>();
 
     /* Producer state */
     private final AtomicInteger activeProducers = new AtomicInteger();
@@ -85,6 +91,7 @@ public class TransferGroup {
 
     public void producerFinished() {
         decrementIfPositive(activeProducers);
+        fireCompletionIfNecessary();
     }
 
     public int getActiveProducers() {
@@ -130,10 +137,6 @@ public class TransferGroup {
         fireCompletionIfNecessary();
     }
 
-    /**
-     * Mevcut kod tarafından TransferTask ile çağrılabilmesi için
-     * overload bırakıyoruz.
-     */
     public void completed(TransferTask task) {
         completed();
     }
@@ -145,11 +148,12 @@ public class TransferGroup {
         fireCompletionIfNecessary();
     }
 
-    /**
-     * Mevcut AbstractTransferOperation kodunun kullandığı overload.
-     */
     public void failed(TransferTask task) {
         failed();
+
+        if (task != null) {
+            failedTasks.add(task);
+        }
     }
 
     public void cancelled() {
@@ -213,10 +217,10 @@ public class TransferGroup {
     }
 
     /**
-     * Eski UI/API isimlendirmesi ile uyumluluk.
+     * Başarısız olan gerçek TransferTask nesneleri.
      */
-    public int getFailedTasks() {
-        return failed.get();
+    public List<TransferTask> getFailedTasks() {
+        return List.copyOf(failedTasks);
     }
 
     // ---------------------------------------------------------------------
@@ -266,6 +270,7 @@ public class TransferGroup {
      * Tüm tespit edilen işler başarıyla tamamlandıysa true.
      */
     public boolean isFullySuccessful() {
+
         if (!isFinished()) {
             return false;
         }
@@ -282,9 +287,6 @@ public class TransferGroup {
             return false;
         }
 
-        /*
-         * skipped işler başarı sayılmaz.
-         */
         if (skipped.get() > 0) {
             return false;
         }
@@ -302,11 +304,13 @@ public class TransferGroup {
     }
 
     private void fireCompletionIfNecessary() {
+
         if (!isFinished()) {
             return;
         }
 
-        Runnable callback = completionCallback.getAndSet(null);
+        Runnable callback =
+                completionCallback.getAndSet(null);
 
         if (callback != null) {
             callback.run();
@@ -317,7 +321,9 @@ public class TransferGroup {
     // INTERNAL
     // ---------------------------------------------------------------------
 
-    private static void decrementIfPositive(AtomicInteger value) {
+    private static void decrementIfPositive(
+            AtomicInteger value) {
+
         value.updateAndGet(current ->
                 current > 0 ? current - 1 : 0);
     }
