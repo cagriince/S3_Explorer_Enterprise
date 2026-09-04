@@ -490,6 +490,13 @@ public class TransferManager {
                 sourcePrefix,
                 false);
 
+        transferContext.publishGroupUpdated(
+                group,
+                repositoryName,
+                sourceBucket,
+                sourcePrefix,
+                false);
+
         producerExecutor.submit(
                 new FolderCopyProducer(
                         transferContext,
@@ -562,6 +569,13 @@ public class TransferManager {
                 sourcePrefix,
                 true);
 
+        transferContext.publishGroupUpdated(
+                group,
+                repositoryName,
+                sourceBucket,
+                sourcePrefix,
+                true);
+        
         producerExecutor.submit(
                 new FolderMoveProducer(
                         transferContext,
