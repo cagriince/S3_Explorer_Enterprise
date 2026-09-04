@@ -29,7 +29,13 @@ public abstract class AbstractTransferOperation
                 runtime.getTask().getGroup();
 
         if (group != null) {
+
             group.running();
+
+            publishGroupUpdated(
+                    group,
+                    runtime,
+                    transferContext);
         }
 
         transferContext.publishRunning(
@@ -51,7 +57,13 @@ public abstract class AbstractTransferOperation
                     runtime.getTask().getObjectKey());
 
             if (group != null) {
+
                 group.completed();
+
+                publishGroupUpdated(
+                        group,
+                        runtime,
+                        transferContext);
             }
 
             transferContext.publishCompleted(
@@ -65,7 +77,13 @@ public abstract class AbstractTransferOperation
         catch (CancellationException ex) {
 
             if (group != null) {
+
                 group.cancelled();
+
+                publishGroupUpdated(
+                        group,
+                        runtime,
+                        transferContext);
             }
 
             transferContext.publishCancelled(
@@ -75,14 +93,13 @@ public abstract class AbstractTransferOperation
 
             if (group != null) {
 
-                /*
-                 * Keep the failed task reference in the group.
-                 *
-                 * This allows group-level completion handling
-                 * to distinguish successful and failed objects.
-                 */
                 group.failed(
                         runtime.getTask());
+
+                publishGroupUpdated(
+                        group,
+                        runtime,
+                        transferContext);
             }
 
             transferContext.publishFailed(
@@ -93,6 +110,20 @@ public abstract class AbstractTransferOperation
         }
     }
 
+    private void publishGroupUpdated(
+            TransferGroup group,
+            TransferRuntime runtime,
+            TransferContext transferContext) {
+
+        transferContext.publishGroupUpdated(
+                group,
+                runtime.getTask().getRepositoryName(),
+                runtime.getTask().getBucket(),
+                runtime.getTask().getObjectKey(),
+                "MOVE".equalsIgnoreCase(
+                        group.getOperation()));
+    }
+    
     protected void checkCancelled(
             TransferRuntime runtime)
             throws CancellationException {
