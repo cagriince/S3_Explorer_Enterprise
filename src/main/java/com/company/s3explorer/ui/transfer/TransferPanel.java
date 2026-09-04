@@ -426,18 +426,12 @@ public class TransferPanel
                 queuedTable);
 
         registerSelectionListener(
-                runningTable);
-
-        registerSelectionListener(
-                finishedTable);
-
-        registerSelectionListener(
                 allTable);
 
         tabs.addChangeListener(
                 e -> updateButtons());
     }
-
+    
     private void registerSelectionListener(
             JTable table) {
 
@@ -918,10 +912,10 @@ public class TransferPanel
                     queuedTable;
 
             case 1 ->
-                    runningTable;
+                    null;
 
             case 2 ->
-                    finishedTable;
+                    null;
 
             case 3 ->
                     allTable;
@@ -938,21 +932,13 @@ public class TransferPanel
             return queuedModel;
         }
 
-        if (table == runningTable) {
-            return runningModel;
-        }
-
-        if (table == finishedTable) {
-            return finishedModel;
-        }
-
         if (table == allTable) {
             return allModel;
         }
 
         return null;
     }
-
+    
     private void cancelSelectedTransfers() {
 
         JTable table =
