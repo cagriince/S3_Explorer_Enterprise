@@ -62,6 +62,19 @@ public class ProducerExecutor
                 runtime,
                 future);
 
+        /*
+         * submit() ile runningProducers.put() arasındaki
+         * yarış durumunda producer tamamlanmış/cancel edilmiş
+         * olabilir.
+         *
+         * Böyle bir durumda map'te gereksiz kayıt bırakma.
+         */
+        if (future.isDone()
+                || future.isCancelled()) {
+
+            runningProducers.remove(runtime);
+        }
+
         return runtime;
     }
 
