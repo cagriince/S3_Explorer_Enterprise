@@ -757,7 +757,13 @@ public class TransferManager {
                 displayName,
                 operation,
                 source,
-                target);
+                target,
+                sourceRepository,
+                sourceBucket,
+                sourcePrefix,
+                targetRepository,
+                targetBucket,
+                targetPrefix);
     }
 
     private String buildGroupLocation(

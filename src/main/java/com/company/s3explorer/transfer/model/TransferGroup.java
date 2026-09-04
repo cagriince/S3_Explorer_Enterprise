@@ -26,15 +26,26 @@ public class TransferGroup {
      * operation:
      *     COPY / MOVE
      *
-     * source:
-     *     repository/bucket/prefix
-     *
-     * target:
-     *     repository/bucket/prefix
+     * source / target:
+     *     UI'da gösterilecek kaynak/hedef bilgisi.
      */
     private final String operation;
     private final String source;
     private final String target;
+
+    /*
+     * Structured source metadata.
+     *
+     * Worker tarafında group update yayınlanırken
+     * gerçek klasör prefix'inin korunması için tutulur.
+     */
+    private final String sourceRepository;
+    private final String sourceBucket;
+    private final String sourcePrefix;
+
+    private final String targetRepository;
+    private final String targetBucket;
+    private final String targetPrefix;
 
     /* Discovery / preparation */
     private final AtomicLong detected = new AtomicLong();
@@ -53,7 +64,8 @@ public class TransferGroup {
             new CopyOnWriteArrayList<>();
 
     /* Producer state */
-    private final AtomicInteger activeProducers = new AtomicInteger();
+    private final AtomicInteger activeProducers =
+            new AtomicInteger();
 
     private final AtomicBoolean productionCompleted =
             new AtomicBoolean(false);
@@ -66,9 +78,6 @@ public class TransferGroup {
 
     /**
      * Backward-compatible constructor.
-     *
-     * Existing callers that only know the group name
-     * continue to work.
      */
     public TransferGroup(
             UUID id,
@@ -79,11 +88,17 @@ public class TransferGroup {
                 displayName,
                 null,
                 null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
                 null);
     }
 
     /**
-     * Full logical group metadata constructor.
+     * Backward-compatible logical metadata constructor.
      */
     public TransferGroup(
             UUID id,
@@ -92,11 +107,49 @@ public class TransferGroup {
             String source,
             String target) {
 
+        this(
+                id,
+                displayName,
+                operation,
+                source,
+                target,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null);
+    }
+
+    /**
+     * Full transfer group metadata constructor.
+     */
+    public TransferGroup(
+            UUID id,
+            String displayName,
+            String operation,
+            String source,
+            String target,
+            String sourceRepository,
+            String sourceBucket,
+            String sourcePrefix,
+            String targetRepository,
+            String targetBucket,
+            String targetPrefix) {
+
         this.id = id;
         this.displayName = displayName;
         this.operation = operation;
         this.source = source;
         this.target = target;
+
+        this.sourceRepository = sourceRepository;
+        this.sourceBucket = sourceBucket;
+        this.sourcePrefix = sourcePrefix;
+
+        this.targetRepository = targetRepository;
+        this.targetBucket = targetBucket;
+        this.targetPrefix = targetPrefix;
     }
 
     public UUID getId() {
@@ -117,6 +170,30 @@ public class TransferGroup {
 
     public String getTarget() {
         return target;
+    }
+
+    public String getSourceRepository() {
+        return sourceRepository;
+    }
+
+    public String getSourceBucket() {
+        return sourceBucket;
+    }
+
+    public String getSourcePrefix() {
+        return sourcePrefix;
+    }
+
+    public String getTargetRepository() {
+        return targetRepository;
+    }
+
+    public String getTargetBucket() {
+        return targetBucket;
+    }
+
+    public String getTargetPrefix() {
+        return targetPrefix;
     }
 
     // ---------------------------------------------------------------------
@@ -285,16 +362,10 @@ public class TransferGroup {
         return skipped.get();
     }
 
-    /**
-     * Toplam tespit edilen görev sayısı.
-     */
     public long getTotal() {
         return detected.get();
     }
 
-    /**
-     * Başarısız olan gerçek TransferTask nesneleri.
-     */
     public List<TransferTask> getFailedTasks() {
         return List.copyOf(failedTasks);
     }
@@ -322,10 +393,6 @@ public class TransferGroup {
         );
     }
 
-    /**
-     * Producer üretimini tamamlamış ve artık bekleyen/çalışan
-     * task kalmamışsa grup bitmiştir.
-     */
     public boolean isFinished() {
 
         return productionCompleted.get()
@@ -347,9 +414,6 @@ public class TransferGroup {
                 || failed.get() > 0;
     }
 
-    /**
-     * Tüm tespit edilen işler başarıyla tamamlandıysa true.
-     */
     public boolean isFullySuccessful() {
 
         if (!isFinished()) {
