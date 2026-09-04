@@ -108,6 +108,7 @@ public class TransferPanel
         registerListeners();
 
         refreshVisibleTables();
+        refreshGroupTables();
         updateTabTitles();
     }
 
@@ -371,7 +372,7 @@ public class TransferPanel
         tabs.addTab(
                 "Running",
                 new JScrollPane(
-                        runningTable));
+                        runningGroupTable));
 
         /*
          * Finished tab contains two logically different areas:
@@ -382,23 +383,11 @@ public class TransferPanel
          * 2. Individual transfers
          *    Existing task-level finished transfer table.
          */
-        JPanel finishedPanel =
-                new JPanel(
-                        new BorderLayout());
-
-        finishedPanel.add(
-                groupResultsPanel,
-                BorderLayout.NORTH);
-
-        finishedPanel.add(
-                new JScrollPane(
-                        finishedTable),
-                BorderLayout.CENTER);
-
         tabs.addTab(
                 "Finished",
-                finishedPanel);
-
+                new JScrollPane(
+                        finishedGroupTable));
+        
         tabs.addTab(
                 "All",
                 new JScrollPane(
@@ -412,35 +401,6 @@ public class TransferPanel
         JPanel contentPanel =
                 new JPanel(
                         new BorderLayout());
-
-        JScrollPane producerScrollPane =
-                new JScrollPane(
-                        producerTable);
-
-        producerScrollPane.setHorizontalScrollBarPolicy(
-                ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
-
-        producerScrollPane.setVerticalScrollBarPolicy(
-                ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER);
-
-        producerScrollPane.setPreferredSize(
-                new Dimension(
-                        0,
-                        48));
-
-        producerScrollPane.setMinimumSize(
-                new Dimension(
-                        0,
-                        48));
-
-        producerScrollPane.setMaximumSize(
-                new Dimension(
-                        Integer.MAX_VALUE,
-                        48));
-
-        contentPanel.add(
-                producerScrollPane,
-                BorderLayout.NORTH);
 
         contentPanel.add(
                 tabs,
