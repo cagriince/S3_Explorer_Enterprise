@@ -3,16 +3,24 @@ package com.company.s3explorer.ui.transfer;
 import com.company.s3explorer.transfer.TransferRuntime;
 import com.company.s3explorer.transfer.TransferStatus;
 import com.company.s3explorer.transfer.event.TransferEventBus;
+import com.company.s3explorer.transfer.event.TransferGroupCompletedEvent;
 import com.company.s3explorer.transfer.event.TransferListener;
 import com.company.s3explorer.transfer.manager.TransferManager;
+import com.company.s3explorer.transfer.model.TransferGroup;
+import com.company.s3explorer.transfer.model.TransferTask;
 import com.company.s3explorer.transfer.producer.ProducerRuntime;
 import com.company.s3explorer.transfer.renderer.*;
 import com.company.s3explorer.transfer.state.TransferStateStore;
 import com.company.s3explorer.ui.icons.IconProvider;
 
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.*;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 import java.util.concurrent.CompletableFuture;
@@ -22,6 +30,12 @@ public class TransferPanel
         implements TransferListener {
 
     private static final int UI_VISIBLE_LIMIT = 1000;
+
+    private static final int GROUP_RESULT_VISIBLE_LIMIT = 100;
+
+    private static final DateTimeFormatter GROUP_RESULT_TIME_FORMAT =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+                    .withZone(ZoneId.systemDefault());
 
     private final TransferEventBus eventBus;
     private final TransferManager transferManager;
@@ -49,11 +63,24 @@ public class TransferPanel
 
     private JTabbedPane tabs;
 
+    /*
+     * Group-level completion results.
+     *
+     * These are intentionally kept separate from TransferStateStore.
+     * TransferStateStore represents individual transfer tasks.
+     * Group results represent the final result of a logical
+     * multi-item operation.
+     */
+    private DefaultListModel<GroupResult> groupResultModel;
+    private JList<GroupResult> groupResultList;
+    private JTextArea groupResultDetails;
+    private JPanel groupResultsPanel;
+
     private volatile ProducerRuntime pendingProducerUpdate;
     private Timer refreshTimer;
 
     private long lastRenderedStateVersion = -1;
-    
+
     public TransferPanel(
             TransferEventBus eventBus,
             TransferManager transferManager) {
@@ -95,6 +122,9 @@ public class TransferPanel
 
         producerTableModel =
                 new ProducerTableModel();
+
+        groupResultModel =
+                new DefaultListModel<>();
     }
 
     private void createComponents() {
@@ -160,6 +190,8 @@ public class TransferPanel
                 createTable(
                         allModel);
 
+        createGroupResultsComponents();
+
         tabs =
                 new JTabbedPane();
 
@@ -177,6 +209,117 @@ public class TransferPanel
         refreshTimer.start();
     }
 
+    private void createGroupResultsComponents() {
+
+        groupResultList =
+                new JList<>(
+                        groupResultModel);
+
+        groupResultList.setSelectionMode(
+                ListSelectionModel.SINGLE_SELECTION);
+
+        groupResultList.setFixedCellHeight(42);
+
+        groupResultList.setVisibleRowCount(3);
+
+        groupResultList.setCellRenderer(
+                new GroupResultRenderer());
+
+        groupResultDetails =
+                new JTextArea();
+
+        groupResultDetails.setEditable(false);
+        groupResultDetails.setFocusable(false);
+        groupResultDetails.setLineWrap(true);
+        groupResultDetails.setWrapStyleWord(true);
+
+        groupResultDetails.setRows(4);
+
+        groupResultDetails.setBorder(
+                new EmptyBorder(
+                        6,
+                        8,
+                        6,
+                        8));
+
+        groupResultDetails.setText(
+                "Select a group result to view details.");
+
+        groupResultList.addListSelectionListener(
+                e -> {
+
+                    if (!e.getValueIsAdjusting()) {
+                        updateGroupResultDetails();
+                    }
+                });
+
+        JPanel header =
+                new JPanel(
+                        new BorderLayout());
+
+        JLabel title =
+                new JLabel(
+                        "Group Results");
+
+        title.setBorder(
+                new EmptyBorder(
+                        4,
+                        6,
+                        4,
+                        6));
+
+        header.add(
+                title,
+                BorderLayout.WEST);
+
+        JPanel listPanel =
+                new JPanel(
+                        new BorderLayout());
+
+        listPanel.add(
+                new JScrollPane(
+                        groupResultList),
+                BorderLayout.CENTER);
+
+        JScrollPane detailsScrollPane =
+                new JScrollPane(
+                        groupResultDetails);
+
+        detailsScrollPane.setVerticalScrollBarPolicy(
+                ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
+
+        detailsScrollPane.setHorizontalScrollBarPolicy(
+                ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+
+        groupResultsPanel =
+                new JPanel(
+                        new BorderLayout());
+
+        groupResultsPanel.setBorder(
+                BorderFactory.createEmptyBorder(
+                        4,
+                        4,
+                        4,
+                        4));
+
+        groupResultsPanel.add(
+                header,
+                BorderLayout.NORTH);
+
+        groupResultsPanel.add(
+                listPanel,
+                BorderLayout.CENTER);
+
+        groupResultsPanel.add(
+                detailsScrollPane,
+                BorderLayout.SOUTH);
+
+        groupResultsPanel.setPreferredSize(
+                new Dimension(
+                        0,
+                        190));
+    }
+
     private void layoutComponents() {
 
         JPanel toolbar =
@@ -184,7 +327,9 @@ public class TransferPanel
                         new FlowLayout());
 
         toolbar.setPreferredSize(
-                new Dimension(50, 0));
+                new Dimension(
+                        50,
+                        0));
 
         toolbar.setBorder(
                 BorderFactory.createEmptyBorder(
@@ -207,10 +352,31 @@ public class TransferPanel
                 new JScrollPane(
                         runningTable));
 
+        /*
+         * Finished tab contains two logically different areas:
+         *
+         * 1. Group Results
+         *    Final result of a logical multi-item operation.
+         *
+         * 2. Individual transfers
+         *    Existing task-level finished transfer table.
+         */
+        JPanel finishedPanel =
+                new JPanel(
+                        new BorderLayout());
+
+        finishedPanel.add(
+                groupResultsPanel,
+                BorderLayout.NORTH);
+
+        finishedPanel.add(
+                new JScrollPane(
+                        finishedTable),
+                BorderLayout.CENTER);
+
         tabs.addTab(
                 "Finished",
-                new JScrollPane(
-                        finishedTable));
+                finishedPanel);
 
         tabs.addTab(
                 "All",
@@ -227,7 +393,8 @@ public class TransferPanel
                         new BorderLayout());
 
         JScrollPane producerScrollPane =
-                new JScrollPane(producerTable);
+                new JScrollPane(
+                        producerTable);
 
         producerScrollPane.setHorizontalScrollBarPolicy(
                 ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
@@ -236,13 +403,19 @@ public class TransferPanel
                 ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER);
 
         producerScrollPane.setPreferredSize(
-                new Dimension(0, 48));
+                new Dimension(
+                        0,
+                        48));
 
         producerScrollPane.setMinimumSize(
-                new Dimension(0, 48));
+                new Dimension(
+                        0,
+                        48));
 
         producerScrollPane.setMaximumSize(
-                new Dimension(Integer.MAX_VALUE, 48));
+                new Dimension(
+                        Integer.MAX_VALUE,
+                        48));
 
         contentPanel.add(
                 producerScrollPane,
@@ -325,6 +498,94 @@ public class TransferPanel
     }
 
     /*
+     * Final logical group completion.
+     *
+     * Individual task events continue to use StateStore.
+     * This callback is responsible only for the group-level
+     * final result shown in the Finished tab.
+     */
+    @Override
+    public void onTransferGroupCompleted(
+            TransferGroupCompletedEvent event) {
+
+        if (event == null) {
+            return;
+        }
+
+        TransferGroup group =
+                event.getGroup();
+
+        if (group == null) {
+            return;
+        }
+
+        SwingUtilities.invokeLater(
+                () -> addGroupResult(
+                        event));
+    }
+
+    private void addGroupResult(
+            TransferGroupCompletedEvent event) {
+
+        TransferGroup group =
+                event.getGroup();
+
+        if (group == null) {
+            return;
+        }
+
+        GroupResult result =
+                new GroupResult(
+                        group,
+                        event);
+
+        /*
+         * Newest result appears first.
+         */
+        groupResultModel.add(
+                0,
+                result);
+
+        /*
+         * Keep the result list bounded independently
+         * from individual transfer task history.
+         */
+        while (groupResultModel.size()
+                > GROUP_RESULT_VISIBLE_LIMIT) {
+
+            groupResultModel.remove(
+                    groupResultModel.size() - 1);
+        }
+
+        groupResultList.setSelectedIndex(0);
+
+        updateGroupResultDetails();
+
+        groupResultList.revalidate();
+        groupResultList.repaint();
+
+        groupResultsPanel.revalidate();
+        groupResultsPanel.repaint();
+    }
+
+    private void updateGroupResultDetails() {
+
+        GroupResult result =
+                groupResultList.getSelectedValue();
+
+        if (result == null) {
+
+            groupResultDetails.setText(
+                    "Select a group result to view details.");
+
+            return;
+        }
+
+        groupResultDetails.setText(
+                result.createDetails());
+    }
+
+    /*
      * Sadece EDT üzerinde çalışır.
      *
      * StateStore'dan en fazla 1000'er kayıt alır.
@@ -340,7 +601,6 @@ public class TransferPanel
          */
         if (currentVersion
                 == lastRenderedStateVersion) {
-
 
             ProducerRuntime producer =
                     pendingProducerUpdate;
@@ -384,7 +644,7 @@ public class TransferPanel
         updateTabTitles();
         updateButtons();
     }
-    
+
     private void refreshVisibleTables() {
 
         queuedModel.setSnapshot(
@@ -454,7 +714,7 @@ public class TransferPanel
                 .setReorderingAllowed(false);
 
         table.setTableHeader(null);
-        
+
         table.getColumnModel()
                 .getColumn(0)
                 .setPreferredWidth(500);
@@ -649,7 +909,8 @@ public class TransferPanel
                         || running > 0);
 
         clearButton.setEnabled(
-                finished > 0);
+                finished > 0
+                        || !groupResultModel.isEmpty());
     }
 
     private void updateButtons() {
@@ -785,7 +1046,9 @@ public class TransferPanel
 
     private void clearFinishedTransfers() {
 
-        if (stateStore.getFinishedCount() <= 0) {
+        if (stateStore.getFinishedCount() <= 0
+                && groupResultModel.isEmpty()) {
+
             return;
         }
 
@@ -799,10 +1062,10 @@ public class TransferPanel
 
                             SwingUtilities.invokeLater(() -> {
 
-                                clearButton.setEnabled(
-                                        true);
-
                                 if (error != null) {
+
+                                    clearButton.setEnabled(
+                                            true);
 
                                     error.printStackTrace();
 
@@ -817,12 +1080,14 @@ public class TransferPanel
                                 }
 
                                 /*
-                                 * Timer zaten state version değişikliğini
-                                 * algılayacak.
-                                 *
-                                 * Burada sadece hemen görsel güncelleme
-                                 * yapıyoruz.
+                                 * Clear group-level final results
+                                 * together with finished task logs.
                                  */
+                                groupResultModel.clear();
+
+                                groupResultDetails.setText(
+                                        "Select a group result to view details.");
+
                                 refreshVisibleTables();
 
                                 lastRenderedStateVersion =
@@ -830,6 +1095,9 @@ public class TransferPanel
 
                                 updateTabTitles();
                                 updateButtons();
+
+                                groupResultList.revalidate();
+                                groupResultList.repaint();
                             });
                         });
     }
@@ -875,5 +1143,351 @@ public class TransferPanel
 
         clearButton.setIcon(
                 IconProvider.ICON_DELETE);
+    }
+
+    /*
+     * Represents one logical transfer group result.
+     *
+     * This is intentionally a UI-only object.
+     * The actual state remains owned by TransferGroup.
+     */
+    private static final class GroupResult {
+
+        private final TransferGroup group;
+
+        private final String repository;
+        private final String bucket;
+        private final String prefix;
+
+        private final boolean sourceRefreshRequired;
+
+        private final Instant completedAt;
+
+        private GroupResult(
+                TransferGroup group,
+                TransferGroupCompletedEvent event) {
+
+            this.group = group;
+
+            this.repository =
+                    event.getRepository();
+
+            this.bucket =
+                    event.getBucket();
+
+            this.prefix =
+                    event.getPrefix();
+
+            this.sourceRefreshRequired =
+                    event.isSourceRefreshRequired();
+
+            this.completedAt =
+                    Instant.now();
+        }
+
+        private String getDisplayName() {
+
+            String displayName =
+                    group.getDisplayName();
+
+            if (displayName == null
+                    || displayName.isBlank()) {
+
+                return "Transfer";
+            }
+
+            return displayName;
+        }
+
+        private boolean isSuccessful() {
+
+            return group.isFullySuccessful();
+        }
+
+        private boolean hasSkipped() {
+
+            return group.getSkipped() > 0;
+        }
+
+        private boolean hasFailed() {
+
+            return group.getFailed() > 0
+                    || group.getCancelled() > 0;
+        }
+
+        private String getStatusText() {
+
+            if (isSuccessful()) {
+                return "Completed";
+            }
+
+            if (hasFailed()) {
+                return "Failed";
+            }
+
+            if (hasSkipped()) {
+                return "Completed with skipped items";
+            }
+
+            return "Completed";
+        }
+
+        private String getStatusSymbol() {
+
+            if (isSuccessful()) {
+                return "✓";
+            }
+
+            if (hasFailed()) {
+                return "✕";
+            }
+
+            if (hasSkipped()) {
+                return "⚠";
+            }
+
+            return "•";
+        }
+
+        private String getSummary() {
+
+            return group.getCompleted()
+                    + " copied • "
+                    + group.getFailed()
+                    + " failed • "
+                    + group.getSkipped()
+                    + " skipped";
+        }
+
+        private String createDetails() {
+
+            StringBuilder builder =
+                    new StringBuilder();
+
+            builder.append(
+                    getDisplayName());
+
+            builder.append(
+                    "\nStatus: ");
+
+            builder.append(
+                    getStatusText());
+
+            builder.append(
+                    "\nSuccessful: ");
+
+            builder.append(
+                    group.getCompleted());
+
+            builder.append(
+                    "\nFailed: ");
+
+            builder.append(
+                    group.getFailed());
+
+            builder.append(
+                    "\nCancelled: ");
+
+            builder.append(
+                    group.getCancelled());
+
+            builder.append(
+                    "\nSkipped: ");
+
+            builder.append(
+                    group.getSkipped());
+
+            builder.append(
+                    "\nTotal: ");
+
+            builder.append(
+                    group.getTotal());
+
+            builder.append(
+                    "\nCompleted: ");
+
+            builder.append(
+                    GROUP_RESULT_TIME_FORMAT.format(
+                            completedAt));
+
+            if (repository != null
+                    && !repository.isBlank()) {
+
+                builder.append(
+                        "\nRepository: ");
+
+                builder.append(
+                        repository);
+            }
+
+            if (bucket != null
+                    && !bucket.isBlank()) {
+
+                builder.append(
+                        "\nBucket: ");
+
+                builder.append(
+                        bucket);
+            }
+
+            if (prefix != null
+                    && !prefix.isBlank()) {
+
+                builder.append(
+                        "\nPrefix: ");
+
+                builder.append(
+                        prefix);
+            }
+
+            if (sourceRefreshRequired) {
+
+                builder.append(
+                        "\nSource refresh: required");
+            }
+
+            List<TransferTask> failedTasks =
+                    group.getFailedTasks();
+
+            if (!failedTasks.isEmpty()) {
+
+                builder.append(
+                        "\n\nFailed tasks:");
+
+                for (TransferTask task :
+                        failedTasks) {
+
+                    if (task == null) {
+                        continue;
+                    }
+
+                    builder.append(
+                            "\n- ");
+
+                    builder.append(
+                            task.toString());
+                }
+            }
+
+            return builder.toString();
+        }
+
+        @Override
+        public String toString() {
+
+            return getStatusSymbol()
+                    + " "
+                    + getDisplayName()
+                    + "    "
+                    + getStatusText()
+                    + "    "
+                    + getSummary();
+        }
+    }
+
+    private static final class GroupResultRenderer
+            extends JPanel
+            implements ListCellRenderer<GroupResult> {
+
+        private final JLabel statusLabel =
+                new JLabel();
+
+        private final JLabel operationLabel =
+                new JLabel();
+
+        private final JLabel summaryLabel =
+                new JLabel();
+
+        private GroupResultRenderer() {
+
+            setLayout(
+                    new BorderLayout(
+                            8,
+                            0));
+
+            setBorder(
+                    new EmptyBorder(
+                            4,
+                            8,
+                            4,
+                            8));
+
+            JPanel center =
+                    new JPanel(
+                            new BorderLayout());
+
+            center.add(
+                    operationLabel,
+                    BorderLayout.NORTH);
+
+            center.add(
+                    summaryLabel,
+                    BorderLayout.SOUTH);
+
+            add(
+                    statusLabel,
+                    BorderLayout.WEST);
+
+            add(
+                    center,
+                    BorderLayout.CENTER);
+        }
+
+        @Override
+        public Component getListCellRendererComponent(
+                JList<? extends GroupResult> list,
+                GroupResult value,
+                int index,
+                boolean isSelected,
+                boolean cellHasFocus) {
+
+            if (value == null) {
+                return this;
+            }
+
+            statusLabel.setText(
+                    value.getStatusSymbol());
+
+            operationLabel.setText(
+                    value.getDisplayName()
+                            + "  —  "
+                            + value.getStatusText());
+
+            summaryLabel.setText(
+                    value.getSummary());
+
+            if (isSelected) {
+
+                setBackground(
+                        list.getSelectionBackground());
+
+                operationLabel.setForeground(
+                        list.getSelectionForeground());
+
+                summaryLabel.setForeground(
+                        list.getSelectionForeground());
+
+                statusLabel.setForeground(
+                        list.getSelectionForeground());
+
+            } else {
+
+                setBackground(
+                        list.getBackground());
+
+                operationLabel.setForeground(
+                        list.getForeground());
+
+                summaryLabel.setForeground(
+                        list.getForeground());
+
+                statusLabel.setForeground(
+                        list.getForeground());
+            }
+
+            setOpaque(true);
+
+            return this;
+        }
     }
 }
