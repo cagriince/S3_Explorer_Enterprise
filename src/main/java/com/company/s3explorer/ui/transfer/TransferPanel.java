@@ -467,6 +467,18 @@ public class TransferPanel
     }
 
     @Override
+    public void onTransfersUpdated(
+            List<TransferRuntime> runtimes) {
+
+        if (runtimes == null
+                || runtimes.isEmpty()) {
+            return;
+        }
+
+        stateStore.upsertAll(runtimes);
+    }
+    
+    @Override
     public void onProducerUpdated(
             ProducerRuntime runtime) {
 
