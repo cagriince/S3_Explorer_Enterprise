@@ -135,6 +135,13 @@ public class TransferGroupStateStore {
         return id != null && groups.containsKey(id);
     }
 
+    public synchronized void removeFinished() {
+
+        groups.entrySet().removeIf(
+                entry -> entry.getValue() != null
+                        && entry.getValue().isFinished());
+    }
+    
     /**
      * UI state temizliği için.
      */

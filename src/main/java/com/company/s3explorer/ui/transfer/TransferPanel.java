@@ -1080,7 +1080,16 @@ public class TransferPanel
                                 groupResultDetails.setText(
                                         "Select a group result to view details.");
 
+                                /*
+                                 * Finished task kayıtları ile birlikte
+                                 * Finished logical group kayıtlarını da temizle.
+                                 *
+                                 * Running gruplara dokunma.
+                                 */
+                                groupStateStore.removeFinished();
+
                                 refreshVisibleTables();
+                                refreshGroupTables();
 
                                 lastRenderedStateVersion =
                                         stateStore.getVersion();
