@@ -81,6 +81,14 @@ public abstract class AbstractFolderTransferProducer
 
         group.producerStarted();
 
+        context.publishGroupUpdated(
+                group,
+                repository,
+                bucket,
+                prefix,
+                "MOVE".equalsIgnoreCase(
+                        group.getOperation()));
+
         try {
 
             context.getService(repository)
@@ -91,15 +99,39 @@ public abstract class AbstractFolderTransferProducer
 
             group.markProductionCompleted();
 
+            context.publishGroupUpdated(
+                    group,
+                    repository,
+                    bucket,
+                    prefix,
+                    "MOVE".equalsIgnoreCase(
+                            group.getOperation()));
+
         } catch (RuntimeException ex) {
 
             group.markProductionFailed();
+
+            context.publishGroupUpdated(
+                    group,
+                    repository,
+                    bucket,
+                    prefix,
+                    "MOVE".equalsIgnoreCase(
+                            group.getOperation()));
 
             throw ex;
 
         } finally {
 
             group.producerFinished();
+
+            context.publishGroupUpdated(
+                    group,
+                    repository,
+                    bucket,
+                    prefix,
+                    "MOVE".equalsIgnoreCase(
+                            group.getOperation()));
         }
     }
 
@@ -110,11 +142,18 @@ public abstract class AbstractFolderTransferProducer
                 createTask(object);
 
         group.detected(object.size());
-        group.queued();
 
         queue.add(task);
-    }
 
+        context.publishGroupUpdated(
+                group,
+                repository,
+                bucket,
+                prefix,
+                "MOVE".equalsIgnoreCase(
+                        group.getOperation()));
+    }
+    
     @Override
     public String getDescription() {
         return group.getDisplayName();
