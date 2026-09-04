@@ -76,7 +76,7 @@ public abstract class AbstractTransferOperation
 
             if (group != null) {
 
-                group.cancelled();
+                group.cancelledFromRunning();
 
                 publishGroupUpdated(
                         group,
@@ -85,8 +85,38 @@ public abstract class AbstractTransferOperation
 
             transferContext.publishCancelled(
                     runtime);
+
         }
         catch (Exception ex) {
+
+            /*
+             * Operation sırasında cancellation request geldiyse
+             * bunu normal transfer failure olarak sayma.
+             *
+             * Böylece:
+             *
+             * running--
+             * cancelled++
+             *
+             * yapılır ve failed++ yapılmaz.
+             */
+            if (runtime.isCancelRequested()
+                    || Thread.currentThread().isInterrupted()) {
+
+                if (group != null) {
+
+                    group.cancelledFromRunning();
+
+                    publishGroupUpdated(
+                            group,
+                            transferContext);
+                }
+
+                transferContext.publishCancelled(
+                        runtime);
+
+                return;
+            }
 
             if (group != null) {
 

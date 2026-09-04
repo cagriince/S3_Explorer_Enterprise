@@ -132,7 +132,7 @@ public class TransferWorker implements Runnable {
                         runtime.getTask().getGroup();
 
                 if (group != null) {
-                    group.cancelledFromRunning();
+                    group.cancelledFromQueue();
                 }
 
                 context.publishCancelled(
@@ -153,13 +153,12 @@ public class TransferWorker implements Runnable {
         }
         catch (CancellationException ex) {
 
-            TransferGroup group =
-                    runtime.getTask().getGroup();
-
-            if (group != null) {
-                group.cancelledFromRunning();
-            }
-
+            /*
+             * AbstractTransferOperation cancellation'ı
+             * zaten group seviyesinde işledi.
+             *
+             * Burada tekrar cancelled++ yapma.
+             */
             context.publishCancelled(
                     runtime);
         }
@@ -168,13 +167,12 @@ public class TransferWorker implements Runnable {
             if (runtime.isCancelRequested()
                     || Thread.currentThread().isInterrupted()) {
 
-                TransferGroup group =
-                        runtime.getTask().getGroup();
-
-                if (group != null) {
-                    group.cancelledFromRunning();
-                }
-
+                /*
+                 * AbstractTransferOperation cancellation'ı
+                 * zaten group'a işlemiştir.
+                 *
+                 * Burada ikinci kez cancelled++ yapma.
+                 */
                 context.publishCancelled(
                         runtime);
 
