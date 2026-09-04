@@ -76,6 +76,15 @@ public class TransferPanel
     private JTextArea groupResultDetails;
     private JPanel groupResultsPanel;
 
+    private final TransferGroupStateStore groupStateStore =
+            new TransferGroupStateStore();
+
+    private TransferGroupTableModel runningGroupModel;
+    private TransferGroupTableModel finishedGroupModel;
+
+    private JTable runningGroupTable;
+    private JTable finishedGroupTable;
+    
     private volatile ProducerRuntime pendingProducerUpdate;
     private Timer refreshTimer;
 
@@ -125,6 +134,12 @@ public class TransferPanel
 
         groupResultModel =
                 new DefaultListModel<>();
+
+        runningGroupModel =
+                new TransferGroupTableModel();
+
+        finishedGroupModel =
+                new TransferGroupTableModel();
     }
 
     private void createComponents() {
@@ -186,6 +201,12 @@ public class TransferPanel
                 createTable(
                         finishedModel);
 
+        runningGroupTable =
+                createGroupTable(runningGroupModel);
+
+        finishedGroupTable =
+                createGroupTable(finishedGroupModel);
+        
         allTable =
                 createTable(
                         allModel);
@@ -508,22 +529,18 @@ public class TransferPanel
     public void onTransferGroupCompleted(
             TransferGroupCompletedEvent event) {
 
-        if (event == null) {
+        if (event == null || event.getGroup() == null) {
             return;
         }
 
-        TransferGroup group =
-                event.getGroup();
+        SwingUtilities.invokeLater(() -> {
 
-        if (group == null) {
-            return;
-        }
+            groupStateStore.complete(event);
 
-        SwingUtilities.invokeLater(
-                () -> addGroupResult(
-                        event));
+            refreshGroupTables();
+        });
     }
-
+    
     private void addGroupResult(
             TransferGroupCompletedEvent event) {
 
@@ -1489,5 +1506,67 @@ public class TransferPanel
 
             return this;
         }
+    }
+
+    private JTable createGroupTable(
+            TransferGroupTableModel model) {
+
+        JTable table =
+                new JTable(model);
+
+        table.setRowHeight(54);
+
+        table.setAutoCreateRowSorter(false);
+        table.setRowSorter(null);
+
+        table.getTableHeader()
+                .setReorderingAllowed(false);
+
+        table.getColumnModel()
+                .getColumn(0)
+                .setPreferredWidth(90);
+
+        table.getColumnModel()
+                .getColumn(1)
+                .setPreferredWidth(180);
+
+        table.getColumnModel()
+                .getColumn(2)
+                .setPreferredWidth(500);
+
+        table.getColumnModel()
+                .getColumn(3)
+                .setPreferredWidth(110);
+
+        table.getColumnModel()
+                .getColumn(4)
+                .setPreferredWidth(220);
+
+        return table;
+    }
+
+    @Override
+    public void onTransferGroupUpdated(
+            com.company.s3explorer.transfer.event.TransferGroupUpdatedEvent event) {
+
+        if (event == null || event.getGroup() == null) {
+            return;
+        }
+
+        SwingUtilities.invokeLater(() -> {
+
+            groupStateStore.upsert(event);
+
+            refreshGroupTables();
+        });
+    }
+
+    private void refreshGroupTables() {
+
+        runningGroupModel.setRows(
+                groupStateStore.runningSnapshot());
+
+        finishedGroupModel.setRows(
+                groupStateStore.finishedSnapshot());
     }
 }
