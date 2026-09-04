@@ -4,63 +4,43 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
+/**
+ * Bir klasör transferinin bütün dosya görevlerini temsil eden
+ * mantıksal transfer grubudur.
+ *
+ * Group tek bir UI satırı olarak gösterilebilir;
+ * gerçek transferler ise TransferTask olarak çalışmaya devam eder.
+ */
 public class TransferGroup {
 
     private final UUID id;
     private final String displayName;
 
-    /*
-     * Producer tarafından keşfedilen toplam nesne sayısı.
-     */
+    /* Discovery / preparation */
     private final AtomicLong detected = new AtomicLong();
-
-    /*
-     * Producer tarafından keşfedilen toplam byte.
-     */
     private final AtomicLong detectedBytes = new AtomicLong();
 
-    /*
-     * Kuyruğa alınmış fakat henüz çalışmaya başlamamış task sayısı.
-     */
+    /* Task states */
     private final AtomicInteger queued = new AtomicInteger();
-
-    /*
-     * Şu anda çalışan task sayısı.
-     */
     private final AtomicInteger running = new AtomicInteger();
-
-    /*
-     * Başarıyla tamamlanan task sayısı.
-     */
     private final AtomicInteger completed = new AtomicInteger();
-
-    /*
-     * Hata ile sonuçlanan task sayısı.
-     */
     private final AtomicInteger failed = new AtomicInteger();
-
-    /*
-     * İptal edilen task sayısı.
-     */
     private final AtomicInteger cancelled = new AtomicInteger();
+    private final AtomicInteger skipped = new AtomicInteger();
 
-    /*
-     * Producer bütün nesneleri keşfedip task üretmeyi bitirdi mi?
-     *
-     * Önemli:
-     * false iken group henüz "Preparing" durumundadır.
-     */
+    /* Producer state */
+    private final AtomicInteger activeProducers = new AtomicInteger();
+
     private final AtomicBoolean productionCompleted =
             new AtomicBoolean(false);
 
-    /*
-     * Producer çalışırken hata oluştu mu?
-     *
-     * Örneğin S3 listObjects sırasında hata oluşması gibi.
-     */
     private final AtomicBoolean productionFailed =
             new AtomicBoolean(false);
+
+    private final AtomicReference<Runnable> completionCallback =
+            new AtomicReference<>();
 
     public TransferGroup(UUID id, String displayName) {
         this.id = id;
@@ -75,20 +55,14 @@ public class TransferGroup {
         return displayName;
     }
 
-    // ------------------------------------------------------------------
-    // Producer / discovery
-    // ------------------------------------------------------------------
+    // ---------------------------------------------------------------------
+    // PRODUCER / DISCOVERY
+    // ---------------------------------------------------------------------
 
-    /**
-     * Producer bir nesne keşfettiğinde çağrılır.
-     */
     public void detected() {
         detected.incrementAndGet();
     }
 
-    /**
-     * Producer bir nesne keşfettiğinde ve boyutunu biliyorsa çağrılır.
-     */
     public void detected(long size) {
         detected.incrementAndGet();
 
@@ -105,19 +79,27 @@ public class TransferGroup {
         return detectedBytes.get();
     }
 
-    /**
-     * Producer bütün task'ları üretmeyi tamamladı.
-     */
-    public void markProductionCompleted() {
-        productionCompleted.set(true);
+    public void producerStarted() {
+        activeProducers.incrementAndGet();
     }
 
-    /**
-     * Producer hata nedeniyle tamamlandı.
-     */
+    public void producerFinished() {
+        decrementIfPositive(activeProducers);
+    }
+
+    public int getActiveProducers() {
+        return activeProducers.get();
+    }
+
+    public void markProductionCompleted() {
+        productionCompleted.set(true);
+        fireCompletionIfNecessary();
+    }
+
     public void markProductionFailed() {
         productionFailed.set(true);
         productionCompleted.set(true);
+        fireCompletionIfNecessary();
     }
 
     public boolean isProductionCompleted() {
@@ -128,59 +110,76 @@ public class TransferGroup {
         return productionFailed.get();
     }
 
-    // ------------------------------------------------------------------
-    // Task lifecycle
-    // ------------------------------------------------------------------
+    // ---------------------------------------------------------------------
+    // TASK STATES
+    // ---------------------------------------------------------------------
 
-    /**
-     * Yeni bir task group'a eklendi.
-     */
     public void queued() {
         queued.incrementAndGet();
     }
 
-    /**
-     * Kuyruktaki task çalışmaya başladı.
-     */
     public void running() {
         decrementIfPositive(queued);
         running.incrementAndGet();
     }
 
-    /**
-     * Task başarıyla tamamlandı.
-     */
     public void completed() {
         decrementIfPositive(running);
         completed.incrementAndGet();
+
+        fireCompletionIfNecessary();
     }
 
     /**
-     * Task hata ile sonuçlandı.
+     * Mevcut kod tarafından TransferTask ile çağrılabilmesi için
+     * overload bırakıyoruz.
      */
+    public void completed(TransferTask task) {
+        completed();
+    }
+
     public void failed() {
         decrementIfPositive(running);
         failed.incrementAndGet();
+
+        fireCompletionIfNecessary();
     }
 
     /**
-     * Task iptal edildi.
-     *
-     * Task henüz queue'da ise queued azalır.
-     * Çalışıyorsa running azalır.
+     * Mevcut AbstractTransferOperation kodunun kullandığı overload.
      */
-    public void cancelled() {
+    public void failed(TransferTask task) {
+        failed();
+    }
 
-        if (!decrementIfPositive(queued)) {
+    public void cancelled() {
+        if (queued.get() > 0) {
+            decrementIfPositive(queued);
+        } else {
             decrementIfPositive(running);
         }
 
         cancelled.incrementAndGet();
+
+        fireCompletionIfNecessary();
     }
 
-    // ------------------------------------------------------------------
-    // Counters
-    // ------------------------------------------------------------------
+    public void cancelled(TransferTask task) {
+        cancelled();
+    }
+
+    public void skipped() {
+        skipped.incrementAndGet();
+        fireCompletionIfNecessary();
+    }
+
+    public void skipped(TransferTask task) {
+        skipped();
+    }
+
+    // ---------------------------------------------------------------------
+    // GETTERS
+    // ---------------------------------------------------------------------
 
     public int getQueued() {
         return queued.get();
@@ -202,79 +201,124 @@ public class TransferGroup {
         return cancelled.get();
     }
 
-    // ------------------------------------------------------------------
-    // Group lifecycle
-    // ------------------------------------------------------------------
+    public int getSkipped() {
+        return skipped.get();
+    }
 
     /**
-     * Producer tamamlandı ve artık queue/running task kalmadı.
-     *
-     * Bu noktada group'un gerçekten bitmiş olduğunu söyleyebiliriz.
+     * Toplam tespit edilen görev sayısı.
+     */
+    public long getTotal() {
+        return detected.get();
+    }
+
+    /**
+     * Eski UI/API isimlendirmesi ile uyumluluk.
+     */
+    public int getFailedTasks() {
+        return failed.get();
+    }
+
+    // ---------------------------------------------------------------------
+    // STATUS
+    // ---------------------------------------------------------------------
+
+    public boolean isPreparing() {
+        return !productionCompleted.get()
+                && activeProducers.get() > 0;
+    }
+
+    public boolean isRunning() {
+        return !isFinished()
+                && (
+                queued.get() > 0
+                        || running.get() > 0
+                        || completed.get() > 0
+                        || failed.get() > 0
+                        || cancelled.get() > 0
+                        || skipped.get() > 0
+        );
+    }
+
+    /**
+     * Producer üretimini tamamlamış ve artık bekleyen/çalışan
+     * task kalmamışsa grup bitmiştir.
      */
     public boolean isFinished() {
         return productionCompleted.get()
+                && activeProducers.get() == 0
                 && queued.get() == 0
                 && running.get() == 0;
     }
 
-    /**
-     * Group başarıyla tamamlandı.
-     *
-     * Producer hata vermemiş,
-     * task hatası oluşmamış,
-     * task iptal edilmemiş
-     * ve bütün task'lar bitmiş olmalıdır.
-     */
     public boolean isCompleted() {
         return isFinished()
                 && !productionFailed.get()
-                && failed.get() == 0
-                && cancelled.get() == 0;
+                && failed.get() == 0;
     }
 
-    /**
-     * Group herhangi bir nedenle başarısız oldu.
-     */
     public boolean isFailed() {
         return productionFailed.get()
                 || failed.get() > 0;
     }
 
     /**
-     * Group hâlâ producer aşamasında.
-     *
-     * Henüz tüm nesneler keşfedilmemiştir.
+     * Tüm tespit edilen işler başarıyla tamamlandıysa true.
      */
-    public boolean isPreparing() {
-        return !productionCompleted.get();
-    }
-
-    /**
-     * Producer bitmiş ve task'lar çalışıyor veya bekliyorsa
-     * group Running kabul edilir.
-     */
-    public boolean isRunning() {
-        return productionCompleted.get()
-                && (queued.get() > 0 || running.get() > 0);
-    }
-
-    // ------------------------------------------------------------------
-    // Helpers
-    // ------------------------------------------------------------------
-
-    private boolean decrementIfPositive(AtomicInteger counter) {
-
-        while (true) {
-
-            int current = counter.get();
-
-            if (current <= 0) {
-                return false;
-            }
-
-            if (counter.compareAndSet(current, current - 1)) {
-                return true;
-            }
+    public boolean isFullySuccessful() {
+        if (!isFinished()) {
+            return false;
         }
+
+        if (productionFailed.get()) {
+            return false;
+        }
+
+        if (failed.get() > 0) {
+            return false;
+        }
+
+        if (cancelled.get() > 0) {
+            return false;
+        }
+
+        /*
+         * skipped işler başarı sayılmaz.
+         */
+        if (skipped.get() > 0) {
+            return false;
+        }
+
+        return completed.get() == detected.get();
+    }
+
+    // ---------------------------------------------------------------------
+    // COMPLETION CALLBACK
+    // ---------------------------------------------------------------------
+
+    public void setCompletionCallback(Runnable callback) {
+        completionCallback.set(callback);
+        fireCompletionIfNecessary();
+    }
+
+    private void fireCompletionIfNecessary() {
+        if (!isFinished()) {
+            return;
+        }
+
+        Runnable callback = completionCallback.getAndSet(null);
+
+        if (callback != null) {
+            callback.run();
+        }
+    }
+
+    // ---------------------------------------------------------------------
+    // INTERNAL
+    // ---------------------------------------------------------------------
+
+    private static void decrementIfPositive(AtomicInteger value) {
+        value.updateAndGet(current ->
+                current > 0 ? current - 1 : 0);
     }
 }
