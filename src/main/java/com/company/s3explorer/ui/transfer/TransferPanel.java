@@ -1051,7 +1051,8 @@ public class TransferPanel
     private void clearFinishedTransfers() {
 
         if (stateStore.getFinishedCount() <= 0
-                && groupResultModel.isEmpty()) {
+                && groupResultModel.isEmpty()
+                && groupStateStore.finishedSnapshot().isEmpty()) {
 
             return;
         }
