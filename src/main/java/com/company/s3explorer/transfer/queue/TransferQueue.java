@@ -67,7 +67,7 @@ public class TransferQueue {
                     task.getGroup();
 
             if (group != null) {
-                group.cancelled();
+                group.cancelledFromQueue();
             }
 
             eventBus.publish(runtime);
@@ -266,7 +266,7 @@ public class TransferQueue {
                     runtime.getTask().getGroup();
 
             if (group != null) {
-                group.cancelled();
+                group.cancelledFromQueue();
             }
 
             runtime.setEndTime(
@@ -306,7 +306,7 @@ public class TransferQueue {
                 runtime.getTask().getGroup();
 
         if (group != null) {
-            group.cancelled();
+            group.cancelledFromQueue();
         }
 
         runtime.setEndTime(

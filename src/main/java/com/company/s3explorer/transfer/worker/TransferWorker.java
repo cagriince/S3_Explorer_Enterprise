@@ -3,6 +3,7 @@ package com.company.s3explorer.transfer.worker;
 import com.company.s3explorer.transfer.TransferRuntime;
 import com.company.s3explorer.transfer.context.TransferContext;
 import com.company.s3explorer.transfer.factory.TransferOperationFactory;
+import com.company.s3explorer.transfer.model.TransferGroup;
 import com.company.s3explorer.transfer.operation.TransferOperation;
 import com.company.s3explorer.transfer.queue.TransferQueue;
 
@@ -127,6 +128,13 @@ public class TransferWorker implements Runnable {
              */
             if (runtime.isCancelRequested()) {
 
+                TransferGroup group =
+                        runtime.getTask().getGroup();
+
+                if (group != null) {
+                    group.cancelledFromRunning();
+                }
+
                 context.publishCancelled(
                         runtime);
 
@@ -145,17 +153,27 @@ public class TransferWorker implements Runnable {
         }
         catch (CancellationException ex) {
 
+            TransferGroup group =
+                    runtime.getTask().getGroup();
+
+            if (group != null) {
+                group.cancelledFromRunning();
+            }
+
             context.publishCancelled(
                     runtime);
-
         }
         catch (Exception ex) {
 
-            /*
-             * Operation sırasında cancellation
-             * gerçekleşmiş olabilir.
-             */
-            if (runtime.isCancelRequested()) {
+            if (runtime.isCancelRequested()
+                    || Thread.currentThread().isInterrupted()) {
+
+                TransferGroup group =
+                        runtime.getTask().getGroup();
+
+                if (group != null) {
+                    group.cancelledFromRunning();
+                }
 
                 context.publishCancelled(
                         runtime);

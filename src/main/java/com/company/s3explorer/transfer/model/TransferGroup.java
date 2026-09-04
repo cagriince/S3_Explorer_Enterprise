@@ -307,10 +307,53 @@ public class TransferGroup {
 
     public void cancelled() {
 
+        cancelledFromUnknownState();
+    }
+
+    public void cancelled(TransferTask task) {
+
+        cancelledFromUnknownState();
+    }
+
+    /**
+     * Queue'dan henüz çalışmaya başlamamış bir task
+     * cancellation nedeniyle çıkarıldı.
+     */
+    public void cancelledFromQueue() {
+
+        decrementIfPositive(queued);
+
+        cancelled.incrementAndGet();
+
+        fireCompletionIfNecessary();
+    }
+
+    /**
+     * Çalışmakta olan bir task cancellation nedeniyle
+     * durduruldu.
+     */
+    public void cancelledFromRunning() {
+
+        decrementIfPositive(running);
+
+        cancelled.incrementAndGet();
+
+        fireCompletionIfNecessary();
+    }
+
+    /**
+     * Eski çağrılar için güvenli fallback.
+     *
+     * Normal lifecycle'da kullanılmamalıdır.
+     */
+    private void cancelledFromUnknownState() {
+
         if (queued.get() > 0) {
+
             decrementIfPositive(queued);
-        }
-        else {
+
+        } else if (running.get() > 0) {
+
             decrementIfPositive(running);
         }
 
@@ -318,11 +361,7 @@ public class TransferGroup {
 
         fireCompletionIfNecessary();
     }
-
-    public void cancelled(TransferTask task) {
-        cancelled();
-    }
-
+    
     public void skipped() {
 
         skipped.incrementAndGet();
