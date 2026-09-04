@@ -108,6 +108,21 @@ public class TransferContext {
         eventBus.publishProducer(runtime);
     }
 
+    public void publishGroupUpdated(
+            TransferGroup group,
+            String repository,
+            String bucket,
+            String prefix,
+            boolean sourceRefreshRequired) {
+
+        eventBus.publishGroupUpdated(
+                group,
+                repository,
+                bucket,
+                prefix,
+                sourceRefreshRequired);
+    }
+    
     public void publishGroupCompleted(
             TransferGroup group,
             String repository,
