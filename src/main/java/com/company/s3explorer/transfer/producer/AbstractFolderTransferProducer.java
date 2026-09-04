@@ -176,4 +176,34 @@ public abstract class AbstractFolderTransferProducer
 
     protected abstract TransferTask createTask(
             S3Object object);
+
+    @Override
+    public void cancelBeforeStart() {
+
+        /*
+         * Producer hiç çalışmadığı için normal produce()
+         * lifecycle'ını burada sentetik olarak kapatıyoruz.
+         *
+         * Böylece:
+         *
+         * activeProducers = 0
+         * productionCompleted = true
+         * productionFailed = true
+         *
+         * ve group Finished/Failed durumuna geçebilir.
+         */
+        group.producerStarted();
+
+        group.markProductionFailed();
+
+        group.producerFinished();
+
+        context.publishGroupUpdated(
+                group,
+                repository,
+                bucket,
+                prefix,
+                "MOVE".equalsIgnoreCase(
+                        group.getOperation()));
+    }
 }
