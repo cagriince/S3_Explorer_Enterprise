@@ -97,9 +97,6 @@ public abstract class AbstractFolderTransferProducer
                             prefix,
                             this::produceObject);
 
-            /*
-             * Producer normal şekilde tamamlandı.
-             */
             group.markProductionCompleted();
 
             context.publishGroupUpdated(
@@ -113,14 +110,19 @@ public abstract class AbstractFolderTransferProducer
         } catch (RuntimeException ex) {
 
             /*
-             * Producer cancellation sırasında interrupt edilmiş
-             * veya cancellation nedeniyle RuntimeException oluşmuşsa
-             * group lifecycle mutlaka kapanmalı.
-             *
-             * Aksi halde productionCompleted=false kalır ve
-             * group Finished durumuna geçemez.
+             * Cancellation bir production failure değildir.
+             * Producer'ın artık yeni task üretmeyeceğini
+             * productionCompleted ile bildiriyoruz.
              */
-            group.markProductionFailed();
+            if (runtime.isCancelRequested()
+                    || Thread.currentThread().isInterrupted()) {
+
+                group.markProductionCompleted();
+
+            } else {
+
+                group.markProductionFailed();
+            }
 
             context.publishGroupUpdated(
                     group,
@@ -134,10 +136,6 @@ public abstract class AbstractFolderTransferProducer
 
         } finally {
 
-            /*
-             * Hem normal tamamlanmada hem cancellation/failure
-             * durumunda producer mutlaka kapanır.
-             */
             group.producerFinished();
 
             context.publishGroupUpdated(
@@ -180,21 +178,9 @@ public abstract class AbstractFolderTransferProducer
     @Override
     public void cancelBeforeStart() {
 
-        /*
-         * Producer hiç çalışmadığı için normal produce()
-         * lifecycle'ını burada sentetik olarak kapatıyoruz.
-         *
-         * Böylece:
-         *
-         * activeProducers = 0
-         * productionCompleted = true
-         * productionFailed = true
-         *
-         * ve group Finished/Failed durumuna geçebilir.
-         */
         group.producerStarted();
 
-        group.markProductionFailed();
+        group.markProductionCompleted();
 
         group.producerFinished();
 
