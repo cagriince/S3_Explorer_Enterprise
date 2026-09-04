@@ -867,11 +867,15 @@ public class TransferPanel
         long queued =
                 stateStore.getQueuedCount();
 
+        /*
+         * Running ve Finished artık task değil,
+         * logical group gösteriyor.
+         */
         long running =
-                stateStore.getRunningCount();
+                groupStateStore.runningSnapshot().size();
 
         long finished =
-                stateStore.getFinishedCount();
+                groupStateStore.finishedSnapshot().size();
 
         long total =
                 stateStore.getTotalCount();
@@ -892,15 +896,23 @@ public class TransferPanel
                 3,
                 "All (" + total + ")");
 
+        /*
+         * Cancel All task seviyesinde çalışmaya devam ediyor.
+         */
         cancelAllButton.setEnabled(
-                queued > 0
-                        || running > 0);
+                stateStore.getQueuedCount() > 0
+                        || stateStore.getRunningCount() > 0);
 
+        /*
+         * Clear Logs hem task hem group kayıtlarını
+         * dikkate almalı.
+         */
         clearButton.setEnabled(
-                finished > 0
+                stateStore.getFinishedCount() > 0
+                        || !groupStateStore.finishedSnapshot().isEmpty()
                         || !groupResultModel.isEmpty());
     }
-
+    
     private void updateButtons() {
 
         JTable table =
