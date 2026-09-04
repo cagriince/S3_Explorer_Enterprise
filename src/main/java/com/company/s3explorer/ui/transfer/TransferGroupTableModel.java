@@ -51,6 +51,7 @@ public class TransferGroupTableModel extends AbstractTableModel {
         }
 
         rows.clear();
+
         fireTableDataChanged();
     }
 
@@ -132,9 +133,12 @@ public class TransferGroupTableModel extends AbstractTableModel {
     }
 
     @Override
-    public String getColumnName(int column) {
+    public String getColumnName(
+            int column) {
 
-        if (column < 0 || column >= COLUMNS.length) {
+        if (column < 0
+                || column >= COLUMNS.length) {
+
             return "";
         }
 
@@ -176,88 +180,76 @@ public class TransferGroupTableModel extends AbstractTableModel {
     }
 
     /**
-     * Operation şu anda GroupRecord'da ayrı bir alan olarak
-     * tutulmadığı için güvenli fallback kullanıyoruz.
+     * Operation doğrudan TransferGroup metadata'sından alınır.
      *
-     * TransferPanel/operation metadata entegrasyonunda gerçek
-     * COPY/MOVE değeri buraya bağlanacaktır.
+     * COPY / MOVE gibi değerler artık displayName'den
+     * tahmin edilmez.
      */
     private String getOperation(
             TransferGroupStateStore.GroupRecord record) {
 
-        String name = record.getDisplayName();
-
-        if (name == null || name.isBlank()) {
+        if (record.getGroup() == null) {
             return "";
         }
 
-        String lower = name.trim().toLowerCase();
+        String operation =
+                record.getGroup().getOperation();
 
-        if (lower.startsWith("copy ")) {
-            return "COPY";
+        if (operation == null
+                || operation.isBlank()) {
+
+            return "";
         }
 
-        if (lower.startsWith("move ")) {
-            return "MOVE";
-        }
-
-        return "";
+        return operation;
     }
 
     /**
-     * Kaynak -> hedef bilgisini oluşturur.
-     *
-     * Event'in taşıdığı repository/bucket/prefix bilgileri
-     * kullanılır.
+     * Kaynak -> hedef bilgisini doğrudan TransferGroup
+     * metadata'sından oluşturur.
      */
     private String buildProcessDetail(
             TransferGroupStateStore.GroupRecord record) {
 
-        String source = buildLocation(
-                record.getRepository(),
-                record.getBucket(),
-                record.getPrefix());
-
-        return source + " → " + source;
-    }
-
-    private String buildLocation(
-            String repository,
-            String bucket,
-            String prefix) {
-
-        StringBuilder value =
-                new StringBuilder();
-
-        if (repository != null
-                && !repository.isBlank()) {
-
-            value.append(repository);
+        if (record.getGroup() == null) {
+            return "";
         }
 
-        if (bucket != null
-                && !bucket.isBlank()) {
+        String source =
+                record.getGroup().getSource();
 
-            if (!value.isEmpty()) {
-                value.append("/");
-            }
+        String target =
+                record.getGroup().getTarget();
 
-            value.append(bucket);
+        if (source == null
+                || source.isBlank()) {
+
+            source = "";
         }
 
-        if (prefix != null
-                && !prefix.isBlank()) {
+        if (target == null
+                || target.isBlank()) {
 
-            if (!value.isEmpty()
-                    && !value.toString().endsWith("/")) {
-
-                value.append("/");
-            }
-
-            value.append(prefix);
+            target = "";
         }
 
-        return value.toString();
+        if (source.isEmpty()
+                && target.isEmpty()) {
+
+            return "";
+        }
+
+        if (source.isEmpty()) {
+            return target;
+        }
+
+        if (target.isEmpty()) {
+            return source;
+        }
+
+        return source
+                + " → "
+                + target;
     }
 
     private String getStatus(
@@ -272,6 +264,12 @@ public class TransferGroupTableModel extends AbstractTableModel {
             return "Finished";
         }
 
+        /*
+         * Preparing ayrı bir panel değildir.
+         *
+         * Grup Running tablosunda kalır;
+         * Status sütununda Preparing görünür.
+         */
         if (record.isPreparing()) {
             return "Preparing";
         }
@@ -280,6 +278,10 @@ public class TransferGroupTableModel extends AbstractTableModel {
             return "Running";
         }
 
+        /*
+         * Producer henüz ilk task'ı üretmeden önceki
+         * kısa geçiş durumu.
+         */
         return "Preparing";
     }
 
@@ -298,6 +300,9 @@ public class TransferGroupTableModel extends AbstractTableModel {
         int skipped =
                 record.getSkipped();
 
+        int cancelled =
+                record.getCancelled();
+
         if (record.isFinished()) {
 
             return detected
@@ -312,14 +317,43 @@ public class TransferGroupTableModel extends AbstractTableModel {
                     + " skipped";
         }
 
-        return detected
-                + " detected / "
-                + completed
-                + " completed";
+        String summary =
+                detected
+                        + " detected / "
+                        + completed
+                        + " completed";
+
+        if (failed > 0) {
+
+            summary +=
+                    ", "
+                            + failed
+                            + " failed";
+        }
+
+        if (skipped > 0) {
+
+            summary +=
+                    ", "
+                            + skipped
+                            + " skipped";
+        }
+
+        if (cancelled > 0) {
+
+            summary +=
+                    ", "
+                            + cancelled
+                            + " cancelled";
+        }
+
+        return summary;
     }
 
     @Override
-    public Class<?> getColumnClass(int columnIndex) {
+    public Class<?> getColumnClass(
+            int columnIndex) {
+
         return String.class;
     }
 }
