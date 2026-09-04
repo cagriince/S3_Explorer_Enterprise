@@ -1,75 +1,68 @@
 package com.company.s3explorer.transfer.model;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class TransferGroup {
-
-    private static final Logger log =
-            LoggerFactory.getLogger(TransferGroup.class);
 
     private final UUID id;
     private final String displayName;
 
-    private final AtomicInteger queued =
-            new AtomicInteger();
-
-    private final AtomicInteger running =
-            new AtomicInteger();
-
-    private final AtomicInteger completed =
-            new AtomicInteger();
-
-    private final AtomicInteger failed =
-            new AtomicInteger();
-
-    private final AtomicInteger cancelled =
-            new AtomicInteger();
-
-    private final AtomicInteger skipped =
-            new AtomicInteger();
+    /*
+     * Producer tarafından keşfedilen toplam nesne sayısı.
+     */
+    private final AtomicLong detected = new AtomicLong();
 
     /*
-     * Keeps the tasks that failed during execution.
+     * Producer tarafından keşfedilen toplam byte.
+     */
+    private final AtomicLong detectedBytes = new AtomicLong();
+
+    /*
+     * Kuyruğa alınmış fakat henüz çalışmaya başlamamış task sayısı.
+     */
+    private final AtomicInteger queued = new AtomicInteger();
+
+    /*
+     * Şu anda çalışan task sayısı.
+     */
+    private final AtomicInteger running = new AtomicInteger();
+
+    /*
+     * Başarıyla tamamlanan task sayısı.
+     */
+    private final AtomicInteger completed = new AtomicInteger();
+
+    /*
+     * Hata ile sonuçlanan task sayısı.
+     */
+    private final AtomicInteger failed = new AtomicInteger();
+
+    /*
+     * İptal edilen task sayısı.
+     */
+    private final AtomicInteger cancelled = new AtomicInteger();
+
+    /*
+     * Producer bütün nesneleri keşfedip task üretmeyi bitirdi mi?
      *
-     * This is intentionally separate from the failed counter.
-     * The counter is used for completion state while this list
-     * is used by consumers that need to know which tasks failed.
+     * Önemli:
+     * false iken group henüz "Preparing" durumundadır.
      */
-    private final List<TransferTask> failedTasks =
-            new CopyOnWriteArrayList<>();
+    private final AtomicBoolean productionCompleted =
+            new AtomicBoolean(false);
 
     /*
-     * Number of producers that are currently responsible for
-     * producing tasks for this group.
+     * Producer çalışırken hata oluştu mu?
      *
-     * This allows multiple folder producers to share the same
-     * TransferGroup safely.
+     * Örneğin S3 listObjects sırasında hata oluşması gibi.
      */
-    private final AtomicInteger activeProducers =
-            new AtomicInteger();
+    private final AtomicBoolean productionFailed =
+            new AtomicBoolean(false);
 
-    /*
-     * Producer artık yeni task üretmeyecek
-     * anlamına gelir.
-     */
-    private volatile boolean productionCompleted;
-
-    private volatile Runnable completionCallback;
-
-    private volatile boolean completionPublished;
-
-    public TransferGroup(
-            UUID id,
-            String displayName) {
-
+    public TransferGroup(UUID id, String displayName) {
         this.id = id;
         this.displayName = displayName;
     }
@@ -82,354 +75,205 @@ public class TransferGroup {
         return displayName;
     }
 
-    public void setCompletionCallback(
-            Runnable callback) {
+    // ------------------------------------------------------------------
+    // Producer / discovery
+    // ------------------------------------------------------------------
 
-        this.completionCallback = callback;
-    }
-
-    public void queued() {
-
-        queued.incrementAndGet();
-    }
-
-    public void running() {
-
-        int q =
-                queued.decrementAndGet();
-
-        int r =
-                running.incrementAndGet();
-
-        log.debug(
-                "[GROUP RUNNING] {} queued={} running={} completed={} failed={} cancelled={} skipped={} productionCompleted={} activeProducers={}",
-                displayName,
-                q,
-                r,
-                completed.get(),
-                failed.get(),
-                cancelled.get(),
-                skipped.get(),
-                productionCompleted,
-                activeProducers.get());
-    }
-
-    public void completed() {
-
-        int r =
-                running.decrementAndGet();
-
-        int c =
-                completed.incrementAndGet();
-
-        log.debug(
-                "[GROUP COMPLETED TASK] {} queued={} running={} completed={} failed={} cancelled={} skipped={} productionCompleted={} activeProducers={}",
-                displayName,
-                queued.get(),
-                r,
-                c,
-                failed.get(),
-                cancelled.get(),
-                skipped.get(),
-                productionCompleted,
-                activeProducers.get());
-
-        checkCompletion();
+    /**
+     * Producer bir nesne keşfettiğinde çağrılır.
+     */
+    public void detected() {
+        detected.incrementAndGet();
     }
 
     /**
-     * Marks a task as failed and keeps the task reference
-     * available for group-level completion handling.
+     * Producer bir nesne keşfettiğinde ve boyutunu biliyorsa çağrılır.
      */
-    public void failed(
-            TransferTask task) {
+    public void detected(long size) {
+        detected.incrementAndGet();
 
-        if (task != null) {
-
-            failedTasks.add(task);
-        }
-
-        failed();
-    }
-
-    /**
-     * Backward-compatible failure method.
-     */
-    public void failed() {
-
-        running.decrementAndGet();
-        failed.incrementAndGet();
-
-        checkCompletion();
-    }
-
-    /**
-     * Marks one accepted operation as skipped.
-     *
-     * A skipped operation is not a transfer task and therefore
-     * does not affect queued/running/completed/failed counters.
-     *
-     * It is nevertheless part of the final group result.
-     */
-    public void skipped() {
-
-        int count =
-                skipped.incrementAndGet();
-
-        log.debug(
-                "[GROUP SKIPPED] {} queued={} running={} completed={} failed={} cancelled={} skipped={}",
-                displayName,
-                queued.get(),
-                running.get(),
-                completed.get(),
-                failed.get(),
-                cancelled.get(),
-                count);
-    }
-
-    /**
-     * Returns the number of operations skipped before
-     * transfer submission.
-     */
-    public int getSkipped() {
-
-        return skipped.get();
-    }
-
-    /**
-     * Returns the tasks that failed during this group.
-     *
-     * The returned list is a snapshot and cannot be modified
-     * by the caller.
-     */
-    public List<TransferTask> getFailedTasks() {
-
-        return Collections.unmodifiableList(
-                new ArrayList<>(failedTasks));
-    }
-
-    public void cancelled() {
-
-        if (queued.get() > 0) {
-
-            queued.decrementAndGet();
-
-        } else if (running.get() > 0) {
-
-            running.decrementAndGet();
-        }
-
-        cancelled.incrementAndGet();
-
-        checkCompletion();
-    }
-
-    /**
-     * Registers a producer as an active producer of this group.
-     *
-     * This must be called before the producer starts producing
-     * tasks.
-     */
-    public void registerProducer() {
-
-        int count =
-                activeProducers.incrementAndGet();
-
-        productionCompleted = false;
-
-        log.debug(
-                "[GROUP PRODUCER REGISTERED] {} activeProducers={}",
-                displayName,
-                count);
-    }
-
-    /**
-     * Marks one registered producer as finished.
-     *
-     * Production is considered completed only when the last
-     * registered producer has finished.
-     */
-    public void producerCompleted() {
-
-        int remaining =
-                activeProducers.decrementAndGet();
-
-        if (remaining < 0) {
-
-            activeProducers.incrementAndGet();
-
-            log.warn(
-                    "[GROUP PRODUCER COMPLETION] {} producerCompleted called without a registered producer",
-                    displayName);
-
-            return;
-        }
-
-        log.debug(
-                "[GROUP PRODUCER COMPLETED] {} activeProducers={} queued={} running={} completed={} failed={} cancelled={} skipped={}",
-                displayName,
-                remaining,
-                queued.get(),
-                running.get(),
-                completed.get(),
-                failed.get(),
-                cancelled.get(),
-                skipped.get());
-
-        if (remaining == 0) {
-
-            productionCompleted = true;
-
-            log.debug(
-                    "[GROUP PRODUCTION COMPLETED] {} queued={} running={} completed={} failed={} cancelled={} skipped={}",
-                    displayName,
-                    queued.get(),
-                    running.get(),
-                    completed.get(),
-                    failed.get(),
-                    cancelled.get(),
-                    skipped.get());
-
-            checkCompletion();
+        if (size > 0) {
+            detectedBytes.addAndGet(size);
         }
     }
 
+    public long getDetected() {
+        return detected.get();
+    }
+
+    public long getDetectedBytes() {
+        return detectedBytes.get();
+    }
+
     /**
-     * Backward-compatible lifecycle completion method.
-     *
-     * Used by operations that do not register producers.
+     * Producer bütün task'ları üretmeyi tamamladı.
      */
     public void markProductionCompleted() {
+        productionCompleted.set(true);
+    }
 
-        if (activeProducers.get() > 0) {
-
-            log.debug(
-                    "[GROUP PRODUCTION COMPLETED] {} ignored because activeProducers={}",
-                    displayName,
-                    activeProducers.get());
-
-            return;
-        }
-
-        productionCompleted = true;
-
-        log.debug(
-                "[GROUP PRODUCTION COMPLETED] {} queued={} running={} completed={} failed={} cancelled={} skipped={}",
-                displayName,
-                queued.get(),
-                running.get(),
-                completed.get(),
-                failed.get(),
-                cancelled.get(),
-                skipped.get());
-
-        checkCompletion();
+    /**
+     * Producer hata nedeniyle tamamlandı.
+     */
+    public void markProductionFailed() {
+        productionFailed.set(true);
+        productionCompleted.set(true);
     }
 
     public boolean isProductionCompleted() {
-
-        return productionCompleted;
+        return productionCompleted.get();
     }
 
-    public int getActiveProducers() {
-
-        return activeProducers.get();
+    public boolean isProductionFailed() {
+        return productionFailed.get();
     }
+
+    // ------------------------------------------------------------------
+    // Task lifecycle
+    // ------------------------------------------------------------------
+
+    /**
+     * Yeni bir task group'a eklendi.
+     */
+    public void queued() {
+        queued.incrementAndGet();
+    }
+
+    /**
+     * Kuyruktaki task çalışmaya başladı.
+     */
+    public void running() {
+        decrementIfPositive(queued);
+        running.incrementAndGet();
+    }
+
+    /**
+     * Task başarıyla tamamlandı.
+     */
+    public void completed() {
+        decrementIfPositive(running);
+        completed.incrementAndGet();
+    }
+
+    /**
+     * Task hata ile sonuçlandı.
+     */
+    public void failed() {
+        decrementIfPositive(running);
+        failed.incrementAndGet();
+    }
+
+    /**
+     * Task iptal edildi.
+     *
+     * Task henüz queue'da ise queued azalır.
+     * Çalışıyorsa running azalır.
+     */
+    public void cancelled() {
+
+        if (!decrementIfPositive(queued)) {
+            decrementIfPositive(running);
+        }
+
+        cancelled.incrementAndGet();
+    }
+
+    // ------------------------------------------------------------------
+    // Counters
+    // ------------------------------------------------------------------
 
     public int getQueued() {
-
         return queued.get();
     }
 
     public int getRunning() {
-
         return running.get();
     }
 
     public int getCompleted() {
-
         return completed.get();
     }
 
     public int getFailed() {
-
         return failed.get();
     }
 
     public int getCancelled() {
-
         return cancelled.get();
     }
 
-    public int getTotal() {
+    // ------------------------------------------------------------------
+    // Group lifecycle
+    // ------------------------------------------------------------------
 
-        return completed.get()
-                + failed.get()
-                + cancelled.get()
-                + skipped.get()
-                + queued.get()
-                + running.get();
-    }
-
+    /**
+     * Producer tamamlandı ve artık queue/running task kalmadı.
+     *
+     * Bu noktada group'un gerçekten bitmiş olduğunu söyleyebiliriz.
+     */
     public boolean isFinished() {
-
-        return productionCompleted
-                && activeProducers.get() == 0
+        return productionCompleted.get()
                 && queued.get() == 0
                 && running.get() == 0;
     }
 
-    public boolean isFullySuccessful() {
-
+    /**
+     * Group başarıyla tamamlandı.
+     *
+     * Producer hata vermemiş,
+     * task hatası oluşmamış,
+     * task iptal edilmemiş
+     * ve bütün task'lar bitmiş olmalıdır.
+     */
+    public boolean isCompleted() {
         return isFinished()
+                && !productionFailed.get()
                 && failed.get() == 0
-                && cancelled.get() == 0
-                && skipped.get() == 0;
+                && cancelled.get() == 0;
     }
 
-    private void checkCompletion() {
+    /**
+     * Group herhangi bir nedenle başarısız oldu.
+     */
+    public boolean isFailed() {
+        return productionFailed.get()
+                || failed.get() > 0;
+    }
 
-        log.debug(
-                "[GROUP CHECK] {} queued={} running={} completed={} failed={} cancelled={} skipped={} productionCompleted={} activeProducers={}",
-                displayName,
-                queued.get(),
-                running.get(),
-                completed.get(),
-                failed.get(),
-                cancelled.get(),
-                skipped.get(),
-                productionCompleted,
-                activeProducers.get());
+    /**
+     * Group hâlâ producer aşamasında.
+     *
+     * Henüz tüm nesneler keşfedilmemiştir.
+     */
+    public boolean isPreparing() {
+        return !productionCompleted.get();
+    }
 
-        if (!isFinished()) {
-            return;
-        }
+    /**
+     * Producer bitmiş ve task'lar çalışıyor veya bekliyorsa
+     * group Running kabul edilir.
+     */
+    public boolean isRunning() {
+        return productionCompleted.get()
+                && (queued.get() > 0 || running.get() > 0);
+    }
 
-        if (completionPublished) {
-            return;
-        }
+    // ------------------------------------------------------------------
+    // Helpers
+    // ------------------------------------------------------------------
 
-        synchronized (this) {
+    private boolean decrementIfPositive(AtomicInteger counter) {
 
-            if (completionPublished) {
-                return;
+        while (true) {
+
+            int current = counter.get();
+
+            if (current <= 0) {
+                return false;
             }
 
-            if (!isFinished()) {
-                return;
-            }
-
-            completionPublished = true;
-
-            log.info(
-                    "[GROUP FINISHED] {}",
-                    displayName);
-
-            Runnable callback =
-                    completionCallback;
-
-            if (callback != null) {
-                callback.run();
+            if (counter.compareAndSet(current, current - 1)) {
+                return true;
             }
         }
     }
