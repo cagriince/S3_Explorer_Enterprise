@@ -76,6 +76,9 @@ public class TransferGroup {
     private final AtomicReference<Runnable> completionCallback =
             new AtomicReference<>();
 
+    private final AtomicBoolean completionNotified =
+            new AtomicBoolean(false);
+    
     /**
      * Backward-compatible constructor.
      */
@@ -485,7 +488,20 @@ public class TransferGroup {
     public void setCompletionCallback(
             Runnable callback) {
 
-        completionCallback.set(callback);
+        if (callback == null) {
+            return;
+        }
+
+        /*
+         * Bir TransferGroup tek bir logical operation'dır.
+         *
+         * Aynı group için configureGroupCompletion()
+         * birden fazla kez çağrılsa bile ilk callback
+         * korunur; sonraki callback'ler üzerine yazamaz.
+         */
+        completionCallback.compareAndSet(
+                null,
+                callback);
 
         fireCompletionIfNecessary();
     }
@@ -493,6 +509,20 @@ public class TransferGroup {
     private void fireCompletionIfNecessary() {
 
         if (!isFinished()) {
+            return;
+        }
+
+        /*
+         * Completion callback yalnızca bir kez
+         * çalıştırılabilir.
+         *
+         * Birden fazla worker aynı anda son task'ları
+         * tamamlayabilir.
+         */
+        if (!completionNotified.compareAndSet(
+                false,
+                true)) {
+
             return;
         }
 
