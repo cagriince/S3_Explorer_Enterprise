@@ -1,6 +1,7 @@
 package com.company.s3explorer.transfer.producer;
 
 import com.company.s3explorer.transfer.context.TransferContext;
+import com.company.s3explorer.transfer.model.TransferGroup;
 import com.company.s3explorer.transfer.queue.TransferQueue;
 import com.company.s3explorer.util.S3Util;
 
@@ -15,6 +16,11 @@ public abstract class AbstractCopyMoveProducer
 
     protected final String parentPrefix;
 
+    /**
+     * Backward-compatible constructor.
+     *
+     * Producer kendi TransferGroup'unu oluşturur.
+     */
     protected AbstractCopyMoveProducer(
             TransferContext context,
             TransferQueue queue,
@@ -26,12 +32,42 @@ public abstract class AbstractCopyMoveProducer
             String targetPrefix,
             boolean sourceRefreshRequired) {
 
+        this(
+                context,
+                queue,
+                repository,
+                bucket,
+                prefix,
+                targetRepository,
+                targetBucket,
+                targetPrefix,
+                null,
+                sourceRefreshRequired);
+    }
+
+    /**
+     * TransferManager tarafından oluşturulan logical
+     * TransferGroup'un producer tarafından kullanılması için.
+     */
+    protected AbstractCopyMoveProducer(
+            TransferContext context,
+            TransferQueue queue,
+            String repository,
+            String bucket,
+            String prefix,
+            String targetRepository,
+            String targetBucket,
+            String targetPrefix,
+            TransferGroup externalGroup,
+            boolean sourceRefreshRequired) {
+
         super(
                 context,
                 queue,
                 repository,
                 bucket,
-                prefix);
+                prefix,
+                externalGroup);
 
         this.targetRepository = targetRepository;
         this.targetBucket = targetBucket;
