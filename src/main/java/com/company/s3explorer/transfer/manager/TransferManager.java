@@ -179,10 +179,14 @@ public class TransferManager {
             boolean overwrite) {
 
         TransferGroup group =
-                createOperationGroup(
-                        buildOperationGroupName(
-                                "Copy",
-                                keySource));
+                createObjectOperationGroup(
+                        "COPY",
+                        repositoryName,
+                        bucket,
+                        keySource,
+                        targetRepositoryName,
+                        targetBucket,
+                        keyTarget);
 
         configureGroupCompletion(
                 group,
@@ -274,10 +278,14 @@ public class TransferManager {
             boolean overwrite) {
 
         TransferGroup group =
-                createOperationGroup(
-                        buildOperationGroupName(
-                                "Move",
-                                keySource));
+                createObjectOperationGroup(
+                        "MOVE",
+                        repositoryName,
+                        bucket,
+                        keySource,
+                        targetRepositoryName,
+                        targetBucket,
+                        keyTarget);
 
         configureGroupCompletion(
                 group,
@@ -722,6 +730,50 @@ public class TransferManager {
                 operationName);
     }
 
+    private TransferGroup createObjectOperationGroup(
+            String operation,
+            String sourceRepository,
+            String sourceBucket,
+            String sourceKey,
+            String targetRepository,
+            String targetBucket,
+            String targetKey) {
+
+        String displayName =
+                S3Util.extractFileName(sourceKey);
+
+        if (displayName == null
+                || displayName.isBlank()) {
+
+            displayName = sourceKey;
+        }
+
+        String source =
+                buildGroupLocation(
+                        sourceRepository,
+                        sourceBucket,
+                        sourceKey);
+
+        String target =
+                buildGroupLocation(
+                        targetRepository,
+                        targetBucket,
+                        targetKey);
+
+        return new TransferGroup(
+                UUID.randomUUID(),
+                displayName,
+                operation,
+                source,
+                target,
+                sourceRepository,
+                sourceBucket,
+                sourceKey,
+                targetRepository,
+                targetBucket,
+                targetKey);
+    }
+    
     private TransferGroup createFolderOperationGroup(
             String operation,
             String sourceRepository,
