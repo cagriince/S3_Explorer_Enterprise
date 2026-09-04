@@ -440,17 +440,24 @@ public class TransferManager {
             String targetBucket,
             String targetPrefix) {
 
-        producerExecutor.submit(
-                new FolderCopyProducer(
-                        transferContext,
-                        queue,
+        TransferGroup group =
+                createFolderOperationGroup(
+                        "COPY",
                         repositoryName,
                         sourceBucket,
                         sourcePrefix,
                         targetRepositoryName,
                         targetBucket,
-                        targetPrefix)
-        );
+                        targetPrefix);
+
+        submitFolderCopy(
+                repositoryName,
+                sourceBucket,
+                sourcePrefix,
+                targetRepositoryName,
+                targetBucket,
+                targetPrefix,
+                group);
     }
 
     /**
@@ -471,6 +478,17 @@ public class TransferManager {
             throw new IllegalArgumentException(
                     "Transfer group must not be null");
         }
+
+        /*
+         * Group completion must be configured before
+         * the producer starts creating tasks.
+         */
+        configureGroupCompletion(
+                group,
+                repositoryName,
+                sourceBucket,
+                sourcePrefix,
+                false);
 
         producerExecutor.submit(
                 new FolderCopyProducer(
@@ -494,17 +512,24 @@ public class TransferManager {
             String targetBucket,
             String targetPrefix) {
 
-        producerExecutor.submit(
-                new FolderMoveProducer(
-                        transferContext,
-                        queue,
+        TransferGroup group =
+                createFolderOperationGroup(
+                        "MOVE",
                         repositoryName,
                         sourceBucket,
                         sourcePrefix,
                         targetRepositoryName,
                         targetBucket,
-                        targetPrefix)
-        );
+                        targetPrefix);
+
+        submitFolderMove(
+                repositoryName,
+                sourceBucket,
+                sourcePrefix,
+                targetRepositoryName,
+                targetBucket,
+                targetPrefix,
+                group);
     }
 
     /**
@@ -525,6 +550,17 @@ public class TransferManager {
             throw new IllegalArgumentException(
                     "Transfer group must not be null");
         }
+
+        /*
+         * Group completion must be configured before
+         * the producer starts creating tasks.
+         */
+        configureGroupCompletion(
+                group,
+                repositoryName,
+                sourceBucket,
+                sourcePrefix,
+                true);
 
         producerExecutor.submit(
                 new FolderMoveProducer(
@@ -672,6 +708,83 @@ public class TransferManager {
                 operationName);
     }
 
+    private TransferGroup createFolderOperationGroup(
+            String operation,
+            String sourceRepository,
+            String sourceBucket,
+            String sourcePrefix,
+            String targetRepository,
+            String targetBucket,
+            String targetPrefix) {
+
+        String displayName =
+                S3Util.extractFolderName(sourcePrefix);
+
+        if (displayName == null
+                || displayName.isBlank()) {
+
+            displayName = sourcePrefix;
+        }
+
+        String source =
+                buildGroupLocation(
+                        sourceRepository,
+                        sourceBucket,
+                        sourcePrefix);
+
+        String target =
+                buildGroupLocation(
+                        targetRepository,
+                        targetBucket,
+                        targetPrefix);
+
+        return new TransferGroup(
+                UUID.randomUUID(),
+                displayName,
+                operation,
+                source,
+                target);
+    }
+
+    private String buildGroupLocation(
+            String repository,
+            String bucket,
+            String prefix) {
+
+        StringBuilder value =
+                new StringBuilder();
+
+        if (repository != null
+                && !repository.isBlank()) {
+
+            value.append(repository);
+        }
+
+        if (bucket != null
+                && !bucket.isBlank()) {
+
+            if (!value.isEmpty()) {
+                value.append("/");
+            }
+
+            value.append(bucket);
+        }
+
+        if (prefix != null
+                && !prefix.isBlank()) {
+
+            if (!value.isEmpty()
+                    && !value.toString().endsWith("/")) {
+
+                value.append("/");
+            }
+
+            value.append(prefix);
+        }
+
+        return value.toString();
+    }
+    
     private TransferGroup createGroup(
             UUID id,
             String name) {
