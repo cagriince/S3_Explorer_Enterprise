@@ -40,6 +40,7 @@ public class TransferEventBus {
 
         if (runtimes == null
                 || runtimes.isEmpty()) {
+
             return;
         }
 
@@ -59,6 +60,52 @@ public class TransferEventBus {
 
             listener.onProducerUpdated(
                     runtime);
+        }
+    }
+
+    /**
+     * Publishes the current state of a logical transfer group.
+     *
+     * This event represents the same logical operation
+     * throughout preparing, executing and finishing.
+     */
+    public void publishGroupUpdated(
+            TransferGroup group,
+            String repository,
+            String bucket,
+            String prefix,
+            boolean sourceRefreshRequired) {
+
+        if (group == null) {
+            return;
+        }
+
+        TransferGroupUpdatedEvent event =
+                new TransferGroupUpdatedEvent(
+                        group,
+                        repository,
+                        bucket,
+                        prefix,
+                        sourceRefreshRequired);
+
+        log.debug(
+                "[EVENT BUS] publishGroupUpdated listeners={} group={} queued={} running={} completed={} failed={} cancelled={} skipped={} productionCompleted={} activeProducers={}",
+                listeners.size(),
+                group.getDisplayName(),
+                group.getQueued(),
+                group.getRunning(),
+                group.getCompleted(),
+                group.getFailed(),
+                group.getCancelled(),
+                group.getSkipped(),
+                group.isProductionCompleted(),
+                group.getActiveProducers());
+
+        for (TransferListener listener :
+                listeners) {
+
+            listener.onTransferGroupUpdated(
+                    event);
         }
     }
 

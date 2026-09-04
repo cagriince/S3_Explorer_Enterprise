@@ -24,6 +24,10 @@ public interface TransferListener {
             ProducerRuntime runtime) {
     }
 
+    default void onTransferGroupUpdated(
+            TransferGroupUpdatedEvent event) {
+    }
+
     default void onTransferGroupCompleted(
             TransferGroupCompletedEvent event) {
     }
