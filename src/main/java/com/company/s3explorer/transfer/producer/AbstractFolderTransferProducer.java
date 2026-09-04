@@ -97,6 +97,9 @@ public abstract class AbstractFolderTransferProducer
                             prefix,
                             this::produceObject);
 
+            /*
+             * Producer normal şekilde tamamlandı.
+             */
             group.markProductionCompleted();
 
             context.publishGroupUpdated(
@@ -109,6 +112,14 @@ public abstract class AbstractFolderTransferProducer
 
         } catch (RuntimeException ex) {
 
+            /*
+             * Producer cancellation sırasında interrupt edilmiş
+             * veya cancellation nedeniyle RuntimeException oluşmuşsa
+             * group lifecycle mutlaka kapanmalı.
+             *
+             * Aksi halde productionCompleted=false kalır ve
+             * group Finished durumuna geçemez.
+             */
             group.markProductionFailed();
 
             context.publishGroupUpdated(
@@ -123,6 +134,10 @@ public abstract class AbstractFolderTransferProducer
 
         } finally {
 
+            /*
+             * Hem normal tamamlanmada hem cancellation/failure
+             * durumunda producer mutlaka kapanır.
+             */
             group.producerFinished();
 
             context.publishGroupUpdated(
