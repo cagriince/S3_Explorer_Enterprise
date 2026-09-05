@@ -23,6 +23,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.concurrent.CompletableFuture;
 
@@ -91,6 +92,15 @@ public class TransferPanel
 
     private long lastRenderedStateVersion = -1;
 
+    private final java.util.concurrent.ConcurrentHashMap<
+            UUID,
+            TransferGroupUpdatedEvent> pendingGroupUpdates =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
+    private final java.util.concurrent.atomic.AtomicBoolean
+            groupUpdateRefreshScheduled =
+            new java.util.concurrent.atomic.AtomicBoolean(false);
+    
     public TransferPanel(
             TransferEventBus eventBus,
             TransferManager transferManager) {
@@ -489,16 +499,82 @@ public class TransferPanel
     public void onTransferGroupUpdated(
             TransferGroupUpdatedEvent event) {
 
-        if (event == null || event.getGroup() == null) {
+        if (event == null
+                || event.getGroup() == null) {
             return;
         }
 
-        SwingUtilities.invokeLater(() -> {
+        UUID groupId =
+                event.getGroup().getId();
 
-            groupStateStore.upsert(event);
+        /*
+         * Aynı group için yalnızca en son event'i tut.
+         *
+         * Preparing sırasında çok sayıda update gelebilir.
+         * Böylece EDT kuyruğuna her event için ayrı iş
+         * eklenmez.
+         */
+        pendingGroupUpdates.put(
+                groupId,
+                event);
 
-            refreshGroupTables();
-        });
+        /*
+         * EDT'de zaten bir refresh bekliyorsa
+         * yeni bir refresh schedule etme.
+         */
+        if (!groupUpdateRefreshScheduled.compareAndSet(
+                false,
+                true)) {
+
+            return;
+        }
+
+        SwingUtilities.invokeLater(
+                this::processPendingGroupUpdates);
+    }
+
+    private void processPendingGroupUpdates() {
+
+        try {
+
+            List<TransferGroupUpdatedEvent> updates =
+                    new ArrayList<>(
+                            pendingGroupUpdates.values());
+
+            pendingGroupUpdates.clear();
+
+            for (TransferGroupUpdatedEvent event :
+                    updates) {
+
+                if (event == null
+                        || event.getGroup() == null) {
+                    continue;
+                }
+
+                groupStateStore.upsert(event);
+            }
+
+            if (!updates.isEmpty()) {
+                refreshGroupTables();
+            }
+
+        } finally {
+
+            groupUpdateRefreshScheduled.set(false);
+
+            /*
+             * Bu işlem sırasında yeni event geldiyse,
+             * tekrar tek bir EDT işi oluştur.
+             */
+            if (!pendingGroupUpdates.isEmpty()
+                    && groupUpdateRefreshScheduled.compareAndSet(
+                    false,
+                    true)) {
+
+                SwingUtilities.invokeLater(
+                        this::processPendingGroupUpdates);
+            }
+        }
     }
     
     /*
