@@ -2102,6 +2102,14 @@ public class ExplorerPanel extends JPanel {
         TransferGroup group = null;
         int skippedCount = 0;
 
+        /*
+         * Folder producer kendi production lifecycle'ını yönetir.
+         *
+         * File-only paste işleminde ise production lifecycle
+         * ExplorerPanel tarafından tamamlanır.
+         */
+        boolean folderProducerSubmitted = false;
+
         for (S3FileItem item : items) {
 
             if (item == null) {
@@ -2184,11 +2192,14 @@ public class ExplorerPanel extends JPanel {
                         targetSubmissionKey)) {
 
                     if (group != null) {
+
                         group.skipped();
+
                     } else {
+
                         skippedCount++;
                     }
-                    
+
                     log.info(
                             operation == ExplorerClipboard.Operation.COPY
                                     ? "[COPY] skipped by user source={} target={}"
@@ -2284,23 +2295,102 @@ public class ExplorerPanel extends JPanel {
                     skippedCount = 0;
                 }
             }
+
+            /*
+             * ---------------------------------------------------------
+             * ACTUAL TRANSFER SUBMISSION
+             * ---------------------------------------------------------
+             *
+             * This is the part that must remain in the paste loop.
+             *
+             * File:
+             *     submitCopy / submitMove -> single TransferTask
+             *
+             * Folder:
+             *     submitCopy / submitMove -> FolderProducer
+             */
+            boolean submitted;
+
+            if (operation ==
+                    ExplorerClipboard.Operation.COPY) {
+
+                submitted =
+                        submitCopy(
+                                item,
+                                targetBucket,
+                                targetSubmissionKey,
+                                overwrite,
+                                group);
+
+            } else {
+
+                submitted =
+                        submitMove(
+                                item,
+                                targetBucket,
+                                targetSubmissionKey,
+                                overwrite,
+                                group);
+            }
+
+            if (submitted) {
+
+                selectionKeys.add(
+                        targetSelectionKey);
+
+                log.info(
+                        "[PASTE SELECTION] accepted key={} item={}",
+                        targetSelectionKey,
+                        item.getName());
+
+                /*
+                 * Folder producer artık production lifecycle'ının
+                 * sahibidir.
+                 */
+                if (item.isFolder()) {
+
+                    folderProducerSubmitted = true;
+                }
+
+            } else {
+
+                log.info(
+                        "[PASTE SELECTION] not selected key={} item={}",
+                        targetSelectionKey,
+                        item.getName());
+            }
         }
 
         /*
          * All overwrite dialogs have now been answered and all
          * accepted items have been submitted.
          *
-         * The group may still contain active folder producers.
-         * TransferGroup handles that lifecycle internally.
+         * For folder operations, the asynchronous folder producer
+         * owns production lifecycle.
+         *
+         * For file-only operations, there is no producer, therefore
+         * ExplorerPanel completes production here.
          */
         pasteSelectionCollectionInProgress = false;
 
-        if (group != null) {
+        if (group != null
+                && !folderProducerSubmitted) {
 
             group.markProductionCompleted();
 
             log.info(
-                    "[PASTE GROUP] production completed group={} queued={} running={} completed={} failed={} cancelled={}",
+                    "[PASTE GROUP] production completed immediately group={} queued={} running={} completed={} failed={} cancelled={}",
+                    group.getDisplayName(),
+                    group.getQueued(),
+                    group.getRunning(),
+                    group.getCompleted(),
+                    group.getFailed(),
+                    group.getCancelled());
+
+        } else if (group != null) {
+
+            log.info(
+                    "[PASTE GROUP] production remains owned by folder producer group={} queued={} running={} completed={} failed={} cancelled={}",
                     group.getDisplayName(),
                     group.getQueued(),
                     group.getRunning(),
