@@ -41,27 +41,31 @@ public class TransferQueue {
     public synchronized TransferRuntime add(
             TransferTask task) {
 
-        TransferRuntime runtime =
-                new TransferRuntime(task);
+        if (task == null) {
+            return null;
+        }
 
         /*
-         * Cancel All devam ediyorsa bu task'ın
-         * kuyruğa girmesine izin verme.
+         * Cancel All başladıktan sonra producer hâlâ
+         * S3 listing'den birkaç / binlerce object döndürebilir.
          *
-         * Producer cancellation fark edene kadar
-         * yeni task üretirse onu da doğrudan cancelled
-         * yapıyoruz.
+         * Bu task'lar artık gerçek queue'ya girmeyecek.
+         *
+         * ÖNEMLİ:
+         *
+         * Bu durumda TransferRuntime oluşturup eventBus.publish()
+         * yapmak kesinlikle istemiyoruz.
+         *
+         * Aksi halde Cancel All sırasında on binlerce:
+         *
+         *     eventBus.publish()
+         *     StateStore.upsert()
+         *
+         * işlemi oluşuyor ve UI ciddi şekilde kilitleniyor.
+         *
+         * Task group seviyesinde cancelled olarak sayılması yeterli.
          */
         if (cancellingAll) {
-
-            runtime.setStatus(
-                    TransferStatus.CANCELLED);
-
-            runtime.setEndTime(
-                    Instant.now());
-
-            runtime.setMessage(
-                    "Transfer cancelled");
 
             TransferGroup group =
                     task.getGroup();
@@ -70,10 +74,11 @@ public class TransferQueue {
                 group.cancelledFromQueue();
             }
 
-            eventBus.publish(runtime);
-
-            return runtime;
+            return null;
         }
+
+        TransferRuntime runtime =
+                new TransferRuntime(task);
 
         runtime.setStatus(
                 TransferStatus.QUEUED);
