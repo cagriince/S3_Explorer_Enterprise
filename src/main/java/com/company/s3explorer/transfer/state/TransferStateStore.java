@@ -245,22 +245,25 @@ public class TransferStateStore {
         }
 
         /*
-         * Cancel All sırasında bütün kayıtlar zaten
-         * StateStore içinde QUEUED olarak bulunuyor.
+         * Cancel All sırasında queued kayıtların tamamı
+         * zaten QUEUED durumundadır.
          *
-         * Bunları tek tek:
+         * Bu nedenle queuedOrder içinden ID'leri tek tek
          *
          *     queuedOrder.remove(id)
          *
-         * ile çıkarmak O(n²) maliyet oluşturur.
+         * ile aramıyoruz.
          *
-         * Bunun yerine queuedOrder'u bir defada
+         * Bunun yerine bütün QUEUED index'ini tek işlemle
          * temizliyoruz.
          */
         queuedOrder.clear();
 
-        long cancelledCountToAdd = 0;
+        long transitionedCount = 0;
 
+        /*
+         * Önce runtime ve status map'lerini güncelle.
+         */
         for (TransferRuntime runtime :
                 cancelledRuntimes) {
 
@@ -275,35 +278,37 @@ public class TransferStateStore {
             TransferStatus oldStatus =
                     statuses.get(id);
 
+            /*
+             * StateStore'da olmayan kayıt.
+             *
+             * Normal kayıt olarak ekle.
+             */
             if (oldStatus == null) {
-                /*
-                 * StateStore'da olmayan bir runtime ise
-                 * normal kayıt olarak eklenebilir.
-                 */
-                TransferStatus newStatus =
-                        runtime.getStatus();
 
                 statuses.put(
                         id,
-                        newStatus);
+                        TransferStatus.CANCELLED);
 
                 runtimes.put(
                         id,
                         runtime);
 
-                increment(newStatus);
+                cancelledCount++;
 
+                transitionedCount++;
+
+                /*
+                 * All listesine ekle.
+                 *
+                 * Bu yeni bir kayıt olduğu için başa eklenebilir.
+                 */
                 allOrder.addFirst(id);
-
-                addToStatusOrder(
-                        newStatus,
-                        id);
 
                 continue;
             }
 
             /*
-             * Zaten CANCELLED ise tekrar sayaç artırma.
+             * Zaten cancelled ise tekrar sayaç artırma.
              */
             if (oldStatus == TransferStatus.CANCELLED) {
 
@@ -315,16 +320,19 @@ public class TransferStateStore {
             }
 
             /*
-             * Bu bulk operasyonun beklenen durumu
-             * QUEUED -> CANCELLED.
+             * Beklenen durum:
+             *
+             * QUEUED -> CANCELLED
              */
             if (oldStatus == TransferStatus.QUEUED) {
 
-                queuedCount--;
+                if (queuedCount > 0) {
+                    queuedCount--;
+                }
 
                 cancelledCount++;
 
-                cancelledCountToAdd++;
+                transitionedCount++;
 
                 statuses.put(
                         id,
@@ -334,37 +342,44 @@ public class TransferStateStore {
                         id,
                         runtime);
 
-            } else {
-
-                /*
-                 * Beklenmeyen bir status varsa güvenli
-                 * şekilde normal status transition uygula.
-                 */
-                decrement(oldStatus);
-
-                increment(
-                        TransferStatus.CANCELLED);
-
-                statuses.put(
-                        id,
-                        TransferStatus.CANCELLED);
-
-                runtimes.put(
-                        id,
-                        runtime);
-
-                removeFromStatusOrder(
-                        oldStatus,
-                        id);
+                continue;
             }
+
+            /*
+             * Güvenlik:
+             *
+             * Beklenmeyen bir status varsa normal
+             * transition uygula.
+             */
+            decrement(oldStatus);
+
+            increment(
+                    TransferStatus.CANCELLED);
+
+            statuses.put(
+                    id,
+                    TransferStatus.CANCELLED);
+
+            runtimes.put(
+                    id,
+                    runtime);
+
+            removeFromStatusOrder(
+                    oldStatus,
+                    id);
+
+            transitionedCount++;
         }
 
         /*
-         * Bulk olarak CANCELLED kayıtları finished
-         * görünümüne ekle.
+         * CANCELLED kayıtlarını Finished index'ine ekle.
          *
-         * Burada addNewest() kullanmıyoruz; kayıtların
-         * tamamını tek seferde eklemek daha ucuz.
+         * Burada contains() kullanmıyoruz.
+         *
+         * Çünkü cancelledRuntimes içindeki kayıtlar bu
+         * bulk operation tarafından CANCELLED durumuna
+         * geçirildi ve Finished listesinde henüz
+         * bulunmuyorlar.
          */
         for (TransferRuntime runtime :
                 cancelledRuntimes) {
@@ -383,21 +398,15 @@ public class TransferStateStore {
             if (status
                     == TransferStatus.CANCELLED) {
 
-                if (!finishedOrder.contains(id)) {
-                    finishedOrder.addFirst(id);
-                }
-
-                if (!allOrder.contains(id)) {
-                    allOrder.addFirst(id);
-                }
+                finishedOrder.addFirst(id);
             }
         }
 
         /*
-         * StateStore'un dışarıya bir kez değiştiğini
-         * bildiriyoruz.
+         * StateStore'a yalnızca bir kez state değişikliği
+         * olduğunu bildir.
          */
-        if (cancelledCountToAdd > 0) {
+        if (transitionedCount > 0) {
             version++;
         }
     }

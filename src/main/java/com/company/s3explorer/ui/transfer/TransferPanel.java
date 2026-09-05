@@ -487,6 +487,26 @@ public class TransferPanel
 
         stateStore.upsertAll(runtimes);
     }
+
+    @Override
+    public void onQueuedTransfersCancelled(
+            List<TransferRuntime> runtimes) {
+
+        if (runtimes == null
+                || runtimes.isEmpty()) {
+            return;
+        }
+
+        /*
+         * Cancel All sırasında 10.000 / 50.000+
+         * runtime'ı tek tek upsert etmiyoruz.
+         *
+         * StateStore bunları tek bulk transition
+         * olarak işliyor.
+         */
+        stateStore.markAllQueuedCancelled(
+                runtimes);
+    }
     
     @Override
     public void onProducerUpdated(

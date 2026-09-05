@@ -52,6 +52,23 @@ public class TransferEventBus {
         }
     }
 
+    public void publishQueuedTransfersCancelled(
+            List<TransferRuntime> runtimes) {
+
+        if (runtimes == null
+                || runtimes.isEmpty()) {
+
+            return;
+        }
+
+        for (TransferListener listener :
+                listeners) {
+
+            listener.onQueuedTransfersCancelled(
+                    runtimes);
+        }
+    }
+    
     public void publishProducer(
             ProducerRuntime runtime) {
 

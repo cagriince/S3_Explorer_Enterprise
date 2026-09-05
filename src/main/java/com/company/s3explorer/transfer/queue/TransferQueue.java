@@ -247,7 +247,7 @@ public class TransferQueue {
 
         /*
          * cancellingAll zaten true olduğu için
-         * worker'lar artık yeni iş alamıyor.
+         * worker'lar artık yeni task alamıyor.
          */
         TransferRuntime transferRuntime;
 
@@ -259,8 +259,10 @@ public class TransferQueue {
         }
 
         /*
-         * Queue boşaltıldıktan sonra cancellation
+         * Queue'daki runtime'ların cancellation
          * state'lerini ver.
+         *
+         * Burada henüz event yayınlamıyoruz.
          */
         for (TransferRuntime runtime :
                 cancelled) {
@@ -284,9 +286,26 @@ public class TransferQueue {
                     "Transfer cancelled");
         }
 
+        /*
+         * ÖNEMLİ:
+         *
+         * Artık:
+         *
+         *     eventBus.publishBatch(cancelled)
+         *
+         * YOK.
+         *
+         * Bunun yerine tek bir bulk cancellation
+         * event'i gönderiyoruz.
+         *
+         * TransferPanel -> StateStore
+         *
+         * tarafında bütün QUEUED kayıtlar tek işlem
+         * olarak CANCELLED durumuna geçirilecek.
+         */
         if (!cancelled.isEmpty()) {
 
-            eventBus.publishBatch(
+            eventBus.publishQueuedTransfersCancelled(
                     cancelled);
         }
 

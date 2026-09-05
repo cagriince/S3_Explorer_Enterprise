@@ -20,6 +20,10 @@ public interface TransferListener {
         }
     }
 
+    default void onQueuedTransfersCancelled(
+            List<TransferRuntime> runtimes) {
+    }
+
     default void onProducerUpdated(
             ProducerRuntime runtime) {
     }
