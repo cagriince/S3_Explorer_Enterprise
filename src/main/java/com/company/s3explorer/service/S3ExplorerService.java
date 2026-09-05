@@ -365,30 +365,67 @@ public class S3ExplorerService {
     // ----------------------------------------------------------------------
     // STREAMING LIST API
     // ----------------------------------------------------------------------
-/*
-    public void forEachObject(String bucket, String prefix, Consumer<S3Object> consumer) {
+    public void forEachObject(
+            String bucket,
+            String prefix,
+            Consumer<S3Object> consumer) {
+
+        forEachObject(
+                bucket,
+                prefix,
+                consumer,
+                () -> true);
+    }
+
+    public void forEachObject(
+            String bucket,
+            String prefix,
+            Consumer<S3Object> consumer,
+            java.util.function.BooleanSupplier shouldContinue) {
+
+        if (consumer == null) {
+            throw new IllegalArgumentException(
+                    "consumer must not be null");
+        }
+
+        if (shouldContinue == null) {
+            throw new IllegalArgumentException(
+                    "shouldContinue must not be null");
+        }
+
         ListObjectsV2Request request =
                 ListObjectsV2Request.builder()
                         .bucket(bucket)
                         .prefix(prefix)
                         .build();
 
-        client.listObjectsV2Paginator(request)
-                .stream()
-                .flatMap(response -> response.contents().stream())
-                .forEach(consumer);
-    }*/
+        ListObjectsV2Iterable iterable =
+                client.listObjectsV2Paginator(request);
 
-    public void forEachObject(String bucket, String prefix, Consumer<S3Object> consumer) {
-        ListObjectsV2Request request =
-                ListObjectsV2Request.builder()
-                        .bucket(bucket)
-                        .prefix(prefix)
-                        .build();
-
-        ListObjectsV2Iterable iterable = client.listObjectsV2Paginator(request);
         for (ListObjectsV2Response page : iterable) {
+
+            /*
+             * Cancel All sırasında paginator'ın bir sonraki
+             * sayfasına geçmeden önce listing'i tamamen kes.
+             */
+            if (!shouldContinue.getAsBoolean()) {
+
+                throw new java.util.concurrent.CancellationException(
+                        "S3 object listing cancelled");
+            }
+
             for (S3Object object : page.contents()) {
+
+                /*
+                 * Aynı sayfa içerisinde bile cancellation
+                 * gelmiş olabilir.
+                 */
+                if (!shouldContinue.getAsBoolean()) {
+
+                    throw new java.util.concurrent.CancellationException(
+                            "S3 object listing cancelled");
+                }
+
                 consumer.accept(object);
             }
         }

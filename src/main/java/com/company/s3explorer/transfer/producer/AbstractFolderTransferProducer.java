@@ -107,7 +107,11 @@ public abstract class AbstractFolderTransferProducer
                             prefix,
                             object -> produceObject(
                                     object,
-                                    runtime));
+                                    runtime),
+                            () ->
+                                    !runtime.isCancelRequested()
+                                            && !Thread.currentThread()
+                                            .isInterrupted());
 
             /*
              * Discovery normal şekilde tamamlandı.
@@ -123,9 +127,13 @@ public abstract class AbstractFolderTransferProducer
 
             /*
              * Cancellation bir production failure değildir.
+             *
+             * forEachObject() cancellation durumunda
+             * CancellationException fırlatır.
              */
             if (runtime.isCancelRequested()
-                    || Thread.currentThread().isInterrupted()) {
+                    || Thread.currentThread().isInterrupted()
+                    || ex instanceof java.util.concurrent.CancellationException) {
 
                 group.markProductionCompleted();
 
