@@ -23,6 +23,20 @@ public abstract class AbstractFolderTransferProducer
 
     protected final TransferGroup group;
 
+    /*
+     * Group UI update throttling.
+     *
+     * Büyük klasörlerde her object için Swing event
+     * üretmek EDT'yi gereksiz yere dolduruyordu.
+     *
+     * Producer tarafında discovery devam ederken
+     * UI'ya en fazla yaklaşık 100 ms'de bir update
+     * gönderiyoruz.
+     */
+    private static final long GROUP_UPDATE_INTERVAL_MS = 100L;
+
+    private volatile long lastGroupUpdateTime;
+
     /**
      * Producer kendi group'unu oluşturur.
      */
@@ -44,8 +58,6 @@ public abstract class AbstractFolderTransferProducer
 
     /**
      * Dışarıdan group verilmişse aynı group kullanılır.
-     * Böylece TransferManager / UI tarafından oluşturulan
-     * logical group ile producer aynı group üzerinde çalışır.
      */
     protected AbstractFolderTransferProducer(
             TransferContext context,
@@ -81,13 +93,11 @@ public abstract class AbstractFolderTransferProducer
 
         group.producerStarted();
 
-        context.publishGroupUpdated(
-                group,
-                repository,
-                bucket,
-                prefix,
-                "MOVE".equalsIgnoreCase(
-                        group.getOperation()));
+        /*
+         * Producer'ın gerçekten başladığını UI'ya
+         * hemen bildir.
+         */
+        publishGroupUpdatedNow();
 
         try {
 
@@ -95,24 +105,24 @@ public abstract class AbstractFolderTransferProducer
                     .forEachObject(
                             bucket,
                             prefix,
-                            this::produceObject);
+                            object -> produceObject(
+                                    object,
+                                    runtime));
 
+            /*
+             * Discovery normal şekilde tamamlandı.
+             */
             group.markProductionCompleted();
 
-            context.publishGroupUpdated(
-                    group,
-                    repository,
-                    bucket,
-                    prefix,
-                    "MOVE".equalsIgnoreCase(
-                            group.getOperation()));
+            /*
+             * Son discovery state'i mutlaka gönder.
+             */
+            publishGroupUpdatedNow();
 
         } catch (RuntimeException ex) {
 
             /*
              * Cancellation bir production failure değildir.
-             * Producer'ın artık yeni task üretmeyeceğini
-             * productionCompleted ile bildiriyoruz.
              */
             if (runtime.isCancelRequested()
                     || Thread.currentThread().isInterrupted()) {
@@ -124,13 +134,11 @@ public abstract class AbstractFolderTransferProducer
                 group.markProductionFailed();
             }
 
-            context.publishGroupUpdated(
-                    group,
-                    repository,
-                    bucket,
-                    prefix,
-                    "MOVE".equalsIgnoreCase(
-                            group.getOperation()));
+            /*
+             * Failure/cancellation sonrası son state
+             * mutlaka UI'ya gönderilmeli.
+             */
+            publishGroupUpdatedNow();
 
             throw ex;
 
@@ -138,18 +146,36 @@ public abstract class AbstractFolderTransferProducer
 
             group.producerFinished();
 
-            context.publishGroupUpdated(
-                    group,
-                    repository,
-                    bucket,
-                    prefix,
-                    "MOVE".equalsIgnoreCase(
-                            group.getOperation()));
+            /*
+             * producerFinished() sonrası group'un gerçekten
+             * Finished olup olmadığını UI hemen görebilsin.
+             */
+            publishGroupUpdatedNow();
         }
     }
 
+    /**
+     * S3 object discovery callback'i.
+     *
+     * Her object için task oluşturulur ve queue'ya eklenir.
+     * Ancak UI group event'i throttle edilir.
+     */
     private void produceObject(
-            S3Object object) {
+            S3Object object,
+            ProducerRuntime runtime) {
+
+        /*
+         * Cancel All sırasında yeni object üretmeye devam
+         * etme.
+         *
+         * forEachObject callback'i tekrar çağırsa bile
+         * cancellation state'i burada kesilir.
+         */
+        if (runtime.isCancelRequested()
+                || Thread.currentThread().isInterrupted()) {
+
+            return;
+        }
 
         TransferTask task =
                 createTask(object);
@@ -157,6 +183,58 @@ public abstract class AbstractFolderTransferProducer
         group.detected(object.size());
 
         queue.add(task);
+
+        /*
+         * Her dosyada Swing event göndermiyoruz.
+         */
+        publishGroupUpdatedThrottled();
+    }
+
+    /**
+     * Group update'i throttle ederek yayınlar.
+     */
+    private void publishGroupUpdatedThrottled() {
+
+        long now =
+                System.currentTimeMillis();
+
+        long last =
+                lastGroupUpdateTime;
+
+        if (now - last
+                < GROUP_UPDATE_INTERVAL_MS) {
+
+            return;
+        }
+
+        /*
+         * Basit CAS yerine synchronized kullanıyoruz.
+         * Producer tek thread olduğu için burada amaç
+         * sadece zaman bilgisinin tutarlı olmasıdır.
+         */
+        lastGroupUpdateTime = now;
+
+        publishGroupUpdated();
+    }
+
+    /**
+     * Throttle bypass edilerek group update yayınlar.
+     *
+     * İlk update, son update, failure ve cancellation
+     * için kullanılır.
+     */
+    private void publishGroupUpdatedNow() {
+
+        lastGroupUpdateTime =
+                System.currentTimeMillis();
+
+        publishGroupUpdated();
+    }
+
+    /**
+     * Ortak group update dispatch'i.
+     */
+    private void publishGroupUpdated() {
 
         context.publishGroupUpdated(
                 group,
@@ -166,7 +244,7 @@ public abstract class AbstractFolderTransferProducer
                 "MOVE".equalsIgnoreCase(
                         group.getOperation()));
     }
-    
+
     @Override
     public String getDescription() {
         return group.getDisplayName();
@@ -184,12 +262,6 @@ public abstract class AbstractFolderTransferProducer
 
         group.producerFinished();
 
-        context.publishGroupUpdated(
-                group,
-                repository,
-                bucket,
-                prefix,
-                "MOVE".equalsIgnoreCase(
-                        group.getOperation()));
+        publishGroupUpdatedNow();
     }
 }

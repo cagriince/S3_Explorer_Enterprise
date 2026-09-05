@@ -391,10 +391,34 @@ public class TransferManager {
         );
     }
 
-    public void submitFolderDelete(
+    public TransferGroup submitFolderDelete(
             String repositoryName,
             String bucket,
-            String key) {
+            String prefix) {
+
+        TransferGroup group =
+                createFolderOperationGroup(
+                        "DELETE",
+                        repositoryName,
+                        bucket,
+                        prefix,
+                        repositoryName,
+                        bucket,
+                        prefix);
+
+        configureGroupCompletion(
+                group,
+                repositoryName,
+                bucket,
+                prefix,
+                true);
+
+        transferContext.publishGroupUpdated(
+                group,
+                repositoryName,
+                bucket,
+                prefix,
+                false);
 
         producerExecutor.submit(
                 new FolderDeleteProducer(
@@ -402,10 +426,13 @@ public class TransferManager {
                         queue,
                         repositoryName,
                         bucket,
-                        key)
+                        prefix,
+                        group)
         );
-    }
 
+        return group;
+    }
+    
     public void submitFolderDownload(
             String repositoryName,
             String bucket,
