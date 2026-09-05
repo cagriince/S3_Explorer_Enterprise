@@ -2216,21 +2216,8 @@ public class ExplorerPanel extends JPanel {
              */
             if (group == null) {
 
-                String groupName;
-
-                if (item.isFolder()) {
-
-                    groupName = item.getName();
-
-                } else {
-
-                    groupName = item.getName();
-
-                }
-
-                group =
-                        transferManager.createOperationGroup(
-                                groupName);
+                String groupName =
+                        item.getName();
 
                 String sourcePrefix;
 
@@ -2246,6 +2233,23 @@ public class ExplorerPanel extends JPanel {
                                     item.getKey());
                 }
 
+                String operationName =
+                        operation ==
+                                ExplorerClipboard.Operation.COPY
+                                ? "COPY"
+                                : "MOVE";
+
+                group =
+                        transferManager.createOperationGroup(
+                                operationName,
+                                groupName,
+                                item.getRepositoryName(),
+                                item.getBucket(),
+                                sourcePrefix,
+                                getCurrentRepository().getName(),
+                                targetBucket,
+                                targetSubmissionKey);
+
                 transferManager.configureGroupCompletion(
                         group,
                         item.getRepositoryName(),
@@ -2255,10 +2259,11 @@ public class ExplorerPanel extends JPanel {
                                 ExplorerClipboard.Operation.MOVE);
 
                 log.info(
-                        "[PASTE GROUP] created operation={} group={} sourcePrefix={} sourceRefreshRequired={}",
-                        operation,
+                        "[PASTE GROUP] created operation={} group={} sourcePrefix={} targetPrefix={} sourceRefreshRequired={}",
+                        operationName,
                         group.getDisplayName(),
                         sourcePrefix,
+                        targetSubmissionKey,
                         operation ==
                                 ExplorerClipboard.Operation.MOVE);
 
@@ -2278,52 +2283,6 @@ public class ExplorerPanel extends JPanel {
 
                     skippedCount = 0;
                 }
-            }
-
-            boolean submitted;
-
-            if (operation ==
-                    ExplorerClipboard.Operation.COPY) {
-
-                submitted =
-                        submitCopy(
-                                item,
-                                targetBucket,
-                                targetSubmissionKey,
-                                overwrite,
-                                group);
-
-            } else {
-
-                submitted =
-                        submitMove(
-                                item,
-                                targetBucket,
-                                targetSubmissionKey,
-                                overwrite,
-                                group);
-            }
-
-            /*
-             * Only items actually submitted to the shared
-             * transfer group are added to the pending selection.
-             */
-            if (submitted) {
-
-                selectionKeys.add(
-                        targetSelectionKey);
-
-                log.info(
-                        "[PASTE SELECTION] accepted key={} item={}",
-                        targetSelectionKey,
-                        item.getName());
-
-            } else {
-
-                log.info(
-                        "[PASTE SELECTION] not selected key={} item={}",
-                        targetSelectionKey,
-                        item.getName());
             }
         }
 

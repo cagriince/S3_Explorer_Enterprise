@@ -757,6 +757,48 @@ public class TransferManager {
                 operationName);
     }
 
+    public TransferGroup createOperationGroup(
+            String operation,
+            String displayName,
+            String sourceRepository,
+            String sourceBucket,
+            String sourcePrefix,
+            String targetRepository,
+            String targetBucket,
+            String targetPrefix) {
+
+        if (displayName == null
+                || displayName.isBlank()) {
+
+            displayName = sourcePrefix;
+        }
+
+        String source =
+                buildGroupLocation(
+                        sourceRepository,
+                        sourceBucket,
+                        sourcePrefix);
+
+        String target =
+                buildGroupLocation(
+                        targetRepository,
+                        targetBucket,
+                        targetPrefix);
+
+        return new TransferGroup(
+                UUID.randomUUID(),
+                displayName,
+                operation,
+                source,
+                target,
+                sourceRepository,
+                sourceBucket,
+                sourcePrefix,
+                targetRepository,
+                targetBucket,
+                targetPrefix);
+    }
+
     private TransferGroup createObjectOperationGroup(
             String operation,
             String sourceRepository,

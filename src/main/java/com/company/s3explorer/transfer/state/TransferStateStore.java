@@ -87,9 +87,7 @@ public class TransferStateStore {
 
             increment(newStatus);
 
-            addNewest(
-                    allOrder,
-                    id);
+            allOrder.addFirst(id);
 
             addToStatusOrder(
                     newStatus,
@@ -165,9 +163,7 @@ public class TransferStateStore {
 
                 increment(newStatus);
 
-                addNewest(
-                        allOrder,
-                        id);
+                allOrder.addFirst(id);
 
                 addToStatusOrder(
                         newStatus,
@@ -460,6 +456,12 @@ public class TransferStateStore {
     private void addNewest(
             Deque<UUID> deque,
             UUID id) {
+
+        if (!deque.isEmpty()
+                && id.equals(deque.peekFirst())) {
+
+            return;
+        }
 
         deque.remove(id);
         deque.addFirst(id);
