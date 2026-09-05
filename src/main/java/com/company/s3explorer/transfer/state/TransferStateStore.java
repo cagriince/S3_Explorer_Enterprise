@@ -159,6 +159,9 @@ public class TransferStateStore {
                     id,
                     runtime);
 
+            /*
+             * İlk kez görüyoruz.
+             */
             if (oldStatus == null) {
 
                 increment(newStatus);
@@ -174,11 +177,32 @@ public class TransferStateStore {
                 continue;
             }
 
+            /*
+             * Status gerçekten değiştiyse
+             * sayaçları ve status index'lerini güncelle.
+             */
             if (oldStatus != newStatus) {
 
                 decrement(oldStatus);
                 increment(newStatus);
 
+                /*
+                 * CANCEL ALL sırasında binlerce
+                 * QUEUED -> CANCELLED geçişi olabilir.
+                 *
+                 * Bu durumda:
+                 *
+                 *     queuedOrder.remove(id)
+                 *
+                 * kullanmak O(n) olduğu için toplamda
+                 * O(n²) maliyet oluşturur.
+                 *
+                 * Bu nedenle burada normal tekil
+                 * güncelleme yapılmaya devam ediyor.
+                 *
+                 * Bulk cancellation optimizasyonu
+                 * aşağıdaki özel metod üzerinden yapılır.
+                 */
                 removeFromStatusOrder(
                         oldStatus,
                         id);
@@ -198,12 +222,182 @@ public class TransferStateStore {
                 changed = true;
             }
 
+            /*
+             * All görünümünde son güncellenen kayıt
+             * en üstte görünsün.
+             */
             addNewest(
                     allOrder,
                     id);
         }
 
         if (changed) {
+            version++;
+        }
+    }
+
+    public synchronized void markAllQueuedCancelled(
+            Collection<TransferRuntime> cancelledRuntimes) {
+
+        if (cancelledRuntimes == null
+                || cancelledRuntimes.isEmpty()) {
+            return;
+        }
+
+        /*
+         * Cancel All sırasında bütün kayıtlar zaten
+         * StateStore içinde QUEUED olarak bulunuyor.
+         *
+         * Bunları tek tek:
+         *
+         *     queuedOrder.remove(id)
+         *
+         * ile çıkarmak O(n²) maliyet oluşturur.
+         *
+         * Bunun yerine queuedOrder'u bir defada
+         * temizliyoruz.
+         */
+        queuedOrder.clear();
+
+        long cancelledCountToAdd = 0;
+
+        for (TransferRuntime runtime :
+                cancelledRuntimes) {
+
+            if (runtime == null
+                    || runtime.getTask() == null) {
+                continue;
+            }
+
+            UUID id =
+                    runtime.getTask().getId();
+
+            TransferStatus oldStatus =
+                    statuses.get(id);
+
+            if (oldStatus == null) {
+                /*
+                 * StateStore'da olmayan bir runtime ise
+                 * normal kayıt olarak eklenebilir.
+                 */
+                TransferStatus newStatus =
+                        runtime.getStatus();
+
+                statuses.put(
+                        id,
+                        newStatus);
+
+                runtimes.put(
+                        id,
+                        runtime);
+
+                increment(newStatus);
+
+                allOrder.addFirst(id);
+
+                addToStatusOrder(
+                        newStatus,
+                        id);
+
+                continue;
+            }
+
+            /*
+             * Zaten CANCELLED ise tekrar sayaç artırma.
+             */
+            if (oldStatus == TransferStatus.CANCELLED) {
+
+                runtimes.put(
+                        id,
+                        runtime);
+
+                continue;
+            }
+
+            /*
+             * Bu bulk operasyonun beklenen durumu
+             * QUEUED -> CANCELLED.
+             */
+            if (oldStatus == TransferStatus.QUEUED) {
+
+                queuedCount--;
+
+                cancelledCount++;
+
+                cancelledCountToAdd++;
+
+                statuses.put(
+                        id,
+                        TransferStatus.CANCELLED);
+
+                runtimes.put(
+                        id,
+                        runtime);
+
+            } else {
+
+                /*
+                 * Beklenmeyen bir status varsa güvenli
+                 * şekilde normal status transition uygula.
+                 */
+                decrement(oldStatus);
+
+                increment(
+                        TransferStatus.CANCELLED);
+
+                statuses.put(
+                        id,
+                        TransferStatus.CANCELLED);
+
+                runtimes.put(
+                        id,
+                        runtime);
+
+                removeFromStatusOrder(
+                        oldStatus,
+                        id);
+            }
+        }
+
+        /*
+         * Bulk olarak CANCELLED kayıtları finished
+         * görünümüne ekle.
+         *
+         * Burada addNewest() kullanmıyoruz; kayıtların
+         * tamamını tek seferde eklemek daha ucuz.
+         */
+        for (TransferRuntime runtime :
+                cancelledRuntimes) {
+
+            if (runtime == null
+                    || runtime.getTask() == null) {
+                continue;
+            }
+
+            UUID id =
+                    runtime.getTask().getId();
+
+            TransferStatus status =
+                    statuses.get(id);
+
+            if (status
+                    == TransferStatus.CANCELLED) {
+
+                if (!finishedOrder.contains(id)) {
+                    finishedOrder.addFirst(id);
+                }
+
+                if (!allOrder.contains(id)) {
+                    allOrder.addFirst(id);
+                }
+            }
+        }
+
+        /*
+         * StateStore'un dışarıya bir kez değiştiğini
+         * bildiriyoruz.
+         */
+        if (cancelledCountToAdd > 0) {
             version++;
         }
     }
