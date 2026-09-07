@@ -1,7 +1,6 @@
 package com.company.s3explorer.ui.transfer;
 
 import com.company.s3explorer.transfer.TransferRuntime;
-import com.company.s3explorer.transfer.TransferStatus;
 import com.company.s3explorer.transfer.event.TransferEventBus;
 import com.company.s3explorer.transfer.event.TransferGroupCompletedEvent;
 import com.company.s3explorer.transfer.event.TransferGroupUpdatedEvent;
@@ -24,7 +23,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.function.Function;
 import java.util.concurrent.CompletableFuture;
 
 public class TransferPanel
@@ -50,10 +48,10 @@ public class TransferPanel
     private JButton clearButton;
 
     private TransferTableModel queuedModel;
-    private TransferTableModel runningModel;
-    private TransferTableModel finishedModel;
-    private TransferTableModel allModel;
-
+    private TransferCombinedTableModel runningModel;
+    private TransferCombinedTableModel finishedModel;
+    private TransferCombinedTableModel allModel;
+    
     private ProducerTableModel producerTableModel;
 
     private JTable producerTable;
@@ -130,15 +128,15 @@ public class TransferPanel
                         UI_VISIBLE_LIMIT);
 
         runningModel =
-                new TransferTableModel(
+                new TransferCombinedTableModel(
                         UI_VISIBLE_LIMIT);
 
         finishedModel =
-                new TransferTableModel(
+                new TransferCombinedTableModel(
                         UI_VISIBLE_LIMIT);
 
         allModel =
-                new TransferTableModel(
+                new TransferCombinedTableModel(
                         UI_VISIBLE_LIMIT);
 
         producerTableModel =
@@ -152,6 +150,7 @@ public class TransferPanel
 
         finishedGroupModel =
                 new TransferGroupTableModel();
+
     }
 
     private void createComponents() {
@@ -163,7 +162,9 @@ public class TransferPanel
                 "Cancel Selected");
 
         cancelButton.setPreferredSize(
-                new Dimension(30, 30));
+                new Dimension(
+                        30,
+                        30));
 
         cancelAllButton =
                 new JButton();
@@ -172,7 +173,9 @@ public class TransferPanel
                 "Cancel All");
 
         cancelAllButton.setPreferredSize(
-                new Dimension(30, 30));
+                new Dimension(
+                        30,
+                        30));
 
         clearButton =
                 new JButton();
@@ -181,7 +184,9 @@ public class TransferPanel
                 "Clear Logs");
 
         clearButton.setPreferredSize(
-                new Dimension(30, 30));
+                new Dimension(
+                        30,
+                        30));
 
         cancelButton.setEnabled(false);
         cancelAllButton.setEnabled(false);
@@ -198,39 +203,78 @@ public class TransferPanel
 
         setButtonIcons();
 
+        /*
+         * Producer table
+         */
         producerTable =
                 createProducerTable();
 
+        /*
+         * Queued
+         *
+         * Queued hâlâ yalnızca TransferRuntime
+         * kayıtlarını gösteriyor.
+         */
         queuedTable =
                 createTable(
                         queuedModel);
 
+        /*
+         * Running
+         *
+         * Group + individual TransferRuntime
+         * kayıtlarını birlikte gösterir.
+         */
         runningTable =
-                createTable(
+                createCombinedTable(
                         runningModel);
 
+        /*
+         * Finished
+         *
+         * Group + individual TransferRuntime
+         * kayıtlarını birlikte gösterir.
+         */
         finishedTable =
-                createTable(
+                createCombinedTable(
                         finishedModel);
 
+        /*
+         * Legacy group tabloları şimdilik oluşturulmaya
+         * devam ediyor.
+         *
+         * Bir sonraki aşamada unified table tamamen
+         * doğrulandıktan sonra kaldıracağız.
+         */
         runningGroupTable =
-                createGroupTable(runningGroupModel);
+                createGroupTable(
+                        runningGroupModel);
 
         finishedGroupTable =
-                createGroupTable(finishedGroupModel);
-        
+                createGroupTable(
+                        finishedGroupModel);
+
+        /*
+         * All
+         *
+         * Group + individual TransferRuntime
+         * kayıtlarını birlikte gösterir.
+         */
         allTable =
-                createTable(
+                createCombinedTable(
                         allModel);
 
+        /*
+         * Legacy Group Results UI
+         */
         createGroupResultsComponents();
 
         tabs =
                 new JTabbedPane();
 
         /*
-         * UI yenilemesi yalnızca son snapshot'ı almak için
-         * kullanılıyor.
+         * UI yenilemesi yalnızca son snapshot'ı
+         * almak için kullanılıyor.
          *
          * Transfer event'leri burada işlenmiyor.
          */
@@ -383,7 +427,7 @@ public class TransferPanel
         tabs.addTab(
                 "Running",
                 new JScrollPane(
-                        runningGroupTable));
+                        runningTable));
 
         /*
          * Finished tab contains two logically different areas:
@@ -743,21 +787,47 @@ public class TransferPanel
 
     private void refreshVisibleTables() {
 
+        /*
+         * Queued yalnızca individual transfer task'larını
+         * göstermeye devam eder.
+         */
         queuedModel.setSnapshot(
                 stateStore.snapshot(
                         TransferStateStore.View.QUEUED));
 
+        /*
+         * Running:
+         *
+         *     [Group rows]
+         *     [Individual transfer rows]
+         */
         runningModel.setSnapshot(
+                groupStateStore.runningSnapshot(),
                 stateStore.snapshot(
                         TransferStateStore.View.RUNNING));
 
+        /*
+         * Finished:
+         *
+         *     [Group rows]
+         *     [Individual transfer rows]
+         */
         finishedModel.setSnapshot(
+                groupStateStore.finishedSnapshot(),
                 stateStore.snapshot(
                         TransferStateStore.View.FINISHED));
 
+        /*
+         * All:
+         *
+         *     [All group rows]
+         *     [All individual transfer rows]
+         */
         allModel.setSnapshot(
+                groupStateStore.snapshot(),
                 stateStore.snapshot(
                         TransferStateStore.View.ALL));
+
     }
 
     private void updateProducerVisibility(
@@ -1069,11 +1139,8 @@ public class TransferPanel
             return queuedModel;
         }
 
-        if (table == allTable) {
-            return allModel;
-        }
-
         return null;
+
     }
     
     private void cancelSelectedTransfers() {
@@ -1645,5 +1712,98 @@ public class TransferPanel
 
         finishedGroupModel.setRows(
                 groupStateStore.finishedSnapshot());
+    }
+
+    private JTable createCombinedTable(
+            TransferCombinedTableModel model) {
+
+        JTable table =
+                new JTable(model);
+
+        table.setRowHeight(54);
+
+        table.setAutoCreateRowSorter(false);
+
+        table.setRowSorter(null);
+
+        table.getColumnModel()
+                .getColumn(0)
+                .setPreferredWidth(1);
+
+        table.getColumnModel()
+                .getColumn(1)
+                .setPreferredWidth(500);
+
+        table.getColumnModel()
+                .getColumn(2)
+                .setPreferredWidth(1);
+
+        table.getColumnModel()
+                .getColumn(3)
+                .setPreferredWidth(120);
+
+        table.getColumnModel()
+                .getColumn(4)
+                .setPreferredWidth(1);
+
+        table.getColumnModel()
+                .getColumn(5)
+                .setPreferredWidth(1);
+
+        table.getColumnModel()
+                .getColumn(6)
+                .setPreferredWidth(1);
+
+        table.getColumnModel()
+                .getColumn(7)
+                .setPreferredWidth(1);
+
+        table.getColumnModel()
+                .getColumn(8)
+                .setPreferredWidth(1);
+
+        /*
+         * Unified renderers.
+         */
+        table.getColumnModel()
+                .getColumn(0)
+                .setCellRenderer(
+                        new CombinedTypeRenderer());
+
+        table.getColumnModel()
+                .getColumn(2)
+                .setCellRenderer(
+                        new CombinedFileSizeRenderer());
+
+        table.getColumnModel()
+                .getColumn(3)
+                .setCellRenderer(
+                        new CombinedProgressRenderer());
+
+        table.getColumnModel()
+                .getColumn(4)
+                .setCellRenderer(
+                        new CombinedStatusRenderer());
+
+        table.getColumnModel()
+                .getColumn(5)
+                .setCellRenderer(
+                        new InstantRenderer());
+
+        table.getColumnModel()
+                .getColumn(6)
+                .setCellRenderer(
+                        new InstantRenderer());
+
+        table.getColumnModel()
+                .getColumn(7)
+                .setCellRenderer(
+                        new LongFormatRenderer());
+
+        table.getTableHeader()
+                .setReorderingAllowed(false);
+
+        return table;
+
     }
 }
