@@ -4,6 +4,8 @@ import com.company.s3explorer.transfer.event.TransferGroupCompletedEvent;
 import com.company.s3explorer.transfer.event.TransferGroupUpdatedEvent;
 import com.company.s3explorer.transfer.model.TransferGroup;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -12,6 +14,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
+
  * UI seviyesinde TransferGroup kayıtlarını tutar.
  *
  * TransferStateStore task bazlı çalışmaya devam eder.
@@ -29,6 +32,7 @@ public class TransferGroupStateStore {
             new LinkedHashMap<>();
 
     /**
+
      * Group event'ini store'a ekler veya mevcut kaydı günceller.
      */
     public synchronized void upsert(
@@ -38,7 +42,8 @@ public class TransferGroupStateStore {
             return;
         }
 
-        TransferGroup group = event.getGroup();
+        TransferGroup group =
+                event.getGroup();
 
         GroupRecord record =
                 groups.computeIfAbsent(
@@ -49,6 +54,7 @@ public class TransferGroupStateStore {
     }
 
     /**
+
      * Group tamamlandığında mevcut kaydı günceller.
      *
      * Aynı UUID korunur.
@@ -60,7 +66,8 @@ public class TransferGroupStateStore {
             return;
         }
 
-        TransferGroup group = event.getGroup();
+        TransferGroup group =
+                event.getGroup();
 
         GroupRecord record =
                 groups.computeIfAbsent(
@@ -71,9 +78,11 @@ public class TransferGroupStateStore {
     }
 
     /**
+
      * UUID ile kayıt getirir.
      */
-    public synchronized GroupRecord get(UUID id) {
+    public synchronized GroupRecord get(
+            UUID id) {
 
         if (id == null) {
             return null;
@@ -83,6 +92,7 @@ public class TransferGroupStateStore {
     }
 
     /**
+
      * Bütün kayıtların snapshot'ını döndürür.
      */
     public synchronized List<GroupRecord> snapshot() {
@@ -92,6 +102,7 @@ public class TransferGroupStateStore {
     }
 
     /**
+
      * Running durumundaki grupları döndürür.
      */
     public synchronized List<GroupRecord> runningSnapshot() {
@@ -99,17 +110,21 @@ public class TransferGroupStateStore {
         List<GroupRecord> result =
                 new ArrayList<>();
 
-        for (GroupRecord record : groups.values()) {
+        for (GroupRecord record :
+                groups.values()) {
 
             if (record.isRunning()) {
                 result.add(record);
             }
+
         }
 
-        return Collections.unmodifiableList(result);
+        return Collections.unmodifiableList(
+                result);
     }
 
     /**
+
      * Finished durumundaki grupları döndürür.
      */
     public synchronized List<GroupRecord> finishedSnapshot() {
@@ -117,32 +132,41 @@ public class TransferGroupStateStore {
         List<GroupRecord> result =
                 new ArrayList<>();
 
-        for (GroupRecord record : groups.values()) {
+        for (GroupRecord record :
+                groups.values()) {
 
             if (record.isFinished()) {
                 result.add(record);
             }
+
         }
 
-        return Collections.unmodifiableList(result);
+        return Collections.unmodifiableList(
+                result);
     }
 
     /**
+
      * Belirli bir group var mı?
      */
-    public synchronized boolean contains(UUID id) {
+    public synchronized boolean contains(
+            UUID id) {
 
-        return id != null && groups.containsKey(id);
+        return id != null
+                && groups.containsKey(id);
     }
 
     public synchronized void removeFinished() {
 
         groups.entrySet().removeIf(
-                entry -> entry.getValue() != null
-                        && entry.getValue().isFinished());
+                entry ->
+                        entry.getValue() != null
+                                && entry.getValue().isFinished());
+
     }
-    
+
     /**
+
      * UI state temizliği için.
      */
     public synchronized void clear() {
@@ -151,6 +175,7 @@ public class TransferGroupStateStore {
     }
 
     /**
+
      * UI'da gösterilecek grup kaydı.
      *
      * Gerçek TransferGroup nesnesi burada tutulur.
@@ -168,13 +193,27 @@ public class TransferGroupStateStore {
 
         private boolean finished;
 
+        /*
+        * Group lifecycle zamanları.
+        *
+        * startTime:
+          Group'un Preparing lifecycle'ına girdiği
+          ilk UI update zamanı.
+        *
+        * endTime:
+          Group'un Finished olduğu completion zamanı.
+        */
+        private Instant startTime;
+        private Instant endTime;
+
         private GroupRecord() {
         }
 
         private void update(
                 TransferGroupUpdatedEvent event) {
 
-            this.group = event.getGroup();
+            this.group =
+                    event.getGroup();
 
             this.repository =
                     event.getRepository();
@@ -190,12 +229,40 @@ public class TransferGroupStateStore {
 
             this.finished =
                     event.isFinished();
+
+            /*
+             * İlk group update'i lifecycle başlangıcıdır.
+             *
+             * Daha sonraki Preparing / Running update'leri
+             * startTime'ı değiştirmemelidir.
+             */
+            if (this.startTime == null) {
+
+                this.startTime =
+                        Instant.now();
+            }
+
+            /*
+             * Event Finished olarak geldiyse endTime'ı
+             * yalnızca ilk kez set et.
+             *
+             * Normal lifecycle'da gerçek completion event'i
+             * bunu ayrıca set edecektir.
+             */
+            if (this.finished
+                    && this.endTime == null) {
+
+                this.endTime =
+                        Instant.now();
+            }
+
         }
 
         private void complete(
                 TransferGroupCompletedEvent event) {
 
-            this.group = event.getGroup();
+            this.group =
+                    event.getGroup();
 
             this.repository =
                     event.getRepository();
@@ -210,10 +277,37 @@ public class TransferGroupStateStore {
                     event.isSourceRefreshRequired();
 
             this.finished = true;
+
+            /*
+             * Normal durumda startTime daha önce
+             * ilk update sırasında oluşturulmuştur.
+             *
+             * Ancak completion event'i herhangi bir nedenle
+             * ilk event olarak geldiyse yine de geçerli bir
+             * elapsed time oluşturabilmek için burada başlat.
+             */
+            if (this.startTime == null) {
+
+                this.startTime =
+                        Instant.now();
+            }
+
+            /*
+             * End time yalnızca ilk completion anında
+             * kaydedilir.
+             */
+            if (this.endTime == null) {
+
+                this.endTime =
+                        Instant.now();
+            }
+
         }
 
         public TransferGroup getGroup() {
+
             return group;
+
         }
 
         public UUID getId() {
@@ -221,6 +315,7 @@ public class TransferGroupStateStore {
             return group != null
                     ? group.getId()
                     : null;
+
         }
 
         public String getDisplayName() {
@@ -228,18 +323,25 @@ public class TransferGroupStateStore {
             return group != null
                     ? group.getDisplayName()
                     : "";
+
         }
 
         public String getRepository() {
+
             return repository;
+
         }
 
         public String getBucket() {
+
             return bucket;
+
         }
 
         public String getPrefix() {
+
             return prefix;
+
         }
 
         public boolean isPreparing() {
@@ -247,6 +349,7 @@ public class TransferGroupStateStore {
             return !finished
                     && group != null
                     && group.isPreparing();
+
         }
 
         public boolean isRunning() {
@@ -257,6 +360,7 @@ public class TransferGroupStateStore {
                     group.isRunning()
                             || group.isPreparing()
             );
+
         }
 
         public boolean isFinished() {
@@ -266,78 +370,169 @@ public class TransferGroupStateStore {
                     group != null
                             && group.isFinished()
             );
+
         }
 
         public boolean isSuccessful() {
 
             return group != null
                     && group.isFullySuccessful();
+    
+
         }
 
         public boolean isFailed() {
 
+    
             return group != null
                     && group.isFailed();
+    
+
         }
 
         public long getDetected() {
 
+    
             return group != null
                     ? group.getDetected()
                     : 0;
+    
+
         }
 
         public int getQueued() {
 
+    
             return group != null
                     ? group.getQueued()
                     : 0;
+    
+
         }
 
         public int getRunningCount() {
 
+    
             return group != null
                     ? group.getRunning()
                     : 0;
+    
+
         }
 
         public int getCompleted() {
 
+    
             return group != null
                     ? group.getCompleted()
                     : 0;
+    
+
         }
 
         public int getFailedCount() {
 
+    
             return group != null
                     ? group.getFailed()
                     : 0;
+    
+
         }
 
         public int getCancelled() {
 
+    
             return group != null
                     ? group.getCancelled()
                     : 0;
+    
+
         }
 
         public int getSkipped() {
 
+    
             return group != null
                     ? group.getSkipped()
                     : 0;
+    
+
         }
 
         public long getDetectedBytes() {
 
+    
             return group != null
                     ? group.getDetectedBytes()
                     : 0;
+    
+
         }
 
         public boolean isSourceRefreshRequired() {
+
+    
             return sourceRefreshRequired;
+    
+
+        }
+
+        /**
+
+         * Group Preparing lifecycle'ının başlangıç zamanı.
+         */
+        public Instant getStartTime() {
+
+            return startTime;
+        }
+
+        /**
+
+         * Group Finished lifecycle'ının zamanı.
+         */
+        public Instant getEndTime() {
+
+            return endTime;
+        }
+
+        /**
+
+         * Group'un başlangıcından itibaren geçen süreyi
+         * milisaniye cinsinden döndürür.
+         *
+         * Running / Preparing:
+         *
+         * 
+         startTime -> now
+         
+         *
+         * Finished:
+         *
+         * 
+         startTime -> endTime
+         
+
+         */
+        public long getElapsedTime() {
+
+    
+            if (startTime == null) {
+                return 0L;
+            }
+
+            Instant end =
+                    endTime != null
+                            ? endTime
+                            : Instant.now();
+
+            return Math.max(
+                    0L,
+                    Duration.between(
+                                    startTime,
+                                    end)
+                            .toMillis());
+
         }
     }
 }
