@@ -191,9 +191,9 @@ public class TransferTableModel
         return "<b><font color='"
                 + UIThemeManager.TRANSFER_PANEL_COLOR_BUCKET
                 + "'>"
-                + repository
+                + S3Util.escapeHtml(repository)
                 + " | "
-                + bucket
+                + S3Util.escapeHtml(bucket)
                 + "</font> / </b>";
     }
 
@@ -216,8 +216,7 @@ public class TransferTableModel
                 + "<font color='"
                 + UIThemeManager.TRANSFER_PANEL_COLOR_FILEFOLDER
                 + "'>"
-                + path.substring(
-                folderPath.length())
+                + S3Util.escapeHtml(path.substring(folderPath.length()))
                 + "</font></b>";
     }
 
@@ -322,7 +321,7 @@ public class TransferTableModel
         return "<b><font color='"
                 + UIThemeManager.TRANSFER_PANEL_COLOR_GROUP
                 + "'>"
-                + group.getDisplayName()
+                + S3Util.escapeHtml(group.getDisplayName())
                 + "</font></b>";
     }
 

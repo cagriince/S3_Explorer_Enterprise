@@ -60,13 +60,13 @@ public class CombinedTypeRenderer
             switch (normalized.toUpperCase()) {
 
                 case "COPY" ->
-                        setText("📄 Copy");
+                        setText("📄 Copy Group");
 
                 case "MOVE" ->
-                        setText("🚚 Move");
+                        setText("🚚 Move Group");
 
                 case "DELETE" ->
-                        setText("🗑 Delete");
+                        setText("🗑 Delete Group");
 
                 default ->
                         setText(normalized);

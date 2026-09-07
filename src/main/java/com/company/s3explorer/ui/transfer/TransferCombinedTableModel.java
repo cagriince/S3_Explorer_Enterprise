@@ -6,6 +6,7 @@ import com.company.s3explorer.transfer.TransferType;
 import com.company.s3explorer.transfer.model.TransferGroup;
 import com.company.s3explorer.transfer.model.TransferTask;
 import com.company.s3explorer.ui.theme.UIThemeManager;
+import com.company.s3explorer.util.S3Util;
 
 import javax.swing.table.AbstractTableModel;
 import java.time.Instant;
@@ -368,7 +369,14 @@ public class TransferCombinedTableModel
 
     private String buildGroupProcessDetail(
             TransferGroupStateStore.GroupRecord group) {
-
+        TransferGroup transferGroup =
+                group.getGroup();
+        if (transferGroup == null) {
+            return "";
+        }
+        
+        return buildDisplayName(transferGroup);
+/*
         TransferGroup transferGroup =
                 group.getGroup();
 
@@ -393,11 +401,6 @@ public class TransferCombinedTableModel
 
         sb.append("<html>");
 
-        /*
-         * Group Name
-         *
-         * TransferTableModel'deki group rengi.
-         */
         if (!groupName.isEmpty()) {
 
             sb.append(
@@ -407,14 +410,11 @@ public class TransferCombinedTableModel
                                     .TRANSFER_PANEL_COLOR_GROUP)
                     .append("'>")
                     .append(
-                            escapeHtml(groupName))
+                            S3Util.escapeHtml(groupName))
                     .append(
                             "</font></b>");
         }
 
-        /*
-         * Source
-         */
         if (!source.isEmpty()) {
 
             if (sb.length() > 12) {
@@ -428,14 +428,11 @@ public class TransferCombinedTableModel
                                     .TRANSFER_PANEL_COLOR_BUCKET)
                     .append("'>")
                     .append(
-                            escapeHtml(source))
+                            S3Util.escapeHtml(source))
                     .append(
                             "</font></b>");
         }
 
-        /*
-         * Target
-         */
         if (!target.isEmpty()) {
 
             sb.append(
@@ -448,14 +445,14 @@ public class TransferCombinedTableModel
                                     .TRANSFER_PANEL_COLOR_FILEFOLDER)
                     .append("'>")
                     .append(
-                            escapeHtml(target))
+                            S3Util.escapeHtml(target))
                     .append(
                             "</font></b>");
         }
 
         sb.append("</html>");
 
-        return sb.toString();
+        return sb.toString();*/
     }
 
     private String buildGroupSummary(
@@ -553,23 +550,6 @@ public class TransferCombinedTableModel
         return value != null
                 ? value
                 : "";
-    }
-
-    private String escapeHtml(
-            String value) {
-
-        if (value == null
-                || value.isEmpty()) {
-
-            return "";
-        }
-
-        return value
-                .replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;")
-                .replace("\"", "&quot;")
-                .replace("'", "&#39;");
     }
 
     public static final class GroupProgress {
@@ -691,5 +671,122 @@ public class TransferCombinedTableModel
 
             return transferModelRow;
         }
+    }
+
+    private String buildDisplayName(
+            TransferGroup group) {
+
+        StringBuilder sb = new StringBuilder();
+
+        sb.append("<html>");
+        sb.append(displayGroupName(group));
+        sb.append("<br />");
+
+        sb.append("\uD83D\uDFB3 ");
+
+        sb.append(buildSourceDisplayName(group));
+
+        String target = buildTargetDisplayName(group);
+
+        if (!target.isEmpty()) {
+            sb.append( "<br />=\uD83D\uDF82 ");
+            sb.append(target);
+        }
+
+        sb.append("</html>");
+
+        return sb.toString();
+    }
+
+    private String buildSourceDisplayName(
+            TransferGroup group) {
+
+        StringBuilder display =
+                new StringBuilder();
+
+        String operation = group.getOperation();
+        if ("COPY".equals(group.getOperation()) || "MOVE".equals(group.getOperation()) || "DELETE".equals(group.getOperation())) {
+            display.append(
+                    displayBucket(
+                            group.getSourceRepository(),
+                            group.getSourceBucket()));
+
+            display.append(
+                    displayLastFileFolder(
+                            group.getSourcePrefix()));
+        }
+
+        return display.toString();
+    }
+
+    private static String displayGroupName(
+            TransferGroup group) {
+
+        if (group == null) {
+            return "";
+        }
+
+        return "<b><font color='"
+                + UIThemeManager.TRANSFER_PANEL_COLOR_GROUP
+                + "'>"
+                + S3Util.escapeHtml(group.getDisplayName())
+                + "</font></b>";
+    }
+
+    private String buildTargetDisplayName(
+            TransferGroup group) {
+
+        StringBuilder display =
+                new StringBuilder();
+
+        String operation = group.getOperation();
+        if ("COPY".equals(group.getOperation()) || "MOVE".equals(group.getOperation())) {
+            display.append(
+                    displayBucket(
+                            group.getTargetRepository(),
+                            group.getTargetBucket()));
+
+            display.append(
+                    displayLastFileFolder(
+                            group.getTargetPrefix()));
+        }
+        
+        return display.toString();
+    }
+
+    private String displayBucket(
+            String repository,
+            String bucket) {
+
+        return "<b><font color='"
+                + UIThemeManager.TRANSFER_PANEL_COLOR_BUCKET
+                + "'>"
+                + S3Util.escapeHtml(repository)
+                + " | "
+                + S3Util.escapeHtml(bucket)
+                + "</font> / </b>";
+    }
+
+    private String displayLastFileFolder(
+            String path) {
+
+        if (path == null) {
+            return "";
+        }
+
+        path = path.replace("\\", "/");
+
+        String folderPath =
+                S3Util.extractParentPrefix(path);
+
+        return "<b>"
+                + folderPath.replace(
+                "/",
+                " / ")
+                + "<font color='"
+                + UIThemeManager.TRANSFER_PANEL_COLOR_FILEFOLDER
+                + "'>"
+                + S3Util.escapeHtml(path.substring(folderPath.length()))
+                + "</font></b>";
     }
 }
