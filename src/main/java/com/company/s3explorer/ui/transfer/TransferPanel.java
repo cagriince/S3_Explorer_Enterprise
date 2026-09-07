@@ -441,7 +441,7 @@ public class TransferPanel
         tabs.addTab(
                 "Finished",
                 new JScrollPane(
-                        finishedGroupTable));
+                        finishedTable));
         
         tabs.addTab(
                 "All",

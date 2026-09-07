@@ -3,6 +3,9 @@ package com.company.s3explorer.ui.transfer;
 import com.company.s3explorer.transfer.TransferRuntime;
 import com.company.s3explorer.transfer.TransferStatus;
 import com.company.s3explorer.transfer.TransferType;
+import com.company.s3explorer.transfer.model.TransferGroup;
+import com.company.s3explorer.transfer.model.TransferTask;
+import com.company.s3explorer.ui.theme.UIThemeManager;
 
 import javax.swing.table.AbstractTableModel;
 import java.time.Instant;
@@ -10,904 +13,683 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-/**
-
- * Group ve individual transfer satırlarını aynı JTable
- * içerisinde göstermek için kullanılan birleşik UI modelidir.
- *
- * Satır düzeni:
- *
- * 
- GROUP
- 
- * 
- GROUP
- 
- * 
- GROUP
- 
- * 
- TRANSFER
- 
- * 
- TRANSFER
- 
- * 
- TRANSFER
- 
- *
- * Group satırları startTime DESC sıralanır.
- *
- * Transfer satırlarının sırası ise TransferStateStore tarafından
- * oluşturulan snapshot sırasına aynen sadık kalır.
- *
- * Domain state'leri birleştirilmez:
- *
- * 
- TransferStateStore       -> individual task state
- 
- * 
- TransferGroupStateStore  -> logical group state
- 
- *
- * Bu sınıf yalnızca UI seviyesinde iki state'i tek tabloya
- * dönüştürür.
- */
 public class TransferCombinedTableModel
         extends AbstractTableModel {
 
     private static final String[] COLUMNS = {
 
-  
-          "Process",
-          "Process Detail",
-          "Size",
-          "Progress",
-          "Status",
-          "Start Time",
-          "End Time",
-          "Elapsed Time (ms)",
-          "Summary"
-          
+            "Process",
+            "Process Detail",
+            "Size",
+            "Progress",
+            "Status",
+            "Start Time",
+            "End Time",
+            "Elapsed Time (ms)",
+            "Summary"
+    };
 
-};
+    private final List<Row> rows =
+            new ArrayList<>();
 
-private final List<Row> rows =
-        new ArrayList<>();
+    private final TransferTableModel transferModel;
 
-/*
-
- * Individual transfer satırlarının mevcut UI gösterim
- * mantığını tekrar uygulamamak için mevcut model
- * içeride kullanılır.
- */
-private final TransferTableModel transferModel;
-
-public TransferCombinedTableModel() {
-
-  
-    this(1000);
-  
-
-}
-
-public TransferCombinedTableModel(
-        int maxTransferRows) {
-
-  
-    if (maxTransferRows < 1) {
-        throw new IllegalArgumentException(
-                "maxTransferRows must be greater than zero");
+    public TransferCombinedTableModel() {
+        this(1000);
     }
 
-    transferModel =
-            new TransferTableModel(
-                    maxTransferRows);
-  
+    public TransferCombinedTableModel(
+            int maxTransferRows) {
 
-}
+        if (maxTransferRows < 1) {
+            throw new IllegalArgumentException(
+                    "maxTransferRows must be greater than zero");
+        }
 
-@Override
-public int getRowCount() {
-
-  
-    return rows.size();
-  
-
-}
-
-@Override
-public int getColumnCount() {
-
-  
-    return COLUMNS.length;
-  
-
-}
-
-@Override
-public String getColumnName(
-        int column) {
-
-  
-    return COLUMNS[column];
-  
-
-}
-
-@Override
-public Object getValueAt(
-        int row,
-        int column) {
-
-  
-    if (row < 0
-            || row >= rows.size()) {
-
-        return "";
+        transferModel =
+                new TransferTableModel(
+                        maxTransferRows);
     }
 
-    Row combinedRow =
-            rows.get(row);
+    @Override
+    public int getRowCount() {
+        return rows.size();
+    }
 
-    if (combinedRow.isGroup()) {
+    @Override
+    public int getColumnCount() {
+        return COLUMNS.length;
+    }
 
-        return getGroupValue(
-                combinedRow.getGroup(),
+    @Override
+    public String getColumnName(
+            int column) {
+
+        return COLUMNS[column];
+    }
+
+    @Override
+    public Object getValueAt(
+            int row,
+            int column) {
+
+        if (row < 0
+                || row >= rows.size()) {
+
+            return "";
+        }
+
+        Row combinedRow =
+                rows.get(row);
+
+        if (combinedRow.isGroup()) {
+
+            return getGroupValue(
+                    combinedRow.getGroup(),
+                    column);
+        }
+
+        return transferModel.getValueAt(
+                combinedRow.getTransferModelRow(),
                 column);
     }
 
-    /*
-     * Individual transfer satırında mevcut
-     * TransferTableModel davranışını aynen koru.
-     */
-    return transferModel.getValueAt(
-            combinedRow.getTransferModelRow(),
-            column);
-  
+    @Override
+    public Class<?> getColumnClass(
+            int column) {
 
-}
+        return switch (column) {
 
-@Override
-public Class<?> getColumnClass(
-        int column) {
+            case 0 ->
+                    Object.class;
 
-  
-    /*
-     * Group ve Transfer satırlarında aynı sütunda
-     * farklı tipler bulunabildiği için bazı kolonlar
-     * Object olarak tanımlanır.
-     *
-     * Renderer tarafında gerçek değer tipine göre
-     * davranılacaktır.
-     */
-    return switch (column) {
+            case 1 ->
+                    String.class;
 
-        case 0 ->
-                Object.class;
+            case 2 ->
+                    Object.class;
 
-        case 1 ->
-                String.class;
+            case 3 ->
+                    Object.class;
 
-        case 2 ->
-                Object.class;
+            case 4 ->
+                    Object.class;
 
-        case 3 ->
-                Object.class;
+            case 5, 6 ->
+                    Instant.class;
 
-        case 4 ->
-                Object.class;
+            case 7 ->
+                    Long.class;
 
-        case 5, 6 ->
-                Instant.class;
+            case 8 ->
+                    String.class;
 
-        case 7 ->
-                Long.class;
+            default ->
+                    Object.class;
+        };
+    }
 
-        case 8 ->
-                String.class;
+    public void setSnapshot(
+            List<TransferGroupStateStore.GroupRecord> groups,
+            List<TransferRuntime> transfers) {
 
-        default ->
-                Object.class;
-    };
-  
+        rows.clear();
 
-}
+        /*
+         * GROUP ROWS
+         *
+         * En yeni group en üstte.
+         */
+        if (groups != null
+                && !groups.isEmpty()) {
 
-/**
+            List<TransferGroupStateStore.GroupRecord>
+                    sortedGroups =
+                    new ArrayList<>(groups);
 
- * Group ve transfer snapshot'larını birleştirir.
- *
- * Group satırları:
- * 
- startTime DESC
- 
- *
- * Transfer satırları:
- * 
- snapshot sırası
- 
- *
- * Sonuç:
- *
- * 
- [groups...][transfers...]
- 
+            sortedGroups.removeIf(
+                    group -> group == null);
 
- */
-public void setSnapshot(
-        List<TransferGroupStateStore.GroupRecord> groups,
-        List<TransferRuntime> transfers) {
+            sortedGroups.sort(
+                    Comparator.comparing(
+                            TransferGroupStateStore.GroupRecord::getStartTime,
+                            Comparator.nullsLast(
+                                    Comparator.reverseOrder())));
 
-  
-    rows.clear();
+            for (TransferGroupStateStore.GroupRecord group :
+                    sortedGroups) {
 
-    /*
-     * ---------------------------------------------------------
-     * GROUP ROWS
-     * ---------------------------------------------------------
-     */
-
-    if (groups != null
-            && !groups.isEmpty()) {
-
-        List<TransferGroupStateStore.GroupRecord>
-                sortedGroups =
-                new ArrayList<>(groups);
-
-        sortedGroups.sort(
-                Comparator.comparing(
-                        TransferGroupStateStore.GroupRecord::getStartTime,
-                        Comparator.nullsLast(
-                                Comparator.reverseOrder())));
-
-        for (TransferGroupStateStore.GroupRecord group :
-                sortedGroups) {
-
-            if (group == null) {
-                continue;
+                rows.add(
+                        Row.group(group));
             }
-
-            rows.add(
-                    Row.group(group));
         }
-    }
 
-    /*
-     * ---------------------------------------------------------
-     * TRANSFER ROWS
-     * ---------------------------------------------------------
-     */
+        /*
+         * INDIVIDUAL TRANSFER ROWS
+         *
+         * TransferStateStore snapshot sırası
+         * aynen korunur.
+         */
+        transferModel.setSnapshot(
+                transfers);
 
-    transferModel.setSnapshot(
-            transfers);
+        if (transfers != null
+                && !transfers.isEmpty()) {
 
-    if (transfers != null
-            && !transfers.isEmpty()) {
+            for (int i = 0;
+                 i < transfers.size();
+                 i++) {
 
-        for (int i = 0;
-             i < transfers.size();
-             i++) {
+                TransferRuntime runtime =
+                        transfers.get(i);
 
-            TransferRuntime runtime =
-                    transfers.get(i);
+                if (runtime == null) {
+                    continue;
+                }
 
-            if (runtime == null) {
-                continue;
+                rows.add(
+                        Row.transfer(i));
             }
-
-            rows.add(
-                    Row.transfer(i));
         }
+
+        fireTableDataChanged();
     }
 
-    fireTableDataChanged();
-  
+    public boolean isGroupRow(
+            int modelRow) {
 
-}
+        if (modelRow < 0
+                || modelRow >= rows.size()) {
 
-/**
+            return false;
+        }
 
- * Belirli bir model satırının group satırı olup olmadığını
- * döndürür.
- */
-public boolean isGroupRow(
-        int modelRow) {
-
-    if (modelRow < 0
-            || modelRow >= rows.size()) {
-
-    
-        return false;
-    
-
+        return rows.get(modelRow).isGroup();
     }
 
-    return rows.get(modelRow).isGroup();
-}
+    public TransferGroupStateStore.GroupRecord getGroup(
+            int modelRow) {
 
-/**
-
- * Belirli model satırındaki GroupRecord'u döndürür.
- *
- * Individual transfer satırlarında null döner.
- */
-public TransferGroupStateStore.GroupRecord getGroup(
-        int modelRow) {
-
-    if (modelRow < 0
-            || modelRow >= rows.size()) {
-
-    
-        return null;
-    
-
-    }
-
-    Row row =
-            rows.get(modelRow);
-
-    return row.isGroup()
-            ? row.getGroup()
-            : null;
-}
-
-/**
-
- * Belirli model satırındaki TransferRuntime'ı döndürür.
- *
- * Group satırlarında null döner.
- */
-public TransferRuntime getRuntime(
-        int modelRow) {
-
-    if (modelRow < 0
-            || modelRow >= rows.size()) {
-
-    
-        return null;
-    
-
-    }
-
-    Row row =
-            rows.get(modelRow);
-
-    if (row.isGroup()) {
-        return null;
-    }
-
-    return transferModel.getRuntime(
-            row.getTransferModelRow());
-}
-
-/**
-
- * JTable selection / cancel gibi işlemlerde kullanılmak
- * üzere model satırını transfer task model satırına çevirir.
- *
- * Group satırlarında -1 döner.
- */
-public int getTransferModelRow(
-        int modelRow) {
-
-    if (modelRow < 0
-            || modelRow >= rows.size()) {
-
-    
-        return -1;
-    
-
-    }
-
-    Row row =
-            rows.get(modelRow);
-
-    if (row.isGroup()) {
-        return -1;
-    }
-
-    return row.getTransferModelRow();
-}
-
-/**
-
- * Group satırının JTable'da taşınabilir / cancellable
- * olmadığını açıkça belirtir.
- */
-public boolean isTransferRow(
-        int modelRow) {
-
-    return !isGroupRow(modelRow);
-}
-
-private Object getGroupValue(
-        TransferGroupStateStore.GroupRecord group,
-        int column) {
-
-  
-    if (group == null) {
-        return "";
-    }
-
-    switch (column) {
-
-        /*
-         * Process
-         *
-         * Kullanıcı istedi:
-         *
-         *     Process <- Operation
-         *
-         * Örn:
-         *     COPY
-         *     MOVE
-         *     DELETE
-         */
-        case 0:
-
-            return safe(
-                    group.getGroup() != null
-                            ? group.getGroup().getOperation()
-                            : null);
-
-        /*
-         * Process Detail
-         *
-         * Kullanıcı istedi:
-         *
-         *     Group Name + Process Detail
-         *
-         * Örn:
-         *
-         *     Photos
-         *     source/... -> target/...
-         */
-        case 1:
-
-            return buildGroupProcessDetail(
-                    group);
-
-        /*
-         * Size
-         *
-         * Group satırında boş.
-         */
-        case 2:
+        if (modelRow < 0
+                || modelRow >= rows.size()) {
 
             return null;
-
-        /*
-         * Progress
-         *
-         *     Completed / Detected
-         *
-         * Örn:
-         *
-         *     73 / 125
-         */
-        case 3:
-
-            return new GroupProgress(
-                    group.getCompleted(),
-                    group.getDetected(),
-                    group.isPreparing());
-
-        /*
-         * Status
-         */
-        case 4:
-
-            return getGroupStatus(
-                    group);
-
-        /*
-         * Start Time
-         */
-        case 5:
-
-            return group.getStartTime();
-
-        /*
-         * End Time
-         */
-        case 6:
-
-            return group.getEndTime();
-
-        /*
-         * Elapsed Time
-         *
-         * Running:
-         *     start -> now
-         *
-         * Finished:
-         *     start -> end
-         */
-        case 7:
-
-            return group.getElapsedTime();
-
-        /*
-         * Summary
-         */
-        case 8:
-
-            return buildGroupSummary(
-                    group);
-
-        default:
-
-            return "";
-    }
-  
-
-}
-
-private String buildGroupProcessDetail(
-        TransferGroupStateStore.GroupRecord group) {
-
-  
-    String groupName =
-            safe(group.getDisplayName());
-
-    String source =
-            group.getGroup() != null
-                    ? safe(group.getGroup().getSource())
-                    : "";
-
-    String target =
-            group.getGroup() != null
-                    ? safe(group.getGroup().getTarget())
-                    : "";
-
-    StringBuilder result =
-            new StringBuilder();
-
-    result.append(groupName);
-
-    String processDetail =
-            buildSourceTarget(
-                    source,
-                    target);
-
-    if (!processDetail.isEmpty()) {
-
-        result.append(
-                " - ");
-
-        result.append(
-                processDetail);
-    }
-
-    return result.toString();
-  
-
-}
-
-private String buildSourceTarget(
-        String source,
-        String target) {
-
-  
-    if (source == null) {
-        source = "";
-    }
-
-    if (target == null) {
-        target = "";
-    }
-
-    source = source.trim();
-    target = target.trim();
-
-    if (source.isEmpty()
-            && target.isEmpty()) {
-
-        return "";
-    }
-
-    if (source.isEmpty()) {
-        return target;
-    }
-
-    if (target.isEmpty()) {
-        return source;
-    }
-
-    return source
-            + " \u2192 "
-            + target;
-  
-
-}
-
-private String getGroupStatus(
-        TransferGroupStateStore.GroupRecord group) {
-
-  
-    if (group.isFinished()) {
-
-        if (group.isFailed()) {
-            return "Failed";
         }
 
-        return "Finished";
+        Row row =
+                rows.get(modelRow);
+
+        return row.isGroup()
+                ? row.getGroup()
+                : null;
     }
 
-    if (group.isPreparing()) {
+    public TransferRuntime getRuntime(
+            int modelRow) {
+
+        if (modelRow < 0
+                || modelRow >= rows.size()) {
+
+            return null;
+        }
+
+        Row row =
+                rows.get(modelRow);
+
+        if (row.isGroup()) {
+            return null;
+        }
+
+        return transferModel.getRuntime(
+                row.getTransferModelRow());
+    }
+
+    public int getTransferModelRow(
+            int modelRow) {
+
+        if (modelRow < 0
+                || modelRow >= rows.size()) {
+
+            return -1;
+        }
+
+        Row row =
+                rows.get(modelRow);
+
+        if (row.isGroup()) {
+            return -1;
+        }
+
+        return row.getTransferModelRow();
+    }
+
+    public boolean isTransferRow(
+            int modelRow) {
+
+        return !isGroupRow(modelRow);
+    }
+
+    private Object getGroupValue(
+            TransferGroupStateStore.GroupRecord group,
+            int column) {
+
+        if (group == null) {
+            return "";
+        }
+
+        switch (column) {
+
+            /*
+             * Process
+             */
+            case 0:
+
+                return safe(
+                        group.getGroup() != null
+                                ? group.getGroup().getOperation()
+                                : null);
+
+            /*
+             * Process Detail
+             *
+             * Burada TransferTableModel'deki renkli
+             * HTML mantığı kullanılır.
+             */
+            case 1:
+
+                return buildGroupProcessDetail(
+                        group);
+
+            /*
+             * Size
+             */
+            case 2:
+
+                return null;
+
+            /*
+             * Progress
+             *
+             * Artık sayı göstermiyoruz.
+             * Renderer yalnızca yüzde gösterecek.
+             */
+            case 3:
+
+                return new GroupProgress(
+                        group.getCompleted(),
+                        group.getDetected(),
+                        group.isPreparing());
+
+            /*
+             * Status
+             */
+            case 4:
+
+                return getGroupStatus(
+                        group);
+
+            /*
+             * Start Time
+             */
+            case 5:
+
+                return group.getStartTime();
+
+            /*
+             * End Time
+             */
+            case 6:
+
+                return group.getEndTime();
+
+            /*
+             * Elapsed Time
+             */
+            case 7:
+
+                return group.getElapsedTime();
+
+            /*
+             * Summary
+             *
+             * Progress bar'ın tekrarını yapmıyoruz.
+             * Burada lifecycle bilgisi gösteriyoruz.
+             */
+            case 8:
+
+                return buildGroupSummary(
+                        group);
+
+            default:
+
+                return "";
+        }
+    }
+
+    private String buildGroupProcessDetail(
+            TransferGroupStateStore.GroupRecord group) {
+
+        TransferGroup transferGroup =
+                group.getGroup();
+
+        if (transferGroup == null) {
+            return "";
+        }
+
+        String groupName =
+                safe(
+                        transferGroup.getDisplayName());
+
+        String source =
+                safe(
+                        transferGroup.getSource());
+
+        String target =
+                safe(
+                        transferGroup.getTarget());
+
+        StringBuilder sb =
+                new StringBuilder();
+
+        sb.append("<html>");
+
+        /*
+         * Group Name
+         *
+         * TransferTableModel'deki group rengi.
+         */
+        if (!groupName.isEmpty()) {
+
+            sb.append(
+                            "<b><font color='")
+                    .append(
+                            UIThemeManager
+                                    .TRANSFER_PANEL_COLOR_GROUP)
+                    .append("'>")
+                    .append(
+                            escapeHtml(groupName))
+                    .append(
+                            "</font></b>");
+        }
+
+        /*
+         * Source
+         */
+        if (!source.isEmpty()) {
+
+            if (sb.length() > 12) {
+                sb.append("<br />");
+            }
+
+            sb.append(
+                            "<b><font color='")
+                    .append(
+                            UIThemeManager
+                                    .TRANSFER_PANEL_COLOR_BUCKET)
+                    .append("'>")
+                    .append(
+                            escapeHtml(source))
+                    .append(
+                            "</font></b>");
+        }
+
+        /*
+         * Target
+         */
+        if (!target.isEmpty()) {
+
+            sb.append(
+                    "<br />");
+
+            sb.append(
+                            "<b><font color='")
+                    .append(
+                            UIThemeManager
+                                    .TRANSFER_PANEL_COLOR_FILEFOLDER)
+                    .append("'>")
+                    .append(
+                            escapeHtml(target))
+                    .append(
+                            "</font></b>");
+        }
+
+        sb.append("</html>");
+
+        return sb.toString();
+    }
+
+    private String buildGroupSummary(
+            TransferGroupStateStore.GroupRecord group) {
+
+        if (group.isPreparing()) {
+
+            long detected =
+                    group.getDetected();
+
+            if (detected > 0) {
+
+                return "Preparing, Detected: "
+                        + detected;
+            }
+
+            return "Preparing";
+        }
+
+        StringBuilder summary =
+                new StringBuilder();
+
+        summary.append(
+                        "Detected: ")
+                .append(
+                        group.getDetected());
+
+        summary.append(
+                        ", Completed: ")
+                .append(
+                        group.getCompleted());
+
+        int failed =
+                group.getFailedCount();
+
+        int cancelled =
+                group.getCancelled();
+
+        int skipped =
+                group.getSkipped();
+
+        if (failed > 0) {
+
+            summary.append(
+                            ", Failed: ")
+                    .append(
+                            failed);
+        }
+
+        if (cancelled > 0) {
+
+            summary.append(
+                            ", Cancelled: ")
+                    .append(
+                            cancelled);
+        }
+
+        if (skipped > 0) {
+
+            summary.append(
+                            ", Skipped: ")
+                    .append(
+                            skipped);
+        }
+
+        return summary.toString();
+    }
+
+    private String getGroupStatus(
+            TransferGroupStateStore.GroupRecord group) {
+
+        if (group.isFinished()) {
+
+            if (group.isFailed()) {
+                return "Failed";
+            }
+
+            return "Finished";
+        }
+
+        if (group.isPreparing()) {
+            return "Preparing";
+        }
+
+        if (group.isRunning()) {
+            return "Running";
+        }
+
         return "Preparing";
     }
 
-    if (group.isRunning()) {
-        return "Running";
+    private String safe(
+            String value) {
+
+        return value != null
+                ? value
+                : "";
     }
 
-    return "Preparing";
-  
+    private String escapeHtml(
+            String value) {
 
-}
+        if (value == null
+                || value.isEmpty()) {
 
-private String buildGroupSummary(
-        TransferGroupStateStore.GroupRecord group) {
-
-  
-    long detected =
-            group.getDetected();
-
-    int completed =
-            group.getCompleted();
-
-    int failed =
-            group.getFailedCount();
-
-    int cancelled =
-            group.getCancelled();
-
-    int skipped =
-            group.getSkipped();
-
-    StringBuilder summary =
-            new StringBuilder();
-
-    summary.append(
-            completed);
-
-    summary.append(
-            " / ");
-
-    summary.append(
-            detected);
-
-    if (failed > 0) {
-
-        summary.append(
-                ", failed ");
-
-        summary.append(
-                failed);
-    }
-
-    if (cancelled > 0) {
-
-        summary.append(
-                ", cancelled ");
-
-        summary.append(
-                cancelled);
-    }
-
-    if (skipped > 0) {
-
-        summary.append(
-                ", skipped ");
-
-        summary.append(
-                skipped);
-    }
-
-    return summary.toString();
-  
-
-}
-
-private String safe(
-        String value) {
-
-  
-    return value != null
-            ? value
-            : "";
-  
-
-}
-
-/**
-
- * Group progress bilgisini taşıyan immutable UI objesi.
- *
- * Renderer bu objeyi kullanarak:
- *
- * 
- Completed / Detected
- 
- *
- * bilgisini ve yüzdeyi gösterebilir.
- */
-public static final class GroupProgress {
-
-    private final int completed;
-    private final long detected;
-    private final boolean preparing;
-
-    private GroupProgress(
-            int completed,
-            long detected,
-            boolean preparing) {
-
-    
-        this.completed =
-                Math.max(
-                        0,
-                        completed);
-
-        this.detected =
-                Math.max(
-                        0L,
-                        detected);
-
-        this.preparing =
-                preparing;
-    
-
-    }
-
-    public int getCompleted() {
-
-    
-        return completed;
-    
-
-    }
-
-    public long getDetected() {
-
-    
-        return detected;
-    
-
-    }
-
-    public boolean isPreparing() {
-
-    
-        return preparing;
-    
-
-    }
-
-    public int getPercent() {
-
-    
-        if (detected <= 0) {
-            return 0;
+            return "";
         }
 
-        long percent =
-                completed * 100L / detected;
-
-        return (int) Math.max(
-                0L,
-                Math.min(
-                        100L,
-                        percent));
-    
-
+        return value
+                .replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;")
+                .replace("'", "&#39;");
     }
 
-    public String getText() {
+    public static final class GroupProgress {
 
-    
-        return completed
-                + " / "
-                + detected;
-    
+        private final int completed;
+        private final long detected;
+        private final boolean preparing;
 
+        private GroupProgress(
+                int completed,
+                long detected,
+                boolean preparing) {
+
+            this.completed =
+                    Math.max(
+                            0,
+                            completed);
+
+            this.detected =
+                    Math.max(
+                            0L,
+                            detected);
+
+            this.preparing =
+                    preparing;
+        }
+
+        public int getCompleted() {
+            return completed;
+        }
+
+        public long getDetected() {
+            return detected;
+        }
+
+        public boolean isPreparing() {
+            return preparing;
+        }
+
+        public int getPercent() {
+
+            if (detected <= 0) {
+                return 0;
+            }
+
+            long percent =
+                    completed * 100L / detected;
+
+            return (int) Math.max(
+                    0L,
+                    Math.min(
+                            100L,
+                            percent));
+        }
+
+        public String getText() {
+
+            return getPercent() + "%";
+        }
+    }
+
+    private static final class Row {
+
+        private enum Type {
+            GROUP,
+            TRANSFER
+        }
+
+        private final Type type;
+
+        private final TransferGroupStateStore.GroupRecord group;
+
+        private final int transferModelRow;
+
+        private Row(
+                Type type,
+                TransferGroupStateStore.GroupRecord group,
+                int transferModelRow) {
+
+            this.type =
+                    type;
+
+            this.group =
+                    group;
+
+            this.transferModelRow =
+                    transferModelRow;
+        }
+
+        private static Row group(
+                TransferGroupStateStore.GroupRecord group) {
+
+            return new Row(
+                    Type.GROUP,
+                    group,
+                    -1);
+        }
+
+        private static Row transfer(
+                int transferModelRow) {
+
+            return new Row(
+                    Type.TRANSFER,
+                    null,
+                    transferModelRow);
+        }
+
+        private boolean isGroup() {
+
+            return type == Type.GROUP;
+        }
+
+        private TransferGroupStateStore.GroupRecord getGroup() {
+
+            return group;
+        }
+
+        private int getTransferModelRow() {
+
+            return transferModelRow;
+        }
     }
 }
-
-/**
-
- * Unified UI row.
- *
- * Domain state'leri burada birleştirilmez.
- * Sadece hangi tip satır olduğunu ve ilgili kaynağın
- * referansını tutar.
- */
-private static final class Row {
-
-    private enum Type {
-        GROUP,
-        TRANSFER
-    }
-
-    private final Type type;
-
-    private final TransferGroupStateStore.GroupRecord group;
-
-    /*
-
-     * TransferTableModel içerisindeki satır numarası.
-     *
-     * Böylece mevcut TransferTableModel'in bütün
-     * gösterim mantığı korunur.
-     */
-    private final int transferModelRow;
-
-    private Row(
-            Type type,
-            TransferGroupStateStore.GroupRecord group,
-            int transferModelRow) {
-
-    
-        this.type =
-                type;
-
-        this.group =
-                group;
-
-        this.transferModelRow =
-                transferModelRow;
-    
-
-    }
-
-    private static Row group(
-            TransferGroupStateStore.GroupRecord group) {
-
-    
-        return new Row(
-                Type.GROUP,
-                group,
-                -1);
-    
-
-    }
-
-    private static Row transfer(
-            int transferModelRow) {
-
-    
-        return new Row(
-                Type.TRANSFER,
-                null,
-                transferModelRow);
-    
-
-    }
-
-    private boolean isGroup() {
-
-    
-        return type == Type.GROUP;
-    
-
-    }
-
-    private TransferGroupStateStore.GroupRecord getGroup() {
-
-    
-        return group;
-    
-
-    }
-
-    private int getTransferModelRow() {
-
-    
-        return transferModelRow;
-    
-
-    }
-}
-    }

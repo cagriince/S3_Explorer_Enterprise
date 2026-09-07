@@ -7,43 +7,29 @@ import javax.swing.*;
 import javax.swing.table.TableCellRenderer;
 import java.awt.*;
 
-/**
-
- * Combined Transfer tablosundaki Progress kolonunu render eder.
- *
- * Individual task:
- * 
- TransferRuntime -> percent
- 
- *
- * Group:
- * 
- GroupProgress -> completed / detected
- 
-
- */
 public class CombinedProgressRenderer
-        extends JProgressBar
+        extends JPanel
         implements TableCellRenderer {
-
-
-    private static final float BAR_SCALE =
-            0.6f;
+    
+    private final JProgressBar progressBar =
+            new JProgressBar(
+                    0,
+                    100);
 
     public CombinedProgressRenderer() {
 
-        setMinimum(0);
-        setMaximum(100);
+        setLayout(
+                new BorderLayout());
 
-        setBorderPainted(false);
-        setStringPainted(true);
+        progressBar.setStringPainted(
+                true);
 
-        Font currentFont =
-                getFont();
+        progressBar.setBorderPainted(
+                true);
 
-        setFont(
-                currentFont.deriveFont(
-                        16.0f));
+        add(
+                progressBar,
+                BorderLayout.CENTER);
     }
 
     @Override
@@ -55,68 +41,46 @@ public class CombinedProgressRenderer
             int row,
             int column) {
 
-        if (value instanceof TransferRuntime runtime) {
+        int percent = 0;
 
-            int percent =
+        if (value instanceof TransferCombinedTableModel.GroupProgress groupProgress) {
+
+            percent =
+                    groupProgress.getPercent();
+
+        } else if (value instanceof TransferRuntime runtime) {
+
+            percent =
                     runtime.getPercent();
-
-            setValue(percent);
-
-            setString(
-                    percent + " %");
-
-            return this;
         }
 
-        if (value instanceof TransferCombinedTableModel.GroupProgress progress) {
+        percent =
+                Math.max(
+                        0,
+                        Math.min(
+                                100,
+                                percent));
 
-            int percent =
-                    progress.getPercent();
+        progressBar.setValue(
+                percent);
 
-            setValue(percent);
+        progressBar.setString(
+                percent + "%");
 
-            setString(
-                    progress.getText());
+        if (isSelected) {
 
-            return this;
+            setBackground(
+                    table.getSelectionBackground());
+
+        } else {
+
+            setBackground(
+                    table.getBackground());
         }
 
-        setValue(0);
-        setString("");
+        progressBar.setBackground(
+                getBackground());
 
         return this;
     }
-
-    @Override
-    protected void paintComponent(
-            Graphics g) {
-
-        int y =
-                Math.round(
-                        getHeight()
-                                * (1 - BAR_SCALE)
-                                / 2.0f);
-
-        Graphics2D g2 =
-                (Graphics2D) g.create();
-
-        try {
-
-            g2.translate(
-                    0,
-                    y);
-
-            g2.scale(
-                    1.0,
-                    BAR_SCALE);
-
-            super.paintComponent(g2);
-
-        } finally {
-
-            g2.dispose();
-        }
-    }
-
-
 }
