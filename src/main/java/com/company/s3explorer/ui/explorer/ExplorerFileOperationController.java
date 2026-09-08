@@ -30,9 +30,12 @@ public final class ExplorerFileOperationController {
                         currentBucketSupplier);
     }
 
-    public void delete(S3FileItem item) {
+    public void delete(
+            S3FileItem item,
+            TransferGroup group) {
 
-        if (item == null || item.isParentFolder()) {
+        if (item == null
+                || item.isParentFolder()) {
             return;
         }
 
@@ -45,18 +48,39 @@ public final class ExplorerFileOperationController {
 
         if (item.isFolder()) {
 
-            transferManager.submitFolderDelete(
-                    item.getRepositoryName(),
-                    bucket,
-                    item.getKey());
+            if (group == null) {
+
+                transferManager.submitFolderDelete(
+                        item.getRepositoryName(),
+                        bucket,
+                        item.getKey());
+
+            } else {
+
+                throw new IllegalArgumentException(
+                        "Grouped folder delete is not supported " +
+                                "by this operation");
+            }
 
         } else {
 
-            transferManager.submitDelete(
-                    item.getRepositoryName(),
-                    bucket,
-                    item.getKey(),
-                    item.getSize());
+            if (group == null) {
+
+                transferManager.submitDelete(
+                        item.getRepositoryName(),
+                        bucket,
+                        item.getKey(),
+                        item.getSize());
+
+            } else {
+
+                transferManager.submitDelete(
+                        item.getRepositoryName(),
+                        bucket,
+                        item.getKey(),
+                        item.getSize(),
+                        group);
+            }
         }
     }
 

@@ -168,6 +168,37 @@ public class TransferManager {
                         .build()
         );
     }
+    
+    public void submitDelete(
+            String repositoryName,
+            String bucket,
+            String key,
+            long size,
+            TransferGroup group) {
+
+        if (group == null) {
+            throw new IllegalArgumentException(
+                    "Transfer group must not be null");
+        }
+
+        TransferTask task =
+                TransferTask.delete()
+                        .repositoryName(
+                                repositoryName)
+                        .bucket(
+                                bucket)
+                        .objectKey(
+                                key)
+                        .size(size)
+                        .affectsObjectList(true)
+                        .affectsFolderTree(false)
+                        .group(group)
+                        .build();
+
+        submitGroupedTask(
+                task,
+                group);
+    }
 
     public TransferGroup submitCopy(
             String repositoryName,
