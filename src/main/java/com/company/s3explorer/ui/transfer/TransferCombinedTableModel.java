@@ -1,10 +1,7 @@
 package com.company.s3explorer.ui.transfer;
 
 import com.company.s3explorer.transfer.TransferRuntime;
-import com.company.s3explorer.transfer.TransferStatus;
-import com.company.s3explorer.transfer.TransferType;
 import com.company.s3explorer.transfer.model.TransferGroup;
-import com.company.s3explorer.transfer.model.TransferTask;
 import com.company.s3explorer.ui.theme.UIThemeManager;
 import com.company.s3explorer.util.S3Util;
 
@@ -707,12 +704,12 @@ public class TransferCombinedTableModel
         String operation = group.getOperation();
         if ("COPY".equals(group.getOperation()) || "MOVE".equals(group.getOperation()) || "DELETE".equals(group.getOperation())) {
             display.append(
-                    displayBucket(
+                    S3Util.getTransferPanelDisplayBucketName(
                             group.getSourceRepository(),
                             group.getSourceBucket()));
 
             display.append(
-                    displayLastFileFolder(
+                    S3Util.getTransferPanelDisplayLastFileFolder(
                             group.getSourcePrefix()));
         }
 
@@ -742,51 +739,15 @@ public class TransferCombinedTableModel
         String operation = group.getOperation();
         if ("COPY".equals(group.getOperation()) || "MOVE".equals(group.getOperation())) {
             display.append(
-                    displayBucket(
+                    S3Util.getTransferPanelDisplayBucketName(
                             group.getTargetRepository(),
                             group.getTargetBucket()));
 
             display.append(
-                    displayLastFileFolder(
+                    S3Util.getTransferPanelDisplayLastFileFolder(
                             group.getTargetPrefix()));
         }
         
         return display.toString();
-    }
-
-    private String displayBucket(
-            String repository,
-            String bucket) {
-
-        return "<b><font color='"
-                + UIThemeManager.TRANSFER_PANEL_COLOR_BUCKET
-                + "'>"
-                + S3Util.escapeHtml(repository)
-                + " | "
-                + S3Util.escapeHtml(bucket)
-                + "</font> / </b>";
-    }
-
-    private String displayLastFileFolder(
-            String path) {
-
-        if (path == null) {
-            return "";
-        }
-
-        path = path.replace("\\", "/");
-
-        String folderPath =
-                S3Util.extractParentPrefix(path);
-
-        return "<b>"
-                + folderPath.replace(
-                "/",
-                " / ")
-                + "<font color='"
-                + UIThemeManager.TRANSFER_PANEL_COLOR_FILEFOLDER
-                + "'>"
-                + S3Util.escapeHtml(path.substring(folderPath.length()))
-                + "</font></b>";
     }
 }

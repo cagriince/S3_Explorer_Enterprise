@@ -184,42 +184,6 @@ public class TransferTableModel
         return maxRows;
     }
 
-    private String displayBucket(
-            String repository,
-            String bucket) {
-
-        return "<b><font color='"
-                + UIThemeManager.TRANSFER_PANEL_COLOR_BUCKET
-                + "'>"
-                + S3Util.escapeHtml(repository)
-                + " | "
-                + S3Util.escapeHtml(bucket)
-                + "</font> / </b>";
-    }
-
-    private String displayLastFileFolder(
-            String path) {
-
-        if (path == null) {
-            return "";
-        }
-
-        path = path.replace("\\", "/");
-
-        String folderPath =
-                S3Util.extractParentPrefix(path);
-
-        return "<b>"
-                + folderPath.replace(
-                "/",
-                " / ")
-                + "<font color='"
-                + UIThemeManager.TRANSFER_PANEL_COLOR_FILEFOLDER
-                + "'>"
-                + S3Util.escapeHtml(path.substring(folderPath.length()))
-                + "</font></b>";
-    }
-
     private String buildDisplayName(
             TransferTask task) {
 
@@ -267,12 +231,12 @@ public class TransferTableModel
                 == TransferType.CREATE_FOLDER) {
 
             display.append(
-                    displayBucket(
+                    S3Util.getTransferPanelDisplayBucketName(
                             task.getRepositoryName(),
                             task.getBucket()));
 
             display.append(
-                    displayLastFileFolder(
+                    S3Util.getTransferPanelDisplayLastFileFolder(
                             task.getObjectKey()));
 
         } else if (task.getType()
@@ -281,7 +245,7 @@ public class TransferTableModel
             if (task.getLocalPath() != null) {
 
                 display.append(
-                        displayLastFileFolder(
+                        S3Util.getTransferPanelDisplayLastFileFolder(
                                 task.getLocalPath()
                                         .toString()));
             }
@@ -296,12 +260,12 @@ public class TransferTableModel
                 == TransferType.MOVE) {
 
             display.append(
-                    displayBucket(
+                    S3Util.getTransferPanelDisplayBucketName(
                             task.getRepositoryName(),
                             task.getBucket()));
 
             display.append(
-                    displayLastFileFolder(
+                    S3Util.getTransferPanelDisplayLastFileFolder(
                             task.getObjectKey()));
         }
 
@@ -335,12 +299,12 @@ public class TransferTableModel
                 == TransferType.UPLOAD) {
 
             display.append(
-                    displayBucket(
+                    S3Util.getTransferPanelDisplayBucketName(
                             task.getTargetRepositoryName(),
                             task.getTargetBucket()));
 
             display.append(
-                    displayLastFileFolder(
+                    S3Util.getTransferPanelDisplayLastFileFolder(
                             task.getTargetObjectKey()));
 
         } else if (task.getType()
@@ -349,7 +313,7 @@ public class TransferTableModel
             if (task.getLocalPath() != null) {
 
                 display.append(
-                        displayLastFileFolder(
+                        S3Util.getTransferPanelDisplayLastFileFolder(
                                 task.getLocalPath()
                                         .toString()));
             }
@@ -360,12 +324,12 @@ public class TransferTableModel
                 == TransferType.MOVE) {
 
             display.append(
-                    displayBucket(
+                    S3Util.getTransferPanelDisplayBucketName(
                             task.getTargetRepositoryName(),
                             task.getTargetBucket()));
 
             display.append(
-                    displayLastFileFolder(
+                    S3Util.getTransferPanelDisplayLastFileFolder(
                             task.getTargetObjectKey()));
         }
 

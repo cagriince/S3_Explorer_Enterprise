@@ -1,6 +1,9 @@
 package com.company.s3explorer.util;
 
+import com.company.s3explorer.transfer.TransferType;
+import com.company.s3explorer.transfer.model.TransferTask;
 import com.company.s3explorer.ui.main.MainFrame;
+import com.company.s3explorer.ui.theme.UIThemeManager;
 
 import java.awt.*;
 import java.time.Instant;
@@ -87,5 +90,66 @@ public class S3Util {
                 .replace(">", "&gt;")
                 .replace("\"", "&quot;")
                 .replace("'", "&#39;");
+    }
+
+    public static String getTransferPanelDisplayBucketName(String repository, String bucket) {
+        return "<b><font color='"
+                + UIThemeManager.TRANSFER_PANEL_COLOR_BUCKET
+                + "'>"
+                + S3Util.escapeHtml(repository)
+                + " | "
+                + S3Util.escapeHtml(bucket)
+                + "</font> / </b>";
+    }
+
+    public static String getTransferPanelDisplayLastFileFolder(String path) {
+        if (path == null) {
+            return "";
+        }
+
+        path = path.replace("\\", "/");
+
+        String folderPath = S3Util.extractParentPrefix(path);
+
+        return "<b>"
+                + folderPath.replace(
+                "/",
+                " / ")
+                + "<font color='"
+                + UIThemeManager.TRANSFER_PANEL_COLOR_FILEFOLDER
+                + "'>"
+                + S3Util.escapeHtml(path.substring(folderPath.length()))
+                + "</font></b>";
+    }
+
+    public static String getTransferPanelTargetDisplayName(TransferType transferType, String repositoryName, String targetBucket, String targetObjectKey, String localPath) {
+        StringBuilder display = new StringBuilder();
+
+        if (transferType  == TransferType.UPLOAD) {
+            display.append(
+                    S3Util.getTransferPanelDisplayBucketName(
+                            repositoryName,
+                            targetBucket));
+
+            display.append(
+                    S3Util.getTransferPanelDisplayLastFileFolder(
+                            targetObjectKey));
+        } else if (transferType == TransferType.DOWNLOAD) {
+            if (localPath != null) {
+                display.append(S3Util.getTransferPanelDisplayLastFileFolder( localPath.toString()));
+            }
+
+        } else if (transferType == TransferType.COPY  || transferType == TransferType.MOVE) {
+            display.append(
+                    S3Util.getTransferPanelDisplayBucketName(
+                            repositoryName,
+                            targetBucket));
+
+            display.append(
+                    S3Util.getTransferPanelDisplayLastFileFolder(
+                            targetObjectKey));
+        }
+
+        return display.toString();
     }
 }
