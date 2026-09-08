@@ -30,6 +30,36 @@ public final class ExplorerFileOperationController {
                         currentBucketSupplier);
     }
 
+    public void delete(S3FileItem item) {
+
+        if (item == null || item.isParentFolder()) {
+            return;
+        }
+
+        String bucket =
+                currentBucketSupplier.get();
+
+        if (bucket == null) {
+            return;
+        }
+
+        if (item.isFolder()) {
+
+            transferManager.submitFolderDelete(
+                    item.getRepositoryName(),
+                    bucket,
+                    item.getKey());
+
+        } else {
+
+            transferManager.submitDelete(
+                    item.getRepositoryName(),
+                    bucket,
+                    item.getKey(),
+                    item.getSize());
+        }
+    }
+
     public void delete(
             S3FileItem item,
             TransferGroup group) {
@@ -83,7 +113,7 @@ public final class ExplorerFileOperationController {
             }
         }
     }
-
+   
     public void download(
             S3FileItem item,
             Path destination) {
