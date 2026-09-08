@@ -1,11 +1,13 @@
 package com.company.s3explorer.util;
 
 import com.company.s3explorer.transfer.TransferType;
+import com.company.s3explorer.transfer.model.TransferGroup;
 import com.company.s3explorer.transfer.model.TransferTask;
 import com.company.s3explorer.ui.main.MainFrame;
 import com.company.s3explorer.ui.theme.UIThemeManager;
 
 import java.awt.*;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Date;
 
@@ -92,7 +94,38 @@ public class S3Util {
                 .replace("'", "&#39;");
     }
 
-    public static String getTransferPanelDisplayBucketName(String repository, String bucket) {
+    public static String getTransferPanelProcessDetail(
+        TransferType type,
+        String groupName,
+        String sourceRepository,
+        String sourceBucket,
+        String sourcePrefix,
+        String targetRepository,
+        String targetBucket,
+        String targetPrefix,
+        Path localPath
+    ) {
+        StringBuilder sb = new StringBuilder();
+
+        sb.append("<html>");
+        if (groupName != null) {
+            sb.append(S3Util.getTransferPanelGroupName(groupName));
+            sb.append("<br />");
+        }
+        sb.append("\uD83D\uDFB3 ");
+        sb.append(S3Util.getTransferPanelSourceDisplayName(type, sourceRepository, sourceBucket, sourcePrefix, localPath));
+        String target = S3Util.getTransferPanelTargetDisplayName(type, targetRepository, targetBucket, targetPrefix, localPath);
+        if (!target.isEmpty()) {
+            sb.append("<br />=\uD83D\uDF82 ");
+            sb.append(target);
+        }
+
+        sb.append("</html>");
+
+        return sb.toString();
+    }
+    
+    private static String getTransferPanelDisplayBucketName(String repository, String bucket) {
         return "<b><font color='"
                 + UIThemeManager.TRANSFER_PANEL_COLOR_BUCKET
                 + "'>"
@@ -102,7 +135,7 @@ public class S3Util {
                 + "</font> / </b>";
     }
 
-    public static String getTransferPanelDisplayLastFileFolder(String path) {
+    private static String getTransferPanelDisplayLastFileFolder(String path) {
         if (path == null) {
             return "";
         }
@@ -122,13 +155,44 @@ public class S3Util {
                 + "</font></b>";
     }
 
-    public static String getTransferPanelTargetDisplayName(TransferType transferType, String repositoryName, String targetBucket, String targetObjectKey, String localPath) {
+    private static String getTransferPanelSourceDisplayName(TransferType transferType, String sourceRepository, String sourceBucket, String soruceObjectKey, Path localPath) {
+
+        StringBuilder display = new StringBuilder();
+
+        if (transferType == TransferType.CREATE_FOLDER) {
+            display.append(
+                    S3Util.getTransferPanelDisplayBucketName(
+                            sourceRepository,
+                            sourceBucket));
+            display.append(
+                    S3Util.getTransferPanelDisplayLastFileFolder(
+                            soruceObjectKey));
+        } else if (transferType == TransferType.UPLOAD) {
+            if (localPath != null) {
+                display.append(
+                        S3Util.getTransferPanelDisplayLastFileFolder(
+                                localPath.toString()));
+            }
+        } else if (transferType == TransferType.DOWNLOAD || transferType == TransferType.DELETE || transferType == TransferType.COPY || transferType == TransferType.MOVE) {
+            display.append(
+                    S3Util.getTransferPanelDisplayBucketName(
+                            sourceRepository,
+                            sourceBucket));
+            display.append(
+                    S3Util.getTransferPanelDisplayLastFileFolder(
+                            soruceObjectKey));
+        }
+
+        return display.toString();
+    }
+
+    private static String getTransferPanelTargetDisplayName(TransferType transferType, String targetRepository, String targetBucket, String targetObjectKey, Path localPath) {
         StringBuilder display = new StringBuilder();
 
         if (transferType  == TransferType.UPLOAD) {
             display.append(
                     S3Util.getTransferPanelDisplayBucketName(
-                            repositoryName,
+                            targetRepository,
                             targetBucket));
 
             display.append(
@@ -142,7 +206,7 @@ public class S3Util {
         } else if (transferType == TransferType.COPY  || transferType == TransferType.MOVE) {
             display.append(
                     S3Util.getTransferPanelDisplayBucketName(
-                            repositoryName,
+                            targetRepository,
                             targetBucket));
 
             display.append(
@@ -151,5 +215,17 @@ public class S3Util {
         }
 
         return display.toString();
+    }
+
+    private static String getTransferPanelGroupName(String groupName) {
+        if (groupName == null) {
+            return "";
+        }
+
+        return "<b><font color='"
+                + UIThemeManager.TRANSFER_PANEL_COLOR_GROUP
+                + "'>"
+                + S3Util.escapeHtml(groupName)
+                + "</font></b>";
     }
 }

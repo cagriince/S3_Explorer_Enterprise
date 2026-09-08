@@ -77,20 +77,18 @@ public class TransferTableModel
             return "";
         }
 
-        TransferRuntime runtime =
-                runtimes.get(row);
-
+        TransferRuntime runtime = runtimes.get(row);
+        TransferTask task = runtime.getTask();
         return switch (column) {
 
             case 0 ->
                     runtime.getTask().getType();
 
             case 1 ->
-                    buildDisplayName(
-                            runtime.getTask());
-
+                    S3Util.getTransferPanelProcessDetail(task.getType(), task.getGroup().getDisplayName(), task.getRepositoryName(), task.getBucket(), task.getObjectKey(), task.getTargetRepositoryName(), task.getTargetBucket(), task.getTargetObjectKey(), task.getLocalPath());
+            
             case 2 ->
-                    runtime.getTask().getSize();
+                    task.getSize();
 
             case 3 ->
                     runtime;
@@ -182,157 +180,5 @@ public class TransferTableModel
 
     public int getMaxRows() {
         return maxRows;
-    }
-
-    private String buildDisplayName(
-            TransferTask task) {
-
-        StringBuilder sb =
-                new StringBuilder();
-
-        sb.append("<html>");
-
-        if (task.getGroup() != null) {
-
-            sb.append(
-                    displayGroupName(task));
-
-            sb.append("<br />");
-        }
-
-        sb.append("\uD83D\uDFB3 ");
-
-        sb.append(
-                buildSourceDisplayName(task));
-
-        String target =
-                buildTargetDisplayName(task);
-
-        if (!target.isEmpty()) {
-
-            sb.append(
-                    "<br />=\uD83D\uDF82 ");
-
-            sb.append(target);
-        }
-
-        sb.append("</html>");
-
-        return sb.toString();
-    }
-
-    private String buildSourceDisplayName(
-            TransferTask task) {
-
-        StringBuilder display =
-                new StringBuilder();
-
-        if (task.getType()
-                == TransferType.CREATE_FOLDER) {
-
-            display.append(
-                    S3Util.getTransferPanelDisplayBucketName(
-                            task.getRepositoryName(),
-                            task.getBucket()));
-
-            display.append(
-                    S3Util.getTransferPanelDisplayLastFileFolder(
-                            task.getObjectKey()));
-
-        } else if (task.getType()
-                == TransferType.UPLOAD) {
-
-            if (task.getLocalPath() != null) {
-
-                display.append(
-                        S3Util.getTransferPanelDisplayLastFileFolder(
-                                task.getLocalPath()
-                                        .toString()));
-            }
-
-        } else if (task.getType()
-                == TransferType.DOWNLOAD
-                || task.getType()
-                == TransferType.DELETE
-                || task.getType()
-                == TransferType.COPY
-                || task.getType()
-                == TransferType.MOVE) {
-
-            display.append(
-                    S3Util.getTransferPanelDisplayBucketName(
-                            task.getRepositoryName(),
-                            task.getBucket()));
-
-            display.append(
-                    S3Util.getTransferPanelDisplayLastFileFolder(
-                            task.getObjectKey()));
-        }
-
-        return display.toString();
-    }
-
-    private static String displayGroupName(
-            TransferTask task) {
-
-        TransferGroup group =
-                task.getGroup();
-
-        if (group == null) {
-            return "";
-        }
-
-        return "<b><font color='"
-                + UIThemeManager.TRANSFER_PANEL_COLOR_GROUP
-                + "'>"
-                + S3Util.escapeHtml(group.getDisplayName())
-                + "</font></b>";
-    }
-
-    private String buildTargetDisplayName(
-            TransferTask task) {
-
-        StringBuilder display =
-                new StringBuilder();
-
-        if (task.getType()
-                == TransferType.UPLOAD) {
-
-            display.append(
-                    S3Util.getTransferPanelDisplayBucketName(
-                            task.getTargetRepositoryName(),
-                            task.getTargetBucket()));
-
-            display.append(
-                    S3Util.getTransferPanelDisplayLastFileFolder(
-                            task.getTargetObjectKey()));
-
-        } else if (task.getType()
-                == TransferType.DOWNLOAD) {
-
-            if (task.getLocalPath() != null) {
-
-                display.append(
-                        S3Util.getTransferPanelDisplayLastFileFolder(
-                                task.getLocalPath()
-                                        .toString()));
-            }
-
-        } else if (task.getType()
-                == TransferType.COPY
-                || task.getType()
-                == TransferType.MOVE) {
-
-            display.append(
-                    S3Util.getTransferPanelDisplayBucketName(
-                            task.getTargetRepositoryName(),
-                            task.getTargetBucket()));
-
-            display.append(
-                    S3Util.getTransferPanelDisplayLastFileFolder(
-                            task.getTargetObjectKey()));
-        }
-
-        return display.toString();
     }
 }

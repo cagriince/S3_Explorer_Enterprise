@@ -1,5 +1,7 @@
 package com.company.s3explorer.transfer.model;
 
+import com.company.s3explorer.transfer.TransferType;
+
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -29,7 +31,7 @@ public class TransferGroup {
      * source / target:
      *     UI'da gösterilecek kaynak/hedef bilgisi.
      */
-    private final String operation;
+    private final TransferType operation;
     private final String source;
     private final String target;
 
@@ -106,7 +108,7 @@ public class TransferGroup {
     public TransferGroup(
             UUID id,
             String displayName,
-            String operation,
+            TransferType operation,
             String source,
             String target) {
 
@@ -130,7 +132,7 @@ public class TransferGroup {
     public TransferGroup(
             UUID id,
             String displayName,
-            String operation,
+            TransferType operation,
             String source,
             String target,
             String sourceRepository,
@@ -163,7 +165,7 @@ public class TransferGroup {
         return displayName;
     }
 
-    public String getOperation() {
+    public TransferType getOperation() {
         return operation;
     }
 

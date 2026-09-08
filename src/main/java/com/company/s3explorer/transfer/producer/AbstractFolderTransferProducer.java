@@ -1,5 +1,6 @@
 package com.company.s3explorer.transfer.producer;
 
+import com.company.s3explorer.transfer.TransferType;
 import com.company.s3explorer.transfer.context.TransferContext;
 import com.company.s3explorer.transfer.model.TransferGroup;
 import com.company.s3explorer.transfer.model.TransferTask;
@@ -249,8 +250,7 @@ public abstract class AbstractFolderTransferProducer
                 repository,
                 bucket,
                 prefix,
-                "MOVE".equalsIgnoreCase(
-                        group.getOperation()));
+                group.getOperation() == TransferType.MOVE);
     }
 
     @Override

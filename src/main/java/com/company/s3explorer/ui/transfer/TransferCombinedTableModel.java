@@ -281,11 +281,7 @@ public class TransferCombinedTableModel
              * Process
              */
             case 0:
-
-                return safe(
-                        group.getGroup() != null
-                                ? group.getGroup().getOperation()
-                                : null);
+                return group.getGroup().getOperation();
 
             /*
              * Process Detail
@@ -294,9 +290,7 @@ public class TransferCombinedTableModel
              * HTML mantığı kullanılır.
              */
             case 1:
-
-                return buildGroupProcessDetail(
-                        group);
+                return buildGroupProcessDetail(group);
 
             /*
              * Size
@@ -364,92 +358,13 @@ public class TransferCombinedTableModel
         }
     }
 
-    private String buildGroupProcessDetail(
-            TransferGroupStateStore.GroupRecord group) {
-        TransferGroup transferGroup =
-                group.getGroup();
+    private String buildGroupProcessDetail(TransferGroupStateStore.GroupRecord group) {
+        TransferGroup transferGroup = group.getGroup();
         if (transferGroup == null) {
             return "";
         }
         
-        return buildDisplayName(transferGroup);
-/*
-        TransferGroup transferGroup =
-                group.getGroup();
-
-        if (transferGroup == null) {
-            return "";
-        }
-
-        String groupName =
-                safe(
-                        transferGroup.getDisplayName());
-
-        String source =
-                safe(
-                        transferGroup.getSource());
-
-        String target =
-                safe(
-                        transferGroup.getTarget());
-
-        StringBuilder sb =
-                new StringBuilder();
-
-        sb.append("<html>");
-
-        if (!groupName.isEmpty()) {
-
-            sb.append(
-                            "<b><font color='")
-                    .append(
-                            UIThemeManager
-                                    .TRANSFER_PANEL_COLOR_GROUP)
-                    .append("'>")
-                    .append(
-                            S3Util.escapeHtml(groupName))
-                    .append(
-                            "</font></b>");
-        }
-
-        if (!source.isEmpty()) {
-
-            if (sb.length() > 12) {
-                sb.append("<br />");
-            }
-
-            sb.append(
-                            "<b><font color='")
-                    .append(
-                            UIThemeManager
-                                    .TRANSFER_PANEL_COLOR_BUCKET)
-                    .append("'>")
-                    .append(
-                            S3Util.escapeHtml(source))
-                    .append(
-                            "</font></b>");
-        }
-
-        if (!target.isEmpty()) {
-
-            sb.append(
-                    "<br />");
-
-            sb.append(
-                            "<b><font color='")
-                    .append(
-                            UIThemeManager
-                                    .TRANSFER_PANEL_COLOR_FILEFOLDER)
-                    .append("'>")
-                    .append(
-                            S3Util.escapeHtml(target))
-                    .append(
-                            "</font></b>");
-        }
-
-        sb.append("</html>");
-
-        return sb.toString();*/
+        return S3Util.getTransferPanelProcessDetail(transferGroup.getOperation(), transferGroup.getDisplayName(), transferGroup.getSourceRepository(), transferGroup.getSourceBucket(), transferGroup.getSourcePrefix(), transferGroup.getTargetRepository(), transferGroup.getTargetBucket(), transferGroup.getTargetPrefix(), null);
     }
 
     private String buildGroupSummary(
@@ -668,86 +583,5 @@ public class TransferCombinedTableModel
 
             return transferModelRow;
         }
-    }
-
-    private String buildDisplayName(
-            TransferGroup group) {
-
-        StringBuilder sb = new StringBuilder();
-
-        sb.append("<html>");
-        sb.append(displayGroupName(group));
-        sb.append("<br />");
-
-        sb.append("\uD83D\uDFB3 ");
-
-        sb.append(buildSourceDisplayName(group));
-
-        String target = buildTargetDisplayName(group);
-
-        if (!target.isEmpty()) {
-            sb.append( "<br />=\uD83D\uDF82 ");
-            sb.append(target);
-        }
-
-        sb.append("</html>");
-
-        return sb.toString();
-    }
-
-    private String buildSourceDisplayName(
-            TransferGroup group) {
-
-        StringBuilder display =
-                new StringBuilder();
-
-        String operation = group.getOperation();
-        if ("COPY".equals(group.getOperation()) || "MOVE".equals(group.getOperation()) || "DELETE".equals(group.getOperation())) {
-            display.append(
-                    S3Util.getTransferPanelDisplayBucketName(
-                            group.getSourceRepository(),
-                            group.getSourceBucket()));
-
-            display.append(
-                    S3Util.getTransferPanelDisplayLastFileFolder(
-                            group.getSourcePrefix()));
-        }
-
-        return display.toString();
-    }
-
-    private static String displayGroupName(
-            TransferGroup group) {
-
-        if (group == null) {
-            return "";
-        }
-
-        return "<b><font color='"
-                + UIThemeManager.TRANSFER_PANEL_COLOR_GROUP
-                + "'>"
-                + S3Util.escapeHtml(group.getDisplayName())
-                + "</font></b>";
-    }
-
-    private String buildTargetDisplayName(
-            TransferGroup group) {
-
-        StringBuilder display =
-                new StringBuilder();
-
-        String operation = group.getOperation();
-        if ("COPY".equals(group.getOperation()) || "MOVE".equals(group.getOperation())) {
-            display.append(
-                    S3Util.getTransferPanelDisplayBucketName(
-                            group.getTargetRepository(),
-                            group.getTargetBucket()));
-
-            display.append(
-                    S3Util.getTransferPanelDisplayLastFileFolder(
-                            group.getTargetPrefix()));
-        }
-        
-        return display.toString();
     }
 }

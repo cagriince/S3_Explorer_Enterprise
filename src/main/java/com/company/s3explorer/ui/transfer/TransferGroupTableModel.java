@@ -1,5 +1,7 @@
 package com.company.s3explorer.ui.transfer;
 
+import com.company.s3explorer.transfer.TransferType;
+
 import javax.swing.table.AbstractTableModel;
 import java.util.ArrayList;
 import java.util.List;
@@ -185,23 +187,13 @@ public class TransferGroupTableModel extends AbstractTableModel {
      * COPY / MOVE gibi değerler artık displayName'den
      * tahmin edilmez.
      */
-    private String getOperation(
-            TransferGroupStateStore.GroupRecord record) {
+    private TransferType getOperation(TransferGroupStateStore.GroupRecord record) {
 
         if (record.getGroup() == null) {
-            return "";
+            return null;
         }
 
-        String operation =
-                record.getGroup().getOperation();
-
-        if (operation == null
-                || operation.isBlank()) {
-
-            return "";
-        }
-
-        return operation;
+        return record.getGroup().getOperation();
     }
 
     /**
@@ -351,9 +343,11 @@ public class TransferGroupTableModel extends AbstractTableModel {
     }
 
     @Override
-    public Class<?> getColumnClass(
-            int columnIndex) {
-
+    public Class<?> getColumnClass(int columnIndex) {
+        if (columnIndex == 0) {
+            return TransferType.class;
+        }
+        
         return String.class;
     }
 }

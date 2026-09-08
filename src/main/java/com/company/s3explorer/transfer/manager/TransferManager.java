@@ -2,6 +2,7 @@ package com.company.s3explorer.transfer.manager;
 
 import com.company.s3explorer.service.S3ClientManager;
 import com.company.s3explorer.service.S3ExplorerService;
+import com.company.s3explorer.transfer.TransferType;
 import com.company.s3explorer.transfer.context.TransferContext;
 import com.company.s3explorer.transfer.event.TransferEventBus;
 import com.company.s3explorer.transfer.factory.TransferOperationFactory;
@@ -180,7 +181,7 @@ public class TransferManager {
 
         TransferGroup group =
                 createObjectOperationGroup(
-                        "COPY",
+                        TransferType.COPY,
                         repositoryName,
                         bucket,
                         keySource,
@@ -279,7 +280,7 @@ public class TransferManager {
 
         TransferGroup group =
                 createObjectOperationGroup(
-                        "MOVE",
+                        TransferType.MOVE,
                         repositoryName,
                         bucket,
                         keySource,
@@ -398,7 +399,7 @@ public class TransferManager {
 
         TransferGroup group =
                 createFolderOperationGroup(
-                        "DELETE",
+                        TransferType.DELETE,
                         repositoryName,
                         bucket,
                         prefix,
@@ -477,7 +478,7 @@ public class TransferManager {
 
         TransferGroup group =
                 createFolderOperationGroup(
-                        "COPY",
+                        TransferType.COPY,
                         repositoryName,
                         sourceBucket,
                         sourcePrefix,
@@ -556,7 +557,7 @@ public class TransferManager {
 
         TransferGroup group =
                 createFolderOperationGroup(
-                        "MOVE",
+                        TransferType.MOVE,
                         repositoryName,
                         sourceBucket,
                         sourcePrefix,
@@ -758,7 +759,7 @@ public class TransferManager {
     }
 
     public TransferGroup createOperationGroup(
-            String operation,
+            TransferType operation,
             String displayName,
             String sourceRepository,
             String sourceBucket,
@@ -800,7 +801,7 @@ public class TransferManager {
     }
 
     private TransferGroup createObjectOperationGroup(
-            String operation,
+            TransferType operation,
             String sourceRepository,
             String sourceBucket,
             String sourceKey,
@@ -844,7 +845,7 @@ public class TransferManager {
     }
     
     private TransferGroup createFolderOperationGroup(
-            String operation,
+            TransferType operation,
             String sourceRepository,
             String sourceBucket,
             String sourcePrefix,

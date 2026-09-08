@@ -6,6 +6,7 @@ import com.company.s3explorer.repository.RepositoryManager;
 import com.company.s3explorer.service.*;
 import com.company.s3explorer.transfer.TransferRuntime;
 import com.company.s3explorer.transfer.TransferStatus;
+import com.company.s3explorer.transfer.TransferType;
 import com.company.s3explorer.transfer.event.TransferEventBus;
 import com.company.s3explorer.transfer.event.TransferGroupCompletedEvent;
 import com.company.s3explorer.transfer.event.TransferListener;
@@ -2244,15 +2245,15 @@ public class ExplorerPanel extends JPanel {
                                     item.getKey());
                 }
 
-                String operationName =
+                TransferType groupOperation =
                         operation ==
                                 ExplorerClipboard.Operation.COPY
-                                ? "COPY"
-                                : "MOVE";
+                                ? TransferType.COPY
+                                : TransferType.MOVE;
 
                 group =
                         transferManager.createOperationGroup(
-                                operationName,
+                                groupOperation,
                                 groupName,
                                 item.getRepositoryName(),
                                 item.getBucket(),
@@ -2271,7 +2272,7 @@ public class ExplorerPanel extends JPanel {
 
                 log.info(
                         "[PASTE GROUP] created operation={} group={} sourcePrefix={} targetPrefix={} sourceRefreshRequired={}",
-                        operationName,
+                        groupOperation,
                         group.getDisplayName(),
                         sourcePrefix,
                         targetSubmissionKey,
