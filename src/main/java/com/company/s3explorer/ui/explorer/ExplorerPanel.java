@@ -2488,7 +2488,7 @@ public class ExplorerPanel extends JPanel {
                                 sourcePrefix,
                                 getCurrentRepository().getName(),
                                 targetBucket,
-                                targetSubmissionKey);
+                                targetPrefix);
 
                 transferManager.configureGroupCompletion(
                         group,
