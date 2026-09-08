@@ -1847,11 +1847,9 @@ public class ExplorerPanel extends JPanel {
             return;
         }
 
-        String currentBucket =
-                getCurrentBucket();
-
-        String currentPrefix =
-                getCurrentPrefix();
+        String currentBucket = currentFileBucket;
+        
+        String currentPrefix = currentFilePrefix;
 
         /*
          * -------------------------------------------------
