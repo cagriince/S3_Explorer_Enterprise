@@ -81,7 +81,7 @@ public class ExplorerRefreshScheduler {
 
         scheduleTimer();
     }
-   
+
     /**
      * Mevcut File Table'ın refresh edilmesini ister.
      *
@@ -94,15 +94,14 @@ public class ExplorerRefreshScheduler {
         scheduleTimer();
     }
 
+    /**
+     * Refresh timer'ını güvenli şekilde kurar.
+     *
+     * Worker thread'lerinden gelen transfer event'leri
+     * doğrudan Swing Timer'a dokunmaz.
+     */
     private void scheduleTimer() {
 
-        /*
-         * Aynı anda binlerce transfer tamamlanırsa
-         * binlerce invokeLater üretme.
-         *
-         * Yalnızca ilk event EDT'ye timer kurulması
-         * için bir task gönderir.
-         */
         if (!refreshScheduled.compareAndSet(
                 false,
                 true)) {
@@ -114,6 +113,11 @@ public class ExplorerRefreshScheduler {
 
             refreshScheduled.set(false);
 
+            /*
+             * Yeni bir refresh isteği timer kurulmadan
+             * önce geldiyse mevcut timer'ın süresini
+             * yeniden başlatıyoruz.
+             */
             timer.restart();
         });
     }
@@ -121,11 +125,21 @@ public class ExplorerRefreshScheduler {
     private void executeRefresh() {
 
         /*
+         * Önce o anda bekleyen refresh isteklerini
+         * atomik olarak tüket.
+         *
+         * Böylece callback çalışırken yeni bir refresh
+         * isteği gelirse kaybolmaz.
+         */
+        boolean refreshTable =
+                currentTableRefreshPending;
+
+        currentTableRefreshPending = false;
+
+        /*
          * Current File Table
          */
-        if (currentTableRefreshPending) {
-
-            currentTableRefreshPending = false;
+        if (refreshTable) {
 
             currentTableRefreshAction.run();
         }
@@ -146,6 +160,18 @@ public class ExplorerRefreshScheduler {
 
                 refreshAction.accept(prefix);
             }
+        }
+
+        /*
+         * executeRefresh() çalışırken yeni bir refresh
+         * isteği geldiyse onu kaybetme.
+         *
+         * Yeni event zaten timer'ı schedule etmiş olabilir.
+         */
+        if (currentTableRefreshPending
+                || !pendingPrefixes.isEmpty()) {
+
+            scheduleTimer();
         }
     }
 
