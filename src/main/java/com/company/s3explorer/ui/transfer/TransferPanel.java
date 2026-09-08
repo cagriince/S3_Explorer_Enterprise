@@ -1718,7 +1718,152 @@ public class TransferPanel
             TransferCombinedTableModel model) {
 
         JTable table =
-                new JTable(model);
+                new JTable(model) {
+
+                    @Override
+                    public Component prepareRenderer(
+                            javax.swing.table.TableCellRenderer renderer,
+                            int row,
+                            int column) {
+
+                        Component component =
+                                super.prepareRenderer(
+                                        renderer,
+                                        row,
+                                        column);
+
+                        /*
+                         * Model row:
+                         *
+                         * Combined model'de sorter olmadığı için
+                         * view row == model row.
+                         */
+                        boolean groupRow =
+                                model.isGroupRow(row);
+
+                        boolean selected =
+                                isRowSelected(row);
+
+                        /*
+                         * Seçili satırda Swing'in mevcut
+                         * selection renklerini kesinlikle bozma.
+                         */
+                        if (selected) {
+
+                            return component;
+                        }
+
+                        if (groupRow) {
+
+                            /*
+                             * Tema bağımsız grup satırı görünümü.
+                             *
+                             * Sabit RGB kullanmıyoruz.
+                             * Mevcut JTable background renginden
+                             * türetilmiş hafif bir varyasyon
+                             * kullanıyoruz.
+                             */
+                            Color base =
+                                    getBackground();
+
+                            Color groupBackground =
+                                    createGroupBackground(
+                                            base);
+
+                            component.setBackground(
+                                    groupBackground);
+
+                            /*
+                             * Grup satırındaki yazıları
+                             * biraz daha belirgin yap.
+                             */
+                            if (component instanceof javax.swing.JLabel label) {
+
+                                Font font =
+                                        label.getFont();
+
+                                if (font != null) {
+
+                                    label.setFont(
+                                            font.deriveFont(
+                                                    Font.BOLD));
+                                }
+                            }
+
+                        } else {
+
+                            /*
+                             * Normal transfer satırı:
+                             *
+                             * JTable'ın mevcut tema görünümü.
+                             */
+                            component.setBackground(
+                                    getBackground());
+                        }
+
+                        return component;
+                    }
+
+                    private Color createGroupBackground(
+                            Color base) {
+
+                        if (base == null) {
+                            return null;
+                        }
+
+                        /*
+                         * HSL/HSB gibi tema bağımlı sabit bir
+                         * renk seçmek yerine mevcut background
+                         * rengini çok hafifçe aydınlatıyor veya
+                         * koyulaştırıyoruz.
+                         *
+                         * Böylece:
+                         *
+                         * Light theme -> hafif farklı açık ton
+                         * Dark theme  -> hafif farklı koyu ton
+                         */
+                        float[] hsb =
+                                Color.RGBtoHSB(
+                                        base.getRed(),
+                                        base.getGreen(),
+                                        base.getBlue(),
+                                        null);
+
+                        float brightness =
+                                hsb[2];
+
+                        float saturation =
+                                hsb[1];
+
+                        float newBrightness;
+
+                        if (brightness < 0.5f) {
+
+                            /*
+                             * Dark theme
+                             */
+                            newBrightness =
+                                    Math.min(
+                                            1.0f,
+                                            brightness + 0.08f);
+
+                        } else {
+
+                            /*
+                             * Light theme
+                             */
+                            newBrightness =
+                                    Math.max(
+                                            0.0f,
+                                            brightness - 0.04f);
+                        }
+
+                        return Color.getHSBColor(
+                                hsb[0],
+                                saturation,
+                                newBrightness);
+                    }
+                };
 
         table.setRowHeight(54);
 
@@ -1804,6 +1949,5 @@ public class TransferPanel
                 .setReorderingAllowed(false);
 
         return table;
-
     }
 }
