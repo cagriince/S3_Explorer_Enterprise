@@ -747,6 +747,18 @@ public class TransferManager {
                     "Transfer group must not be null");
         }
 
+        /*
+         * File-level grouped task'larda discovery producer
+         * olmadığı için detected sayısını burada artırıyoruz.
+         *
+         * Folder producer'lar kendi discovery lifecycle'larında
+         * detected() çağrısını zaten yapıyor.
+         */
+        group.detected(
+                Math.max(
+                        0L,
+                        task.getSize()));
+
         queue.add(task);
     }
 
