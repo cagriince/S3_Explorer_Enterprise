@@ -1851,6 +1851,20 @@ public class ExplorerPanel extends JPanel {
         
         String currentPrefix = currentFilePrefix;
 
+        log.info(
+                "[EXPLORER GROUP REFRESH STATE] " +
+                        "currentFileBucket={} " +
+                        "currentFilePrefix={} " +
+                        "currentBucket={} " +
+                        "currentPrefix={} " +
+                        "targetBucket={} " +
+                        "targetPrefix={}",
+                currentFileBucket,
+                currentFilePrefix,
+                currentBucket,
+                currentPrefix,
+                group.getTargetBucket(),
+                group.getTargetPrefix());
         /*
          * -------------------------------------------------
          * SOURCE REFRESH
@@ -1973,6 +1987,7 @@ public class ExplorerPanel extends JPanel {
          * yeni object/folder geldiği için ADD refresh
          * gerekir.
          */
+        
         TransferType operation =
                 group.getOperation();
 
@@ -2037,6 +2052,14 @@ public class ExplorerPanel extends JPanel {
                     getParentPrefix(targetPrefix);
         }
 
+        log.info(
+                "[EXPLORER TARGET MATCH] " +
+                        "currentBucket={} targetBucket={} " +
+                        "currentPrefix={} targetRefreshPrefix={}",
+                currentBucket,
+                targetBucket,
+                currentPrefix,
+                targetRefreshPrefix);
         /*
          * TreeController yalnızca mevcut bucket üzerinde
          * çalışır. Başka bucket/repository için burada
@@ -2640,17 +2663,6 @@ public class ExplorerPanel extends JPanel {
                     pendingFileTableSelectionKeys,
                     restoreFileTableFocus,
                     forceFileTableFocusAfterRefresh);
-
-            /*
-             * A transfer may have completed while the overwrite
-             * dialogs for the remaining items were still open.
-             *
-             * If the accepted item is already present in the table,
-             * restore its selection immediately without triggering
-             * another reload.
-             */
-            SwingUtilities.invokeLater(
-                    this::restorePendingPasteSelection);
 
         } else {
 
