@@ -1733,8 +1733,6 @@ public class TransferPanel
                                         column);
 
                         /*
-                         * Model row:
-                         *
                          * Combined model'de sorter olmadığı için
                          * view row == model row.
                          */
@@ -1749,7 +1747,6 @@ public class TransferPanel
                          * selection renklerini kesinlikle bozma.
                          */
                         if (selected) {
-
                             return component;
                         }
 
@@ -1773,23 +1770,6 @@ public class TransferPanel
                             component.setBackground(
                                     groupBackground);
 
-                            /*
-                             * Grup satırındaki yazıları
-                             * biraz daha belirgin yap.
-                             */
-                            if (component instanceof javax.swing.JLabel label) {
-
-                                Font font =
-                                        label.getFont();
-
-                                if (font != null) {
-
-                                    label.setFont(
-                                            font.deriveFont(
-                                                    Font.BOLD));
-                                }
-                            }
-
                         } else {
 
                             /*
@@ -1800,6 +1780,25 @@ public class TransferPanel
                             component.setBackground(
                                     getBackground());
                         }
+
+                        /*
+                         * ÖNEMLİ:
+                         *
+                         * Burada artık fontu değiştirmiyoruz.
+                         *
+                         * Grup satırında daha önce:
+                         *
+                         *     Font.BOLD
+                         *
+                         * uygulanıyordu.
+                         *
+                         * Bu, HTML Process Detail içeriğinin
+                         * birkaç piksel genişlemesine ve son
+                         * satırın aşağı taşmasına neden oluyordu.
+                         *
+                         * Grup adı zaten S3Util tarafından kendi
+                         * içinde bold olarak oluşturuluyor.
+                         */
 
                         return component;
                     }
@@ -1812,15 +1811,14 @@ public class TransferPanel
                         }
 
                         /*
-                         * HSL/HSB gibi tema bağımlı sabit bir
-                         * renk seçmek yerine mevcut background
-                         * rengini çok hafifçe aydınlatıyor veya
-                         * koyulaştırıyoruz.
+                         * Mevcut tema background renginden
+                         * hafif bir varyasyon üret.
                          *
-                         * Böylece:
+                         * Dark theme:
+                         *     biraz aydınlat.
                          *
-                         * Light theme -> hafif farklı açık ton
-                         * Dark theme  -> hafif farklı koyu ton
+                         * Light theme:
+                         *     biraz koyulaştır.
                          */
                         float[] hsb =
                                 Color.RGBtoHSB(
