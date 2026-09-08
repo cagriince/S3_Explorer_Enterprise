@@ -85,7 +85,7 @@ public class TransferTableModel
                     runtime.getTask().getType();
 
             case 1 ->
-                    S3Util.getTransferPanelProcessDetail(task.getType(), task.getGroup().getDisplayName(), task.getRepositoryName(), task.getBucket(), task.getObjectKey(), task.getTargetRepositoryName(), task.getTargetBucket(), task.getTargetObjectKey(), task.getLocalPath());
+                    S3Util.getTransferPanelProcessDetail(task.getType(), task.getGroup() != null ? task.getGroup().getDisplayName() : null, task.getRepositoryName(), task.getBucket(), task.getObjectKey(), task.getTargetRepositoryName(), task.getTargetBucket(), task.getTargetObjectKey(), task.getLocalPath());
             
             case 2 ->
                     task.getSize();

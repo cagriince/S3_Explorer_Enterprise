@@ -1723,14 +1723,55 @@ public class ExplorerPanel extends JPanel {
             return;
         }
 
+        /*
+         * ---------------------------------------------------------
+         * GROUP TASK
+         * ---------------------------------------------------------
+         *
+         * Bir TransferGroup'a ait task'ın tamamlanması,
+         * Explorer refresh'i için yeterli değildir.
+         *
+         * Group devam ederken her task completion event'i
+         * File Table / Tree refresh edersek:
+         *
+         *     task 1 → refresh
+         *     task 2 → refresh
+         *     task 3 → refresh
+         *     ...
+         *
+         * şeklinde gereksiz reload oluşur.
+         *
+         * Group'un tamamlanmasını bekliyoruz.
+         *
+         * Final refresh onTransferGroupCompleted()
+         * tarafından yapılacaktır.
+         */
+        if (task.getGroup() != null) {
+
+            log.debug(
+                    "[EXPLORER REFRESH] grouped task completed; " +
+                            "refresh deferred until group completion. " +
+                            "task={} group={}",
+                    task.getObjectKey(),
+                    task.getGroup().getDisplayName());
+
+            return;
+        }
+
+        /*
+         * ---------------------------------------------------------
+         * STANDALONE TASK
+         * ---------------------------------------------------------
+         *
+         * Group'a bağlı olmayan normal işlemlerde
+         * mevcut refresh davranışı devam eder.
+         */
+
         Set<RefreshTreeNode> affectedPrefixes =
                 task.getAffectedPrefixes();
 
         /*
-         * File Table'ın yenilenmesi gerekiyorsa
-         * doğrudan loadFiles() çağırma.
-         *
-         * Scheduler bunu debounce edecektir.
+         * File Table refresh.
          */
         if (task.isAffectsObjectList()) {
 
@@ -1784,11 +1825,13 @@ public class ExplorerPanel extends JPanel {
 
         log.debug(
                 "[EXPLORER GROUP COMPLETED] group={} " +
+                        "operation={} " +
                         "finished={} successful={} " +
                         "queued={} running={} completed={} " +
                         "failed={} cancelled={} " +
                         "sourceRefreshRequired={}",
                 group.getDisplayName(),
+                group.getOperation(),
                 group.isFinished(),
                 group.isFullySuccessful(),
                 group.getQueued(),
@@ -1799,57 +1842,204 @@ public class ExplorerPanel extends JPanel {
                 event.isSourceRefreshRequired());
 
         /*
-         * A group completion event means that the complete
-         * operation has reached its final state.
-         *
-         * Source-side refresh is required only for operations
-         * that actually remove the source object.
-         *
-         * COPY:
-         *     sourceRefreshRequired = false
-         *
-         * MOVE:
-         *     sourceRefreshRequired = true
+         * Başarısız / incomplete group için
+         * normal final refresh yapmıyoruz.
          */
         if (!event.isSuccessful()) {
 
             log.debug(
                     "[EXPLORER GROUP COMPLETED] " +
                             "operation finished with errors; " +
-                            "source refresh is not triggered");
+                            "final refresh skipped");
 
             return;
         }
 
-        if (!event.isSourceRefreshRequired()) {
+        /*
+         * ---------------------------------------------------------
+         * SOURCE REFRESH
+         * ---------------------------------------------------------
+         *
+         * MOVE / DELETE source tarafını değiştirir.
+         */
+        if (event.isSourceRefreshRequired()) {
+
+            String sourcePrefix =
+                    event.getPrefix();
+
+            String sourceParentPrefix =
+                    getParentPrefix(sourcePrefix);
 
             log.debug(
-                    "[EXPLORER GROUP COMPLETED] " +
-                            "source refresh not required");
+                    "[EXPLORER GROUP REFRESH] " +
+                            "source prefix={} parent={}",
+                    sourcePrefix,
+                    sourceParentPrefix);
+
+            refreshScheduler.scheduleRefresh(
+                    List.of(
+                            new RefreshTreeNode(
+                                    sourceParentPrefix,
+                                    RefreshTreeOperation.DELETE)));
+
+            /*
+             * Eğer File Table şu anda source parent
+             * klasörünü gösteriyorsa onu da yenile.
+             */
+            if (Objects.equals(
+                    sourceParentPrefix,
+                    currentFilePrefix)) {
+
+                refreshScheduler
+                        .scheduleCurrentTableRefresh();
+            }
+        }
+
+        /*
+         * ---------------------------------------------------------
+         * TARGET REFRESH
+         * ---------------------------------------------------------
+         *
+         * COPY / MOVE target tarafını değiştirir.
+         *
+         * TransferGroup target bilgilerini doğrudan taşıdığı için
+         * artık task completion event'lerinden target bilgisi
+         * çıkarmaya gerek yok.
+         */
+        String targetBucket =
+                group.getTargetBucket();
+
+        String targetPrefix =
+                group.getTargetPrefix();
+
+        if (targetBucket == null
+                || targetPrefix == null
+                || targetPrefix.isBlank()) {
+
+            log.debug(
+                    "[EXPLORER GROUP REFRESH] " +
+                            "target information unavailable; " +
+                            "target refresh skipped. group={}",
+                    group.getDisplayName());
 
             return;
         }
 
-        String prefix =
-                event.getPrefix();
+        /*
+         * Folder operation ile object operation arasında
+         * targetPrefix'in anlamı farklıdır.
+         *
+         * Folder COPY/MOVE:
+         *
+         *     targetPrefix = TEST3/
+         *     source       = TEST2/02/
+         *
+         * Oluşan klasör:
+         *
+         *     TEST3/02/
+         *
+         * Dolayısıyla Tree'de TEST3/ node'unu refresh etmek gerekir.
+         *
+         * Object COPY/MOVE:
+         *
+         *     targetPrefix = TEST3/file.txt
+         *
+         * Bu durumda parent:
+         *
+         *     TEST3/
+         */
+        String targetTreePrefix;
 
-        String parentPrefix =
-                getParentPrefix(prefix);
+        if (group.getSourcePrefix() != null
+                && group.getSourcePrefix().endsWith("/")) {
+
+            /*
+             * Folder operation.
+             */
+            targetTreePrefix =
+                    targetPrefix;
+
+        } else {
+
+            /*
+             * Object operation.
+             */
+            targetTreePrefix =
+                    getParentPrefix(targetPrefix);
+        }
 
         log.debug(
-                "[EXPLORER REFRESH] prefix={} parent={}",
-                prefix,
-                parentPrefix);
+                "[EXPLORER GROUP REFRESH] " +
+                        "target bucket={} prefix={} treePrefix={}",
+                targetBucket,
+                targetPrefix,
+                targetTreePrefix);
 
+        /*
+         * Target Tree refresh.
+         */
         refreshScheduler.scheduleRefresh(
                 List.of(
                         new RefreshTreeNode(
-                                parentPrefix,
-                                RefreshTreeOperation.DELETE)));
+                                targetTreePrefix,
+                                RefreshTreeOperation.ADD)));
+
+        /*
+         * Target File Table refresh.
+         *
+         * File Table mevcut bucket/prefix'i gösteriyorsa
+         * yalnızca o zaman refresh edilir.
+         */
+        String currentBucket =
+                getCurrentBucket();
+
+        String currentPrefix =
+                getCurrentPrefix();
+
+        String targetFileTablePrefix;
+
+        if (group.getSourcePrefix() != null
+                && group.getSourcePrefix().endsWith("/")) {
+
+            /*
+             * Folder COPY/MOVE:
+             *
+             * targetPrefix = TEST3/
+             *
+             * Yeni folder TEST3/02/ altında oluşur.
+             *
+             * Dolayısıyla File Table targetPrefix'te
+             * gösteriliyorsa refresh gerekir.
+             */
+            targetFileTablePrefix =
+                    targetPrefix;
+
+        } else {
+
+            /*
+             * Object COPY/MOVE:
+             *
+             * targetPrefix = TEST3/file.txt
+             *
+             * File Table TEST3/ gösteriyorsa refresh gerekir.
+             */
+            targetFileTablePrefix =
+                    getParentPrefix(targetPrefix);
+        }
 
         if (Objects.equals(
-                parentPrefix,
-                currentFilePrefix)) {
+                currentBucket,
+                targetBucket)
+                && Objects.equals(
+                currentPrefix,
+                targetFileTablePrefix)) {
+
+            log.debug(
+                    "[EXPLORER GROUP REFRESH] " +
+                            "target File Table refresh scheduled. " +
+                            "bucket={} prefix={}",
+                    currentBucket,
+                    currentPrefix);
 
             refreshScheduler
                     .scheduleCurrentTableRefresh();

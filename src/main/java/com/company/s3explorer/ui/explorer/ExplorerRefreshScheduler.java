@@ -61,12 +61,27 @@ public class ExplorerRefreshScheduler {
         if (prefixes != null
                 && !prefixes.isEmpty()) {
 
+            for (RefreshTreeNode prefix :
+                    prefixes) {
+
+                if (prefix == null) {
+                    continue;
+                }
+
+                System.out.println(
+                        "[SCHEDULE TREE REFRESH] " +
+                                "prefix=" +
+                                prefix.prefix() +
+                                " operation=" +
+                                prefix.operation());
+            }
+
             pendingPrefixes.addAll(prefixes);
         }
 
         scheduleTimer();
     }
-
+   
     /**
      * Mevcut File Table'ın refresh edilmesini ister.
      *
