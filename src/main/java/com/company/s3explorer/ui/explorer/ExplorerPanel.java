@@ -2848,44 +2848,193 @@ public class ExplorerPanel extends JPanel {
     }
 
     public void deleteSelected() {
+
         log.info(
                 "[DELETE] invoked selectedRows={} tableFocus={} restoreFocus={}",
                 view.getFileTable().getSelectedRowCount(),
                 view.getFileTable().hasFocus(),
                 restoreFileTableFocus);
-        
-        List<S3FileItem> items = getSelectedItems();
+
+        List<S3FileItem> items =
+                getSelectedItems();
+
         if (items.isEmpty()) {
             return;
         }
 
-        StringBuilder sb = new StringBuilder();
+        StringBuilder sb =
+                new StringBuilder();
+
         for (S3FileItem item : items) {
+
             if (!sb.isEmpty()) {
                 sb.append("\n");
             }
+
             sb.append(item.getKey());
         }
+
         String message;
+
         if (items.size() == 1) {
-            message = "Delete " + sb + " ?";
+
+            message =
+                    "Delete " +
+                            sb +
+                            " ?";
+
+        } else {
+
+            message =
+                    "Delete followings?\n" +
+                            sb;
         }
-        else {
-            message = "Delete followings?\n" + sb;
-        }
-        int result = JOptionPane.showConfirmDialog(
-                this,
-                message,
-                "Confirm",
-                JOptionPane.YES_NO_OPTION);
+
+        int result =
+                JOptionPane.showConfirmDialog(
+                        this,
+                        message,
+                        "Confirm",
+                        JOptionPane.YES_NO_OPTION);
 
         if (result != JOptionPane.YES_OPTION) {
             return;
         }
 
-        for (S3FileItem item : items) {
-            deleteObject(item);
+        /*
+         * Tek item:
+         *
+         * Mevcut davranış aynen korunuyor.
+         *
+         * Özellikle klasör DELETE burada kendi
+         * FolderDeleteProducer group'unu oluşturuyor.
+         */
+        if (items.size() == 1) {
+
+            deleteObject(
+                    items.getFirst());
+
+            return;
         }
+
+        /*
+         * ---------------------------------------------------------
+         * MULTI FILE DELETE GROUP
+         * ---------------------------------------------------------
+         *
+         * Çoklu seçimde yalnızca dosyalar için ortak bir
+         * TransferGroup oluşturuyoruz.
+         *
+         * Klasör seçilmişse mevcut davranışı koruyoruz.
+         */
+        boolean allFiles =
+                items.stream()
+                        .noneMatch(S3FileItem::isFolder);
+
+        if (!allFiles) {
+
+            for (S3FileItem item : items) {
+
+                deleteObject(item);
+            }
+
+            return;
+        }
+
+        S3FileItem firstItem =
+                items.getFirst();
+
+        String repositoryName =
+                firstItem.getRepositoryName();
+
+        String bucket =
+                getCurrentBucket();
+
+        String sourcePrefix =
+                getCurrentPrefix();
+
+        if (repositoryName == null
+                || bucket == null
+                || sourcePrefix == null) {
+
+            return;
+        }
+
+        /*
+         * Group adı:
+         *
+         * İlk seçilen dosyanın adı.
+         *
+         * COPY / MOVE group'larıyla aynı naming
+         * yaklaşımını kullanıyoruz.
+         */
+        String groupName =
+                firstItem.getName();
+
+        TransferGroup group =
+                transferManager.createOperationGroup(
+                        TransferType.DELETE,
+                        groupName,
+                        repositoryName,
+                        bucket,
+                        sourcePrefix,
+                        null,
+                        bucket,
+                        sourcePrefix);
+
+        /*
+         * DELETE tamamlandığında kaynak File Table
+         * ve Tree refresh edilecek.
+         */
+        transferManager.configureGroupCompletion(
+                group,
+                repositoryName,
+                bucket,
+                sourcePrefix,
+                true);
+
+        /*
+         * Her dosyayı aynı group'a bağlıyoruz.
+         */
+        for (S3FileItem item : items) {
+
+            try {
+
+                fileOperationController.delete(
+                        item,
+                        group);
+
+            } catch (Exception ex) {
+
+                log.error(
+                        "[DELETE GROUP] failed source={} group={}",
+                        item.getKey(),
+                        group.getDisplayName(),
+                        ex);
+
+                SwingUtilities.invokeLater(() ->
+                        JOptionPane.showMessageDialog(
+                                this,
+                                ex.getMessage(),
+                                "Delete Failed",
+                                JOptionPane.ERROR_MESSAGE));
+
+                /*
+                 * Submit edilemeyen task'ı failed olarak
+                 * group lifecycle'a dahil et.
+                 */
+                group.failed();
+            }
+        }
+
+        /*
+         * Bütün dosyalar submit edildi.
+         *
+         * Artık group yeni task üretmeyecek.
+         */
+        group.markProductionCompleted();
+
+        updateActionStates();
     }
 
     private void deleteSelectedWithFocusRestore() {
