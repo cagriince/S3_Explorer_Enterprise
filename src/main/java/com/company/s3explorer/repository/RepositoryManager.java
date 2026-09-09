@@ -82,6 +82,38 @@ public class RepositoryManager {
             RepositoryDefinition oldRepo,
             RepositoryDefinition newRepo) {
 
+        if (oldRepo == null
+                || newRepo == null) {
+            throw new IllegalArgumentException(
+                    "Repository must not be null");
+        }
+
+        String newName =
+                newRepo.getName() == null
+                        ? ""
+                        : newRepo.getName().trim();
+
+        if (newName.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Repository name must not be empty");
+        }
+
+        boolean nameExists =
+                repositories.stream()
+                        .anyMatch(repository ->
+                                !repository.equals(oldRepo)
+                                        && newName.equals(
+                                        repository.getName()));
+
+        if (nameExists) {
+            throw new IllegalArgumentException(
+                    "A repository with the name \""
+                            + newName
+                            + "\" already exists.");
+        }
+
+        newRepo.setName(newName);
+
         int idx =
                 repositories.indexOf(oldRepo);
 
@@ -93,10 +125,11 @@ public class RepositoryManager {
 
             persist();
 
-            fireRepositoryChanged(newRepo);
+            fireRepositoryChanged(
+                    newRepo);
         }
     }
-
+    
     public RepositoryDefinition findByName(
             String name) {
 

@@ -250,11 +250,25 @@ public class RepositoryPanel extends JPanel {
             return;
         }
 
-        repositoryManager.updateRepository(
-                selected,
-                updated);
+        try {
 
-        reloadRepositories();
+            repositoryManager.updateRepository(
+                    selected,
+                    updated);
+
+            reloadRepositories();
+
+            selectRepository(
+                    updated);
+
+        } catch (IllegalArgumentException ex) {
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    ex.getMessage(),
+                    "Edit Repository",
+                    JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private void duplicateRepository() {

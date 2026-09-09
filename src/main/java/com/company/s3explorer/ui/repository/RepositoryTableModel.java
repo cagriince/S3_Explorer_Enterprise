@@ -3,8 +3,10 @@ package com.company.s3explorer.ui.repository;
 import com.company.s3explorer.repository.RepositoryDefinition;
 
 import javax.swing.table.AbstractTableModel;
+import java.text.Collator;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public class RepositoryTableModel extends AbstractTableModel {
     private final List<RepositoryDefinition> repositories = new ArrayList<>();
@@ -42,13 +44,31 @@ public class RepositoryTableModel extends AbstractTableModel {
         };
     }
 
-    public void setRepositories(List<RepositoryDefinition> list) {
+    public void setRepositories(
+            List<RepositoryDefinition> list) {
+
         repositories.clear();
-        repositories.addAll(list);
+
+        if (list != null) {
+            repositories.addAll(list);
+        }
+
+        Collator collator =
+                Collator.getInstance(
+                        new Locale("tr", "TR"));
+
+        collator.setStrength(
+                Collator.PRIMARY);
+
+        repositories.sort(
+                (left, right) ->
+                        collator.compare(
+                                left.getName(),
+                                right.getName()));
 
         fireTableDataChanged();
     }
-
+    
     public RepositoryDefinition getRepository(int row) {
         return repositories.get(row);
     }
