@@ -421,6 +421,10 @@ public class TransferPanel
 
                 groupStateStore.upsert(event);
             }
+
+            refreshVisibleTables();
+            updateTabTitles();
+            updateButtons();
         } finally {
 
             groupUpdateRefreshScheduled.set(false);
@@ -458,7 +462,10 @@ public class TransferPanel
         SwingUtilities.invokeLater(() -> {
 
             groupStateStore.complete(event);
-
+            
+            refreshVisibleTables();
+            updateTabTitles();
+            updateButtons();
         });
     }
     
