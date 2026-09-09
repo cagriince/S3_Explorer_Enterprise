@@ -736,13 +736,6 @@ public class TransferPanel
             return;
         }
 
-        TransferTableModel model =
-                getModelForTable(table);
-
-        if (model == null) {
-            return;
-        }
-
         int[] selectedRows =
                 table.getSelectedRows();
 
@@ -750,18 +743,71 @@ public class TransferPanel
             return;
         }
 
+        /*
+         * Queued tablosu klasik TransferTableModel kullanıyor.
+         */
+        if (table == queuedTable) {
+
+            for (int viewRow :
+                    selectedRows) {
+
+                /*
+                 * Sorter olmadığı için
+                 * view row == model row.
+                 */
+                int modelRow =
+                        viewRow;
+
+                TransferRuntime runtime =
+                        queuedModel.getRuntimeAtModelRow(
+                                modelRow);
+
+                if (runtime == null) {
+                    continue;
+                }
+
+                if (runtime.getStatus().isActive()) {
+
+                    transferManager.cancel(
+                            runtime.getTask().getId());
+                }
+            }
+
+            return;
+        }
+
+        /*
+         * Running / Finished / All tabloları
+         * TransferCombinedTableModel kullanıyor.
+         *
+         * Group satırları burada bilinçli olarak
+         * atlanır.
+         */
+        TransferCombinedTableModel combinedModel =
+                getCombinedModelForTable(table);
+
+        if (combinedModel == null) {
+            return;
+        }
+
         for (int viewRow :
                 selectedRows) {
 
             /*
-             * Artık sorter olmadığı için
+             * Sorter olmadığı için
              * view row == model row.
              */
             int modelRow =
                     viewRow;
 
+            if (combinedModel.isGroupRow(
+                    modelRow)) {
+
+                continue;
+            }
+
             TransferRuntime runtime =
-                    model.getRuntimeAtModelRow(
+                    combinedModel.getRuntime(
                             modelRow);
 
             if (runtime == null) {
@@ -856,19 +902,58 @@ public class TransferPanel
             return false;
         }
 
-        TransferTableModel model =
-                getModelForTable(table);
+        int[] selectedRows =
+                table.getSelectedRows();
 
-        if (model == null) {
+        if (selectedRows.length == 0) {
+            return false;
+        }
+
+        /*
+         * Queued
+         */
+        if (table == queuedTable) {
+
+            for (int row :
+                    selectedRows) {
+
+                TransferRuntime runtime =
+                        queuedModel.getRuntimeAtModelRow(
+                                row);
+
+                if (runtime != null
+                        && runtime.getStatus().isActive()) {
+
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /*
+         * Running / Finished / All
+         */
+        TransferCombinedTableModel combinedModel =
+                getCombinedModelForTable(table);
+
+        if (combinedModel == null) {
             return false;
         }
 
         for (int row :
-                table.getSelectedRows()) {
+                selectedRows) {
+
+            /*
+             * Group satırları hiçbir zaman
+             * Cancel Selected için uygun değil.
+             */
+            if (combinedModel.isGroupRow(row)) {
+                continue;
+            }
 
             TransferRuntime runtime =
-                    model.getRuntimeAtModelRow(
-                            row);
+                    combinedModel.getRuntime(row);
 
             if (runtime != null
                     && runtime.getStatus().isActive()) {
@@ -880,6 +965,24 @@ public class TransferPanel
         return false;
     }
 
+    private TransferCombinedTableModel getCombinedModelForTable(
+            JTable table) {
+
+        if (table == runningTable) {
+            return runningModel;
+        }
+
+        if (table == finishedTable) {
+            return finishedModel;
+        }
+
+        if (table == allTable) {
+            return allModel;
+        }
+
+        return null;
+    }
+   
     public void setButtonIcons() {
 
         cancelButton.setIcon(
