@@ -105,34 +105,34 @@ public final class ExplorerTreeController {
                 root.getFullPrefix(),
                 root);
 
-        if (folders != null) {
+        List<String> sortedFolders =
+                sortFoldersByName(folders);
 
-            for (String folder : folders) {
+        for (String folder : sortedFolders) {
 
-                String displayName =
-                        S3Util.extractFolderName(folder);
+            String displayName =
+                    S3Util.extractFolderName(folder);
 
-                S3TreeNode child =
-                        new S3TreeNode(
-                                displayName,
-                                bucket,
-                                folder);
+            S3TreeNode child =
+                    new S3TreeNode(
+                            displayName,
+                            bucket,
+                            folder);
 
-                nodeCache.put(
-                        folder,
-                        child);
+            nodeCache.put(
+                    folder,
+                    child);
 
-                /*
-                 * Lazy-loading marker.
-                 */
-                child.add(
-                        new S3TreeNode(
-                                S3TreeNode.LOADING,
-                                bucket,
-                                folder));
+            /*
+             * Lazy-loading marker.
+             */
+            child.add(
+                    new S3TreeNode(
+                            S3TreeNode.LOADING,
+                            bucket,
+                            folder));
 
-                root.add(child);
-            }
+            root.add(child);
         }
 
         treeModel.setRoot(root);
@@ -321,8 +321,12 @@ public final class ExplorerTreeController {
 
                             parentNode.removeAllChildren();
 
+                            List<String> sortedFolders =
+                                    sortFoldersByName(
+                                            content.folders());
+
                             for (String folder :
-                                    content.folders()) {
+                                    sortedFolders) {
 
                                 String displayName =
                                         S3Util.extractFolderName(
@@ -920,5 +924,25 @@ public final class ExplorerTreeController {
                     root.getFullPrefix(),
                     root);
         }
+    }
+
+    private List<String> sortFoldersByName(
+            List<String> folders) {
+
+        if (folders == null
+                || folders.isEmpty()) {
+
+            return Collections.emptyList();
+        }
+
+        List<String> sortedFolders =
+                new ArrayList<>(folders);
+
+        sortedFolders.sort(
+                Comparator.comparing(
+                        S3Util::extractFolderName,
+                        String.CASE_INSENSITIVE_ORDER));
+
+        return sortedFolders;
     }
 }
