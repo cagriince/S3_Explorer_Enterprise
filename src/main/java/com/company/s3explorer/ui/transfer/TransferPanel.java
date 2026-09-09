@@ -79,7 +79,7 @@ public class TransferPanel
         registerListeners();
 
         refreshVisibleTables();
-        refreshGroupTables();
+        refreshCombinedTables();
         updateTabTitles();
     }
 
@@ -424,7 +424,7 @@ public class TransferPanel
             }
 
             if (!updates.isEmpty()) {
-                refreshGroupTables();
+                refreshCombinedTables();
             }
 
         } finally {
@@ -465,7 +465,7 @@ public class TransferPanel
 
             groupStateStore.complete(event);
 
-            refreshGroupTables();
+            refreshCombinedTables();
         });
     }
     
@@ -912,7 +912,7 @@ public class TransferPanel
                                 groupStateStore.removeFinished();
 
                                 refreshVisibleTables();
-                                refreshGroupTables();
+                                refreshCombinedTables();
 
                                 lastRenderedStateVersion =
                                         stateStore.getVersion();
@@ -966,7 +966,7 @@ public class TransferPanel
                 IconProvider.ICON_DELETE);
     }
 
-    private void refreshGroupTables() {
+    private void refreshCombinedTables() {
 
         /*
          * -------------------------------------------------
