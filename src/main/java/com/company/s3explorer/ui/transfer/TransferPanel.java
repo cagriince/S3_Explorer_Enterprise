@@ -551,92 +551,7 @@ public class TransferPanel
         JTable table =
                 new JTable(model);
 
-        /*
-         * Artık TableRowSorter YOK.
-         *
-         * Model zaten yalnızca ilgili görünümün
-         * kayıtlarını içeriyor.
-         */
-
-        table.setRowHeight(54);
-
-        table.setAutoCreateRowSorter(false);
-
-        table.setRowSorter(null);
-
-        table.getColumnModel()
-                .getColumn(0)
-                .setPreferredWidth(1);
-
-        table.getColumnModel()
-                .getColumn(1)
-                .setPreferredWidth(500);
-
-        table.getColumnModel()
-                .getColumn(2)
-                .setPreferredWidth(1);
-
-        table.getColumnModel()
-                .getColumn(3)
-                .setPreferredWidth(100);
-
-        table.getColumnModel()
-                .getColumn(4)
-                .setPreferredWidth(1);
-
-        table.getColumnModel()
-                .getColumn(5)
-                .setPreferredWidth(1);
-
-        table.getColumnModel()
-                .getColumn(6)
-                .setPreferredWidth(1);
-
-        table.getColumnModel()
-                .getColumn(7)
-                .setPreferredWidth(1);
-
-        table.getColumnModel()
-                .getColumn(8)
-                .setPreferredWidth(1);
-
-        table.getColumnModel()
-                .getColumn(0)
-                .setCellRenderer(
-                        new TypeRenderer());
-
-        table.getColumnModel()
-                .getColumn(2)
-                .setCellRenderer(
-                        new FileSizeRenderer());
-
-        table.getColumnModel()
-                .getColumn(3)
-                .setCellRenderer(
-                        new ProgressBarRenderer());
-
-        table.getColumnModel()
-                .getColumn(4)
-                .setCellRenderer(
-                        new StatusRenderer());
-
-        table.getColumnModel()
-                .getColumn(5)
-                .setCellRenderer(
-                        new InstantRenderer());
-
-        table.getColumnModel()
-                .getColumn(6)
-                .setCellRenderer(
-                        new InstantRenderer());
-
-        table.getColumnModel()
-                .getColumn(7)
-                .setCellRenderer(
-                        new LongFormatRenderer());
-
-        table.getTableHeader()
-                .setReorderingAllowed(false);
+        configureTable(table, 100);
 
         return table;
     }
@@ -1113,6 +1028,15 @@ public class TransferPanel
                     }
                 };
 
+        configureTable(table, 100);
+
+        return table;
+    }
+
+    private void configureTable(
+            JTable table,
+            int progressColumnWidth) {
+
         table.setRowHeight(54);
 
         table.setAutoCreateRowSorter(false);
@@ -1133,7 +1057,8 @@ public class TransferPanel
 
         table.getColumnModel()
                 .getColumn(3)
-                .setPreferredWidth(120);
+                .setPreferredWidth(
+                        progressColumnWidth);
 
         table.getColumnModel()
                 .getColumn(4)
@@ -1155,47 +1080,7 @@ public class TransferPanel
                 .getColumn(8)
                 .setPreferredWidth(1);
 
-        /*
-         * Unified renderers.
-         */
-        table.getColumnModel()
-                .getColumn(0)
-                .setCellRenderer(
-                        new CombinedTypeRenderer());
-
-        table.getColumnModel()
-                .getColumn(2)
-                .setCellRenderer(
-                        new CombinedFileSizeRenderer());
-
-        table.getColumnModel()
-                .getColumn(3)
-                .setCellRenderer(
-                        new CombinedProgressRenderer());
-
-        table.getColumnModel()
-                .getColumn(4)
-                .setCellRenderer(
-                        new CombinedStatusRenderer());
-
-        table.getColumnModel()
-                .getColumn(5)
-                .setCellRenderer(
-                        new InstantRenderer());
-
-        table.getColumnModel()
-                .getColumn(6)
-                .setCellRenderer(
-                        new InstantRenderer());
-
-        table.getColumnModel()
-                .getColumn(7)
-                .setCellRenderer(
-                        new LongFormatRenderer());
-
         table.getTableHeader()
                 .setReorderingAllowed(false);
-
-        return table;
     }
 }
