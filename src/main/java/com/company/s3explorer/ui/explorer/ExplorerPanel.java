@@ -1812,234 +1812,191 @@ public class ExplorerPanel extends JPanel {
     private void onTransferGroupCompleted(
             TransferGroupCompletedEvent event) {
 
-        if (event == null) {
+        if (event == null
+                || event.getGroup() == null) {
             return;
         }
 
-        TransferGroup group =
-                event.getGroup();
+        SwingUtilities.invokeLater(() -> {
 
-        if (group == null) {
-            return;
-        }
+            TransferGroup group =
+                    event.getGroup();
 
-        log.debug(
-                "[EXPLORER GROUP COMPLETED] " +
-                        "group={} operation={} " +
-                        "successful={} " +
-                        "sourceRefreshRequired={}",
-                group.getDisplayName(),
-                group.getOperation(),
-                event.isSuccessful(),
-                event.isSourceRefreshRequired());
-
-        /*
-         * ---------------------------------------------------------
-         * GROUP TAMAMLANMIŞTIR.
-         * ---------------------------------------------------------
-         *
-         * Burada event.isSuccessful() kontrolü yapmıyoruz.
-         *
-         * Çünkü:
-         *
-         *   3 task
-         *   2 completed
-         *   1 failed/skipped/cancelled
-         *
-         * gibi kısmi başarılı bir operation'da Explorer'da
-         * başarılı olan değişikliklerin de gösterilmesi gerekir.
-         *
-         * Source / target refresh kararları aşağıdaki metadata
-         * ve operation bilgilerine göre ayrıca veriliyor.
-         */
-
-        String currentBucket =
-                currentFileBucket;
-
-        String currentPrefix =
-                currentFilePrefix;
-
-        log.info(
-                "[EXPLORER GROUP REFRESH STATE] " +
-                        "currentFileBucket={} " +
-                        "currentFilePrefix={} " +
-                        "currentBucket={} " +
-                        "currentPrefix={} " +
-                        "targetBucket={} " +
-                        "targetPrefix={}",
-                currentFileBucket,
-                currentFilePrefix,
-                currentBucket,
-                currentPrefix,
-                group.getTargetBucket(),
-                group.getTargetPrefix());
-
-        /*
-         * -------------------------------------------------
-         * SOURCE REFRESH
-         * -------------------------------------------------
-         *
-         * DELETE ve MOVE işlemlerinde kaynak tarafı
-         * değişmiştir.
-         *
-         * Group completion event'inin source metadata'sı
-         * kullanılır.
-         */
-        if (event.isSourceRefreshRequired()) {
-
-            String sourceBucket =
-                    event.getBucket();
-
-            String sourcePrefix =
-                    event.getPrefix();
-
-            String sourceParentPrefix =
-                    getParentPrefix(sourcePrefix);
+            log.info(
+                    "[EXPLORER GROUP REFRESH STATE] " +
+                            "currentFileBucket={} " +
+                            "currentFilePrefix={} " +
+                            "currentBucket={} " +
+                            "currentPrefix={} " +
+                            "targetBucket={} " +
+                            "targetPrefix={} " +
+                            "sourceIsFolder={}",
+                    currentFileBucket,
+                    currentFilePrefix,
+                    getCurrentBucket(),
+                    getCurrentPrefix(),
+                    group.getTargetBucket(),
+                    group.getTargetPrefix(),
+                    group.isSourceFolder());
 
             /*
-             * Folder DELETE / MOVE:
+             * ---------------------------------------------------------
+             * SOURCE REFRESH
+             * ---------------------------------------------------------
              *
-             * sourcePrefix klasör prefix'i olduğu için
-             * parent node refresh edilir.
+             * sourceIsFolder:
+             *
+             * true  -> Gerçek klasör operasyonu.
+             *          Folder Tree + gerekiyorsa File Table refresh.
+             *
+             * false -> Dosya / çoklu dosya operasyonu.
+             *          Folder Tree refresh edilmez.
+             *          Kaynak File Table refresh edilir.
+             *
+             * Özellikle çoklu MOVE işleminde sourcePrefix:
+             *
+             *     TEST3/
+             *
+             * olabilir.
+             *
+             * Bu değer mevcut klasörün prefix'idir;
+             * taşınan şey klasör değildir.
              */
-            if (sourcePrefix != null
-                    && sourcePrefix.endsWith("/")) {
+            if (event.isSourceRefreshRequired()) {
 
-                if (Objects.equals(
-                        currentBucket,
-                        sourceBucket)) {
+                String sourceBucket =
+                        event.getBucket();
 
-                    log.debug(
-                            "[EXPLORER SOURCE TREE REFRESH] " +
-                                    "prefix={} operation=DELETE",
-                            sourceParentPrefix);
+                String sourcePrefix =
+                        event.getPrefix();
 
-                    refreshScheduler.scheduleRefresh(
-                            List.of(
-                                    new RefreshTreeNode(
-                                            sourceParentPrefix,
-                                            RefreshTreeOperation.DELETE)));
-                }
+                if (group.isSourceFolder()) {
 
-                /*
-                 * Kaynak klasör mevcut File Table'da
-                 * açıksa tabloyu da yenile.
-                 */
-                if (Objects.equals(
-                        currentBucket,
-                        sourceBucket)
-                        && Objects.equals(
-                        currentPrefix,
-                        sourcePrefix)) {
+                    /*
+                     * Gerçek klasör DELETE / MOVE:
+                     *
+                     * Klasörün parent node'u refresh edilir.
+                     */
+                    String sourceParentPrefix =
+                            getParentPrefix(sourcePrefix);
 
-                    log.debug(
-                            "[EXPLORER SOURCE TABLE REFRESH] " +
-                                    "bucket={} prefix={}",
-                            sourceBucket,
-                            sourcePrefix);
+                    if (Objects.equals(
+                            currentBucket,
+                            sourceBucket)) {
 
-                    refreshScheduler.scheduleCurrentTableRefresh();
-                }
+                        log.debug(
+                                "[EXPLORER SOURCE TREE REFRESH] " +
+                                        "prefix={} operation=DELETE",
+                                sourceParentPrefix);
 
-            } else {
+                        refreshScheduler.scheduleRefresh(
+                                List.of(
+                                        new RefreshTreeNode(
+                                                sourceParentPrefix,
+                                                RefreshTreeOperation.DELETE)));
+                    }
 
-                /*
-                 * Object DELETE / MOVE:
-                 *
-                 * object'ın bulunduğu klasör refresh edilir.
-                 */
-                String sourceFileParent =
-                        getParentPrefix(sourcePrefix);
+                    /*
+                     * Kaynak klasör mevcut File Table'da
+                     * açıksa tabloyu da yenile.
+                     */
+                    if (Objects.equals(
+                            currentBucket,
+                            sourceBucket)
+                            && Objects.equals(
+                            currentPrefix,
+                            sourcePrefix)) {
 
-                if (Objects.equals(
-                        currentBucket,
-                        sourceBucket)) {
+                        log.debug(
+                                "[EXPLORER SOURCE TABLE REFRESH] " +
+                                        "bucket={} prefix={}",
+                                sourceBucket,
+                                sourcePrefix);
 
-                    log.debug(
-                            "[EXPLORER SOURCE TREE REFRESH] " +
-                                    "prefix={} operation=DELETE",
-                            sourceFileParent);
+                        refreshScheduler.scheduleCurrentTableRefresh();
+                    }
 
-                    refreshScheduler.scheduleRefresh(
-                            List.of(
-                                    new RefreshTreeNode(
-                                            sourceFileParent,
-                                            RefreshTreeOperation.DELETE)));
-                }
+                } else {
 
-                if (Objects.equals(
-                        currentBucket,
-                        sourceBucket)
-                        && Objects.equals(
-                        currentPrefix,
-                        sourceFileParent)) {
+                    /*
+                     * Dosya / çoklu dosya DELETE / MOVE:
+                     *
+                     * sourcePrefix burada dosyanın bulunduğu
+                     * mevcut klasördür.
+                     *
+                     * Folder Tree refresh ETMİYORUZ.
+                     *
+                     * Sadece mevcut File Table refresh edilir.
+                     */
+                    if (Objects.equals(
+                            currentBucket,
+                            sourceBucket)
+                            && Objects.equals(
+                            currentPrefix,
+                            sourcePrefix)) {
 
-                    log.debug(
-                            "[EXPLORER SOURCE TABLE REFRESH] " +
-                                    "bucket={} prefix={}",
-                            sourceBucket,
-                            sourceFileParent);
+                        log.debug(
+                                "[EXPLORER SOURCE TABLE REFRESH] " +
+                                        "bucket={} prefix={}",
+                                sourceBucket,
+                                sourcePrefix);
 
-                    refreshScheduler.scheduleCurrentTableRefresh();
+                        refreshScheduler.scheduleCurrentTableRefresh());
+                    }
                 }
             }
-        }
 
-        /*
-         * -------------------------------------------------
-         * TARGET REFRESH
-         * -------------------------------------------------
-         *
-         * DELETE işleminde target refresh YOK.
-         *
-         * COPY / MOVE işlemlerinde hedef tarafına
-         * yeni object/folder geldiği için ADD refresh
-         * gerekir.
-         */
-        if (group.getOperation() == TransferType.COPY
-                || group.getOperation() == TransferType.MOVE) {
+            /*
+             * ---------------------------------------------------------
+             * TARGET REFRESH
+             * ---------------------------------------------------------
+             *
+             * COPY / MOVE sonrasında hedef klasörün içeriği
+             * yenilenir.
+             *
+             * Bu kısım mevcut davranışla aynı tutulmuştur.
+             */
+            if (group.getOperation() == TransferType.COPY
+                    || group.getOperation() == TransferType.MOVE) {
 
-            String targetBucket =
-                    group.getTargetBucket();
+                String targetBucket =
+                        group.getTargetBucket();
 
-            String targetPrefix =
-                    group.getTargetPrefix();
+                String targetPrefix =
+                        group.getTargetPrefix();
 
-            if (targetBucket != null
-                    && targetPrefix != null
-                    && Objects.equals(
-                    currentBucket,
-                    targetBucket)) {
-
-                log.debug(
-                        "[EXPLORER TARGET TREE REFRESH] " +
-                                "prefix={} operation=ADD",
-                        targetPrefix);
-
-                refreshScheduler.scheduleRefresh(
-                        List.of(
-                                new RefreshTreeNode(
-                                        targetPrefix,
-                                        RefreshTreeOperation.ADD)));
-
-                /*
-                 * Hedef File Table şu anda açık olan
-                 * prefix ise onu da yenile.
-                 */
-                if (Objects.equals(
-                        currentPrefix,
-                        targetPrefix)) {
+                if (targetBucket != null
+                        && targetPrefix != null
+                        && Objects.equals(
+                        currentBucket,
+                        targetBucket)) {
 
                     log.debug(
-                            "[EXPLORER TARGET TABLE REFRESH] " +
-                                    "bucket={} prefix={}",
-                            targetBucket,
+                            "[EXPLORER TARGET TREE REFRESH] " +
+                                    "prefix={} operation=ADD",
                             targetPrefix);
 
-                    refreshScheduler.scheduleCurrentTableRefresh();
+                    refreshScheduler.scheduleRefresh(
+                            List.of(
+                                    new RefreshTreeNode(
+                                            targetPrefix,
+                                            RefreshTreeOperation.ADD)));
+
+                    if (Objects.equals(
+                            currentPrefix,
+                            targetPrefix)) {
+
+                        log.debug(
+                                "[EXPLORER TARGET TABLE REFRESH] " +
+                                        "bucket={} prefix={}",
+                                targetBucket,
+                                targetPrefix);
+
+                        refreshScheduler.scheduleCurrentTableRefresh();
+                    }
                 }
             }
-        }
+        });
     }
     
     private void refreshCurrentTable() {
