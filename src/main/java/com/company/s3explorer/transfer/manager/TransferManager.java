@@ -886,7 +886,7 @@ public class TransferManager {
                 targetBucket,
                 targetKey);
     }
-    
+
     private TransferGroup createFolderOperationGroup(
             TransferType operation,
             String sourceRepository,
@@ -896,39 +896,20 @@ public class TransferManager {
             String targetBucket,
             String targetPrefix) {
 
-        String displayName =
-                S3Util.extractFolderName(sourcePrefix);
-
-        if (displayName == null
-                || displayName.isBlank()) {
-
-            displayName = sourcePrefix;
-        }
-
-        String source =
-                buildGroupLocation(
-                        sourceRepository,
-                        sourceBucket,
-                        sourcePrefix);
-
-        String target =
-                buildGroupLocation(
-                        targetRepository,
-                        targetBucket,
-                        targetPrefix);
-
         return new TransferGroup(
                 UUID.randomUUID(),
-                displayName,
+                S3Util.extractFileName(
+                        sourcePrefix),
                 operation,
-                source,
-                target,
+                sourcePrefix,
+                targetPrefix,
                 sourceRepository,
                 sourceBucket,
                 sourcePrefix,
                 targetRepository,
                 targetBucket,
-                targetPrefix);
+                targetPrefix,
+                true);
     }
 
     private String buildGroupLocation(
