@@ -79,7 +79,6 @@ public class TransferPanel
         registerListeners();
 
         refreshVisibleTables();
-        refreshCombinedTables();
         updateTabTitles();
     }
 
@@ -422,11 +421,6 @@ public class TransferPanel
 
                 groupStateStore.upsert(event);
             }
-
-            if (!updates.isEmpty()) {
-                refreshCombinedTables();
-            }
-
         } finally {
 
             groupUpdateRefreshScheduled.set(false);
@@ -465,7 +459,6 @@ public class TransferPanel
 
             groupStateStore.complete(event);
 
-            refreshCombinedTables();
         });
     }
     
@@ -912,7 +905,6 @@ public class TransferPanel
                                 groupStateStore.removeFinished();
 
                                 refreshVisibleTables();
-                                refreshCombinedTables();
 
                                 lastRenderedStateVersion =
                                         stateStore.getVersion();
@@ -964,51 +956,6 @@ public class TransferPanel
 
         clearButton.setIcon(
                 IconProvider.ICON_DELETE);
-    }
-
-    private void refreshCombinedTables() {
-
-        /*
-         * -------------------------------------------------
-         * UNIFIED RUNNING TABLE
-         * -------------------------------------------------
-         *
-         * Group + individual TransferRuntime
-         */
-        runningModel.setSnapshot(
-                groupStateStore.runningSnapshot(),
-                stateStore.snapshot(
-                        TransferStateStore.View.RUNNING));
-
-        /*
-         * -------------------------------------------------
-         * UNIFIED FINISHED TABLE
-         * -------------------------------------------------
-         *
-         * Group + individual TransferRuntime
-         */
-        finishedModel.setSnapshot(
-                groupStateStore.finishedSnapshot(),
-                stateStore.snapshot(
-                        TransferStateStore.View.FINISHED));
-
-        /*
-         * -------------------------------------------------
-         * UNIFIED ALL TABLE
-         * -------------------------------------------------
-         *
-         * Group + individual TransferRuntime
-         */
-        allModel.setSnapshot(
-                groupStateStore.snapshot(),
-                stateStore.snapshot(
-                        TransferStateStore.View.ALL));
-
-        /*
-         * Tab başlıkları da aynı state üzerinden
-         * yeniden hesaplanmalı.
-         */
-        updateTabTitles();
     }
 
     private JTable createCombinedTable(
