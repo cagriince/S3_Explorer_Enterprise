@@ -1046,17 +1046,73 @@ public class TransferPanel
                 stateStore.getQueuedCount();
 
         /*
-         * Running ve Finished artık task değil,
-         * logical group gösteriyor.
+         * Running:
+         *
+         * Unified Running tab'ında:
+         *
+         *   [Group rows]
+         *   [Individual transfer rows]
+         *
+         * gösteriliyor.
+         *
+         * Bu nedenle tab sayısı da görünür satır
+         * sayısıyla aynı olmalı.
          */
-        long running =
+        long runningGroups =
                 groupStateStore.runningSnapshot().size();
 
-        long finished =
+        long runningTransfers =
+                stateStore.snapshot(
+                                TransferStateStore.View.RUNNING)
+                        .size();
+
+        long running =
+                runningGroups
+                        + runningTransfers;
+
+        /*
+         * Finished:
+         *
+         * Unified Finished tab'ında:
+         *
+         *   [Group rows]
+         *   [Individual transfer rows]
+         *
+         * gösteriliyor.
+         */
+        long finishedGroups =
                 groupStateStore.finishedSnapshot().size();
 
+        long finishedTransfers =
+                stateStore.snapshot(
+                                TransferStateStore.View.FINISHED)
+                        .size();
+
+        long finished =
+                finishedGroups
+                        + finishedTransfers;
+
+        /*
+         * All:
+         *
+         * Unified All tab'ında:
+         *
+         *   [All group rows]
+         *   [All individual transfer rows]
+         *
+         * gösteriliyor.
+         */
+        long allGroups =
+                groupStateStore.snapshot().size();
+
+        long allTransfers =
+                stateStore.snapshot(
+                                TransferStateStore.View.ALL)
+                        .size();
+
         long total =
-                stateStore.getTotalCount();
+                allGroups
+                        + allTransfers;
 
         tabs.setTitleAt(
                 0,
