@@ -114,6 +114,7 @@ public class ExplorerPanel extends JPanel {
     private Action manageRepositoryAction;
     private Action goToParentAction;
     private Action renameAction;
+    private Action propertiesAction;
 
     public ExplorerPanel(
             ActiveRepositoryContext context,
@@ -150,12 +151,13 @@ public class ExplorerPanel extends JPanel {
         clipboardController =
                 new ExplorerClipboardController(
                         clipboard);
-        
+
         view = new ExplorerView(
                 downloadAction,
                 deleteAction,
                 copyAction,
                 renameAction,
+                propertiesAction,
                 cutAction,
                 pasteAction,
                 uploadAction,
@@ -255,6 +257,7 @@ public class ExplorerPanel extends JPanel {
         pasteAction = new ExplorerAction("Paste", this::pasteClipboard);
         goToParentAction = new ExplorerAction("GoToParent", this::goToParentFolder);
         renameAction = new ExplorerAction("Rename", this::renameSelected);
+        propertiesAction = new ExplorerAction("Properties", this::showProperties);
     }
 
     private void defineShortCuts() {
@@ -297,6 +300,10 @@ public class ExplorerPanel extends JPanel {
         // Rename
         inputMap.put(KeyStroke.getKeyStroke("F2"),"renameSelected");
         actionMap.put("renameSelected", renameAction);
+
+        // Properties
+        inputMap.put(KeyStroke.getKeyStroke("alt ENTER"), "showProperties");
+        actionMap.put("showProperties", propertiesAction);
         
         // -------------------------------------------------
         // Tree
@@ -410,6 +417,9 @@ public class ExplorerPanel extends JPanel {
                 hasSelection);
 
         renameAction.setEnabled(
+                hasSelection);
+
+        propertiesAction.setEnabled(
                 hasSelection);
         
         copyAction.setEnabled(
@@ -4331,5 +4341,9 @@ public class ExplorerPanel extends JPanel {
 
         return firstName
                 + " and others";
+    }
+
+    private void showProperties() {
+        // Properties dialog will be implemented in the next step.
     }
 }

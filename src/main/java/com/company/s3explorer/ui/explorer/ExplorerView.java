@@ -49,7 +49,8 @@ public final class ExplorerView {
     private final Action newFolderAction;
     private final Action refreshAction;
     private final Action manageRepositoryAction;
-
+    private final Action propertiesAction;
+    
     private final Consumer<S3TreeNode> treeExpansionListener;
     private final Runnable openSelectedFileItem;
     private final Runnable reloadCurrentFileTable;
@@ -81,6 +82,7 @@ public final class ExplorerView {
             Action deleteAction,
             Action copyAction,
             Action renameAction,
+            Action propertiesAction,
             Action cutAction,
             Action pasteAction,
             Action uploadAction,
@@ -98,6 +100,7 @@ public final class ExplorerView {
         this.deleteAction = deleteAction;
         this.copyAction = copyAction;
         this.renameAction = renameAction;
+        this.propertiesAction = propertiesAction;
         this.cutAction = cutAction;
         this.pasteAction = pasteAction;
         this.uploadAction = uploadAction;
@@ -156,6 +159,7 @@ public final class ExplorerView {
         buttonPanel.add(createIconButton(downloadAction));
         buttonPanel.add(createIconButton(deleteAction));
         buttonPanel.add(createIconButton(renameAction));
+        buttonPanel.add(createIconButton(propertiesAction));
         buttonPanel.add(createSeparator());
         buttonPanel.add(createIconButton(copyAction));
         buttonPanel.add(createIconButton(cutAction));
@@ -423,6 +427,7 @@ public final class ExplorerView {
         JMenuItem downloadMenu = new JMenuItem(downloadAction);
         JMenuItem deleteMenu = new JMenuItem(deleteAction);
         JMenuItem renameMenu = new JMenuItem(renameAction);
+        JMenuItem propertiesMenu = new JMenuItem(propertiesAction);
         JMenuItem copyMenu = new JMenuItem(copyAction);
         JMenuItem cutMenu = new JMenuItem(cutAction);
         JMenuItem pasteMenu = new JMenuItem(pasteAction);
@@ -432,6 +437,7 @@ public final class ExplorerView {
         filePopup.add(downloadMenu);
         filePopup.add(deleteMenu);
         filePopup.add(renameMenu);
+        filePopup.add(propertiesMenu);
         filePopup.addSeparator();
         filePopup.add(copyMenu);
         filePopup.add(cutMenu);
