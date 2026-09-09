@@ -291,6 +291,12 @@ public class TransferPanel
                 queuedTable);
 
         registerSelectionListener(
+                runningTable);
+
+        registerSelectionListener(
+                finishedTable);
+
+        registerSelectionListener(
                 allTable);
 
         tabs.addChangeListener(
