@@ -49,6 +49,21 @@ public class TransferGroup {
     private final String targetBucket;
     private final String targetPrefix;
 
+    /*
+     * Kaynağın gerçekten klasör olup olmadığını belirtir.
+     *
+     * true:
+     *     Gerçek klasör operasyonu.
+     *
+     * false:
+     *     Dosya veya çoklu dosya operasyonu.
+     *
+     * Özellikle çoklu MOVE işleminde sourcePrefix
+     * "TEST3/" gibi klasör prefix'i olsa bile bu değer
+     * false olacaktır.
+     */
+    private final boolean sourceIsFolder;
+
     /* Discovery / preparation */
     private final AtomicLong detected = new AtomicLong();
     private final AtomicLong detectedBytes = new AtomicLong();
@@ -80,7 +95,8 @@ public class TransferGroup {
 
     private final AtomicBoolean completionNotified =
             new AtomicBoolean(false);
-    
+
+
     /**
      * Backward-compatible constructor.
      */
@@ -99,8 +115,10 @@ public class TransferGroup {
                 null,
                 null,
                 null,
-                null);
+                null,
+                false);
     }
+
 
     /**
      * Backward-compatible logical metadata constructor.
@@ -123,11 +141,16 @@ public class TransferGroup {
                 null,
                 null,
                 null,
-                null);
+                null,
+                false);
     }
+
 
     /**
      * Full transfer group metadata constructor.
+     *
+     * Mevcut çağrıları bozmamak için korunmuştur.
+     * Varsayılan olarak kaynak klasör değildir.
      */
     public TransferGroup(
             UUID id,
@@ -142,6 +165,42 @@ public class TransferGroup {
             String targetBucket,
             String targetPrefix) {
 
+        this(
+                id,
+                displayName,
+                operation,
+                source,
+                target,
+                sourceRepository,
+                sourceBucket,
+                sourcePrefix,
+                targetRepository,
+                targetBucket,
+                targetPrefix,
+                false);
+    }
+
+
+    /**
+     * Full transfer group metadata constructor.
+     *
+     * @param sourceIsFolder
+     *        Kaynağın gerçek bir klasör operasyonu olup olmadığını belirtir.
+     */
+    public TransferGroup(
+            UUID id,
+            String displayName,
+            TransferType operation,
+            String source,
+            String target,
+            String sourceRepository,
+            String sourceBucket,
+            String sourcePrefix,
+            String targetRepository,
+            String targetBucket,
+            String targetPrefix,
+            boolean sourceIsFolder) {
+
         this.id = id;
         this.displayName = displayName;
         this.operation = operation;
@@ -155,51 +214,70 @@ public class TransferGroup {
         this.targetRepository = targetRepository;
         this.targetBucket = targetBucket;
         this.targetPrefix = targetPrefix;
+
+        this.sourceIsFolder = sourceIsFolder;
     }
+
 
     public UUID getId() {
         return id;
     }
 
+
     public String getDisplayName() {
         return displayName;
     }
+
 
     public TransferType getOperation() {
         return operation;
     }
 
+
     public String getSource() {
         return source;
     }
+
 
     public String getTarget() {
         return target;
     }
 
+
     public String getSourceRepository() {
         return sourceRepository;
     }
+
 
     public String getSourceBucket() {
         return sourceBucket;
     }
 
+
     public String getSourcePrefix() {
         return sourcePrefix;
     }
+
 
     public String getTargetRepository() {
         return targetRepository;
     }
 
+
     public String getTargetBucket() {
         return targetBucket;
     }
 
+
     public String getTargetPrefix() {
         return targetPrefix;
     }
+
+
+    public boolean isSourceFolder() {
+        return sourceIsFolder;
+    }
+
 
     // ---------------------------------------------------------------------
     // PRODUCER / DISCOVERY
@@ -208,6 +286,7 @@ public class TransferGroup {
     public void detected() {
         detected.incrementAndGet();
     }
+
 
     public void detected(long size) {
 
@@ -218,17 +297,21 @@ public class TransferGroup {
         }
     }
 
+
     public long getDetected() {
         return detected.get();
     }
+
 
     public long getDetectedBytes() {
         return detectedBytes.get();
     }
 
+
     public void producerStarted() {
         activeProducers.incrementAndGet();
     }
+
 
     public void producerFinished() {
 
@@ -237,9 +320,11 @@ public class TransferGroup {
         fireCompletionIfNecessary();
     }
 
+
     public int getActiveProducers() {
         return activeProducers.get();
     }
+
 
     public void markProductionCompleted() {
 
@@ -247,6 +332,7 @@ public class TransferGroup {
 
         fireCompletionIfNecessary();
     }
+
 
     public void markProductionFailed() {
 
@@ -256,13 +342,16 @@ public class TransferGroup {
         fireCompletionIfNecessary();
     }
 
+
     public boolean isProductionCompleted() {
         return productionCompleted.get();
     }
 
+
     public boolean isProductionFailed() {
         return productionFailed.get();
     }
+
 
     // ---------------------------------------------------------------------
     // TASK STATES
@@ -272,12 +361,14 @@ public class TransferGroup {
         queued.incrementAndGet();
     }
 
+
     public void running() {
 
         decrementIfPositive(queued);
 
         running.incrementAndGet();
     }
+
 
     public void completed() {
 
@@ -288,9 +379,11 @@ public class TransferGroup {
         fireCompletionIfNecessary();
     }
 
+
     public void completed(TransferTask task) {
         completed();
     }
+
 
     public void failed() {
 
@@ -301,6 +394,7 @@ public class TransferGroup {
         fireCompletionIfNecessary();
     }
 
+
     public void failed(TransferTask task) {
 
         failed();
@@ -310,15 +404,18 @@ public class TransferGroup {
         }
     }
 
+
     public void cancelled() {
 
         cancelledFromUnknownState();
     }
 
+
     public void cancelled(TransferTask task) {
 
         cancelledFromUnknownState();
     }
+
 
     /**
      * Queue'dan henüz çalışmaya başlamamış bir task
@@ -333,6 +430,7 @@ public class TransferGroup {
         fireCompletionIfNecessary();
     }
 
+
     /**
      * Çalışmakta olan bir task cancellation nedeniyle
      * durduruldu.
@@ -345,6 +443,7 @@ public class TransferGroup {
 
         fireCompletionIfNecessary();
     }
+
 
     /**
      * Eski çağrılar için güvenli fallback.
@@ -366,7 +465,8 @@ public class TransferGroup {
 
         fireCompletionIfNecessary();
     }
-    
+
+
     public void skipped() {
 
         skipped.incrementAndGet();
@@ -374,9 +474,11 @@ public class TransferGroup {
         fireCompletionIfNecessary();
     }
 
+
     public void skipped(TransferTask task) {
         skipped();
     }
+
 
     // ---------------------------------------------------------------------
     // GETTERS
@@ -386,33 +488,41 @@ public class TransferGroup {
         return queued.get();
     }
 
+
     public int getRunning() {
         return running.get();
     }
+
 
     public int getCompleted() {
         return completed.get();
     }
 
+
     public int getFailed() {
         return failed.get();
     }
+
 
     public int getCancelled() {
         return cancelled.get();
     }
 
+
     public int getSkipped() {
         return skipped.get();
     }
+
 
     public long getTotal() {
         return detected.get();
     }
 
+
     public List<TransferTask> getFailedTasks() {
         return List.copyOf(failedTasks);
     }
+
 
     // ---------------------------------------------------------------------
     // STATUS
@@ -423,6 +533,7 @@ public class TransferGroup {
         return !productionCompleted.get()
                 && activeProducers.get() > 0;
     }
+
 
     public boolean isRunning() {
 
@@ -437,6 +548,7 @@ public class TransferGroup {
         );
     }
 
+
     public boolean isFinished() {
 
         return productionCompleted.get()
@@ -445,6 +557,7 @@ public class TransferGroup {
                 && running.get() == 0;
     }
 
+
     public boolean isCompleted() {
 
         return isFinished()
@@ -452,11 +565,13 @@ public class TransferGroup {
                 && failed.get() == 0;
     }
 
+
     public boolean isFailed() {
 
         return productionFailed.get()
                 || failed.get() > 0;
     }
+
 
     public boolean isFullySuccessful() {
 
@@ -483,6 +598,7 @@ public class TransferGroup {
         return completed.get() == detected.get();
     }
 
+
     // ---------------------------------------------------------------------
     // COMPLETION CALLBACK
     // ---------------------------------------------------------------------
@@ -507,6 +623,7 @@ public class TransferGroup {
 
         fireCompletionIfNecessary();
     }
+
 
     private void fireCompletionIfNecessary() {
 
@@ -535,6 +652,7 @@ public class TransferGroup {
             callback.run();
         }
     }
+
 
     // ---------------------------------------------------------------------
     // INTERNAL
