@@ -32,6 +32,9 @@ public class IconProvider {
     public static ImageIcon ICON_RENAME = null;
     public static ImageIcon ICON_RENAME_NORMAL = createImage("src/main/resources/icons/rename.png", 16);
     public static ImageIcon ICON_RENAME_REVERSE = createImage("src/main/resources/icons/rename-reverse.png", 16);
+    public static ImageIcon ICON_PROPERTIES = null;
+    public static ImageIcon ICON_PROPERTIES_NORMAL = createImage("src/main/resources/icons/properties.png", 16);
+    public static ImageIcon ICON_PROPERTIES_REVERSE = createImage("src/main/resources/icons/properties-reverse.png", 16);
     public static ImageIcon ICON_REFRESH = null;
     public static ImageIcon ICON_REFRESH_NORMAL = createImage("src/main/resources/icons/refresh.png", 16);
     public static ImageIcon ICON_REFRESH_REVERSE = createImage("src/main/resources/icons/refresh-reverse.png", 16);
@@ -104,6 +107,7 @@ public class IconProvider {
         ICON_UPLOAD = normal ? ICON_UPLOAD_NORMAL : ICON_UPLOAD_REVERSE;
         ICON_DELETE = normal ? ICON_DELETE_NORMAL : ICON_DELETE_REVERSE;
         ICON_RENAME = normal ? ICON_RENAME_NORMAL : ICON_RENAME_REVERSE;
+        ICON_PROPERTIES = normal ? ICON_PROPERTIES_NORMAL : ICON_PROPERTIES_REVERSE;
         ICON_REFRESH = normal ? ICON_REFRESH_NORMAL : ICON_REFRESH_REVERSE;
         ICON_CUT = normal ? ICON_CUT_NORMAL : ICON_CUT_REVERSE;
         ICON_PASTE = normal ? ICON_PASTE_NORMAL : ICON_PASTE_REVERSE;

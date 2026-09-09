@@ -474,6 +474,7 @@ public final class ExplorerView {
         setActionIcon(downloadAction, IconProvider.ICON_DOWNLOAD);
         setActionIcon(deleteAction, IconProvider.ICON_DELETE);
         setActionIcon(renameAction, IconProvider.ICON_RENAME);
+        setActionIcon(propertiesAction, IconProvider.ICON_PROPERTIES);
         setActionIcon(copyAction, IconProvider.ICON_COPY);
         setActionIcon(cutAction, IconProvider.ICON_CUT);
         setActionIcon(pasteAction, IconProvider.ICON_PASTE);
