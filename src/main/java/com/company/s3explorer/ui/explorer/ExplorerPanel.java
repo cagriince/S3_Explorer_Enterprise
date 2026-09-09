@@ -420,7 +420,9 @@ public class ExplorerPanel extends JPanel {
                 hasSelection);
 
         propertiesAction.setEnabled(
-                hasSelection);
+                view.getFileTable().getSelectedRowCount() == 1
+                        && getSelectedFileItem() != null
+                        && !getSelectedFileItem().isParentFolder());
         
         copyAction.setEnabled(
                 hasSelection);
@@ -4344,6 +4346,70 @@ public class ExplorerPanel extends JPanel {
     }
 
     private void showProperties() {
-        // Properties dialog will be implemented in the next step.
+
+        if (view.getFileTable().getSelectedRowCount() != 1) {
+            return;
+        }
+
+        S3FileItem item =
+                getSelectedFileItem();
+
+        if (item == null
+                || item.isParentFolder()) {
+            return;
+        }
+
+        PropertiesDialog dialog =
+                new PropertiesDialog(
+                        S3Util.getMainFrameAncestor(this),
+                        item);
+
+        if (item.isFolder()) {
+
+            String bucket =
+                    item.getBucket();
+
+            String prefix =
+                    item.getKey();
+
+            explorerPool.submit(() -> {
+
+                try {
+
+                    FolderProperties properties =
+                            getService().calculateFolderProperties(
+                                    bucket,
+                                    prefix,
+                                    progress ->
+                                            SwingUtilities.invokeLater(() ->
+                                                    dialog.updateFolderProgress(
+                                                            progress)));
+
+                    SwingUtilities.invokeLater(() -> {
+
+                        dialog.updateFolderProperties(
+                                properties);
+
+                        dialog.setCalculationCompleted();
+                    });
+
+                } catch (Exception ex) {
+
+                    log.error(
+                            "[PROPERTIES] folder calculation failed bucket={} prefix={}",
+                            bucket,
+                            prefix,
+                            ex);
+
+                    SwingUtilities.invokeLater(() ->
+                            dialog.setStatus(
+                                    "Calculation failed: "
+                                            + S3ErrorResolver
+                                            .getDetailedMessage(ex)));
+                }
+            });
+        }
+
+        dialog.setVisible(true);
     }
 }
