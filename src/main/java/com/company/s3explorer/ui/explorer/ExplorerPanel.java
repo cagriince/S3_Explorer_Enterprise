@@ -1627,14 +1627,11 @@ public class ExplorerPanel extends JPanel {
                  */
                 else {
 
-                    String folderKey =
+                    pendingFileTableSelectionKey =
                             S3Util.combineKey(
                                     prefix,
                                     file.getName())
                                     + "/";
-
-                    pendingFileTableSelectionKey =
-                            folderKey;
 
                     restoreFileTableFocus =
                             true;
@@ -2743,10 +2740,6 @@ public class ExplorerPanel extends JPanel {
         return (String) view.getBucketCombo().getSelectedItem();
     }
 
-    private S3TreeNode getSelectedFolderNode() {
-        return treeController.getSelectedNode();
-    }
-
     private String getCurrentPrefix() {
         return treeController.getSelectedPrefix();
     }
@@ -2993,8 +2986,6 @@ public class ExplorerPanel extends JPanel {
         RepositoryPanel panel =
                 new RepositoryPanel(
                         repositoryManager,
-                        null,
-                        context,
                         clientFactory);
 
         JDialog dialog =

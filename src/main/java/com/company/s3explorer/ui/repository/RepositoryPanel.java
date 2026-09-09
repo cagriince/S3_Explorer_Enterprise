@@ -3,42 +3,35 @@ package com.company.s3explorer.ui.repository;
 import com.company.s3explorer.application.ActiveRepositoryContext;
 import com.company.s3explorer.repository.RepositoryDefinition;
 import com.company.s3explorer.repository.RepositoryManager;
-import com.company.s3explorer.security.AesCryptoService;
 import com.company.s3explorer.service.ConnectionTestResult;
 import com.company.s3explorer.service.S3ClientFactory;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
-import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 
 public class RepositoryPanel extends JPanel {
 
     private final RepositoryManager repositoryManager;
-    private final AesCryptoService aesCryptoService;
     private final S3ClientFactory clientFactory;
-    private final ActiveRepositoryContext context;
 
     private JTable table;
     private RepositoryTableModel tableModel;
+
+    private JButton editBtn;
+    private JButton deleteBtn;
     private JButton testBtn;
+
+    private boolean testRunning;
     
     public RepositoryPanel(
             RepositoryManager repositoryManager,
-            AesCryptoService aesCryptoService,
-            ActiveRepositoryContext context,
             S3ClientFactory clientFactory) {
 
         this.repositoryManager =
                 repositoryManager;
-
-        this.aesCryptoService =
-                aesCryptoService;
-
-        this.context =
-                context;
 
         this.clientFactory =
                 clientFactory;
@@ -80,6 +73,16 @@ public class RepositoryPanel extends JPanel {
         table.setSelectionMode(
                 ListSelectionModel.SINGLE_SELECTION);
 
+        table.getSelectionModel()
+                .addListSelectionListener(e -> {
+
+                    if (e.getValueIsAdjusting()) {
+                        return;
+                    }
+
+                    updateRepositoryActionButtons();
+                });
+
         table.addMouseListener(
                 new MouseAdapter() {
 
@@ -117,6 +120,8 @@ public class RepositoryPanel extends JPanel {
                     }
                 });
 
+        updateRepositoryActionButtons();
+
         return new JScrollPane(table);
     }
 
@@ -128,10 +133,10 @@ public class RepositoryPanel extends JPanel {
         JButton addBtn =
                 new JButton("Add");
 
-        JButton editBtn =
+        editBtn =
                 new JButton("Edit");
 
-        JButton deleteBtn =
+        deleteBtn =
                 new JButton("Delete");
 
         testBtn =
@@ -157,6 +162,22 @@ public class RepositoryPanel extends JPanel {
         return panel;
     }
 
+    private void updateRepositoryActionButtons() {
+
+        boolean repositorySelected =
+                getSelectedRepository() != null;
+
+        editBtn.setEnabled(
+                repositorySelected);
+
+        deleteBtn.setEnabled(
+                repositorySelected);
+
+        testBtn.setEnabled(
+                repositorySelected
+                        && !testRunning);
+    }
+    
     private RepositoryDefinition getSelectedRepository() {
 
         int row =
@@ -267,11 +288,10 @@ public class RepositoryPanel extends JPanel {
         }
 
         /*
-         * Bağlantı testi network işlemi yaptığı için
-         * Swing Event Dispatch Thread üzerinde
-         * çalıştırmıyoruz.
+         * Bağlantı testi başladı.
+         * Test tamamlanana kadar Test butonu pasif.
          */
-        testButtonState(false);
+        testButtonState(true);
 
         SwingWorker<ConnectionTestResult, Void> worker =
                 new SwingWorker<>() {
@@ -286,8 +306,6 @@ public class RepositoryPanel extends JPanel {
 
                     @Override
                     protected void done() {
-
-                        testButtonState(true);
 
                         try {
 
@@ -304,6 +322,15 @@ public class RepositoryPanel extends JPanel {
                                     ex.getMessage(),
                                     "Test Connection",
                                     JOptionPane.ERROR_MESSAGE);
+
+                        } finally {
+
+                            /*
+                             * Test bitti.
+                             * Repository hâlâ seçiliyse Test tekrar aktif,
+                             * seçim kaldırılmışsa pasif kalır.
+                             */
+                            testButtonState(false);
                         }
                     }
                 };
@@ -312,9 +339,11 @@ public class RepositoryPanel extends JPanel {
     }
 
     private void testButtonState(
-            boolean enabled) {
+            boolean running) {
 
-        testBtn.setEnabled(enabled);
+        testRunning = running;
+
+        updateRepositoryActionButtons();
     }
 
     private void showConnectionResult(
@@ -348,5 +377,7 @@ public class RepositoryPanel extends JPanel {
         tableModel.setRepositories(
                 repositoryManager
                         .getRepositories());
+
+        updateRepositoryActionButtons();
     }
 }
