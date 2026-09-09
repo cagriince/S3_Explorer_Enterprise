@@ -75,12 +75,6 @@ public class TransferPanel
     private final TransferGroupStateStore groupStateStore =
             new TransferGroupStateStore();
 
-    private TransferGroupTableModel runningGroupModel;
-    private TransferGroupTableModel finishedGroupModel;
-
-    private JTable runningGroupTable;
-    private JTable finishedGroupTable;
-    
     private Timer refreshTimer;
 
     private long lastRenderedStateVersion = -1;
@@ -136,12 +130,6 @@ public class TransferPanel
 
         groupResultModel =
                 new DefaultListModel<>();
-
-        runningGroupModel =
-                new TransferGroupTableModel();
-
-        finishedGroupModel =
-                new TransferGroupTableModel();
     }
 
     private void createComponents() {
@@ -223,21 +211,6 @@ public class TransferPanel
         finishedTable =
                 createCombinedTable(
                         finishedModel);
-
-        /*
-         * Legacy group tabloları şimdilik oluşturulmaya
-         * devam ediyor.
-         *
-         * Bir sonraki aşamada unified table tamamen
-         * doğrulandıktan sonra kaldıracağız.
-         */
-        runningGroupTable =
-                createGroupTable(
-                        runningGroupModel);
-
-        finishedGroupTable =
-                createGroupTable(
-                        finishedGroupModel);
 
         /*
          * All
@@ -1560,59 +1533,7 @@ public class TransferPanel
         }
     }
 
-    private JTable createGroupTable(
-            TransferGroupTableModel model) {
-
-        JTable table =
-                new JTable(model);
-
-        table.setRowHeight(54);
-
-        table.setAutoCreateRowSorter(false);
-        table.setRowSorter(null);
-
-        table.getTableHeader()
-                .setReorderingAllowed(false);
-
-        table.getColumnModel()
-                .getColumn(0)
-                .setPreferredWidth(90);
-
-        table.getColumnModel()
-                .getColumn(1)
-                .setPreferredWidth(180);
-
-        table.getColumnModel()
-                .getColumn(2)
-                .setPreferredWidth(500);
-
-        table.getColumnModel()
-                .getColumn(3)
-                .setPreferredWidth(110);
-
-        table.getColumnModel()
-                .getColumn(4)
-                .setPreferredWidth(220);
-
-        return table;
-    }
-
     private void refreshGroupTables() {
-
-        /*
-         * -------------------------------------------------
-         * LEGACY GROUP MODELS
-         * -------------------------------------------------
-         *
-         * Şimdilik eski group modellerini de güncel tutuyoruz.
-         * Unified table tamamen doğrulandıktan sonra
-         * bunlar kaldırılabilir.
-         */
-        runningGroupModel.setRows(
-                groupStateStore.runningSnapshot());
-
-        finishedGroupModel.setRows(
-                groupStateStore.finishedSnapshot());
 
         /*
          * -------------------------------------------------
