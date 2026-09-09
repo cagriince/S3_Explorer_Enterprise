@@ -2412,7 +2412,7 @@ public class ExplorerPanel extends JPanel {
             if (group == null) {
 
                 String groupName =
-                        item.getName();
+                        getOperationGroupName(items);
 
                 String sourcePrefix;
 
@@ -2903,7 +2903,7 @@ public class ExplorerPanel extends JPanel {
          * ilk seçilen dosyanın adını kullanıyoruz.
          */
         String groupName =
-                firstItem.getName();
+                getOperationGroupName(items);
 
         TransferGroup group =
                 transferManager.createOperationGroup(
@@ -4321,5 +4321,24 @@ public class ExplorerPanel extends JPanel {
                 keys);
 
         return true;
+    }
+
+    private String getOperationGroupName(
+            List<S3FileItem> items) {
+
+        if (items == null
+                || items.isEmpty()) {
+            return "";
+        }
+
+        String firstName =
+                items.getFirst().getName();
+
+        if (items.size() == 1) {
+            return firstName;
+        }
+
+        return firstName
+                + " and others";
     }
 }
