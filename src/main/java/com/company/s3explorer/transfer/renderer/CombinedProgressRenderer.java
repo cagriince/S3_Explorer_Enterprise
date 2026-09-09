@@ -10,7 +10,9 @@ import java.awt.*;
 public class CombinedProgressRenderer
         extends JPanel
         implements TableCellRenderer {
-    
+
+    private static final float BAR_SCALE = 0.45f;
+
     private final JProgressBar progressBar =
             new JProgressBar(
                     0,
@@ -19,7 +21,9 @@ public class CombinedProgressRenderer
     public CombinedProgressRenderer() {
 
         setLayout(
-                new BorderLayout());
+                new GridBagLayout());
+
+        setOpaque(true);
 
         progressBar.setStringPainted(
                 true);
@@ -27,9 +31,31 @@ public class CombinedProgressRenderer
         progressBar.setBorderPainted(
                 true);
 
+        GridBagConstraints constraints =
+                new GridBagConstraints();
+
+        constraints.gridx = 0;
+        constraints.gridy = 0;
+
+        constraints.weightx = 1.0;
+        constraints.weighty = 1.0;
+
+        constraints.fill =
+                GridBagConstraints.HORIZONTAL;
+
+        constraints.anchor =
+                GridBagConstraints.CENTER;
+
+        constraints.insets =
+                new Insets(
+                        0,
+                        4,
+                        0,
+                        4);
+
         add(
                 progressBar,
-                BorderLayout.CENTER);
+                constraints);
     }
 
     @Override
@@ -43,7 +69,8 @@ public class CombinedProgressRenderer
 
         int percent = 0;
 
-        if (value instanceof TransferCombinedTableModel.GroupProgress groupProgress) {
+        if (value instanceof
+                TransferCombinedTableModel.GroupProgress groupProgress) {
 
             percent =
                     groupProgress.getPercent();
@@ -80,6 +107,28 @@ public class CombinedProgressRenderer
 
         progressBar.setBackground(
                 getBackground());
+
+        /*
+         * Progress bar'ın kendi yüksekliğini
+         * hücrenin tamamına yayılmasını engelle.
+         *
+         * GridBagLayout ile yatay genişlik korunuyor,
+         * dikeyde ise preferred height kullanılıyor.
+         */
+        Dimension preferredSize =
+                progressBar.getPreferredSize();
+
+        int preferredHeight =
+                Math.max(
+                        8,
+                        Math.round(
+                                table.getRowHeight(row)
+                                        * BAR_SCALE));
+
+        progressBar.setPreferredSize(
+                new Dimension(
+                        preferredSize.width,
+                        preferredHeight));
 
         return this;
     }
