@@ -2902,12 +2902,14 @@ public class ExplorerPanel extends JPanel {
         }
 
         /*
-         * Tek item:
+         * ---------------------------------------------------------
+         * TEK ITEM
+         * ---------------------------------------------------------
          *
-         * Mevcut davranış aynen korunuyor.
+         * Mevcut davranış tamamen korunuyor.
          *
-         * Özellikle klasör DELETE burada kendi
-         * FolderDeleteProducer group'unu oluşturuyor.
+         * Klasör DELETE burada kendi FolderDeleteProducer
+         * lifecycle'ını kullanmaya devam eder.
          */
         if (items.size() == 1) {
 
@@ -2919,13 +2921,13 @@ public class ExplorerPanel extends JPanel {
 
         /*
          * ---------------------------------------------------------
-         * MULTI FILE DELETE GROUP
+         * MULTI SELECTION
          * ---------------------------------------------------------
          *
-         * Çoklu seçimde yalnızca dosyalar için ortak bir
-         * TransferGroup oluşturuyoruz.
+         * Seçimde klasör varsa mevcut davranışı koruyoruz.
          *
-         * Klasör seçilmişse mevcut davranışı koruyoruz.
+         * Sadece tamamen dosyalardan oluşan çoklu seçimlerde
+         * ortak DELETE Group oluşturacağız.
          */
         boolean allFiles =
                 items.stream()
@@ -2963,10 +2965,8 @@ public class ExplorerPanel extends JPanel {
         /*
          * Group adı:
          *
-         * İlk seçilen dosyanın adı.
-         *
-         * COPY / MOVE group'larıyla aynı naming
-         * yaklaşımını kullanıyoruz.
+         * COPY / MOVE group'larında kullandığımız yaklaşımla
+         * ilk seçilen dosyanın adını kullanıyoruz.
          */
         String groupName =
                 firstItem.getName();
@@ -2983,8 +2983,8 @@ public class ExplorerPanel extends JPanel {
                         sourcePrefix);
 
         /*
-         * DELETE tamamlandığında kaynak File Table
-         * ve Tree refresh edilecek.
+         * DELETE tamamlandığında kaynak File Table ve Tree
+         * refresh edilecek.
          */
         transferManager.configureGroupCompletion(
                 group,
@@ -2994,7 +2994,7 @@ public class ExplorerPanel extends JPanel {
                 true);
 
         /*
-         * Her dosyayı aynı group'a bağlıyoruz.
+         * Bütün seçili dosyaları aynı DELETE Group'a bağlıyoruz.
          */
         for (S3FileItem item : items) {
 
@@ -3020,16 +3020,14 @@ public class ExplorerPanel extends JPanel {
                                 JOptionPane.ERROR_MESSAGE));
 
                 /*
-                 * Submit edilemeyen task'ı failed olarak
-                 * group lifecycle'a dahil et.
+                 * Submit edilemeyen task'ı group lifecycle'ına
+                 * failed olarak dahil ediyoruz.
                  */
                 group.failed();
             }
         }
 
         /*
-         * Bütün dosyalar submit edildi.
-         *
          * Artık group yeni task üretmeyecek.
          */
         group.markProductionCompleted();
