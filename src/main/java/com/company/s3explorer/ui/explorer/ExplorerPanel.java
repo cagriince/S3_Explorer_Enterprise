@@ -1834,22 +1834,30 @@ public class ExplorerPanel extends JPanel {
                 event.isSourceRefreshRequired());
 
         /*
-         * Başarısız veya iptal edilmiş gruplarda
-         * normal tamamlanma refresh'i yapılmaz.
+         * ---------------------------------------------------------
+         * GROUP TAMAMLANMIŞTIR.
+         * ---------------------------------------------------------
+         *
+         * Burada event.isSuccessful() kontrolü yapmıyoruz.
+         *
+         * Çünkü:
+         *
+         *   3 task
+         *   2 completed
+         *   1 failed/skipped/cancelled
+         *
+         * gibi kısmi başarılı bir operation'da Explorer'da
+         * başarılı olan değişikliklerin de gösterilmesi gerekir.
+         *
+         * Source / target refresh kararları aşağıdaki metadata
+         * ve operation bilgilerine göre ayrıca veriliyor.
          */
-        if (!event.isSuccessful()) {
 
-            log.debug(
-                    "[EXPLORER GROUP COMPLETED] " +
-                            "operation finished with errors; " +
-                            "refresh is not triggered");
+        String currentBucket =
+                currentFileBucket;
 
-            return;
-        }
-
-        String currentBucket = currentFileBucket;
-        
-        String currentPrefix = currentFilePrefix;
+        String currentPrefix =
+                currentFilePrefix;
 
         log.info(
                 "[EXPLORER GROUP REFRESH STATE] " +
@@ -1865,6 +1873,7 @@ public class ExplorerPanel extends JPanel {
                 currentPrefix,
                 group.getTargetBucket(),
                 group.getTargetPrefix());
+
         /*
          * -------------------------------------------------
          * SOURCE REFRESH
@@ -1987,121 +1996,49 @@ public class ExplorerPanel extends JPanel {
          * yeni object/folder geldiği için ADD refresh
          * gerekir.
          */
-        
-        TransferType operation =
-                group.getOperation();
+        if (group.getOperation() == TransferType.COPY
+                || group.getOperation() == TransferType.MOVE) {
 
-        if (operation != TransferType.COPY
-                && operation != TransferType.MOVE) {
+            String targetBucket =
+                    group.getTargetBucket();
 
-            log.debug(
-                    "[EXPLORER TARGET REFRESH] " +
-                            "operation={} -> skipped",
-                    operation);
+            String targetPrefix =
+                    group.getTargetPrefix();
 
-            return;
-        }
+            if (targetBucket != null
+                    && targetPrefix != null
+                    && Objects.equals(
+                    currentBucket,
+                    targetBucket)) {
 
-        String targetRepository =
-                group.getTargetRepository();
+                log.debug(
+                        "[EXPLORER TARGET TREE REFRESH] " +
+                                "prefix={} operation=ADD",
+                        targetPrefix);
 
-        String targetBucket =
-                group.getTargetBucket();
+                refreshScheduler.scheduleRefresh(
+                        List.of(
+                                new RefreshTreeNode(
+                                        targetPrefix,
+                                        RefreshTreeOperation.ADD)));
 
-        String targetPrefix =
-                group.getTargetPrefix();
+                /*
+                 * Hedef File Table şu anda açık olan
+                 * prefix ise onu da yenile.
+                 */
+                if (Objects.equals(
+                        currentPrefix,
+                        targetPrefix)) {
 
-        if (targetBucket == null
-                || targetPrefix == null) {
+                    log.debug(
+                            "[EXPLORER TARGET TABLE REFRESH] " +
+                                    "bucket={} prefix={}",
+                            targetBucket,
+                            targetPrefix);
 
-            log.debug(
-                    "[EXPLORER TARGET REFRESH] " +
-                            "target metadata missing");
-
-            return;
-        }
-
-        /*
-         * Folder COPY / MOVE:
-         *
-         * Target prefix klasörün kendisidir.
-         * Örneğin:
-         *
-         * source = TEST2/02/
-         * target = TEST3/
-         *
-         * gerçek oluşan folder = TEST3/02/
-         *
-         * Dolayısıyla TEST3/ parent'ının refresh edilmesi
-         * gerekir.
-         */
-        boolean folderOperation =
-                group.getSourcePrefix() != null
-                        && group.getSourcePrefix().endsWith("/");
-
-        String targetRefreshPrefix;
-
-        if (folderOperation) {
-
-            targetRefreshPrefix =
-                    targetPrefix;
-
-        } else {
-
-            targetRefreshPrefix =
-                    getParentPrefix(targetPrefix);
-        }
-
-        log.info(
-                "[EXPLORER TARGET MATCH] " +
-                        "currentBucket={} targetBucket={} " +
-                        "currentPrefix={} targetRefreshPrefix={}",
-                currentBucket,
-                targetBucket,
-                currentPrefix,
-                targetRefreshPrefix);
-        /*
-         * TreeController yalnızca mevcut bucket üzerinde
-         * çalışır. Başka bucket/repository için burada
-         * refresh tetiklemiyoruz.
-         */
-        if (Objects.equals(
-                currentBucket,
-                targetBucket)) {
-
-            log.debug(
-                    "[EXPLORER TARGET TREE REFRESH] " +
-                            "repository={} bucket={} " +
-                            "prefix={} operation=ADD",
-                    targetRepository,
-                    targetBucket,
-                    targetRefreshPrefix);
-
-            refreshScheduler.scheduleRefresh(
-                    List.of(
-                            new RefreshTreeNode(
-                                    targetRefreshPrefix,
-                                    RefreshTreeOperation.ADD)));
-        }
-
-        /*
-         * Hedef File Table şu anda açıksa
-         * yalnızca o tabloyu yenile.
-         */
-        if (Objects.equals(
-                currentBucket,
-                targetBucket)
-                && Objects.equals(
-                currentPrefix,
-                targetRefreshPrefix)) {
-
-            log.debug(
-                    "[EXPLORER TARGET TABLE REFRESH] " +
-                            "bucket={} prefix={}",
-                    targetBucket,
-                    targetRefreshPrefix);
-
-            refreshScheduler.scheduleCurrentTableRefresh();
+                    refreshScheduler.scheduleCurrentTableRefresh();
+                }
+            }
         }
     }
     
