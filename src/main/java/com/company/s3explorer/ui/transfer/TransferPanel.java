@@ -9,6 +9,7 @@ import com.company.s3explorer.transfer.manager.TransferManager;
 import com.company.s3explorer.transfer.renderer.*;
 import com.company.s3explorer.transfer.state.TransferStateStore;
 import com.company.s3explorer.ui.icons.IconProvider;
+import com.company.s3explorer.ui.theme.UIThemeManager;
 
 import javax.swing.*;
 import java.awt.*;
@@ -557,11 +558,51 @@ public class TransferPanel
         JTable table =
                 new JTable(model);
 
-        configureTable(table, 100);
+        configureTable(
+                table,
+                100);
+
+        /*
+         * Normal Transfer Table renderer'ları.
+         */
+        table.getColumnModel()
+                .getColumn(0)
+                .setCellRenderer(
+                        new TypeRenderer());
+
+        table.getColumnModel()
+                .getColumn(2)
+                .setCellRenderer(
+                        new FileSizeRenderer());
+
+        table.getColumnModel()
+                .getColumn(3)
+                .setCellRenderer(
+                        new ProgressBarRenderer());
+
+        table.getColumnModel()
+                .getColumn(4)
+                .setCellRenderer(
+                        new StatusRenderer());
+
+        table.getColumnModel()
+                .getColumn(5)
+                .setCellRenderer(
+                        new InstantRenderer());
+
+        table.getColumnModel()
+                .getColumn(6)
+                .setCellRenderer(
+                        new InstantRenderer());
+
+        table.getColumnModel()
+                .getColumn(7)
+                .setCellRenderer(
+                        new LongFormatRenderer());
 
         return table;
     }
-
+   
     private void updateTabTitles() {
 
         long queued =
@@ -1038,8 +1079,7 @@ public class TransferPanel
                              *
                              * Sabit RGB kullanmıyoruz.
                              * Mevcut JTable background renginden
-                             * türetilmiş hafif bir varyasyon
-                             * kullanıyoruz.
+                             * hafif bir varyasyon üretiyoruz.
                              */
                             Color base =
                                     getBackground();
@@ -1065,20 +1105,13 @@ public class TransferPanel
                         /*
                          * ÖNEMLİ:
                          *
-                         * Burada artık fontu değiştirmiyoruz.
+                         * Burada fontu değiştirmiyoruz.
                          *
-                         * Grup satırında daha önce:
+                         * Grup adı zaten S3Util tarafından
+                         * kendi içinde bold olarak oluşturuluyor.
                          *
-                         *     Font.BOLD
-                         *
-                         * uygulanıyordu.
-                         *
-                         * Bu, HTML Process Detail içeriğinin
-                         * birkaç piksel genişlemesine ve son
-                         * satırın aşağı taşmasına neden oluyordu.
-                         *
-                         * Grup adı zaten S3Util tarafından kendi
-                         * içinde bold olarak oluşturuluyor.
+                         * Böylece Process Detail genişleyip
+                         * satırın aşağı taşmasına neden olmuyor.
                          */
 
                         return component;
@@ -1144,7 +1177,50 @@ public class TransferPanel
                     }
                 };
 
-        configureTable(table, 100);
+        /*
+         * Combined table kolon genişlikleri.
+         */
+        configureTable(
+                table,
+                120);
+
+        /*
+         * Combined renderer'lar.
+         */
+        table.getColumnModel()
+                .getColumn(0)
+                .setCellRenderer(
+                        new CombinedTypeRenderer());
+
+        table.getColumnModel()
+                .getColumn(2)
+                .setCellRenderer(
+                        new CombinedFileSizeRenderer());
+
+        table.getColumnModel()
+                .getColumn(3)
+                .setCellRenderer(
+                        new CombinedProgressRenderer());
+
+        table.getColumnModel()
+                .getColumn(4)
+                .setCellRenderer(
+                        new CombinedStatusRenderer());
+
+        table.getColumnModel()
+                .getColumn(5)
+                .setCellRenderer(
+                        new InstantRenderer());
+
+        table.getColumnModel()
+                .getColumn(6)
+                .setCellRenderer(
+                        new InstantRenderer());
+
+        table.getColumnModel()
+                .getColumn(7)
+                .setCellRenderer(
+                        new LongFormatRenderer());
 
         return table;
     }
