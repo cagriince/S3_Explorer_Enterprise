@@ -21,6 +21,7 @@ public class RepositoryPanel extends JPanel {
     private RepositoryTableModel tableModel;
 
     private JButton editBtn;
+    private JButton duplicateBtn;
     private JButton deleteBtn;
     private JButton testBtn;
 
@@ -136,6 +137,9 @@ public class RepositoryPanel extends JPanel {
         editBtn =
                 new JButton("Edit");
 
+        duplicateBtn =
+                new JButton("Duplicate");
+
         deleteBtn =
                 new JButton("Delete");
 
@@ -148,6 +152,9 @@ public class RepositoryPanel extends JPanel {
         editBtn.addActionListener(
                 e -> editRepository());
 
+        duplicateBtn.addActionListener(
+                e -> duplicateRepository());
+
         deleteBtn.addActionListener(
                 e -> deleteRepository());
 
@@ -156,6 +163,7 @@ public class RepositoryPanel extends JPanel {
 
         panel.add(addBtn);
         panel.add(editBtn);
+        panel.add(duplicateBtn);
         panel.add(deleteBtn);
         panel.add(testBtn);
 
@@ -168,6 +176,9 @@ public class RepositoryPanel extends JPanel {
                 getSelectedRepository() != null;
 
         editBtn.setEnabled(
+                repositorySelected);
+
+        duplicateBtn.setEnabled(
                 repositorySelected);
 
         deleteBtn.setEnabled(
@@ -246,6 +257,62 @@ public class RepositoryPanel extends JPanel {
         reloadRepositories();
     }
 
+    private void duplicateRepository() {
+
+        RepositoryDefinition selected =
+                getSelectedRepository();
+
+        if (selected == null) {
+            return;
+        }
+
+        String newName =
+                JOptionPane.showInputDialog(
+                        this,
+                        "Enter a new repository name:",
+                        "Duplicate Repository",
+                        JOptionPane.PLAIN_MESSAGE);
+
+        if (newName == null) {
+            return;
+        }
+
+        newName = newName.trim();
+
+        if (newName.isEmpty()) {
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Repository name must not be empty.",
+                    "Duplicate Repository",
+                    JOptionPane.ERROR_MESSAGE);
+
+            return;
+        }
+
+        try {
+
+            RepositoryDefinition duplicate =
+                    repositoryManager
+                            .duplicateRepository(
+                                    selected,
+                                    newName);
+
+            reloadRepositories();
+
+            selectRepository(
+                    duplicate);
+
+        } catch (IllegalArgumentException ex) {
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    ex.getMessage(),
+                    "Duplicate Repository",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+    
     public void deleteRepository() {
 
         RepositoryDefinition selected =
@@ -379,5 +446,42 @@ public class RepositoryPanel extends JPanel {
                         .getRepositories());
 
         updateRepositoryActionButtons();
+    }
+
+    private void selectRepository(
+            RepositoryDefinition repository) {
+
+        if (repository == null) {
+            return;
+        }
+
+        for (int row = 0;
+             row < tableModel.getRowCount();
+             row++) {
+
+            RepositoryDefinition current =
+                    tableModel.getRepository(row);
+
+            if (repository.equals(current)) {
+
+                int viewRow =
+                        table.convertRowIndexToView(row);
+
+                if (viewRow >= 0) {
+
+                    table.setRowSelectionInterval(
+                            viewRow,
+                            viewRow);
+
+                    table.scrollRectToVisible(
+                            table.getCellRect(
+                                    viewRow,
+                                    0,
+                                    true));
+                }
+
+                return;
+            }
+        }
     }
 }
