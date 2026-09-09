@@ -4307,19 +4307,17 @@ public class ExplorerPanel extends JPanel {
 
         /*
          * Selection has been restored successfully.
+         *
+         * Focus restoration is intentionally NOT performed here.
+         * loadFiles() owns the focus restoration so that the
+         * File Table receives exactly one focus-restore request
+         * for the current refresh.
          */
         forceFileTableFocusAfterRefresh = false;
 
-        /*
-         * Keep the existing focus-restore mechanism.
-         * It contains the retry logic required by Swing.
-         */
         restoreFileTableFocus = true;
 
         updateActionStates();
-
-        SwingUtilities.invokeLater(
-                this::restoreFileTableFocus);
 
         log.info(
                 "[PASTE SELECTION] restored and completed keys={}",
