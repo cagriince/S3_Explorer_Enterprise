@@ -241,13 +241,12 @@ public class TransferPanel
                         runningTable));
 
         /*
-         * Finished tab contains two logically different areas:
+         * Finished
          *
-         * 1. Group Results
-         *    Final result of a logical multi-item operation.
+         * Unified table:
          *
-         * 2. Individual transfers
-         *    Existing task-level finished transfer table.
+         *   [Group rows]
+         *   [Individual transfer rows]
          */
         tabs.addTab(
                 "Finished",
