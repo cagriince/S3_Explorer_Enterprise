@@ -1763,11 +1763,62 @@ public class TransferPanel
 
     private void refreshGroupTables() {
 
+        /*
+         * -------------------------------------------------
+         * LEGACY GROUP MODELS
+         * -------------------------------------------------
+         *
+         * Şimdilik eski group modellerini de güncel tutuyoruz.
+         * Unified table tamamen doğrulandıktan sonra
+         * bunlar kaldırılabilir.
+         */
         runningGroupModel.setRows(
                 groupStateStore.runningSnapshot());
 
         finishedGroupModel.setRows(
                 groupStateStore.finishedSnapshot());
+
+        /*
+         * -------------------------------------------------
+         * UNIFIED RUNNING TABLE
+         * -------------------------------------------------
+         *
+         * Group + individual TransferRuntime
+         */
+        runningModel.setSnapshot(
+                groupStateStore.runningSnapshot(),
+                stateStore.snapshot(
+                        TransferStateStore.View.RUNNING));
+
+        /*
+         * -------------------------------------------------
+         * UNIFIED FINISHED TABLE
+         * -------------------------------------------------
+         *
+         * Group + individual TransferRuntime
+         */
+        finishedModel.setSnapshot(
+                groupStateStore.finishedSnapshot(),
+                stateStore.snapshot(
+                        TransferStateStore.View.FINISHED));
+
+        /*
+         * -------------------------------------------------
+         * UNIFIED ALL TABLE
+         * -------------------------------------------------
+         *
+         * Group + individual TransferRuntime
+         */
+        allModel.setSnapshot(
+                groupStateStore.snapshot(),
+                stateStore.snapshot(
+                        TransferStateStore.View.ALL));
+
+        /*
+         * Tab başlıkları da aynı state üzerinden
+         * yeniden hesaplanmalı.
+         */
+        updateTabTitles();
     }
 
     private JTable createCombinedTable(
