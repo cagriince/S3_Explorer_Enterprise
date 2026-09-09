@@ -665,4 +665,68 @@ public class S3ExplorerService {
                         .maxKeys(1)
                         .build());
     }
+
+    public FolderProperties calculateFolderProperties(
+            String bucket,
+            String prefix,
+            Consumer<FolderProperties> progressConsumer) {
+
+        Set<String> folders = new HashSet<>();
+
+        long[] fileCount = {0};
+        long[] totalSize = {0};
+
+        forEachObject(
+                bucket,
+                prefix,
+                object -> {
+
+                    String key = object.key();
+
+                    if (key.endsWith("/")) {
+                        folders.add(key);
+                        return;
+                    }
+
+                    fileCount[0]++;
+                    totalSize[0] += object.size();
+
+                    addParentFolders(
+                            prefix,
+                            key,
+                            folders);
+
+                    if (progressConsumer != null) {
+                        progressConsumer.accept(
+                                new FolderProperties(
+                                        folders.size(),
+                                        fileCount[0],
+                                        totalSize[0]));
+                    }
+                });
+
+        return new FolderProperties(
+                folders.size(),
+                fileCount[0],
+                totalSize[0]);
+    }
+
+    private void addParentFolders(
+            String rootPrefix,
+            String key,
+            Set<String> folders) {
+
+        int index = key.lastIndexOf('/');
+
+        while (index >= 0) {
+
+            String folder = key.substring(0, index + 1);
+
+            if (folder.length() > rootPrefix.length()) {
+                folders.add(folder);
+            }
+
+            index = key.lastIndexOf('/', index - 1);
+        }
+    }
 }
