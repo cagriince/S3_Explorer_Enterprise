@@ -52,10 +52,6 @@ public class TransferPanel
     private TransferCombinedTableModel finishedModel;
     private TransferCombinedTableModel allModel;
     
-    private ProducerTableModel producerTableModel;
-
-    private JTable producerTable;
-
     private JTable queuedTable;
     private JTable runningTable;
     private JTable finishedTable;
@@ -85,7 +81,6 @@ public class TransferPanel
     private JTable runningGroupTable;
     private JTable finishedGroupTable;
     
-    private volatile ProducerRuntime pendingProducerUpdate;
     private Timer refreshTimer;
 
     private long lastRenderedStateVersion = -1;
@@ -139,9 +134,6 @@ public class TransferPanel
                 new TransferCombinedTableModel(
                         UI_VISIBLE_LIMIT);
 
-        producerTableModel =
-                new ProducerTableModel();
-
         groupResultModel =
                 new DefaultListModel<>();
 
@@ -150,7 +142,6 @@ public class TransferPanel
 
         finishedGroupModel =
                 new TransferGroupTableModel();
-
     }
 
     private void createComponents() {
@@ -202,12 +193,6 @@ public class TransferPanel
                 e -> clearFinishedTransfers());
 
         setButtonIcons();
-
-        /*
-         * Producer table
-         */
-        producerTable =
-                createProducerTable();
 
         /*
          * Queued
@@ -553,13 +538,6 @@ public class TransferPanel
     }
     
     @Override
-    public void onProducerUpdated(
-            ProducerRuntime runtime) {
-
-        pendingProducerUpdate = runtime;
-    }
-
-    @Override
     public void onTransferGroupUpdated(
             TransferGroupUpdatedEvent event) {
 
@@ -742,20 +720,6 @@ public class TransferPanel
         if (currentVersion
                 == lastRenderedStateVersion) {
 
-            ProducerRuntime producer =
-                    pendingProducerUpdate;
-
-            if (producer != null) {
-
-                pendingProducerUpdate = null;
-
-                producerTableModel.update(
-                        producer);
-
-                updateProducerVisibility(
-                        producer);
-            }
-
             updateTabTitles();
             updateButtons();
 
@@ -766,20 +730,6 @@ public class TransferPanel
 
         lastRenderedStateVersion =
                 currentVersion;
-
-        ProducerRuntime producer =
-                pendingProducerUpdate;
-
-        if (producer != null) {
-
-            pendingProducerUpdate = null;
-
-            producerTableModel.update(
-                    producer);
-
-            updateProducerVisibility(
-                    producer);
-        }
 
         updateTabTitles();
         updateButtons();
@@ -828,120 +778,6 @@ public class TransferPanel
                 stateStore.snapshot(
                         TransferStateStore.View.ALL));
 
-    }
-
-    private void updateProducerVisibility(
-            ProducerRuntime runtime) {
-
-        if (runtime == null) {
-
-            producerTable.setVisible(false);
-
-            return;
-        }
-
-        producerTable.setVisible(true);
-
-        if (runtime.getStatus().isFinished()) {
-
-            Timer timer =
-                    new Timer(
-                            3000,
-                            e -> {
-
-                                producerTableModel.clear();
-
-                                producerTable.setVisible(
-                                        false);
-
-                                producerTable.revalidate();
-                                producerTable.repaint();
-                            });
-
-            timer.setRepeats(false);
-            timer.start();
-        }
-
-        producerTable.revalidate();
-        producerTable.repaint();
-    }
-
-    private JTable createProducerTable() {
-
-        JTable table =
-                new JTable(
-                        producerTableModel);
-
-        table.setRowHeight(32);
-        table.setFocusable(false);
-        table.setEnabled(false);
-
-        table.getTableHeader()
-                .setReorderingAllowed(false);
-
-        table.setTableHeader(null);
-
-        table.getColumnModel()
-                .getColumn(0)
-                .setPreferredWidth(500);
-
-        table.getColumnModel()
-                .getColumn(1)
-                .setPreferredWidth(180);
-
-        table.getColumnModel()
-                .getColumn(2)
-                .setPreferredWidth(100);
-
-        table.getColumnModel()
-                .getColumn(3)
-                .setPreferredWidth(160);
-
-        table.getColumnModel()
-                .getColumn(4)
-                .setPreferredWidth(160);
-
-        table.getColumnModel()
-                .getColumn(5)
-                .setPreferredWidth(120);
-
-        table.getColumnModel()
-                .getColumn(6)
-                .setPreferredWidth(300);
-
-        table.getColumnModel()
-                .getColumn(1)
-                .setCellRenderer(
-                        new ProducerProgressRenderer());
-
-        table.getColumnModel()
-                .getColumn(2)
-                .setCellRenderer(
-                        new StatusRenderer());
-
-        table.getColumnModel()
-                .getColumn(3)
-                .setCellRenderer(
-                        new InstantRenderer());
-
-        table.getColumnModel()
-                .getColumn(4)
-                .setCellRenderer(
-                        new InstantRenderer());
-
-        table.getColumnModel()
-                .getColumn(5)
-                .setCellRenderer(
-                        new LongFormatRenderer());
-
-        table.getColumnModel()
-                .getColumn(6)
-                .setCellRenderer(
-                        new DefaultTableCellRenderer());
-
-        table.setVisible(false);
-
-        return table;
     }
 
     private JTable createTable(
