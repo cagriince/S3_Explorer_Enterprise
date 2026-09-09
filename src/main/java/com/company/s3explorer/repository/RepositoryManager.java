@@ -116,4 +116,58 @@ public class RepositoryManager {
                 ? RepositoryDefinition.EMPTY_REPOSITORY
                 : repository;
     }
+
+    public RepositoryDefinition duplicateRepository(
+            RepositoryDefinition source,
+            String newName) {
+
+        if (source == null) {
+            throw new IllegalArgumentException(
+                    "Source repository must not be null");
+        }
+
+        if (newName == null
+                || newName.trim().isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Repository name must not be empty");
+        }
+
+        String name =
+                newName.trim();
+
+        boolean nameExists =
+                repositories.stream()
+                        .anyMatch(repository ->
+                                name.equals(
+                                        repository.getName()));
+
+        if (nameExists) {
+            throw new IllegalArgumentException(
+                    "A repository with the name \""
+                            + name
+                            + "\" already exists.");
+        }
+
+        RepositoryDefinition duplicate =
+                new RepositoryDefinition();
+
+        duplicate.setName(name);
+        duplicate.setEndpoint(
+                source.getEndpoint());
+        duplicate.setAccessKey(
+                source.getAccessKey());
+        duplicate.setSecretKey(
+                source.getSecretKey());
+        duplicate.setExternalBuckets(
+                source.getExternalBuckets());
+
+        repositories.add(duplicate);
+
+        persist();
+
+        fireRepositoryChanged(
+                duplicate);
+
+        return duplicate;
+    }
 }
