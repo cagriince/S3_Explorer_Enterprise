@@ -696,10 +696,10 @@ public class TransferPanel
                     queuedTable;
 
             case 1 ->
-                    null;
+                    runningTable;
 
             case 2 ->
-                    null;
+                    finishedTable;
 
             case 3 ->
                     allTable;
@@ -716,8 +716,15 @@ public class TransferPanel
             return queuedModel;
         }
 
+        /*
+         * Combined tabloların kendi TransferRuntime
+         * modeline doğrudan erişmiyoruz.
+         *
+         * Bir sonraki adımda combined model üzerinden
+         * seçilen satırın gerçek TransferRuntime'ını
+         * çözeceğiz.
+         */
         return null;
-
     }
     
     private void cancelSelectedTransfers() {
