@@ -9,7 +9,6 @@ import com.company.s3explorer.transfer.manager.TransferManager;
 import com.company.s3explorer.transfer.renderer.*;
 import com.company.s3explorer.transfer.state.TransferStateStore;
 import com.company.s3explorer.ui.icons.IconProvider;
-import com.company.s3explorer.ui.theme.UIThemeManager;
 
 import javax.swing.*;
 import java.awt.*;
