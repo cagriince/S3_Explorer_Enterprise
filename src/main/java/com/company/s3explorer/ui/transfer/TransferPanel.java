@@ -381,19 +381,18 @@ public class TransferPanel
                 event.getGroup().getId();
 
         /*
-         * Aynı group için yalnızca en son event'i tut.
+         * Aynı group için yalnızca en son update'i tut.
          *
-         * Preparing sırasında çok sayıda update gelebilir.
-         * Böylece EDT kuyruğuna her event için ayrı iş
-         * eklenmez.
+         * Preparing / Running sırasında çok sayıda
+         * update gelebilir.
          */
         pendingGroupUpdates.put(
                 groupId,
                 event);
 
         /*
-         * EDT'de zaten bir refresh bekliyorsa
-         * yeni bir refresh schedule etme.
+         * EDT'de zaten bir group refresh bekliyorsa
+         * yeni bir EDT işi oluşturma.
          */
         if (!groupUpdateRefreshScheduled.compareAndSet(
                 false,
@@ -404,6 +403,77 @@ public class TransferPanel
 
         SwingUtilities.invokeLater(
                 this::processPendingGroupUpdates);
+    }
+
+
+    /*
+     * Final logical group completion.
+     *
+     * ÖNEMLİ:
+     *
+     * Completion artık doğrudan ayrı bir EDT işi olarak
+     * çalıştırılmıyor.
+     *
+     * Önce pending update'ler işleniyor,
+     * ardından completion aynı EDT sırası içinde
+     * uygulanıyor.
+     */
+    @Override
+    public void onTransferGroupCompleted(
+            TransferGroupCompletedEvent event) {
+
+        if (event == null
+                || event.getGroup() == null) {
+            return;
+        }
+
+        UUID groupId =
+                event.getGroup().getId();
+
+        /*
+         * Completion için bekleyen update'i ezebiliriz.
+         *
+         * Ancak completion'ın kendisini ayrıca saklamıyoruz.
+         * Completion sıralaması ayrı bir kuyruk üzerinden
+         * korunuyor.
+         */
+        SwingUtilities.invokeLater(() -> {
+
+            /*
+             * Completion EDT'ye geldiğinde önce aynı group için
+             * pending update varsa onu uygula.
+             *
+             * Böylece:
+             *
+             *     Updated
+             *     Updated
+             *     Completed
+             *
+             * sırası korunur.
+             */
+            TransferGroupUpdatedEvent pending =
+                    pendingGroupUpdates.remove(
+                            groupId);
+
+            if (pending != null) {
+
+                groupStateStore.upsert(
+                        pending);
+            }
+
+            /*
+             * Completion her zaman en son uygulanır.
+             *
+             * Böylece Finished state'i daha eski bir
+             * Updated event tarafından ezilemez.
+             */
+            groupStateStore.complete(
+                    event);
+
+            refreshVisibleTables();
+            updateTabTitles();
+            updateButtons();
+        });
     }
 
     private void processPendingGroupUpdates() {
@@ -447,31 +517,6 @@ public class TransferPanel
                         this::processPendingGroupUpdates);
             }
         }
-    }
-    
-    /*
-     * Final logical group completion.
-     *
-     * Individual task events continue to use StateStore.
-     * This callback is responsible only for the group-level
-     * final result shown in the Finished tab.
-     */
-    @Override
-    public void onTransferGroupCompleted(
-            TransferGroupCompletedEvent event) {
-
-        if (event == null || event.getGroup() == null) {
-            return;
-        }
-
-        SwingUtilities.invokeLater(() -> {
-
-            groupStateStore.complete(event);
-            
-            refreshVisibleTables();
-            updateTabTitles();
-            updateButtons();
-        });
     }
     
     /*
