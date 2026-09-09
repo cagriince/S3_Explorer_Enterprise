@@ -673,42 +673,47 @@ public class S3ExplorerService {
 
         Set<String> folders = new HashSet<>();
 
-        long[] fileCount = {0};
-        long[] totalSize = {0};
+        long fileCount = 0;
+        long totalSize = 0;
 
-        forEachObject(
-                bucket,
-                prefix,
-                object -> {
+        for (ListObjectsV2Response page : client.listObjectsV2Paginator(
+                ListObjectsV2Request.builder()
+                        .bucket(bucket)
+                        .prefix(prefix)
+                        .build())) {
 
-                    String key = object.key();
+            for (S3Object object : page.contents()) {
+                String key = object.key();
 
-                    if (key.endsWith("/")) {
-                        folders.add(key);
-                        return;
-                    }
+                if (key.endsWith("/")) {
+                    folders.add(key);
+                } else {
+                    fileCount++;
+                    totalSize += object.size();
+                    addParentFolders(prefix, key, folders);
+                }
 
-                    fileCount[0]++;
-                    totalSize[0] += object.size();
+                if (progressConsumer != null && fileCount % 250 == 0) {
+                    progressConsumer.accept(
+                            new FolderProperties(
+                                    folders.size(),
+                                    fileCount,
+                                    totalSize));
+                }
+            }
+        }
 
-                    addParentFolders(
-                            prefix,
-                            key,
-                            folders);
+        FolderProperties result =
+                new FolderProperties(
+                        folders.size(),
+                        fileCount,
+                        totalSize);
 
-                    if (progressConsumer != null) {
-                        progressConsumer.accept(
-                                new FolderProperties(
-                                        folders.size(),
-                                        fileCount[0],
-                                        totalSize[0]));
-                    }
-                });
+        if (progressConsumer != null) {
+            progressConsumer.accept(result);
+        }
 
-        return new FolderProperties(
-                folders.size(),
-                fileCount[0],
-                totalSize[0]);
+        return result;
     }
 
     private void addParentFolders(
