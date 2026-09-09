@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 import javax.swing.*;
 import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreePath;
+import java.text.Collator;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -935,13 +936,20 @@ public final class ExplorerTreeController {
             return Collections.emptyList();
         }
 
+        Collator collator =
+                Collator.getInstance(
+                        new Locale("tr", "TR"));
+
+        collator.setStrength(
+                Collator.PRIMARY);
+
         List<String> sortedFolders =
                 new ArrayList<>(folders);
 
         sortedFolders.sort(
                 Comparator.comparing(
                         S3Util::extractFolderName,
-                        String.CASE_INSENSITIVE_ORDER));
+                        collator));
 
         return sortedFolders;
     }
