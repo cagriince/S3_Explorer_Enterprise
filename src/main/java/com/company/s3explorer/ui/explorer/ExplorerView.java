@@ -3,6 +3,7 @@ package com.company.s3explorer.ui.explorer;
 import com.company.s3explorer.repository.RepositoryDefinition;
 import com.company.s3explorer.transfer.renderer.FileSizeRenderer;
 import com.company.s3explorer.transfer.renderer.InstantRenderer;
+import com.company.s3explorer.transfer.renderer.PaddedTableCellRenderer;
 import com.company.s3explorer.ui.icons.IconProvider;
 import com.company.s3explorer.ui.theme.UITheme;
 import com.company.s3explorer.ui.theme.UIThemeManager;
@@ -312,6 +313,9 @@ public final class ExplorerView {
 
     private JTable createFileTable(FileTableModel model) {
         JTable table = new JTable(model);
+        table.setDefaultRenderer(
+                Object.class,
+                new PaddedTableCellRenderer());
         TableColumn hidden = table.getColumnModel().getColumn(0);
         hidden.setMinWidth(0);
         hidden.setMaxWidth(0);
