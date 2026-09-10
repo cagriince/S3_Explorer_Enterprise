@@ -1,6 +1,6 @@
 package com.company.s3explorer.service;
 
-import com.company.s3explorer.security.EncryptionConfigValidator;
+import com.company.s3explorer.security.EncryptionConfig;
 import com.company.s3explorer.util.S3Util;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -9,8 +9,6 @@ import software.amazon.awssdk.services.s3.paginators.ListObjectsV2Iterable;
 
 import javax.crypto.Cipher;
 import javax.crypto.CipherInputStream;
-import javax.crypto.spec.IvParameterSpec;
-import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -658,9 +656,7 @@ public class S3ExplorerService {
             String bucket,
             String objectKey,
             Path file,
-            String transformation,
-            String iv,
-            String key,
+            EncryptionConfig encryptionConfig,
             TransferProgressListener listener) throws Exception {
 
         if (objectExists(bucket, objectKey)) {
@@ -668,29 +664,14 @@ public class S3ExplorerService {
                     "Already exists: " + bucket + "/" + objectKey);
         }
 
-        EncryptionConfigValidator.validate(
-                transformation,
-                iv,
-                key);
-
-        byte[] ivBytes =
-                parseEncryptionBytes(iv);
-
-        byte[] keyBytes =
-                parseEncryptionBytes(key);
-
-        String algorithm =
-                transformation.substring(
-                        0,
-                        transformation.indexOf('/'));
+        if (encryptionConfig == null) {
+            throw new IllegalArgumentException(
+                    "Encryption configuration is not available.");
+        }
 
         Cipher cipher =
-                Cipher.getInstance(transformation);
-
-        cipher.init(
-                Cipher.ENCRYPT_MODE,
-                new SecretKeySpec(keyBytes, algorithm),
-                new IvParameterSpec(ivBytes));
+                encryptionConfig.createCipher(
+                        Cipher.ENCRYPT_MODE);
 
         long plainSize =
                 Files.size(file);
