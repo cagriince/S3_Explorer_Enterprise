@@ -104,11 +104,13 @@ public class ExplorerPanel extends JPanel {
     private final ExplorerClipboard clipboard = new ExplorerClipboard();
 
     private Action downloadAction;
+    private Action downloadDecryptedAction;
     private Action deleteAction;
     private Action copyAction;
     private Action cutAction;
     private Action pasteAction;
     private Action uploadAction;
+    private Action uploadEncryptedAction;
     private Action newFolderAction;
     private Action refreshAction;
     private Action manageRepositoryAction;
@@ -249,8 +251,10 @@ public class ExplorerPanel extends JPanel {
         manageRepositoryAction = new ExplorerAction("Repositories", this::showRepositoryManager);
         refreshAction = new ExplorerAction("Refresh", this::loadBucketsAsync);
         uploadAction = new ExplorerAction("Upload", this::uploadFile);
+        uploadEncryptedAction = new ExplorerAction("Upload Encrypted", this::uploadFileEncrypted);
         newFolderAction = new ExplorerAction("New Folder", this::createFolder);
         downloadAction = new ExplorerAction("Download", this::downloadSelected);
+        downloadDecryptedAction = new ExplorerAction("Download Decrypted", this::downloadSelectedDecrypted);
         deleteAction = new ExplorerAction("Delete", this::deleteSelectedWithFocusRestore);
         copyAction = new ExplorerAction("Copy", this::copySelected);
         cutAction = new ExplorerAction("Cut", this::moveSelected);
