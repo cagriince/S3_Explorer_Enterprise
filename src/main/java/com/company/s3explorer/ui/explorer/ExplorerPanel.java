@@ -3304,6 +3304,7 @@ public class ExplorerPanel extends JPanel {
                                     .PARENT_FOLDER_NAME,
                             0,
                             null,
+                            null,
                             true));
         }
 
@@ -3324,6 +3325,7 @@ public class ExplorerPanel extends JPanel {
                                         bucket,
                                         folder,
                                         0,
+                                        null,
                                         null,
                                         true))
                         .toList());
@@ -3350,6 +3352,9 @@ public class ExplorerPanel extends JPanel {
                                         object.key(),
                                         object.size(),
                                         object.lastModified(),
+                                        object.storageClass() == null
+                                                ? null
+                                                : object.storageClass().toString(),
                                         false))
                         .toList());
 
