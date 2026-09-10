@@ -14,6 +14,7 @@ public class FileTableModel extends AbstractTableModel {
     public static final int COL_TYPE = 2;
     public static final int COL_SIZE = 3;
     public static final int COL_LAST_MODIFIED = 4;
+    public static final int COL_STORAGE_CLASS = 5;
 
     private final List<S3FileItem> files =
             new ArrayList<>();
@@ -23,7 +24,8 @@ public class FileTableModel extends AbstractTableModel {
             "Name",
             "Type",
             "Size",
-            "Last Modified"
+            "Last Modified",
+            "Storage Class"
     };
 
     @Override
@@ -79,6 +81,11 @@ public class FileTableModel extends AbstractTableModel {
             case COL_LAST_MODIFIED ->
                     item.getLastModified();
 
+            case COL_STORAGE_CLASS ->
+                    item.isFolder()
+                            ? null
+                            : item.getStorageClass();
+            
             default ->
                     null;
         };
