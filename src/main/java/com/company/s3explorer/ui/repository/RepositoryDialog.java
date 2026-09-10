@@ -142,7 +142,7 @@ public class RepositoryDialog extends JDialog {
                         && repository.getEncryptionKey() != null
                         && !repository.getEncryptionKey().isBlank();
 
-        useEncryptionChecgbc.gridx = 0;
+        gbc.gridx = 0;
         gbc.gridy = 5;
         gbc.gridwidth = 2;
         gbc.weightx = 1.0;
