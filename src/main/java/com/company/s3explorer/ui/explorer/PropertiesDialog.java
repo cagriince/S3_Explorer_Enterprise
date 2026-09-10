@@ -2,6 +2,7 @@ package com.company.s3explorer.ui.explorer;
 
 import com.company.s3explorer.service.FolderProperties;
 import com.company.s3explorer.ui.icons.FileIconRegistry;
+import com.company.s3explorer.util.DateFormatter;
 
 import javax.swing.*;
 import javax.swing.border.Border;
@@ -276,9 +277,8 @@ public class PropertiesDialog extends JDialog {
                             item.getSize()));
 
             lastModifiedValue.setText(
-                    item.getLastModified() == null
-                            ? "-"
-                            : item.getLastModified().toString());
+                    DateFormatter.format(
+                            item.getLastModified()));
 
             storageClassValue.setText(
                     item.getStorageClass() == null
