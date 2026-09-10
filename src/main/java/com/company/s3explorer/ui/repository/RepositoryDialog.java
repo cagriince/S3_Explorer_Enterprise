@@ -1,15 +1,13 @@
 package com.company.s3explorer.ui.repository;
 
 import com.company.s3explorer.repository.RepositoryDefinition;
-import com.company.s3explorer.repository.RepositoryManager;
-import com.company.s3explorer.service.S3ClientFactory;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
-import java.util.List;
 import java.util.Arrays;
+import java.util.List;
 
 public class RepositoryDialog extends JDialog {
     private JTextField nameField;
