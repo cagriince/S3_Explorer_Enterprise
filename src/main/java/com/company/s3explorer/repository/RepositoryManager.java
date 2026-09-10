@@ -193,7 +193,13 @@ public class RepositoryManager {
                 source.getSecretKey());
         duplicate.setExternalBuckets(
                 source.getExternalBuckets());
-
+        duplicate.setEncryptionTransformation(
+                source.getEncryptionTransformation());
+        duplicate.setEncryptionIv(
+                source.getEncryptionIv());
+        duplicate.setEncryptionKey(
+                source.getEncryptionKey());
+        
         repositories.add(duplicate);
 
         persist();
