@@ -87,10 +87,10 @@ public final class EncryptionConfigValidator {
                 int number =
                         Integer.parseInt(trimmed);
 
-                if (number < 0 || number > 255) {
+                if (number < -128 || number > 127) {
                     throw new IllegalArgumentException(
                             fieldName
-                                    + " values must be between 0 and 255.");
+                                    + " values must be between -128 and 127.");
                 }
 
                 bytes.add(
