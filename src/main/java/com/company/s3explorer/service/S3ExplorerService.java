@@ -1,11 +1,16 @@
 package com.company.s3explorer.service;
 
+import com.company.s3explorer.security.EncryptionConfigValidator;
 import com.company.s3explorer.util.S3Util;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
 import software.amazon.awssdk.services.s3.paginators.ListObjectsV2Iterable;
 
+import javax.crypto.Cipher;
+import javax.crypto.CipherInputStream;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -649,6 +654,92 @@ public class S3ExplorerService {
         }
     }
 
+    public void uploadEncryptedFile(
+            String bucket,
+            String objectKey,
+            Path file,
+            String transformation,
+            String iv,
+            String key,
+            TransferProgressListener listener) throws Exception {
+
+        if (objectExists(bucket, objectKey)) {
+            throw new RuntimeException(
+                    "Already exists: " + bucket + "/" + objectKey);
+        }
+
+        EncryptionConfigValidator.validate(
+                transformation,
+                iv,
+                key);
+
+        byte[] ivBytes =
+                parseEncryptionBytes(iv);
+
+        byte[] keyBytes =
+                parseEncryptionBytes(key);
+
+        String algorithm =
+                transformation.substring(
+                        0,
+                        transformation.indexOf('/'));
+
+        Cipher cipher =
+                Cipher.getInstance(transformation);
+
+        cipher.init(
+                Cipher.ENCRYPT_MODE,
+                new SecretKeySpec(keyBytes, algorithm),
+                new IvParameterSpec(ivBytes));
+
+        long plainSize =
+                Files.size(file);
+
+        long encryptedSize =
+                cipher.getOutputSize(
+                        Math.toIntExact(plainSize));
+
+        try (InputStream fileInput =
+                     Files.newInputStream(file);
+             CipherInputStream encryptedInput =
+                     new CipherInputStream(
+                             fileInput,
+                             cipher);
+             InputStream progressInput =
+                     new ProgressInputStream(
+                             encryptedInput,
+                             encryptedSize,
+                             listener)) {
+
+            client.putObject(
+                    PutObjectRequest.builder()
+                            .bucket(bucket)
+                            .key(objectKey)
+                            .build(),
+                    RequestBody.fromInputStream(
+                            progressInput,
+                            encryptedSize));
+        }
+    }
+
+    private byte[] parseEncryptionBytes(String value) {
+
+        String[] parts =
+                value.split(",");
+
+        byte[] result =
+                new byte[parts.length];
+
+        for (int i = 0; i < parts.length; i++) {
+
+            result[i] =
+                    (byte) Integer.parseInt(
+                            parts[i].trim());
+        }
+
+        return result;
+    }
+    
     public void testBucketAccess(
             String bucket) {
 
