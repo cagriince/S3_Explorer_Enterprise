@@ -1,6 +1,7 @@
 package com.company.s3explorer.ui.repository;
 
 import com.company.s3explorer.repository.RepositoryDefinition;
+import com.company.s3explorer.security.EncryptionConfigValidator;
 
 import javax.swing.*;
 import java.awt.*;
@@ -450,6 +451,26 @@ public class RepositoryDialog extends JDialog {
             return;
         }
 
+        if (useEncryptionCheckBox.isSelected()) {
+            try {
+
+                EncryptionConfigValidator.validate(
+                        encryptionTransformation,
+                        encryptionIv,
+                        encryptionKey);
+
+            } catch (IllegalArgumentException ex) {
+
+                JOptionPane.showMessageDialog(
+                        this,
+                        ex.getMessage(),
+                        "Invalid Encryption Configuration",
+                        JOptionPane.ERROR_MESSAGE);
+
+                return;
+            }
+        }
+        
         try {
 
             repository =
