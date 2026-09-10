@@ -17,7 +17,10 @@ public class RepositoryDefinition {
     private String endpoint;
     private String accessKey;
     private String secretKey;
-
+    private String encryptionTransformation;
+    private String encryptionIv;
+    private String encryptionKey;
+    
     public RepositoryDefinition() {
     }
 
@@ -65,6 +68,39 @@ public class RepositoryDefinition {
         this.secretKey = secretKey;
     }
 
+    public String getEncryptionTransformation() {
+        return encryptionTransformation;
+    }
+
+    public void setEncryptionTransformation(
+            String encryptionTransformation) {
+
+        this.encryptionTransformation =
+                encryptionTransformation;
+    }
+
+    public String getEncryptionIv() {
+        return encryptionIv;
+    }
+
+    public void setEncryptionIv(
+            String encryptionIv) {
+
+        this.encryptionIv =
+                encryptionIv;
+    }
+
+    public String getEncryptionKey() {
+        return encryptionKey;
+    }
+
+    public void setEncryptionKey(
+            String encryptionKey) {
+
+        this.encryptionKey =
+                encryptionKey;
+    }
+    
     public List<String> getExternalBuckets() {
         return externalBuckets == null
                 ? List.of()
