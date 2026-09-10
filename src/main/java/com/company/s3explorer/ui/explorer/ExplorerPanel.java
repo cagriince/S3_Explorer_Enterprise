@@ -3,6 +3,7 @@ package com.company.s3explorer.ui.explorer;
 import com.company.s3explorer.application.ActiveRepositoryContext;
 import com.company.s3explorer.repository.RepositoryDefinition;
 import com.company.s3explorer.repository.RepositoryManager;
+import com.company.s3explorer.security.EncryptionConfig;
 import com.company.s3explorer.service.*;
 import com.company.s3explorer.transfer.TransferRuntime;
 import com.company.s3explorer.transfer.TransferStatus;
@@ -50,6 +51,7 @@ public class ExplorerPanel extends JPanel {
 
     private ExplorerView view;
 
+    private EncryptionConfig encryptionConfig;
     private ExplorerRefreshScheduler refreshScheduler;
     private final ExplorerContentLoader contentLoader;
     private ExplorerTreeController treeController;
@@ -1113,8 +1115,24 @@ public class ExplorerPanel extends JPanel {
             RepositoryDefinition repository =
                     this.getCurrentRepository();
 
-            if (repository == null) {
+            if (repository == null
+                    || repository == RepositoryDefinition.EMPTY_REPOSITORY) {
+
+                encryptionConfig = null;
                 return;
+            }
+
+            if (hasEncryptionConfiguration()) {
+
+                encryptionConfig =
+                        new EncryptionConfig(
+                                repository.getEncryptionTransformation(),
+                                repository.getEncryptionIv(),
+                                repository.getEncryptionKey());
+
+            } else {
+
+                encryptionConfig = null;
             }
 
             if (repositorySelectionListener != null) {
@@ -1125,7 +1143,7 @@ public class ExplorerPanel extends JPanel {
 
             setSelectedRepository(repository);
         });
-
+        
         view.getBucketCombo().addActionListener(e -> {
 
             if (suppressBucketSelectionEvent) {
@@ -3192,6 +3210,14 @@ public class ExplorerPanel extends JPanel {
 
                 context.setActiveRepository(
                         changedRepository);
+
+                encryptionConfig =
+                        hasEncryptionConfiguration()
+                                ? new EncryptionConfig(
+                                changedRepository.getEncryptionTransformation(),
+                                changedRepository.getEncryptionIv(),
+                                changedRepository.getEncryptionKey())
+                                : null;
 
                 view.getRepositoryCombo().setSelectedIndex(
                         index);
