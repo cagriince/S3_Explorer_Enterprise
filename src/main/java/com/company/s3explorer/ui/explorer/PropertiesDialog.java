@@ -94,6 +94,8 @@ public class PropertiesDialog extends JDialog {
                 "Name:",
                 nameValue);
 
+        addPropertyRowSeparator(propertiesPanel, constraints);
+        
         addPropertyRow(
                 propertiesPanel,
                 constraints,
@@ -123,6 +125,8 @@ public class PropertiesDialog extends JDialog {
                 constraints,
                 "Storage Class:",
                 storageClassValue);
+        
+        addPropertyRowSeparator(propertiesPanel, constraints);
         
         addPropertyRow(
                 propertiesPanel,
@@ -203,6 +207,7 @@ public class PropertiesDialog extends JDialog {
             String label,
             JLabel valueLabel) {
 
+        constraints.gridwidth = 1;
         constraints.gridx = 0;
         constraints.weightx = 0;
 
@@ -227,6 +232,23 @@ public class PropertiesDialog extends JDialog {
         constraints.gridy++;
     }
 
+    private void addPropertyRowSeparator(
+            JPanel panel,
+            GridBagConstraints constraints) {
+
+        constraints.gridwidth = 2;
+        constraints.gridx = 0;
+        constraints.weightx = 0;
+
+        JSeparator separator = new JSeparator(JSeparator.HORIZONTAL);
+
+        panel.add(
+                separator,
+                constraints);
+
+        constraints.gridy++;
+    }
+    
     private void setItem(
             S3FileItem item) {
 
@@ -357,9 +379,7 @@ public class PropertiesDialog extends JDialog {
     }
 
     public void setCalculationCompleted() {
-
-        statusLabel.setText(
-                "Calculation completed.");
+        statusLabel.setText("");
     }
 
     private String formatCount(
