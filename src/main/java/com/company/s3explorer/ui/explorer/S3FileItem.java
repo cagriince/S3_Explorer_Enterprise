@@ -13,6 +13,7 @@ public class S3FileItem {
     private final String key;
     private final long size;
     private final Instant lastModified;
+    private final String storageClass;
     private final boolean folder;
 
     public S3FileItem(
@@ -21,6 +22,7 @@ public class S3FileItem {
             String key,
             long size,
             Instant lastModified,
+            String storageClass,
             boolean folder) {
 
         this.repositoryName = repositoryName;
@@ -28,6 +30,7 @@ public class S3FileItem {
         this.key = key;
         this.size = size;
         this.lastModified = lastModified;
+        this.storageClass = storageClass;
         this.folder = folder;
     }
 
@@ -49,6 +52,10 @@ public class S3FileItem {
 
     public Instant getLastModified() {
         return lastModified;
+    }
+
+    public String getStorageClass() {
+        return storageClass;
     }
 
     public boolean isFolder() {
