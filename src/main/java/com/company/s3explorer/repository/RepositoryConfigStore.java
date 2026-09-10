@@ -52,34 +52,26 @@ public class RepositoryConfigStore {
 
             for (JsonNode originalNode : root) {
 
-                /*
-                 * JSON üzerinde çalışırken orijinal node'u
-                 * değiştirmiyoruz.
-                 *
-                 * Önce kopyasını oluşturuyoruz.
-                 */
                 ObjectNode node =
                         originalNode.deepCopy();
 
-                /*
-                 * secretKeyEncrypted,
-                 * RepositoryDefinition'ın propertysi değil.
-                 *
-                 * treeToValue() çağrısından önce kaldırıyoruz.
-                 */
                 JsonNode encryptedSecretNode =
                         node.remove("secretKeyEncrypted");
+
+                JsonNode encryptedTransformationNode =
+                        node.remove("encryptionTransformationEncrypted");
+
+                JsonNode encryptedIvNode =
+                        node.remove("encryptionIvEncrypted");
+
+                JsonNode encryptedKeyNode =
+                        node.remove("encryptionKeyEncrypted");
 
                 RepositoryDefinition repository =
                         mapper.treeToValue(
                                 node,
                                 RepositoryDefinition.class);
 
-                /*
-                 * Yeni format:
-                 *
-                 * secretKeyEncrypted
-                 */
                 if (encryptedSecretNode != null
                         && !encryptedSecretNode.isNull()
                         && !encryptedSecretNode.asText().isBlank()) {
@@ -89,17 +81,32 @@ public class RepositoryConfigStore {
                                     encryptedSecretNode.asText()));
                 }
 
-                /*
-                 * Eski format:
-                 *
-                 * secretKey
-                 *
-                 * Eğer eski JSON kullanılıyorsa,
-                 * treeToValue() secretKey'i zaten
-                 * RepositoryDefinition içine yüklemiş olur.
-                 *
-                 * Böylece geriye dönük uyumluluk korunur.
-                 */
+                if (encryptedTransformationNode != null
+                        && !encryptedTransformationNode.isNull()
+                        && !encryptedTransformationNode.asText().isBlank()) {
+
+                    repository.setEncryptionTransformation(
+                            cryptoService.decrypt(
+                                    encryptedTransformationNode.asText()));
+                }
+
+                if (encryptedIvNode != null
+                        && !encryptedIvNode.isNull()
+                        && !encryptedIvNode.asText().isBlank()) {
+
+                    repository.setEncryptionIv(
+                            cryptoService.decrypt(
+                                    encryptedIvNode.asText()));
+                }
+
+                if (encryptedKeyNode != null
+                        && !encryptedKeyNode.isNull()
+                        && !encryptedKeyNode.asText().isBlank()) {
+
+                    repository.setEncryptionKey(
+                            cryptoService.decrypt(
+                                    encryptedKeyNode.asText()));
+                }
 
                 repositories.add(repository);
             }
@@ -131,10 +138,13 @@ public class RepositoryConfigStore {
                         mapper.valueToTree(repository);
 
                 /*
-                 * Secret'ın düz metin olarak
+                 * Hassas alanların düz metin olarak
                  * JSON'a yazılmasını engelliyoruz.
                  */
                 node.remove("secretKey");
+                node.remove("encryptionTransformation");
+                node.remove("encryptionIv");
+                node.remove("encryptionKey");
 
                 String secretKey =
                         repository.getSecretKey();
@@ -142,13 +152,46 @@ public class RepositoryConfigStore {
                 if (secretKey != null
                         && !secretKey.isBlank()) {
 
-                    String encryptedSecret =
-                            cryptoService.encrypt(
-                                    secretKey);
-
                     node.put(
                             "secretKeyEncrypted",
-                            encryptedSecret);
+                            cryptoService.encrypt(
+                                    secretKey));
+                }
+
+                String encryptionTransformation =
+                        repository.getEncryptionTransformation();
+
+                if (encryptionTransformation != null
+                        && !encryptionTransformation.isBlank()) {
+
+                    node.put(
+                            "encryptionTransformationEncrypted",
+                            cryptoService.encrypt(
+                                    encryptionTransformation));
+                }
+
+                String encryptionIv =
+                        repository.getEncryptionIv();
+
+                if (encryptionIv != null
+                        && !encryptionIv.isBlank()) {
+
+                    node.put(
+                            "encryptionIvEncrypted",
+                            cryptoService.encrypt(
+                                    encryptionIv));
+                }
+
+                String encryptionKey =
+                        repository.getEncryptionKey();
+
+                if (encryptionKey != null
+                        && !encryptionKey.isBlank()) {
+
+                    node.put(
+                            "encryptionKeyEncrypted",
+                            cryptoService.encrypt(
+                                    encryptionKey));
                 }
 
                 root.add(node);
