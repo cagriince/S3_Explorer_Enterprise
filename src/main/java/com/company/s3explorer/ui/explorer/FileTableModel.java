@@ -112,6 +112,9 @@ public class FileTableModel extends AbstractTableModel {
             case COL_LAST_MODIFIED ->
                     Instant.class;
 
+            case COL_STORAGE_CLASS ->
+                    String.class;
+            
             default ->
                     Object.class;
         };
