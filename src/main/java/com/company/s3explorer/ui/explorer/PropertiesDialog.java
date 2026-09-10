@@ -2,6 +2,7 @@ package com.company.s3explorer.ui.explorer;
 
 import com.company.s3explorer.service.FolderProperties;
 import com.company.s3explorer.ui.icons.FileIconRegistry;
+import com.company.s3explorer.ui.icons.IconProvider;
 import com.company.s3explorer.util.DateFormatter;
 
 import javax.swing.*;
@@ -235,6 +236,12 @@ public class PropertiesDialog extends JDialog {
 
         nameValue.setText(
                 item.getName());
+
+        nameValue.setIcon(
+                item.isFolder()
+                        ? IconProvider.ICON_SYSTEM_CLOSED_FOLDER
+                        : IconProvider.getFileTypeIcon(
+                        item.getKey()));
 
         locationValue.setText(
                 item.getBucket()
