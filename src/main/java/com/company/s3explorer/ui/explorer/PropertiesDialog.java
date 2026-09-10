@@ -1,6 +1,7 @@
 package com.company.s3explorer.ui.explorer;
 
 import com.company.s3explorer.service.FolderProperties;
+import com.company.s3explorer.ui.icons.FileIconRegistry;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -12,11 +13,13 @@ public class PropertiesDialog extends JDialog {
     private final JLabel typeValue;
     private final JLabel locationValue;
     private final JLabel sizeValue;
+    private final JLabel lastModifiedValue;
+    private final JLabel storageClassValue;
     private final JLabel foldersValue;
     private final JLabel filesValue;
     private final JLabel totalSizeValue;
     private final JLabel statusLabel;
-
+    
     public PropertiesDialog(
             Window owner,
             S3FileItem item) {
@@ -30,6 +33,8 @@ public class PropertiesDialog extends JDialog {
         typeValue = new JLabel();
         locationValue = new JLabel();
         sizeValue = new JLabel();
+        lastModifiedValue = new JLabel();
+        storageClassValue = new JLabel();
         foldersValue = new JLabel();
         filesValue = new JLabel();
         totalSizeValue = new JLabel();
@@ -102,6 +107,18 @@ public class PropertiesDialog extends JDialog {
                 "Size:",
                 sizeValue);
 
+        addPropertyRow(
+                propertiesPanel,
+                constraints,
+                "Last Modified:",
+                lastModifiedValue);
+
+        addPropertyRow(
+                propertiesPanel,
+                constraints,
+                "Storage Class:",
+                storageClassValue);
+        
         addPropertyRow(
                 propertiesPanel,
                 constraints,
@@ -228,6 +245,9 @@ public class PropertiesDialog extends JDialog {
             sizeValue.setText(
                     "-");
 
+            lastModifiedValue.setText("-");
+            storageClassValue.setText("-");
+            
             foldersValue.setText(
                     "Calculating...");
 
@@ -243,12 +263,25 @@ public class PropertiesDialog extends JDialog {
         } else {
 
             typeValue.setText(
-                    "File");
+                    FileIconRegistry
+                            .findFileType(
+                                    item.getKey())
+                            .displayName());
 
             sizeValue.setText(
                     formatSize(
                             item.getSize()));
 
+            lastModifiedValue.setText(
+                    item.getLastModified() == null
+                            ? "-"
+                            : item.getLastModified().toString());
+
+            storageClassValue.setText(
+                    item.getStorageClass() == null
+                            ? "-"
+                            : item.getStorageClass());
+            
             foldersValue.setText(
                     "-");
 
