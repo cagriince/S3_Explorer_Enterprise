@@ -20,6 +20,7 @@ public class RepositoryDialog extends JDialog {
     private JTextField encryptionTransformationField;
     private JTextField encryptionIvField;
     private JTextField encryptionKeyField;
+    private JCheckBox useEncryptionCheckBox;
     private RepositoryDefinition repository;
     
     public RepositoryDialog(Window owner) {
@@ -43,6 +44,16 @@ public class RepositoryDialog extends JDialog {
         encryptionTransformationField.setText(repository.getEncryptionTransformation());
         encryptionIvField.setText(repository.getEncryptionIv());
         encryptionKeyField.setText(repository.getEncryptionKey());
+        boolean useEncryption =
+                repository.getEncryptionTransformation() != null
+                        && !repository.getEncryptionTransformation().isBlank()
+                        && repository.getEncryptionIv() != null
+                        && !repository.getEncryptionIv().isBlank()
+                        && repository.getEncryptionKey() != null
+                        && !repository.getEncryptionKey().isBlank();
+
+        useEncryptionCheckBox.setSelected(useEncryption);
+        updateEncryptionFieldsState();
         setTitle("Edit Repository");
     }
 
@@ -114,41 +125,80 @@ public class RepositoryDialog extends JDialog {
         externalBucketsArea = new JTextArea(5, 30);
         externalBucketsArea.setLineWrap(false);
 
-        gbc.gridx = 0;
+        encryptionTransformationField.setText(
+                repository.getEncryptionTransformation());
+
+        encryptionIvField.setText(
+                repository.getEncryptionIv());
+
+        encryptionKeyField.setText(
+                repository.getEncryptionKey());
+
+        boolean useEncryption =
+                repository.getEncryptionTransformation() != null
+                        && !repository.getEncryptionTransformation().isBlank()
+                        && repository.getEncryptionIv() != null
+                        && !repository.getEncryptionIv().isBlank()
+                        && repository.getEncryptionKey() != null
+                        && !repository.getEncryptionKey().isBlank();
+
+        useEncryptionChecgbc.gridx = 0;
         gbc.gridy = 5;
-        gbc.weightx = 0.0;
+        gbc.gridwidth = 2;
+        gbc.weightx = 1.0;
         gbc.weighty = 0.0;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.anchor = GridBagConstraints.WEST;
+
+        useEncryptionCheckBox = new JCheckBox("Use Encryption");
+        useEncryptionCheckBox.addActionListener(e -> updateEncryptionFieldsState());
+
+        panel.add(useEncryptionCheckBox, gbc);
+
+        gbc.gridwidth = 1;
+
+        gbc.gridx = 0;
+        gbc.gridy = 6;
+        gbc.weightx = 0.0;
         panel.add(new JLabel("Encryption Transformation"), gbc);
 
         gbc.gridx = 1;
-        gbc.gridy = 5;
+        gbc.gridy = 6;
         gbc.weightx = 1.0;
+
         encryptionTransformationField = new JTextField();
+
         panel.add(encryptionTransformationField, gbc);
 
         gbc.gridx = 0;
-        gbc.gridy = 6;
+        gbc.gridy = 7;
         gbc.weightx = 0.0;
+
         panel.add(new JLabel("Encryption IV"), gbc);
 
         gbc.gridx = 1;
-        gbc.gridy = 6;
+        gbc.gridy = 7;
         gbc.weightx = 1.0;
+
         encryptionIvField = new JTextField();
+
         panel.add(encryptionIvField, gbc);
 
         gbc.gridx = 0;
-        gbc.gridy = 7;
+        gbc.gridy = 8;
         gbc.weightx = 0.0;
+
         panel.add(new JLabel("Encryption Key"), gbc);
 
         gbc.gridx = 1;
-        gbc.gridy = 7;
+        gbc.gridy = 8;
         gbc.weightx = 1.0;
+
         encryptionKeyField = new JTextField();
+
         panel.add(encryptionKeyField, gbc);
+
+        updateEncryptionFieldsState();
         
         JScrollPane externalBucketsScroll = new JScrollPane(externalBucketsArea);
         panel.add(externalBucketsScroll, gbc);
@@ -185,6 +235,9 @@ public class RepositoryDialog extends JDialog {
                         .filter(s -> !s.isEmpty())
                         .distinct()
                         .toList();
+        String encryptionTransformation = encryptionTransformationField.getText().trim();
+        String encryptionIv = encryptionIvField.getText().trim();
+        String encryptionKey = encryptionKeyField.getText().trim();
         
         if (name.isEmpty()
                 || endpoint.isEmpty()
@@ -198,6 +251,18 @@ public class RepositoryDialog extends JDialog {
             return;
         }
 
+        if (useEncryptionCheckBox.isSelected()
+                && (encryptionTransformation.isEmpty()
+                || encryptionIv.isEmpty()
+                || encryptionKey.isEmpty())) {
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    "All encryption fields are required when encryption is enabled.");
+
+            return;
+        }
+
         try {
             repository = new RepositoryDefinition();
             repository.setName(name);
@@ -205,9 +270,20 @@ public class RepositoryDialog extends JDialog {
             repository.setAccessKey(accessKey);
             repository.setSecretKey(secretKey);
             repository.setExternalBuckets(externalBuckets);
-            repository.setEncryptionTransformation(encryptionTransformationField.getText().trim());
-            repository.setEncryptionIv(encryptionIvField.getText().trim());
-            repository.setEncryptionKey(encryptionKeyField.getText().trim());
+            repository.setEncryptionTransformation(
+                    useEncryptionCheckBox.isSelected()
+                            ? encryptionTransformation
+                            : null);
+
+            repository.setEncryptionIv(
+                    useEncryptionCheckBox.isSelected()
+                            ? encryptionIv
+                            : null);
+
+            repository.setEncryptionKey(
+                    useEncryptionCheckBox.isSelected()
+                            ? encryptionKey
+                            : null);
             
             dispose();
         } catch (Exception ex) {
@@ -215,5 +291,20 @@ public class RepositoryDialog extends JDialog {
                     this,
                     "Error: " + ex.getMessage());
         }
+    }
+
+    private void updateEncryptionFieldsState() {
+
+        boolean enabled =
+                useEncryptionCheckBox.isSelected();
+
+        encryptionTransformationField.setEnabled(
+                enabled);
+
+        encryptionIvField.setEnabled(
+                enabled);
+
+        encryptionKeyField.setEnabled(
+                enabled);
     }
 }
