@@ -17,8 +17,11 @@ public class RepositoryDialog extends JDialog {
     private JTextField accessKeyField;
     private JPasswordField secretKeyField;
     private JTextArea externalBucketsArea;
+    private JTextField encryptionTransformationField;
+    private JTextField encryptionIvField;
+    private JTextField encryptionKeyField;
     private RepositoryDefinition repository;
-
+    
     public RepositoryDialog(Window owner) {
         super(owner, ModalityType.APPLICATION_MODAL);
         initialize();
@@ -37,11 +40,14 @@ public class RepositoryDialog extends JDialog {
                             System.lineSeparator(),
                             repository.getExternalBuckets()));
         }
+        encryptionTransformationField.setText(repository.getEncryptionTransformation());
+        encryptionIvField.setText(repository.getEncryptionIv());
+        encryptionKeyField.setText(repository.getEncryptionKey());
         setTitle("Edit Repository");
     }
 
     private void initialize() {
-        setSize(500, 360);
+        setSize(500, 500);
         setLocationRelativeTo(getOwner());
         setLayout(new BorderLayout());
 
@@ -108,6 +114,42 @@ public class RepositoryDialog extends JDialog {
         externalBucketsArea = new JTextArea(5, 30);
         externalBucketsArea.setLineWrap(false);
 
+        gbc.gridx = 0;
+        gbc.gridy = 5;
+        gbc.weightx = 0.0;
+        gbc.weighty = 0.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.WEST;
+        panel.add(new JLabel("Encryption Transformation"), gbc);
+
+        gbc.gridx = 1;
+        gbc.gridy = 5;
+        gbc.weightx = 1.0;
+        encryptionTransformationField = new JTextField();
+        panel.add(encryptionTransformationField, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy = 6;
+        gbc.weightx = 0.0;
+        panel.add(new JLabel("Encryption IV"), gbc);
+
+        gbc.gridx = 1;
+        gbc.gridy = 6;
+        gbc.weightx = 1.0;
+        encryptionIvField = new JTextField();
+        panel.add(encryptionIvField, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy = 7;
+        gbc.weightx = 0.0;
+        panel.add(new JLabel("Encryption Key"), gbc);
+
+        gbc.gridx = 1;
+        gbc.gridy = 7;
+        gbc.weightx = 1.0;
+        encryptionKeyField = new JTextField();
+        panel.add(encryptionKeyField, gbc);
+        
         JScrollPane externalBucketsScroll = new JScrollPane(externalBucketsArea);
         panel.add(externalBucketsScroll, gbc);
         
@@ -157,16 +199,17 @@ public class RepositoryDialog extends JDialog {
         }
 
         try {
-
             repository = new RepositoryDefinition();
             repository.setName(name);
             repository.setEndpoint(endpoint);
             repository.setAccessKey(accessKey);
             repository.setSecretKey(secretKey);
             repository.setExternalBuckets(externalBuckets);
+            repository.setEncryptionTransformation(encryptionTransformationField.getText().trim());
+            repository.setEncryptionIv(encryptionIvField.getText().trim());
+            repository.setEncryptionKey(encryptionKeyField.getText().trim());
             
             dispose();
-
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(
                     this,
