@@ -41,12 +41,14 @@ public final class ExplorerView {
     };
 
     private final Action downloadAction;
+    private final Action downloadDecryptedAction;
     private final Action deleteAction;
     private final Action renameAction;
     private final Action copyAction;
     private final Action cutAction;
     private final Action pasteAction;
     private final Action uploadAction;
+    private final Action uploadEncryptedAction;
     private final Action newFolderAction;
     private final Action refreshAction;
     private final Action manageRepositoryAction;
@@ -78,8 +80,11 @@ public final class ExplorerView {
     private Consumer<Integer> threadCountSelectionListener;
     private boolean suppressThreadCountSelectionEvent;
 
+    private final BooleanSupplier encryptionConfigured;
+    
     public ExplorerView(
             Action downloadAction,
+            Action downloadDecryptedAction,
             Action deleteAction,
             Action copyAction,
             Action renameAction,
@@ -87,6 +92,7 @@ public final class ExplorerView {
             Action cutAction,
             Action pasteAction,
             Action uploadAction,
+            Action uploadEncryptedAction,
             Action newFolderAction,
             Action refreshAction,
             Action manageRepositoryAction,
@@ -95,9 +101,11 @@ public final class ExplorerView {
             Runnable reloadCurrentFileTable,
             Runnable updateActionStates,
             BooleanSupplier clipboardEmpty,
+            BooleanSupplier encryptionConfigured,
             Consumer<Integer> resizeExplorerPool) {
 
         this.downloadAction = downloadAction;
+        this.downloadDecryptedAction = downloadDecryptedAction;
         this.deleteAction = deleteAction;
         this.copyAction = copyAction;
         this.renameAction = renameAction;
@@ -105,6 +113,7 @@ public final class ExplorerView {
         this.cutAction = cutAction;
         this.pasteAction = pasteAction;
         this.uploadAction = uploadAction;
+        this.uploadEncryptedAction = uploadEncryptedAction;
         this.newFolderAction = newFolderAction;
         this.refreshAction = refreshAction;
         this.manageRepositoryAction = manageRepositoryAction;
@@ -113,6 +122,7 @@ public final class ExplorerView {
         this.reloadCurrentFileTable = reloadCurrentFileTable;
         this.updateActionStates = updateActionStates;
         this.clipboardEmpty = clipboardEmpty;
+        this.encryptionConfigured = encryptionConfigured;
         this.resizeExplorerPool = resizeExplorerPool;
     }
 
@@ -428,7 +438,9 @@ public final class ExplorerView {
         filePopup = new JPopupMenu();
         JMenuItem createFolderMenu = new JMenuItem(newFolderAction);
         JMenuItem uploadMenu = new JMenuItem(uploadAction);
+        JMenuItem uploadEncryptedMenu = new JMenuItem(uploadEncryptedAction);
         JMenuItem downloadMenu = new JMenuItem(downloadAction);
+        JMenuItem downloadDecryptedMenu = new JMenuItem(downloadDecryptedAction);
         JMenuItem deleteMenu = new JMenuItem(deleteAction);
         JMenuItem renameMenu = new JMenuItem(renameAction);
         JMenuItem propertiesMenu = new JMenuItem(propertiesAction);
@@ -438,7 +450,13 @@ public final class ExplorerView {
 
         filePopup.add(createFolderMenu);
         filePopup.add(uploadMenu);
+        if (isEncryptionConfigured()) {
+            filePopup.add(uploadEncryptedMenu);
+        }
         filePopup.add(downloadMenu);
+        if (isEncryptionConfigured()) {
+            filePopup.add(downloadDecryptedMenu);
+        }
         filePopup.add(deleteMenu);
         filePopup.add(renameMenu);
         filePopup.add(propertiesMenu);
@@ -462,6 +480,11 @@ public final class ExplorerView {
         });
     }
 
+    private boolean isEncryptionConfigured() {
+        return encryptionConfigured != null
+                && encryptionConfigured.getAsBoolean();
+    }
+    
     public void setFolderTreeLeafIcon() {
         DefaultTreeCellRenderer renderer =
                 (DefaultTreeCellRenderer) folderTree.getCellRenderer();

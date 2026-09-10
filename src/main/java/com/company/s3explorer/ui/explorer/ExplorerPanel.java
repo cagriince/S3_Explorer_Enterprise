@@ -156,6 +156,7 @@ public class ExplorerPanel extends JPanel {
 
         view = new ExplorerView(
                 downloadAction,
+                downloadDecryptedAction,
                 deleteAction,
                 copyAction,
                 renameAction,
@@ -163,6 +164,7 @@ public class ExplorerPanel extends JPanel {
                 cutAction,
                 pasteAction,
                 uploadAction,
+                uploadEncryptedAction,
                 newFolderAction,
                 refreshAction,
                 manageRepositoryAction,
@@ -171,6 +173,7 @@ public class ExplorerPanel extends JPanel {
                 this::reloadCurrentFileTable,
                 this::updateActionStates,
                 clipboardController::isEmpty,
+                this::hasEncryptionConfiguration,
                 this::resizeExplorerPool);
 
         setLayout(
@@ -4420,5 +4423,20 @@ public class ExplorerPanel extends JPanel {
         }
 
         dialog.setVisible(true);
+    }
+
+    private boolean hasEncryptionConfiguration() {
+        RepositoryDefinition repository = getCurrentRepository();
+
+        if (repository == null) {
+            return false;
+        }
+
+        return repository.getEncryptionTransformation() != null
+                && !repository.getEncryptionTransformation().isBlank()
+                && repository.getEncryptionIv() != null
+                && !repository.getEncryptionIv().isBlank()
+                && repository.getEncryptionKey() != null
+                && !repository.getEncryptionKey().isBlank();
     }
 }
