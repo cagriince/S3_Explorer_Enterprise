@@ -4,6 +4,7 @@ import com.company.s3explorer.service.FolderProperties;
 import com.company.s3explorer.ui.icons.FileIconRegistry;
 
 import javax.swing.*;
+import javax.swing.border.Border;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
 
@@ -59,15 +60,17 @@ public class PropertiesDialog extends JDialog {
 
         contentPanel.setBorder(
                 new EmptyBorder(
-                        20,
-                        20,
-                        15,
-                        20));
+                        10,
+                        10,
+                        5,
+                        10));
 
         JPanel propertiesPanel =
                 new JPanel(
                         new GridBagLayout());
 
+        propertiesPanel.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createEtchedBorder(), BorderFactory.createEmptyBorder(10,10,10,10)));
+        
         GridBagConstraints constraints =
                 new GridBagConstraints();
 
