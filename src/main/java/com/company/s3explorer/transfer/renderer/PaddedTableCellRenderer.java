@@ -1,20 +1,13 @@
 package com.company.s3explorer.transfer.renderer;
 
-import com.company.s3explorer.util.SizeFormatter;
-
 import javax.swing.*;
+import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.*;
 
-public class FileSizeRenderer extends PaddedTableCellRenderer {
-    
-    public FileSizeRenderer() {
-        setHorizontalAlignment(SwingConstants.RIGHT);
-    }
-    
-    @Override
-    protected void setValue(Object value) {
-        super.setValue(SizeFormatter.format((Long) value));
-    }
+public class PaddedTableCellRenderer extends DefaultTableCellRenderer {
+
+    private static final int HORIZONTAL_PADDING = 6;
+    private static final int VERTICAL_PADDING = 2;
 
     @Override
     public Component getTableCellRendererComponent(
@@ -34,8 +27,12 @@ public class FileSizeRenderer extends PaddedTableCellRenderer {
                         row,
                         column);
 
-        setHorizontalAlignment(
-                SwingConstants.RIGHT);
+        setBorder(
+                BorderFactory.createEmptyBorder(
+                        VERTICAL_PADDING,
+                        HORIZONTAL_PADDING,
+                        VERTICAL_PADDING,
+                        HORIZONTAL_PADDING));
 
         return component;
     }

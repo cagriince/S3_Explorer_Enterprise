@@ -1,13 +1,13 @@
 package com.company.s3explorer.ui.explorer;
 
+import com.company.s3explorer.transfer.renderer.PaddedTableCellRenderer;
 import com.company.s3explorer.ui.icons.IconProvider;
 import com.company.s3explorer.util.S3Util;
 
 import javax.swing.*;
-import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.*;
 
-public class FileTableCellRenderer extends DefaultTableCellRenderer {
+public class FileTableCellRenderer extends PaddedTableCellRenderer {
 
     private final Icon folderIcon = UIManager.getIcon("FileView.directoryIcon");
 
