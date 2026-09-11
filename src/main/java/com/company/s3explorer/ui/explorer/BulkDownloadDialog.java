@@ -13,6 +13,8 @@ public final class BulkDownloadDialog {
 
     public BulkDownloadDialog(
             Window owner,
+            String repositoryName,
+            String bucket,
             boolean encryptionConfigured) {
 
         dialog =
@@ -34,6 +36,12 @@ public final class BulkDownloadDialog {
                                 + "Enter S3 object keys, one per line."
                                 + "<br>"
                                 + "All keys must belong to the current repository and bucket."
+                                + "<br><br>"
+                                + "<b>Repository:</b> "
+                                + repositoryName
+                                + "<br>"
+                                + "<b>Bucket:</b> "
+                                + bucket
                                 + "</html>");
 
         downloadButton =
@@ -96,7 +104,7 @@ public final class BulkDownloadDialog {
                 new Dimension(800, 550));
         dialog.setLocationRelativeTo(owner);
     }
-
+    
     public void setVisible(boolean visible) {
         dialog.setVisible(visible);
     }

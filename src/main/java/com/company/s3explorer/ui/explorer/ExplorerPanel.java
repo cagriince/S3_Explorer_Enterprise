@@ -4688,9 +4688,22 @@ public class ExplorerPanel extends JPanel {
     }
 
     private void showBulkDownloadDialog() {
+        RepositoryDefinition repository =
+                getCurrentRepository();
+
+        String repositoryName =
+                repository == null
+                        ? ""
+                        : repository.getName();
+
+        String bucket =
+                getCurrentBucket();
+
         BulkDownloadDialog dialog =
                 new BulkDownloadDialog(
                         SwingUtilities.getWindowAncestor(this),
+                        repositoryName,
+                        bucket,
                         hasEncryptionConfiguration());
 
         dialog.setVisible(true);
