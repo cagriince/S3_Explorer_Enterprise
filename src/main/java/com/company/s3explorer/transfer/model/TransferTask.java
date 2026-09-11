@@ -1,5 +1,6 @@
 package com.company.s3explorer.transfer.model;
 
+import com.company.s3explorer.security.EncryptionConfig;
 import com.company.s3explorer.transfer.TransferType;
 import com.company.s3explorer.ui.explorer.RefreshTreeNode;
 import com.company.s3explorer.ui.explorer.S3TreeNode;
@@ -28,6 +29,8 @@ public class TransferTask {
     private boolean affectsObjectList;
     private boolean affectsFolderTree;
     private boolean overwrite;
+
+    private EncryptionConfig encryptionConfig;
     
     private long size;
 
@@ -96,6 +99,10 @@ public class TransferTask {
 
     public boolean isOverwrite() {
         return overwrite;
+    }
+
+    public EncryptionConfig getEncryptionConfig() {
+        return encryptionConfig;
     }
 
     public long getSize() {
@@ -195,6 +202,11 @@ public class TransferTask {
             return this;
         }
 
+        public Builder encryptionConfig(EncryptionConfig encryptionConfig) {
+            task.encryptionConfig = encryptionConfig;
+            return this;
+        }
+        
         public Builder size(long size) {
             task.size = size;
             return this;
