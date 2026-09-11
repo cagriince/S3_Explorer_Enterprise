@@ -167,7 +167,9 @@ public final class ExplorerView {
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         buttonPanel.add(createIconButton(newFolderAction));
         buttonPanel.add(createIconButton(uploadAction));
+        buttonPanel.add(createIconButton(uploadEncryptedAction));
         buttonPanel.add(createIconButton(downloadAction));
+        buttonPanel.add(createIconButton(downloadDecryptedAction));
         buttonPanel.add(createIconButton(deleteAction));
         buttonPanel.add(createIconButton(renameAction));
         buttonPanel.add(createIconButton(propertiesAction));
