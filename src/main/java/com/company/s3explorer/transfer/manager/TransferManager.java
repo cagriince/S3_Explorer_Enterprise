@@ -233,13 +233,42 @@ public class TransferManager {
                     "Local folder must not be null.");
         }
 
+        String firstKey = objectKeys.stream()
+                .filter(key ->
+                        key != null
+                                && !key.isBlank())
+                .findFirst()
+                .orElseThrow(() ->
+                        new IllegalArgumentException(
+                                "Object key list must contain at least one valid key."));
+
+        String displayName =
+                S3Util.isFolder(firstKey)
+                        ? S3Util.extractFolderName(firstKey)
+                        : S3Util.extractFileName(firstKey);
+
+        if (displayName == null
+                || displayName.isBlank()) {
+
+            displayName = firstKey;
+        }
+
+        if (objectKeys.stream()
+                .filter(key ->
+                        key != null
+                                && !key.isBlank())
+                .count() > 1) {
+
+            displayName += " and others";
+        }
+
         TransferGroup group =
                 createOperationGroup(
                         TransferType.DOWNLOAD,
-                        "Bulk Download",
+                        displayName,
                         repositoryName,
                         bucket,
-                        "Bulk Download",
+                        firstKey,
                         null,
                         null,
                         localFolder.toString());
@@ -248,50 +277,28 @@ public class TransferManager {
                 group,
                 repositoryName,
                 bucket,
-                "Bulk Download",
+                firstKey,
                 false);
 
         transferContext.publishGroupUpdated(
                 group,
                 repositoryName,
                 bucket,
-                "Bulk Download",
+                firstKey,
                 false);
 
-        for (String objectKey : objectKeys) {
-
-            if (objectKey == null || objectKey.isBlank()) {
-                continue;
-            }
-
-            Path target =
-                    localFolder.resolve(
-                            objectKey.replace(
-                                    "/",
-                                    java.io.File.separator));
-
-            TransferTask task =
-                    TransferTask.download()
-                            .repositoryName(
-                                    repositoryName)
-                            .bucket(
-                                    bucket)
-                            .objectKey(
-                                    objectKey)
-                            .localPath(
-                                    target)
-                            .size(0)
-                            .affectsObjectList(false)
-                            .affectsFolderTree(false)
-                            .group(group)
-                            .build();
-
-            submitGroupedTask(
-                    task,
-                    group);
-        }
-
-        group.markProductionCompleted();
+        producerExecutor.submit(
+                new BulkDownloadProducer(
+                        transferContext,
+                        queue,
+                        repositoryName,
+                        bucket,
+                        objectKeys,
+                        localFolder,
+                        null,
+                        group,
+                        firstKey)
+        );
 
         return group;
     }
@@ -318,13 +325,42 @@ public class TransferManager {
                     "Encryption configuration is not available.");
         }
 
+        String firstKey = objectKeys.stream()
+                .filter(key ->
+                        key != null
+                                && !key.isBlank())
+                .findFirst()
+                .orElseThrow(() ->
+                        new IllegalArgumentException(
+                                "Object key list must contain at least one valid key."));
+
+        String displayName =
+                S3Util.isFolder(firstKey)
+                        ? S3Util.extractFolderName(firstKey)
+                        : S3Util.extractFileName(firstKey);
+
+        if (displayName == null
+                || displayName.isBlank()) {
+
+            displayName = firstKey;
+        }
+
+        if (objectKeys.stream()
+                .filter(key ->
+                        key != null
+                                && !key.isBlank())
+                .count() > 1) {
+
+            displayName += " and others";
+        }
+
         TransferGroup group =
                 createOperationGroup(
                         TransferType.DOWNLOAD,
-                        "Bulk Download",
+                        displayName,
                         repositoryName,
                         bucket,
-                        "Bulk Download",
+                        firstKey,
                         null,
                         null,
                         localFolder.toString());
@@ -333,52 +369,28 @@ public class TransferManager {
                 group,
                 repositoryName,
                 bucket,
-                "Bulk Download",
+                firstKey,
                 false);
 
         transferContext.publishGroupUpdated(
                 group,
                 repositoryName,
                 bucket,
-                "Bulk Download",
+                firstKey,
                 false);
 
-        for (String objectKey : objectKeys) {
-
-            if (objectKey == null || objectKey.isBlank()) {
-                continue;
-            }
-
-            Path target =
-                    localFolder.resolve(
-                            objectKey.replace(
-                                    "/",
-                                    java.io.File.separator));
-
-            TransferTask task =
-                    TransferTask.download()
-                            .repositoryName(
-                                    repositoryName)
-                            .bucket(
-                                    bucket)
-                            .objectKey(
-                                    objectKey)
-                            .localPath(
-                                    target)
-                            .size(0)
-                            .encryptionConfig(
-                                    encryptionConfig)
-                            .affectsObjectList(false)
-                            .affectsFolderTree(false)
-                            .group(group)
-                            .build();
-
-            submitGroupedTask(
-                    task,
-                    group);
-        }
-
-        group.markProductionCompleted();
+        producerExecutor.submit(
+                new BulkDownloadProducer(
+                        transferContext,
+                        queue,
+                        repositoryName,
+                        bucket,
+                        objectKeys,
+                        localFolder,
+                        encryptionConfig,
+                        group,
+                        firstKey)
+        );
 
         return group;
     }
