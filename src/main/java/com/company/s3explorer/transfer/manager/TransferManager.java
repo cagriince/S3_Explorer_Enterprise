@@ -181,6 +181,42 @@ public class TransferManager {
         );
     }
 
+    public void submitDownloadDecrypted(
+            String repositoryName,
+            String bucket,
+            String key,
+            Path localFile,
+            long size,
+            EncryptionConfig encryptionConfig) {
+
+        if (encryptionConfig == null) {
+            throw new IllegalArgumentException(
+                    "Encryption configuration is not available.");
+        }
+
+        Path target =
+                localFile.resolve(
+                        S3Util.extractFileName(key));
+
+        submit(
+                TransferTask.download()
+                        .repositoryName(
+                                repositoryName)
+                        .bucket(
+                                bucket)
+                        .objectKey(
+                                key)
+                        .localPath(
+                                target)
+                        .size(size)
+                        .encryptionConfig(
+                                encryptionConfig)
+                        .affectsObjectList(false)
+                        .affectsFolderTree(false)
+                        .build()
+        );
+    }
+    
     public void submitDelete(
             String repositoryName,
             String bucket,
