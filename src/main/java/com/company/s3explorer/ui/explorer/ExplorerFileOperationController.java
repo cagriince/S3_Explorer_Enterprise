@@ -151,6 +151,65 @@ public final class ExplorerFileOperationController {
         }
     }
 
+    public void download(
+            S3FileItem item,
+            Path destination,
+            TransferGroup group) {
+
+        if (item == null
+                || item.isParentFolder()
+                || destination == null) {
+            return;
+        }
+
+        String bucket =
+                currentBucketSupplier.get();
+
+        if (bucket == null) {
+            return;
+        }
+
+        if (item.isFolder()) {
+
+            if (group == null) {
+
+                transferManager.submitFolderDownload(
+                        item.getRepositoryName(),
+                        bucket,
+                        item.getKey(),
+                        destination);
+
+            } else {
+
+                throw new IllegalArgumentException(
+                        "Grouped folder download is not supported " +
+                                "by this operation");
+            }
+
+        } else {
+
+            if (group == null) {
+
+                transferManager.submitDownload(
+                        item.getRepositoryName(),
+                        bucket,
+                        item.getKey(),
+                        destination,
+                        item.getSize());
+
+            } else {
+
+                transferManager.submitDownload(
+                        item.getRepositoryName(),
+                        bucket,
+                        item.getKey(),
+                        destination,
+                        item.getSize(),
+                        group);
+            }
+        }
+    }
+    
     public void downloadDecrypted(
             S3FileItem item,
             Path destination,
@@ -188,6 +247,70 @@ public final class ExplorerFileOperationController {
                     destination,
                     item.getSize(),
                     encryptionConfig);
+        }
+    }
+
+    public void downloadDecrypted(
+            S3FileItem item,
+            Path destination,
+            EncryptionConfig encryptionConfig,
+            TransferGroup group) {
+
+        if (item == null
+                || item.isParentFolder()
+                || destination == null
+                || encryptionConfig == null) {
+            return;
+        }
+
+        String bucket =
+                currentBucketSupplier.get();
+
+        if (bucket == null) {
+            return;
+        }
+
+        if (item.isFolder()) {
+
+            if (group == null) {
+
+                transferManager.submitFolderDownloadDecrypted(
+                        item.getRepositoryName(),
+                        bucket,
+                        item.getKey(),
+                        destination,
+                        encryptionConfig);
+
+            } else {
+
+                throw new IllegalArgumentException(
+                        "Grouped folder download is not supported " +
+                                "by this operation");
+            }
+
+        } else {
+
+            if (group == null) {
+
+                transferManager.submitDownloadDecrypted(
+                        item.getRepositoryName(),
+                        bucket,
+                        item.getKey(),
+                        destination,
+                        item.getSize(),
+                        encryptionConfig);
+
+            } else {
+
+                transferManager.submitDownloadDecrypted(
+                        item.getRepositoryName(),
+                        bucket,
+                        item.getKey(),
+                        destination,
+                        item.getSize(),
+                        encryptionConfig,
+                        group);
+            }
         }
     }
     
