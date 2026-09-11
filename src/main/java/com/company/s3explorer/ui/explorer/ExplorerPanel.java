@@ -3760,20 +3760,20 @@ public class ExplorerPanel extends JPanel {
         if (content.fileLimitReached()) {
 
             fileText =
-                    content.fileCount()
+                    S3Util.formatWithThousandSeparator(content.fileCount())
                             + " / "
-                            + content.scannedFileCount()
+                            + S3Util.formatWithThousandSeparator(content.scannedFileCount())
                             + " file(s)";
 
         } else {
 
             fileText =
-                    content.fileCount()
+                    S3Util.formatWithThousandSeparator(content.fileCount())
                             + " file(s)";
         }
 
         view.getFileFolderInfo().setText(
-                folderCount
+                S3Util.formatWithThousandSeparator(folderCount)
                         + " folder(s) and "
                         + fileText);
     }

@@ -197,7 +197,30 @@ public final class ExplorerView {
         fileTableRowLimitCombo = new JComboBox<>(FILE_TABLE_ROW_LIMITS);
         fileTableRowLimitCombo.setSelectedItem(500);
         fileTableRowLimitCombo.setToolTipText("Max Item Count");
-        alignComboBoxRight(fileTableRowLimitCombo);
+        fileTableRowLimitCombo.setRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(
+                    JList<?> list,
+                    Object value,
+                    int index,
+                    boolean isSelected,
+                    boolean cellHasFocus) {
+
+                JLabel label = (JLabel) super.getListCellRendererComponent(
+                        list,
+                        value,
+                        index,
+                        isSelected,
+                        cellHasFocus);
+
+                if (value instanceof Integer number) {
+                    label.setText(String.format("%,d", number));
+                }
+
+                label.setHorizontalAlignment(SwingConstants.RIGHT);
+                return label;
+            }
+        });
         fileTableRowLimitCombo.addActionListener(e -> {
             Integer selected = (Integer) fileTableRowLimitCombo.getSelectedItem();
             if (selected != null && fileTableRowLimitSelectionListener != null) {
