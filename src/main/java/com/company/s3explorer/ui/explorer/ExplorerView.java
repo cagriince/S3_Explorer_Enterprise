@@ -42,6 +42,7 @@ public final class ExplorerView {
 
     private final Action downloadAction;
     private final Action downloadDecryptedAction;
+    private final Action bulkDownloadAction;
     private final Action deleteAction;
     private final Action renameAction;
     private final Action copyAction;
@@ -88,6 +89,7 @@ public final class ExplorerView {
     public ExplorerView(
             Action downloadAction,
             Action downloadDecryptedAction,
+            Action bulkDownloadAction,
             Action deleteAction,
             Action copyAction,
             Action renameAction,
@@ -109,6 +111,7 @@ public final class ExplorerView {
 
         this.downloadAction = downloadAction;
         this.downloadDecryptedAction = downloadDecryptedAction;
+        this.bulkDownloadAction = bulkDownloadAction;
         this.deleteAction = deleteAction;
         this.copyAction = copyAction;
         this.renameAction = renameAction;
@@ -180,6 +183,7 @@ public final class ExplorerView {
         buttonPanel.add(uploadEncryptedButton);
         buttonPanel.add(createIconButton(downloadAction));
         buttonPanel.add(downloadDecryptedButton);
+        buttonPanel.add(createIconButton(bulkDownloadAction));
         buttonPanel.add(createSeparator());
         
         buttonPanel.add(createIconButton(copyAction));
@@ -522,6 +526,7 @@ public final class ExplorerView {
         setActionIcon(copyAction, IconProvider.ICON_COPY);
         setActionIcon(cutAction, IconProvider.ICON_CUT);
         setActionIcon(pasteAction, IconProvider.ICON_PASTE);
+        setActionIcon(bulkDownloadAction, IconProvider.ICON_BULK_DOWNLOAD);
     }
 
     private void setActionIcon(Action action, Icon icon) {

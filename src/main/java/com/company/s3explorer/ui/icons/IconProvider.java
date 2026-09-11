@@ -74,6 +74,9 @@ public class IconProvider {
     public static ImageIcon ICON_CANCEL_ALL = null;
     public static ImageIcon ICON_CANCEL_ALL_NORMAL = createImage("src/main/resources/icons/cancel-all.png", 16);
     public static ImageIcon ICON_CANCEL_ALL_REVERSE = createImage("src/main/resources/icons/cancel-all-reverse.png", 16);
+    public static ImageIcon ICON_BULK_DOWNLOAD = null;
+    public static ImageIcon ICON_BULK_DOWNLOAD_NORMAL = createImage("src/main/resources/icons/download-all.png", 16);
+    public static ImageIcon ICON_BULK_DOWNLOAD_REVERSE = createImage("src/main/resources/icons/download-all-reverse.png", 16);
 
     public static ImageIcon ICON_FOLDER_HOME_24 = createImage("src/main/resources/icons/home.png", 24);
     public static ImageIcon ICON_FOLDER_HOME_32 = createImage("src/main/resources/icons/home.png", 32);
@@ -127,6 +130,7 @@ public class IconProvider {
         ICON_SETTINGS = normal ? ICON_SETTINGS_NORMAL : ICON_SETTINGS_REVERSE;
         ICON_CANCEL = normal ? ICON_CANCEL_NORMAL : ICON_CANCEL_REVERSE;
         ICON_CANCEL_ALL = normal ? ICON_CANCEL_ALL_NORMAL : ICON_CANCEL_ALL_REVERSE;
+        ICON_BULK_DOWNLOAD = normal ? ICON_BULK_DOWNLOAD_NORMAL : ICON_BULK_DOWNLOAD_REVERSE;
     }
 
     public static Icon loadSvgIcon(

@@ -120,6 +120,7 @@ public class ExplorerPanel extends JPanel {
     private Action goToParentAction;
     private Action renameAction;
     private Action propertiesAction;
+    private Action bulkDownloadAction;
 
     public ExplorerPanel(
             ActiveRepositoryContext context,
@@ -160,6 +161,7 @@ public class ExplorerPanel extends JPanel {
         view = new ExplorerView(
                 downloadAction,
                 downloadDecryptedAction,
+                bulkDownloadAction,
                 deleteAction,
                 copyAction,
                 renameAction,
@@ -268,6 +270,7 @@ public class ExplorerPanel extends JPanel {
         goToParentAction = new ExplorerAction("GoToParent", this::goToParentFolder);
         renameAction = new ExplorerAction("Rename", this::renameSelected);
         propertiesAction = new ExplorerAction("Properties", this::showProperties);
+        bulkDownloadAction = new ExplorerAction("Bulk Download", this::showBulkDownloadDialog);
     }
 
     private void defineShortCuts() {
@@ -4682,5 +4685,14 @@ public class ExplorerPanel extends JPanel {
                 && !repository.getEncryptionIv().isBlank()
                 && repository.getEncryptionKey() != null
                 && !repository.getEncryptionKey().isBlank();
+    }
+
+    private void showBulkDownloadDialog() {
+        BulkDownloadDialog dialog =
+                new BulkDownloadDialog(
+                        SwingUtilities.getWindowAncestor(this),
+                        hasEncryptionConfiguration());
+
+        dialog.setVisible(true);
     }
 }
