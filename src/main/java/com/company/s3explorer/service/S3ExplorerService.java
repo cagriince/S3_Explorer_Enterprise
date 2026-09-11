@@ -603,29 +603,49 @@ public class S3ExplorerService {
     // DOWNLOAD
     // ----------------------------------------------------------------------
 
-    public void downloadFile(String bucket, String objectKey, Path target, TransferProgressListener listener) throws IOException {
+    public void downloadFile(
+            String bucket,
+            String objectKey,
+            Path target,
+            TransferProgressListener listener)
+            throws IOException {
+
         if (S3Util.isFolder(objectKey)) {
             try {
                 Files.createDirectories(target);
             } catch (IOException e) {
                 //throw new RuntimeException(e);
             }
+
             listener.update(100, 100);
             return;
         }
 
-        HeadObjectResponse head = getObject(bucket, objectKey);
-        long totalBytes = head.contentLength();
+        HeadObjectResponse head =
+                getObject(
+                        bucket,
+                        objectKey);
 
-        try (InputStream raw = client.getObject(
-                GetObjectRequest.builder()
-                    .bucket(bucket)
-                    .key(objectKey)
-                    .build());
-                 InputStream in = new ProgressInputStream(raw, totalBytes, listener);
-                 OutputStream out = Files.newOutputStream(target)) {
+        long totalBytes =
+                head.contentLength();
 
-            Files.createDirectories(target.getParent());
+        Files.createDirectories(
+                target.getParent());
+
+        try (InputStream raw =
+                     client.getObject(
+                             GetObjectRequest.builder()
+                                     .bucket(bucket)
+                                     .key(objectKey)
+                                     .build());
+             InputStream in =
+                     new ProgressInputStream(
+                             raw,
+                             totalBytes,
+                             listener);
+             OutputStream out =
+                     Files.newOutputStream(target)) {
+
             in.transferTo(out);
         }
     }
@@ -670,6 +690,9 @@ public class S3ExplorerService {
 
         long encryptedSize =
                 head.contentLength();
+
+        Files.createDirectories(
+                target.getParent());
 
         try (InputStream raw =
                      client.getObject(
