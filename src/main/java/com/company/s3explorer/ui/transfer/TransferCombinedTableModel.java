@@ -430,6 +430,18 @@ public class TransferCombinedTableModel
                             skipped);
         }
 
+        String errorMessage =
+                group.getGroup().getErrorMessage();
+
+        if (errorMessage != null
+                && !errorMessage.isBlank()) {
+
+            summary.append(
+                            ", Error: ")
+                    .append(
+                            errorMessage);
+        }
+
         return summary.toString();
     }
 
