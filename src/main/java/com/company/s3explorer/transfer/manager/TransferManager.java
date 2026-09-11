@@ -217,6 +217,90 @@ public class TransferManager {
         );
     }
 
+    public void submitDownloadDecrypted(
+            String repositoryName,
+            String bucket,
+            String key,
+            Path localFile,
+            long size,
+            EncryptionConfig encryptionConfig,
+            TransferGroup group) {
+
+        if (encryptionConfig == null) {
+            throw new IllegalArgumentException(
+                    "Encryption configuration is not available.");
+        }
+
+        if (group == null) {
+            throw new IllegalArgumentException(
+                    "Transfer group must not be null");
+        }
+
+        Path target =
+                localFile.resolve(
+                        S3Util.extractFileName(key));
+
+        TransferTask task =
+                TransferTask.download()
+                        .repositoryName(
+                                repositoryName)
+                        .bucket(
+                                bucket)
+                        .objectKey(
+                                key)
+                        .localPath(
+                                target)
+                        .size(size)
+                        .encryptionConfig(
+                                encryptionConfig)
+                        .affectsObjectList(false)
+                        .affectsFolderTree(false)
+                        .group(group)
+                        .build();
+
+        submitGroupedTask(
+                task,
+                group);
+    }
+    
+    public void submitDownload(
+            String repositoryName,
+            String bucket,
+            String key,
+            Path localFile,
+            long size,
+            TransferGroup group) {
+
+        if (group == null) {
+            throw new IllegalArgumentException(
+                    "Transfer group must not be null");
+        }
+
+        Path target =
+                localFile.resolve(
+                        S3Util.extractFileName(key));
+
+        TransferTask task =
+                TransferTask.download()
+                        .repositoryName(
+                                repositoryName)
+                        .bucket(
+                                bucket)
+                        .objectKey(
+                                key)
+                        .localPath(
+                                target)
+                        .size(size)
+                        .affectsObjectList(false)
+                        .affectsFolderTree(false)
+                        .group(group)
+                        .build();
+
+        submitGroupedTask(
+                task,
+                group);
+    }
+    
     public TransferGroup submitBulkDownload(
             String repositoryName,
             String bucket,
