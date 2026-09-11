@@ -1,5 +1,6 @@
 package com.company.s3explorer.transfer.manager;
 
+import com.company.s3explorer.security.EncryptionConfig;
 import com.company.s3explorer.service.S3ClientManager;
 import com.company.s3explorer.service.S3ExplorerService;
 import com.company.s3explorer.transfer.TransferType;
@@ -120,6 +121,38 @@ public class TransferManager {
         );
     }
 
+    public void submitUploadEncrypted(
+            String repositoryName,
+            String bucket,
+            String key,
+            Path localFile,
+            long size,
+            EncryptionConfig encryptionConfig) {
+
+        if (encryptionConfig == null) {
+            throw new IllegalArgumentException(
+                    "Encryption configuration is not available.");
+        }
+
+        submit(
+                TransferTask.upload()
+                        .targetRepositoryName(
+                                repositoryName)
+                        .targetBucket(
+                                bucket)
+                        .targetObjectKey(
+                                key)
+                        .localPath(
+                                localFile)
+                        .size(size)
+                        .encryptionConfig(
+                                encryptionConfig)
+                        .affectsObjectList(true)
+                        .affectsFolderTree(false)
+                        .build()
+        );
+    }
+    
     public void submitDownload(
             String repositoryName,
             String bucket,
