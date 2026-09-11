@@ -450,13 +450,9 @@ public final class ExplorerView {
 
         filePopup.add(createFolderMenu);
         filePopup.add(uploadMenu);
-        if (isEncryptionConfigured()) {
-            filePopup.add(uploadEncryptedMenu);
-        }
+        filePopup.add(uploadEncryptedMenu);
         filePopup.add(downloadMenu);
-        if (isEncryptionConfigured()) {
-            filePopup.add(downloadDecryptedMenu);
-        }
+        filePopup.add(downloadDecryptedMenu);
         filePopup.add(deleteMenu);
         filePopup.add(renameMenu);
         filePopup.add(propertiesMenu);
@@ -467,6 +463,12 @@ public final class ExplorerView {
         filePopup.addPopupMenuListener(new PopupMenuListener() {
             @Override
             public void popupMenuWillBecomeVisible(PopupMenuEvent e) {
+                uploadEncryptedMenu.setVisible(
+                        isEncryptionConfigured());
+
+                downloadDecryptedMenu.setVisible(
+                        isEncryptionConfigured());
+                
                 pasteMenu.setEnabled(clipboardEmpty == null || !clipboardEmpty.getAsBoolean());
             }
 
