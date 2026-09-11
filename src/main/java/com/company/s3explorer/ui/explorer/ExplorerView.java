@@ -501,8 +501,10 @@ public final class ExplorerView {
         setActionIcon(manageRepositoryAction, IconProvider.ICON_SETTINGS);
         setActionIcon(refreshAction, IconProvider.ICON_REFRESH);
         setActionIcon(uploadAction, IconProvider.ICON_UPLOAD);
+        setActionIcon(uploadEncryptedAction, IconProvider.ICON_UPLOAD_ENCRYPTED);
         setActionIcon(newFolderAction, IconProvider.ICON_CREATE_FOLDER);
         setActionIcon(downloadAction, IconProvider.ICON_DOWNLOAD);
+        setActionIcon(downloadDecryptedAction, IconProvider.ICON_DOWNLOAD_DECRYPTED);
         setActionIcon(deleteAction, IconProvider.ICON_DELETE);
         setActionIcon(renameAction, IconProvider.ICON_RENAME);
         setActionIcon(propertiesAction, IconProvider.ICON_PROPERTIES);

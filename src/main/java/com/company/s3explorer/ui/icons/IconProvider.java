@@ -26,6 +26,9 @@ public class IconProvider {
     public static Icon ICON_UPLOAD = null;
     public static ImageIcon ICON_UPLOAD_NORMAL = createImage("src/main/resources/icons/upload.png", 16);
     public static ImageIcon ICON_UPLOAD_REVERSE = createImage("src/main/resources/icons/upload-reverse.png", 16);
+    public static Icon ICON_UPLOAD_ENCRYPTED = null;
+    public static ImageIcon ICON_UPLOAD_ENCRYPTED_NORMAL = createImage("src/main/resources/icons/upload-encrypted.png", 16);
+    public static ImageIcon ICON_UPLOAD_ENCRYPTED_REVERSE = createImage("src/main/resources/icons/upload-encrypted-reverse.png", 16);
     public static ImageIcon ICON_DELETE = null;
     public static ImageIcon ICON_DELETE_NORMAL = createImage("src/main/resources/icons/delete.png", 16);
     public static ImageIcon ICON_DELETE_REVERSE = createImage("src/main/resources/icons/delete-reverse.png", 16);
@@ -50,6 +53,9 @@ public class IconProvider {
     public static ImageIcon ICON_DOWNLOAD = null;
     public static ImageIcon ICON_DOWNLOAD_NORMAL = createImage("src/main/resources/icons/download.png", 16);
     public static ImageIcon ICON_DOWNLOAD_REVERSE = createImage("src/main/resources/icons/download-reverse.png", 16);
+    public static ImageIcon ICON_DOWNLOAD_DECRYPTED = null;
+    public static ImageIcon ICON_DOWNLOAD_DECRYPTED_NORMAL = createImage("src/main/resources/icons/download-decrypted.png", 16);
+    public static ImageIcon ICON_DOWNLOAD_DECRYPTED_REVERSE = createImage("src/main/resources/icons/download-decrypted-reverse.png", 16);
     public static ImageIcon ICON_CREATE_FOLDER = null;
     public static ImageIcon ICON_CREATE_FOLDER_NORMAL = createImage("src/main/resources/icons/create-folder.png", 16);
     public static ImageIcon ICON_CREATE_FOLDER_REVERSE = createImage("src/main/resources/icons/create-folder-reverse.png", 16);
@@ -105,6 +111,7 @@ public class IconProvider {
         boolean normal = !theme.dark();
 
         ICON_UPLOAD = normal ? ICON_UPLOAD_NORMAL : ICON_UPLOAD_REVERSE;
+        ICON_UPLOAD_ENCRYPTED = normal ? ICON_UPLOAD_ENCRYPTED_NORMAL : ICON_UPLOAD_ENCRYPTED_REVERSE;
         ICON_DELETE = normal ? ICON_DELETE_NORMAL : ICON_DELETE_REVERSE;
         ICON_RENAME = normal ? ICON_RENAME_NORMAL : ICON_RENAME_REVERSE;
         ICON_PROPERTIES = normal ? ICON_PROPERTIES_NORMAL : ICON_PROPERTIES_REVERSE;
@@ -113,6 +120,7 @@ public class IconProvider {
         ICON_PASTE = normal ? ICON_PASTE_NORMAL : ICON_PASTE_REVERSE;
         ICON_COPY = normal ? ICON_COPY_NORMAL : ICON_COPY_REVERSE;
         ICON_DOWNLOAD = normal ? ICON_DOWNLOAD_NORMAL : ICON_DOWNLOAD_REVERSE;
+        ICON_DOWNLOAD_DECRYPTED = normal ? ICON_DOWNLOAD_DECRYPTED_NORMAL : ICON_DOWNLOAD_DECRYPTED_REVERSE;
         ICON_CREATE_FOLDER = normal ? ICON_CREATE_FOLDER_NORMAL : ICON_CREATE_FOLDER_REVERSE;
         ICON_REPOSITORY = normal ? ICON_REPOSITORY_NORMAL : ICON_REPOSITORY_REVERSE;
         ICON_BUCKET = normal ? ICON_BUCKET_NORMAL : ICON_BUCKET_REVERSE;
