@@ -2893,6 +2893,59 @@ public class ExplorerPanel extends JPanel {
         lastOpenedFolderToDownload = destination.toFile();
     }
 
+    public void downloadSelectedDecrypted() {
+
+        List<S3FileItem> items =
+                getSelectedItems();
+
+        if (items.isEmpty()
+                || encryptionConfig == null) {
+            return;
+        }
+
+        JFileChooser chooser =
+                new JFileChooser();
+
+        if (lastOpenedFolderToDownload != null) {
+            chooser.setCurrentDirectory(
+                    lastOpenedFolderToDownload);
+        }
+
+        chooser.setFileSelectionMode(
+                JFileChooser.DIRECTORIES_ONLY);
+
+        int result =
+                chooser.showSaveDialog(this);
+
+        if (result != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+
+        Path destination =
+                chooser.getSelectedFile().toPath();
+
+        for (S3FileItem item : items) {
+
+            try {
+
+                fileOperationController.downloadDecrypted(
+                        item,
+                        destination,
+                        encryptionConfig);
+
+            } catch (Exception ex) {
+
+                SwingUtilities.invokeLater(() ->
+                        JOptionPane.showMessageDialog(
+                                this,
+                                ex.getMessage()));
+            }
+        }
+
+        lastOpenedFolderToDownload =
+                destination.toFile();
+    }
+    
     public void deleteSelected() {
 
         log.info(
