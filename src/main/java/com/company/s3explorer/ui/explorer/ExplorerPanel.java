@@ -481,7 +481,21 @@ public class ExplorerPanel extends JPanel {
                 SwingUtilities.invokeLater(() -> {
                     view.getRepositoryCombo().removeAllItems();
                     view.getRepositoryCombo().addItem(RepositoryDefinition.EMPTY_REPOSITORY);
-                    repositories.forEach(view.getRepositoryCombo()::addItem);
+                    Collator turkishCollator =
+                            Collator.getInstance(
+                                    new Locale("tr", "TR"));
+
+                    turkishCollator.setStrength(
+                            Collator.PRIMARY);
+
+                    repositories.sort(
+                            (first, second) ->
+                                    turkishCollator.compare(
+                                            first.getName(),
+                                            second.getName()));
+
+                    repositories.forEach(
+                            view.getRepositoryCombo()::addItem);
 
                     if (pendingRepositorySelection != null) {
                         view.getRepositoryCombo().setSelectedItem(pendingRepositorySelection);
