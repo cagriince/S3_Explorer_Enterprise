@@ -33,16 +33,13 @@ public final class BulkDownloadDialog {
         JLabel informationLabel =
                 new JLabel(
                         "<html>"
-                                + "Enter S3 object keys, one per line."
-                                + "<br>"
-                                + "All keys must belong to the current repository and bucket."
+                                + "Enter S3 object keys, one per line. All keys must belong to the current repository and bucket."
                                 + "<br><br>"
-                                + "<b>Repository:</b> "
+                                + "<table><tr><td><b>Repository:</b></td><td>"
                                 + repositoryName
-                                + "<br>"
-                                + "<b>Bucket:</b> "
+                                + "</td></tr><tr><td><b>Bucket:</b></td><td>"
                                 + bucket
-                                + "</html>");
+                                + "</td></tr></table></html>");
 
         downloadButton =
                 new JButton("Download");
