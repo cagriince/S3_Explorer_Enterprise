@@ -22,7 +22,7 @@ public class IconProvider {
     public static ImageIcon ICON_SYSTEM_CLOSED_FOLDER;
     public static ImageIcon ICON_SYSTEM_LEAF_FILE;
 
-    public static ImageIcon ICON_LOGO = loadIcon("logo", 32);//32
+    public static ImageIcon ICON_LOGO = loadIcon("logo", 40);//32
     public static ImageIcon ICON_REPOSITORY = null;
     public static ImageIcon ICON_REPOSITORY_NORMAL = loadIcon("db", 24);//20
     public static ImageIcon ICON_REPOSITORY_REVERSE = loadIcon("db-reverse", 24);//20

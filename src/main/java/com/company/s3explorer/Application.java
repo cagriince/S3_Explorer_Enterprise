@@ -21,7 +21,7 @@ public class Application {
         }*/
         SwingUtilities.invokeLater(() -> {
             MainFrame frame = new MainFrame();
-            //frame.setIconImage(IconProvider.ICON_LOGO.getImage());
+            frame.setIconImage(IconProvider.ICON_LOGO.getImage());
             frame.setVisible(true);
         });
     }
