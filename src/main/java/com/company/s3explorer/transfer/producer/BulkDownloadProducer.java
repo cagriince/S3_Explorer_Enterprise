@@ -133,7 +133,9 @@ public final class BulkDownloadProducer
         if (head == null) {
             throw new IllegalArgumentException(
                     "S3 object not found: "
-                            + objectKey);
+                            + objectKey
+                            + ". If this is a folder, "
+                            + "make sure the key ends with '/'.");
         }
 
         Path target =
