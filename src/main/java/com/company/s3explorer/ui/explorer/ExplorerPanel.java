@@ -1127,6 +1127,7 @@ public class ExplorerPanel extends JPanel {
                     || repository == RepositoryDefinition.EMPTY_REPOSITORY) {
 
                 encryptionConfig = null;
+                view.updateEncryptionActionVisibility();
                 return;
             }
 
@@ -1142,6 +1143,8 @@ public class ExplorerPanel extends JPanel {
 
                 encryptionConfig = null;
             }
+
+            view.updateEncryptionActionVisibility();
 
             if (repositorySelectionListener != null) {
 
