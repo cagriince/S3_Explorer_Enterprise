@@ -570,7 +570,8 @@ public class TransferManager {
                         repositoryName,
                         bucket,
                         prefix,
-                        localFolder)
+                        localFolder,
+                        encryptionConfig)
         );
     }
     
