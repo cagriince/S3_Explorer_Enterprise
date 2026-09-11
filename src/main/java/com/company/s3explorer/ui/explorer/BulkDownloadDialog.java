@@ -33,6 +33,14 @@ public final class BulkDownloadDialog {
                         "Bulk Download",
                         Dialog.ModalityType.APPLICATION_MODAL);
 
+        dialog.getRootPane().registerKeyboardAction(
+                e -> {
+                    result = Result.CANCEL;
+                    dialog.dispose();
+                },
+                KeyStroke.getKeyStroke("ESCAPE"),
+                JComponent.WHEN_IN_FOCUSED_WINDOW);
+
         objectKeysArea = new JTextArea(15, 60);
         objectKeysArea.setLineWrap(false);
         objectKeysArea.setWrapStyleWord(false);
