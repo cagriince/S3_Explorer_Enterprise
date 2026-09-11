@@ -2919,26 +2919,109 @@ public class ExplorerPanel extends JPanel {
 
     public void downloadSelected() {
         List<S3FileItem> items = getSelectedItems();
+
         if (items.isEmpty()) {
             return;
         }
 
         JFileChooser chooser = new JFileChooser();
+
         if (lastOpenedFolderToDownload != null) {
-            chooser.setCurrentDirectory(lastOpenedFolderToDownload);
+            chooser.setCurrentDirectory(
+                    lastOpenedFolderToDownload);
         }
-        //chooser.setSelectedFile(new File(extractFileName(item.getKey())));
-        chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
-        int result = chooser.showSaveDialog(this);
+
+        chooser.setFileSelectionMode(
+                JFileChooser.DIRECTORIES_ONLY);
+
+        int result =
+                chooser.showSaveDialog(this);
+
         if (result != JFileChooser.APPROVE_OPTION) {
             return;
         }
-        Path destination = chooser.getSelectedFile().toPath();
-        for (S3FileItem item : items) {
-            startDownload(item, destination);
+
+        Path destination =
+                chooser.getSelectedFile().toPath();
+
+        lastOpenedFolderToDownload =
+                destination.toFile();
+
+        /*
+         * Tek item veya klasör içeren seçimlerde
+         * mevcut davranışı koruyoruz.
+         */
+        boolean allFiles =
+                items.size() > 1
+                        && items.stream()
+                        .noneMatch(S3FileItem::isFolder);
+
+        if (!allFiles) {
+
+            for (S3FileItem item : items) {
+                startDownload(
+                        item,
+                        destination);
+            }
+
+            return;
         }
 
-        lastOpenedFolderToDownload = destination.toFile();
+        S3FileItem firstItem =
+                items.getFirst();
+
+        String repositoryName =
+                firstItem.getRepositoryName();
+
+        String bucket =
+                getCurrentBucket();
+
+        String sourcePrefix =
+                getCurrentPrefix();
+
+        if (repositoryName == null
+                || bucket == null
+                || sourcePrefix == null) {
+            return;
+        }
+
+        TransferGroup group =
+                transferManager.createDownloadGroup(
+                        repositoryName,
+                        bucket,
+                        sourcePrefix,
+                        getOperationGroupName(items),
+                        destination);
+
+        for (S3FileItem item : items) {
+
+            try {
+
+                fileOperationController.download(
+                        item,
+                        destination,
+                        group);
+
+            } catch (Exception ex) {
+
+                log.error(
+                        "[DOWNLOAD GROUP] failed source={} group={}",
+                        item.getKey(),
+                        group.getDisplayName(),
+                        ex);
+
+                group.failed();
+
+                SwingUtilities.invokeLater(() ->
+                        JOptionPane.showMessageDialog(
+                                this,
+                                ex.getMessage(),
+                                "Download Failed",
+                                JOptionPane.ERROR_MESSAGE));
+            }
+        }
+
+        group.markProductionCompleted();
     }
 
     public void downloadSelectedDecrypted() {
@@ -2972,6 +3055,69 @@ public class ExplorerPanel extends JPanel {
         Path destination =
                 chooser.getSelectedFile().toPath();
 
+        lastOpenedFolderToDownload =
+                destination.toFile();
+
+        /*
+         * Tek item veya klasör içeren seçimlerde
+         * mevcut davranışı koruyoruz.
+         */
+        boolean allFiles =
+                items.size() > 1
+                        && items.stream()
+                        .noneMatch(S3FileItem::isFolder);
+
+        if (!allFiles) {
+
+            for (S3FileItem item : items) {
+
+                try {
+
+                    fileOperationController.downloadDecrypted(
+                            item,
+                            destination,
+                            encryptionConfig);
+
+                } catch (Exception ex) {
+
+                    SwingUtilities.invokeLater(() ->
+                            JOptionPane.showMessageDialog(
+                                    this,
+                                    ex.getMessage(),
+                                    "Download Failed",
+                                    JOptionPane.ERROR_MESSAGE));
+                }
+            }
+
+            return;
+        }
+
+        S3FileItem firstItem =
+                items.getFirst();
+
+        String repositoryName =
+                firstItem.getRepositoryName();
+
+        String bucket =
+                getCurrentBucket();
+
+        String sourcePrefix =
+                getCurrentPrefix();
+
+        if (repositoryName == null
+                || bucket == null
+                || sourcePrefix == null) {
+            return;
+        }
+
+        TransferGroup group =
+                transferManager.createDownloadGroup(
+                        repositoryName,
+                        bucket,
+                        sourcePrefix,
+                        getOperationGroupName(items),
+                        destination);
+
         for (S3FileItem item : items) {
 
             try {
@@ -2979,19 +3125,29 @@ public class ExplorerPanel extends JPanel {
                 fileOperationController.downloadDecrypted(
                         item,
                         destination,
-                        encryptionConfig);
+                        encryptionConfig,
+                        group);
 
             } catch (Exception ex) {
+
+                log.error(
+                        "[DOWNLOAD DECRYPTED GROUP] failed source={} group={}",
+                        item.getKey(),
+                        group.getDisplayName(),
+                        ex);
+
+                group.failed();
 
                 SwingUtilities.invokeLater(() ->
                         JOptionPane.showMessageDialog(
                                 this,
-                                ex.getMessage()));
+                                ex.getMessage(),
+                                "Download Failed",
+                                JOptionPane.ERROR_MESSAGE));
             }
         }
 
-        lastOpenedFolderToDownload =
-                destination.toFile();
+        group.markProductionCompleted();
     }
     
     public void deleteSelected() {

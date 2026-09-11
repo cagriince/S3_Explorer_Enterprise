@@ -300,6 +300,41 @@ public class TransferManager {
                 task,
                 group);
     }
+
+    public TransferGroup createDownloadGroup(
+            String repositoryName,
+            String bucket,
+            String sourcePrefix,
+            String groupName,
+            Path destination) {
+
+        TransferGroup group =
+                createOperationGroup(
+                        TransferType.DOWNLOAD,
+                        groupName,
+                        repositoryName,
+                        bucket,
+                        sourcePrefix,
+                        null,
+                        null,
+                        destination.toString());
+
+        configureGroupCompletion(
+                group,
+                repositoryName,
+                bucket,
+                sourcePrefix,
+                false);
+
+        transferContext.publishGroupUpdated(
+                group,
+                repositoryName,
+                bucket,
+                sourcePrefix,
+                false);
+
+        return group;
+    }
     
     public TransferGroup submitBulkDownload(
             String repositoryName,
