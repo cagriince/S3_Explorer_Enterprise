@@ -419,8 +419,16 @@ public class ExplorerPanel extends JPanel {
         uploadAction.setEnabled(
                 folderSelected);
 
+        uploadEncryptedAction.setEnabled(
+                folderSelected
+                        && hasEncryptionConfiguration());
+
         downloadAction.setEnabled(
                 hasSelection);
+
+        downloadDecryptedAction.setEnabled(
+                hasSelection
+                        && hasEncryptionConfiguration());
 
         deleteAction.setEnabled(
                 hasSelection);
