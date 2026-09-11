@@ -4688,24 +4688,85 @@ public class ExplorerPanel extends JPanel {
     }
 
     private void showBulkDownloadDialog() {
-        RepositoryDefinition repository =
-                getCurrentRepository();
+        RepositoryDefinition repository = getCurrentRepository();
 
-        String repositoryName =
-                repository == null
-                        ? ""
-                        : repository.getName();
+        if (repository == null) {
+            return;
+        }
 
-        String bucket =
-                getCurrentBucket();
+        String bucket = getCurrentBucket();
+
+        if (bucket == null || bucket.isBlank()) {
+            return;
+        }
 
         BulkDownloadDialog dialog =
                 new BulkDownloadDialog(
                         SwingUtilities.getWindowAncestor(this),
-                        repositoryName,
+                        repository.getName(),
                         bucket,
                         hasEncryptionConfiguration());
 
         dialog.setVisible(true);
+
+        if (dialog.getResult() == BulkDownloadDialog.Result.CANCEL) {
+            return;
+        }
+
+        List<String> objectKeys =
+                dialog.getObjectKeys();
+
+        if (objectKeys.isEmpty()) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Please enter at least one S3 object key.");
+            return;
+        }
+
+        JFileChooser chooser =
+                new JFileChooser();
+
+        chooser.setFileSelectionMode(
+                JFileChooser.DIRECTORIES_ONLY);
+
+        if (lastOpenedFolderToDownload != null) {
+            chooser.setCurrentDirectory(
+                    lastOpenedFolderToDownload);
+        }
+
+        int result =
+                chooser.showOpenDialog(this);
+
+        if (result != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+
+        File destinationFolder =
+                chooser.getSelectedFile();
+
+        lastOpenedFolderToDownload =
+                destinationFolder;
+
+        String repositoryName =
+                repository.getName();
+
+        if (dialog.getResult()
+                == BulkDownloadDialog.Result.DOWNLOAD_DECRYPTED) {
+
+            transferManager.submitBulkDownloadDecrypted(
+                    repositoryName,
+                    bucket,
+                    objectKeys,
+                    destinationFolder.toPath(),
+                    encryptionConfig);
+
+        } else {
+
+            transferManager.submitBulkDownload(
+                    repositoryName,
+                    bucket,
+                    objectKeys,
+                    destinationFolder.toPath());
+        }
     }
 }
