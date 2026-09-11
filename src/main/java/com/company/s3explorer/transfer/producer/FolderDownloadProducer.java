@@ -2,6 +2,7 @@ package com.company.s3explorer.transfer.producer;
 
 import com.company.s3explorer.security.EncryptionConfig;
 import com.company.s3explorer.transfer.context.TransferContext;
+import com.company.s3explorer.transfer.model.TransferGroup;
 import com.company.s3explorer.transfer.model.TransferTask;
 import com.company.s3explorer.transfer.queue.TransferQueue;
 import software.amazon.awssdk.services.s3.model.S3Object;
@@ -52,6 +53,28 @@ public class FolderDownloadProducer
         this.encryptionConfig = encryptionConfig;
     }
 
+    public FolderDownloadProducer(
+            TransferContext context,
+            TransferQueue queue,
+            String repository,
+            String bucket,
+            String prefix,
+            Path localFolder,
+            EncryptionConfig encryptionConfig,
+            TransferGroup group) {
+
+        super(
+                context,
+                queue,
+                repository,
+                bucket,
+                prefix,
+                group);
+
+        this.localFolder = localFolder;
+        this.encryptionConfig = encryptionConfig;
+    }
+    
     @Override
     public String getDescription() {
         return "Preparing folder download...";

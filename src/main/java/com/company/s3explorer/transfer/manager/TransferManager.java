@@ -533,12 +533,44 @@ public class TransferManager {
 
         return group;
     }
-    
+
     public void submitFolderDownload(
             String repositoryName,
             String bucket,
             String prefix,
             Path localFolder) {
+
+        TransferGroup group =
+                new TransferGroup(
+                        UUID.randomUUID(),
+                        S3Util.extractFolderName(prefix),
+                        TransferType.DOWNLOAD,
+                        buildGroupLocation(
+                                repositoryName,
+                                bucket,
+                                prefix),
+                        localFolder.toString(),
+                        repositoryName,
+                        bucket,
+                        prefix,
+                        null,
+                        null,
+                        localFolder.toString(),
+                        true);
+
+        configureGroupCompletion(
+                group,
+                repositoryName,
+                bucket,
+                prefix,
+                false);
+
+        transferContext.publishGroupUpdated(
+                group,
+                repositoryName,
+                bucket,
+                prefix,
+                false);
 
         producerExecutor.submit(
                 new FolderDownloadProducer(
@@ -547,7 +579,9 @@ public class TransferManager {
                         repositoryName,
                         bucket,
                         prefix,
-                        localFolder)
+                        localFolder,
+                        null,
+                        group)
         );
     }
 
@@ -563,6 +597,38 @@ public class TransferManager {
                     "Encryption configuration is not available.");
         }
 
+        TransferGroup group =
+                new TransferGroup(
+                        UUID.randomUUID(),
+                        S3Util.extractFolderName(prefix),
+                        TransferType.DOWNLOAD,
+                        buildGroupLocation(
+                                repositoryName,
+                                bucket,
+                                prefix),
+                        localFolder.toString(),
+                        repositoryName,
+                        bucket,
+                        prefix,
+                        null,
+                        null,
+                        localFolder.toString(),
+                        true);
+
+        configureGroupCompletion(
+                group,
+                repositoryName,
+                bucket,
+                prefix,
+                false);
+
+        transferContext.publishGroupUpdated(
+                group,
+                repositoryName,
+                bucket,
+                prefix,
+                false);
+
         producerExecutor.submit(
                 new FolderDownloadProducer(
                         transferContext,
@@ -571,7 +637,8 @@ public class TransferManager {
                         bucket,
                         prefix,
                         localFolder,
-                        encryptionConfig)
+                        encryptionConfig,
+                        group)
         );
     }
     
