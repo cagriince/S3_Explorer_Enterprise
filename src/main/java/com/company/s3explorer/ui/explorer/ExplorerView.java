@@ -450,7 +450,6 @@ public final class ExplorerView {
 
     private void createPopupMenu() {
         filePopup = new JPopupMenu();
-
         JMenuItem createFolderMenu = new JMenuItem(newFolderAction);
         JMenuItem uploadMenu = new JMenuItem(uploadAction);
         JMenuItem uploadEncryptedMenu = new JMenuItem(uploadEncryptedAction);
@@ -463,18 +462,6 @@ public final class ExplorerView {
         JMenuItem cutMenu = new JMenuItem(cutAction);
         JMenuItem pasteMenu = new JMenuItem(pasteAction);
 
-        setMenuItemIcon(createFolderMenu, newFolderAction);
-        setMenuItemIcon(uploadMenu, uploadAction);
-        setMenuItemIcon(uploadEncryptedMenu, uploadEncryptedAction);
-        setMenuItemIcon(downloadMenu, downloadAction);
-        setMenuItemIcon(downloadDecryptedMenu, downloadDecryptedAction);
-        setMenuItemIcon(deleteMenu, deleteAction);
-        setMenuItemIcon(renameMenu, renameAction);
-        setMenuItemIcon(propertiesMenu, propertiesAction);
-        setMenuItemIcon(copyMenu, copyAction);
-        setMenuItemIcon(cutMenu, cutAction);
-        setMenuItemIcon(pasteMenu, pasteAction);
-
         filePopup.add(createFolderMenu);
         filePopup.add(deleteMenu);
         filePopup.add(renameMenu);
@@ -486,11 +473,10 @@ public final class ExplorerView {
         filePopup.add(downloadMenu);
         filePopup.add(downloadDecryptedMenu);
         filePopup.addSeparator();
-
+        
         filePopup.add(copyMenu);
         filePopup.add(cutMenu);
         filePopup.add(pasteMenu);
-
         filePopup.addPopupMenuListener(new PopupMenuListener() {
             @Override
             public void popupMenuWillBecomeVisible(PopupMenuEvent e) {
@@ -499,10 +485,8 @@ public final class ExplorerView {
 
                 downloadDecryptedMenu.setVisible(
                         isEncryptionConfigured());
-
-                pasteMenu.setEnabled(
-                        clipboardEmpty == null
-                                || !clipboardEmpty.getAsBoolean());
+                
+                pasteMenu.setEnabled(clipboardEmpty == null || !clipboardEmpty.getAsBoolean());
             }
 
             @Override
@@ -513,19 +497,6 @@ public final class ExplorerView {
             public void popupMenuCanceled(PopupMenuEvent e) {
             }
         });
-    }
-
-    private void setMenuItemIcon(
-            JMenuItem menuItem,
-            Action action) {
-
-        Icon icon =
-                (Icon) action.getValue(
-                        Action.LARGE_ICON_KEY);
-
-        if (icon != null) {
-            menuItem.setIcon(icon);
-        }
     }
 
     private boolean isEncryptionConfigured() {
@@ -559,6 +530,7 @@ public final class ExplorerView {
     }
 
     private void setActionIcon(Action action, Icon icon) {
+        action.putValue(Action.SMALL_ICON, icon);
         action.putValue(Action.LARGE_ICON_KEY, icon);
     }
 
