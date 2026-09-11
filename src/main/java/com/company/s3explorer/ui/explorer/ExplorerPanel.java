@@ -1708,6 +1708,88 @@ public class ExplorerPanel extends JPanel {
         }
     }
 
+    private void uploadFileEncrypted() {
+
+        String repositoryName =
+                this.getCurrentRepository().getName();
+
+        String bucket =
+                this.getCurrentBucket();
+
+        if (bucket == null
+                || encryptionConfig == null) {
+            return;
+        }
+
+        JFileChooser chooser =
+                new JFileChooser();
+
+        chooser.setMultiSelectionEnabled(true);
+
+        chooser.setFileSelectionMode(
+                JFileChooser.FILES_ONLY);
+
+        if (lastOpenedFolderToUpload != null) {
+
+            chooser.setCurrentDirectory(
+                    lastOpenedFolderToUpload);
+        }
+
+        int result =
+                chooser.showOpenDialog(this);
+
+        if (result != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+
+        String prefix =
+                getCurrentPrefix();
+
+        File[] files =
+                chooser.getSelectedFiles();
+
+        for (File file : files) {
+
+            try {
+
+                String objectKey =
+                        prefix + file.getName();
+
+                pendingFileTableSelectionKey =
+                        objectKey;
+
+                restoreFileTableFocus =
+                        true;
+
+                log.info(
+                        "[UPLOAD ENCRYPTED FILE] pending selection key={} restoreFocus={}",
+                        pendingFileTableSelectionKey,
+                        restoreFileTableFocus);
+
+                lastOpenedFolderToUpload =
+                        file.getParentFile();
+
+                transferManager.submitUploadEncrypted(
+                        repositoryName,
+                        bucket,
+                        objectKey,
+                        file.toPath(),
+                        file.length(),
+                        encryptionConfig);
+
+            } catch (Exception ex) {
+
+                pendingFileTableSelectionKey = null;
+                restoreFileTableFocus = false;
+
+                SwingUtilities.invokeLater(() ->
+                        JOptionPane.showMessageDialog(
+                                this,
+                                ex.getMessage()));
+            }
+        }
+    }
+    
     public void setThemeSelectionListener(Consumer<UITheme> listener) {
         this.themeSelectionListener = listener;
     }
