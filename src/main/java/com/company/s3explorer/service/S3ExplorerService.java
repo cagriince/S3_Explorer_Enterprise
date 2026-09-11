@@ -630,6 +630,80 @@ public class S3ExplorerService {
         }
     }
 
+    public void downloadDecryptedFile(
+            String bucket,
+            String objectKey,
+            Path target,
+            EncryptionConfig encryptionConfig,
+            TransferProgressListener listener)
+            throws IOException {
+
+        if (S3Util.isFolder(objectKey)) {
+            try {
+                Files.createDirectories(target);
+            } catch (IOException e) {
+                //throw new RuntimeException(e);
+            }
+
+            listener.update(100, 100);
+            return;
+        }
+
+        if (encryptionConfig == null) {
+            throw new IllegalArgumentException(
+                    "Encryption configuration is not available.");
+        }
+
+        Cipher cipher;
+
+        try {
+            cipher = encryptionConfig.createCipher(
+                    Cipher.DECRYPT_MODE);
+        } catch (Exception ex) {
+            throw new IOException(
+                    "Failed to initialize decryption.",
+                    ex);
+        }
+
+        HeadObjectResponse head =
+                getObject(bucket, objectKey);
+
+        long encryptedSize =
+                head.contentLength();
+
+        try (InputStream raw =
+                     client.getObject(
+                             GetObjectRequest.builder()
+                                     .bucket(bucket)
+                                     .key(objectKey)
+                                     .build());
+             CipherInputStream decryptedInput =
+                     new CipherInputStream(
+                             raw,
+                             cipher);
+             OutputStream output =
+                     Files.newOutputStream(target)) {
+
+            byte[] buffer = new byte[8192];
+            long processed = 0;
+            int read;
+
+            while ((read = decryptedInput.read(buffer)) != -1) {
+
+                output.write(
+                        buffer,
+                        0,
+                        read);
+
+                processed += read;
+
+                listener.update(
+                        processed,
+                        encryptedSize);
+            }
+        }
+    }
+    
     public void uploadFile(String bucket, String objectKey, Path file, TransferProgressListener listener) throws IOException {
         if (objectExists(bucket, objectKey)) {
             throw new RuntimeException("Already exists: " + bucket + "/" + objectKey);
