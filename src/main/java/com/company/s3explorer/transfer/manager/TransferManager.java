@@ -216,6 +216,172 @@ public class TransferManager {
                         .build()
         );
     }
+
+    public TransferGroup submitBulkDownload(
+            String repositoryName,
+            String bucket,
+            java.util.List<String> objectKeys,
+            Path localFolder) {
+
+        if (objectKeys == null || objectKeys.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Object key list must not be empty.");
+        }
+
+        if (localFolder == null) {
+            throw new IllegalArgumentException(
+                    "Local folder must not be null.");
+        }
+
+        TransferGroup group =
+                createOperationGroup(
+                        TransferType.DOWNLOAD,
+                        "Bulk Download",
+                        repositoryName,
+                        bucket,
+                        "Bulk Download",
+                        null,
+                        null,
+                        localFolder.toString());
+
+        configureGroupCompletion(
+                group,
+                repositoryName,
+                bucket,
+                "Bulk Download",
+                false);
+
+        transferContext.publishGroupUpdated(
+                group,
+                repositoryName,
+                bucket,
+                "Bulk Download",
+                false);
+
+        for (String objectKey : objectKeys) {
+
+            if (objectKey == null || objectKey.isBlank()) {
+                continue;
+            }
+
+            Path target =
+                    localFolder.resolve(
+                            objectKey.replace(
+                                    "/",
+                                    java.io.File.separator));
+
+            TransferTask task =
+                    TransferTask.download()
+                            .repositoryName(
+                                    repositoryName)
+                            .bucket(
+                                    bucket)
+                            .objectKey(
+                                    objectKey)
+                            .localPath(
+                                    target)
+                            .size(0)
+                            .affectsObjectList(false)
+                            .affectsFolderTree(false)
+                            .group(group)
+                            .build();
+
+            submitGroupedTask(
+                    task,
+                    group);
+        }
+
+        group.markProductionCompleted();
+
+        return group;
+    }
+
+    public TransferGroup submitBulkDownloadDecrypted(
+            String repositoryName,
+            String bucket,
+            java.util.List<String> objectKeys,
+            Path localFolder,
+            EncryptionConfig encryptionConfig) {
+
+        if (objectKeys == null || objectKeys.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Object key list must not be empty.");
+        }
+
+        if (localFolder == null) {
+            throw new IllegalArgumentException(
+                    "Local folder must not be null.");
+        }
+
+        if (encryptionConfig == null) {
+            throw new IllegalArgumentException(
+                    "Encryption configuration is not available.");
+        }
+
+        TransferGroup group =
+                createOperationGroup(
+                        TransferType.DOWNLOAD,
+                        "Bulk Download",
+                        repositoryName,
+                        bucket,
+                        "Bulk Download",
+                        null,
+                        null,
+                        localFolder.toString());
+
+        configureGroupCompletion(
+                group,
+                repositoryName,
+                bucket,
+                "Bulk Download",
+                false);
+
+        transferContext.publishGroupUpdated(
+                group,
+                repositoryName,
+                bucket,
+                "Bulk Download",
+                false);
+
+        for (String objectKey : objectKeys) {
+
+            if (objectKey == null || objectKey.isBlank()) {
+                continue;
+            }
+
+            Path target =
+                    localFolder.resolve(
+                            objectKey.replace(
+                                    "/",
+                                    java.io.File.separator));
+
+            TransferTask task =
+                    TransferTask.download()
+                            .repositoryName(
+                                    repositoryName)
+                            .bucket(
+                                    bucket)
+                            .objectKey(
+                                    objectKey)
+                            .localPath(
+                                    target)
+                            .size(0)
+                            .encryptionConfig(
+                                    encryptionConfig)
+                            .affectsObjectList(false)
+                            .affectsFolderTree(false)
+                            .group(group)
+                            .build();
+
+            submitGroupedTask(
+                    task,
+                    group);
+        }
+
+        group.markProductionCompleted();
+
+        return group;
+    }
     
     public void submitDelete(
             String repositoryName,
