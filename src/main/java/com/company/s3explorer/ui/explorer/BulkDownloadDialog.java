@@ -12,7 +12,8 @@ public final class BulkDownloadDialog {
     private final JTextArea objectKeysArea;
     private final JButton downloadButton;
     private final JButton downloadDecryptedButton;
-
+    private static String lastUsedObjectKeys = "";
+    
     public enum Result {
         CANCEL,
         DOWNLOAD,
@@ -32,10 +33,14 @@ public final class BulkDownloadDialog {
                         "Bulk Download",
                         Dialog.ModalityType.APPLICATION_MODAL);
 
-        objectKeysArea = new JTextArea(20, 70);
+        objectKeysArea = new JTextArea(15, 60);
         objectKeysArea.setLineWrap(false);
         objectKeysArea.setWrapStyleWord(false);
-
+        objectKeysArea.setFont(
+                objectKeysArea.getFont().deriveFont(
+                        objectKeysArea.getFont().getSize2D() + 1f));
+        objectKeysArea.setText(lastUsedObjectKeys);
+        
         JScrollPane scrollPane =
                 new JScrollPane(objectKeysArea);
 
@@ -64,12 +69,18 @@ public final class BulkDownloadDialog {
 
         downloadButton.addActionListener(
                 e -> {
+                    lastUsedObjectKeys =
+                            objectKeysArea.getText();
+
                     result = Result.DOWNLOAD;
                     dialog.dispose();
                 });
 
         downloadDecryptedButton.addActionListener(
                 e -> {
+                    lastUsedObjectKeys =
+                            objectKeysArea.getText();
+
                     result = Result.DOWNLOAD_DECRYPTED;
                     dialog.dispose();
                 });
