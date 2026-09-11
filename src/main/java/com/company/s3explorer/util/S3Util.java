@@ -228,4 +228,8 @@ public class S3Util {
                 + S3Util.escapeHtml(groupName)
                 + "</font></b>";
     }
+
+    public static String formatWithThousandSeparator(long number) {
+        return String.format("%,d", number);
+    }
 }

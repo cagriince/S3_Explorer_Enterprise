@@ -929,6 +929,9 @@ public class ExplorerPanel extends JPanel {
                 getCurrentFileSortSpec();
 
         updateFileDiscoveryProgress(
+                generation,
+                bucket,
+                prefix,
                 0,
                 0);
 
@@ -938,16 +941,19 @@ public class ExplorerPanel extends JPanel {
                         prefix,
                         fileLimit,
                         sortSpec,
-                        (fileCount, folderCount) -> {
+                (fileCount, folderCount) -> {
 
-                            if (generation ==
-                                    fileLoadGeneration.get()) {
+                    if (generation ==
+                            fileLoadGeneration.get()) {
 
-                                updateFileDiscoveryProgress(
-                                        fileCount,
-                                        folderCount);
-                            }
-                        })
+                        updateFileDiscoveryProgress(
+                                generation,
+                                bucket,
+                                prefix,
+                                fileCount,
+                                folderCount);
+                    }
+                })
                 .thenAccept(content ->
                         SwingUtilities.invokeLater(() -> {
 
@@ -3614,16 +3620,54 @@ public class ExplorerPanel extends JPanel {
     }
 
     private void updateFileDiscoveryProgress(
+            long generation,
+            String bucket,
+            String prefix,
             long fileCount,
             long folderCount) {
 
-        SwingUtilities.invokeLater(() ->
-                view.getFileFolderInfo().setText(
-                        "Preparing... "
-                                + folderCount
-                                + " folders / "
-                                + fileCount
-                                + " files discovered"));
+        SwingUtilities.invokeLater(() -> {
+
+            if (generation !=
+                    fileLoadGeneration.get()) {
+
+                return;
+            }
+
+            view.getFileFolderInfo().setText(
+                    "Preparing... "
+                            + S3Util.formatWithThousandSeparator(folderCount)
+                            + " folders / "
+                            + S3Util.formatWithThousandSeparator(fileCount)
+                            + " files discovered");
+
+            if (fileTableDialog != null) {
+
+                fileTableDialog.message.setText(
+                        "<html>"
+                                + "<b>Preparing file table...</b><br><br>"
+                                + "<table>"
+                                + "<tr><td><b>Bucket:</b></td><td>"
+                                + bucket
+                                + "</td></tr>"
+                                + "<tr><td><b>Folder:</b></td><td>"
+                                + (prefix == null || prefix.isBlank()
+                                ? "/"
+                                : prefix)
+                                + "</td></tr>"
+                                + "<tr><td><b>Folders found:</b></td><td>"
+                                + S3Util.formatWithThousandSeparator(folderCount)
+                                + "</td></tr>"
+                                + "<tr><td><b>Files found:</b></td><td>"
+                                + S3Util.formatWithThousandSeparator(fileCount)
+                                + "</td></tr></table>"
+                                + "</html>");
+
+                fileTableDialog.dialog.pack();
+
+                positionOperationDialogs();
+            }
+        });
     }
 
     private synchronized void resizeExplorerPool(
