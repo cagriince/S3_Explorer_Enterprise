@@ -2,6 +2,7 @@ package com.company.s3explorer.ui.explorer;
 
 import com.company.s3explorer.transfer.manager.TransferManager;
 import com.company.s3explorer.transfer.model.TransferGroup;
+import com.company.s3explorer.security.EncryptionConfig;
 
 import java.nio.file.Path;
 import java.util.Objects;
@@ -150,6 +151,46 @@ public final class ExplorerFileOperationController {
         }
     }
 
+    public void downloadDecrypted(
+            S3FileItem item,
+            Path destination,
+            EncryptionConfig encryptionConfig) {
+
+        if (item == null
+                || item.isParentFolder()
+                || destination == null
+                || encryptionConfig == null) {
+            return;
+        }
+
+        String bucket =
+                currentBucketSupplier.get();
+
+        if (bucket == null) {
+            return;
+        }
+
+        if (item.isFolder()) {
+
+            transferManager.submitFolderDownloadDecrypted(
+                    item.getRepositoryName(),
+                    bucket,
+                    item.getKey(),
+                    destination,
+                    encryptionConfig);
+
+        } else {
+
+            transferManager.submitDownloadDecrypted(
+                    item.getRepositoryName(),
+                    bucket,
+                    item.getKey(),
+                    destination,
+                    item.getSize(),
+                    encryptionConfig);
+        }
+    }
+    
     public void copy(
             S3FileItem item,
             String targetBucket,
