@@ -169,16 +169,19 @@ public final class ExplorerView {
 
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         buttonPanel.add(createIconButton(newFolderAction));
+        buttonPanel.add(createIconButton(deleteAction));
+        buttonPanel.add(createIconButton(renameAction));
+        buttonPanel.add(createIconButton(propertiesAction));
+        buttonPanel.add(createSeparator());
+        
         buttonPanel.add(createIconButton(uploadAction));
         uploadEncryptedButton = createIconButton(uploadEncryptedAction);
         downloadDecryptedButton = createIconButton(downloadDecryptedAction);
         buttonPanel.add(uploadEncryptedButton);
         buttonPanel.add(createIconButton(downloadAction));
         buttonPanel.add(downloadDecryptedButton);
-        buttonPanel.add(createIconButton(deleteAction));
-        buttonPanel.add(createIconButton(renameAction));
-        buttonPanel.add(createIconButton(propertiesAction));
         buttonPanel.add(createSeparator());
+        
         buttonPanel.add(createIconButton(copyAction));
         buttonPanel.add(createIconButton(cutAction));
         buttonPanel.add(createIconButton(pasteAction));
@@ -456,14 +459,17 @@ public final class ExplorerView {
         JMenuItem pasteMenu = new JMenuItem(pasteAction);
 
         filePopup.add(createFolderMenu);
-        filePopup.add(uploadMenu);
-        filePopup.add(uploadEncryptedMenu);
-        filePopup.add(downloadMenu);
-        filePopup.add(downloadDecryptedMenu);
         filePopup.add(deleteMenu);
         filePopup.add(renameMenu);
         filePopup.add(propertiesMenu);
         filePopup.addSeparator();
+
+        filePopup.add(uploadMenu);
+        filePopup.add(uploadEncryptedMenu);
+        filePopup.add(downloadMenu);
+        filePopup.add(downloadDecryptedMenu);
+        filePopup.addSeparator();
+        
         filePopup.add(copyMenu);
         filePopup.add(cutMenu);
         filePopup.add(pasteMenu);
