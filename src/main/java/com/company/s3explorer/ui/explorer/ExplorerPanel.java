@@ -36,6 +36,7 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
 import java.nio.file.Path;
+import java.text.Collator;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -631,8 +632,21 @@ public class ExplorerPanel extends JPanel {
                          */
                         view.getBucketCombo().removeAllItems();
 
+                        List<String> sortedBuckets =
+                                new ArrayList<>(allBuckets);
+
+                        Collator turkishCollator =
+                                Collator.getInstance(
+                                        new Locale("tr", "TR"));
+
+                        turkishCollator.setStrength(
+                                Collator.PRIMARY);
+
+                        sortedBuckets.sort(
+                                turkishCollator);
+
                         for (String bucket :
-                                allBuckets) {
+                                sortedBuckets) {
 
                             view.getBucketCombo().addItem(bucket);
                         }
