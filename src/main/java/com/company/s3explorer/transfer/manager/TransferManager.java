@@ -551,6 +551,29 @@ public class TransferManager {
         );
     }
 
+    public void submitFolderDownloadDecrypted(
+            String repositoryName,
+            String bucket,
+            String prefix,
+            Path localFolder,
+            EncryptionConfig encryptionConfig) {
+
+        if (encryptionConfig == null) {
+            throw new IllegalArgumentException(
+                    "Encryption configuration is not available.");
+        }
+
+        producerExecutor.submit(
+                new FolderDownloadProducer(
+                        transferContext,
+                        queue,
+                        repositoryName,
+                        bucket,
+                        prefix,
+                        localFolder)
+        );
+    }
+    
     public void submitFolderUpload(
             String repositoryName,
             String bucket,
