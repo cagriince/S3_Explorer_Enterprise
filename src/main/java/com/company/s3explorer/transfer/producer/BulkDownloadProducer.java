@@ -106,6 +106,9 @@ public final class BulkDownloadProducer
 
             } else {
 
+                group.setErrorMessage(
+                        ex.getMessage());
+
                 group.markProductionFailed();
             }
 

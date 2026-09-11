@@ -90,6 +90,9 @@ public class TransferGroup {
     private final AtomicBoolean productionFailed =
             new AtomicBoolean(false);
 
+    private final AtomicReference<String> errorMessage =
+            new AtomicReference<>();
+    
     private final AtomicReference<Runnable> completionCallback =
             new AtomicReference<>();
 
@@ -352,7 +355,18 @@ public class TransferGroup {
         return productionFailed.get();
     }
 
+    public String getErrorMessage() {
+        return errorMessage.get();
+    }
 
+    public void setErrorMessage(String message) {
+        if (message == null || message.isBlank()) {
+            return;
+        }
+
+        errorMessage.compareAndSet(null, message);
+    }
+    
     // ---------------------------------------------------------------------
     // TASK STATES
     // ---------------------------------------------------------------------
