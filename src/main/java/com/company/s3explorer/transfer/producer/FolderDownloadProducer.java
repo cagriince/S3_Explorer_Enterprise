@@ -5,6 +5,7 @@ import com.company.s3explorer.transfer.context.TransferContext;
 import com.company.s3explorer.transfer.model.TransferGroup;
 import com.company.s3explorer.transfer.model.TransferTask;
 import com.company.s3explorer.transfer.queue.TransferQueue;
+import com.company.s3explorer.util.S3Util;
 import software.amazon.awssdk.services.s3.model.S3Object;
 
 import java.nio.file.Path;
@@ -85,10 +86,10 @@ public class FolderDownloadProducer
 
         Path target =
                 localFolder.resolve(
-                        group.getDisplayName()
-                                + "/"
-                                + object.key()
-                                .substring(prefix.length()));
+                                S3Util.extractFolderName(prefix))
+                        .resolve(
+                                object.key()
+                                        .substring(prefix.length()));
 
         return TransferTask.download()
                 .repositoryName(repository)
