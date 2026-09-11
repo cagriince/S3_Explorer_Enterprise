@@ -3,6 +3,8 @@ package com.company.s3explorer.ui.explorer;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
+import java.util.Arrays;
+import java.util.List;
 
 public final class BulkDownloadDialog {
 
@@ -11,6 +13,13 @@ public final class BulkDownloadDialog {
     private final JButton downloadButton;
     private final JButton downloadDecryptedButton;
 
+    public enum Result {
+        CANCEL,
+        DOWNLOAD,
+        DOWNLOAD_DECRYPTED
+    }
+    private Result result = Result.CANCEL;
+    
     public BulkDownloadDialog(
             Window owner,
             String repositoryName,
@@ -54,13 +63,22 @@ public final class BulkDownloadDialog {
                 new JButton("Cancel");
 
         downloadButton.addActionListener(
-                e -> dialog.dispose());
+                e -> {
+                    result = Result.DOWNLOAD;
+                    dialog.dispose();
+                });
 
         downloadDecryptedButton.addActionListener(
-                e -> dialog.dispose());
+                e -> {
+                    result = Result.DOWNLOAD_DECRYPTED;
+                    dialog.dispose();
+                });
 
         cancelButton.addActionListener(
-                e -> dialog.dispose());
+                e -> {
+                    result = Result.CANCEL;
+                    dialog.dispose();
+                });
 
         JPanel buttonPanel =
                 new JPanel(
@@ -104,5 +122,17 @@ public final class BulkDownloadDialog {
     
     public void setVisible(boolean visible) {
         dialog.setVisible(visible);
+    }
+
+    public Result getResult() {
+        return result;
+    }
+
+    public List<String> getObjectKeys() {
+        return Arrays.stream(
+                        objectKeysArea.getText().split("\\R"))
+                .map(String::trim)
+                .filter(key -> !key.isBlank())
+                .toList();
     }
 }
