@@ -167,13 +167,13 @@ public class S3Util {
             display.append(
                     S3Util.getTransferPanelDisplayLastFileFolder(
                             soruceObjectKey));
-        } else if (transferType == TransferType.UPLOAD) {
+        } else if (transferType == TransferType.UPLOAD || transferType == TransferType.UPLOAD_GROUP) {
             if (localPath != null) {
                 display.append(
                         S3Util.getTransferPanelDisplayLastFileFolder(
                                 localPath.toString()));
             }
-        } else if (transferType == TransferType.DOWNLOAD || transferType == TransferType.DELETE || transferType == TransferType.COPY || transferType == TransferType.MOVE) {
+        } else if (transferType == TransferType.DOWNLOAD || transferType == TransferType.DOWNLOAD_GROUP || transferType == TransferType.DELETE || transferType == TransferType.DELETE_GROUP || transferType == TransferType.COPY || transferType == TransferType.COPY_GROUP || transferType == TransferType.MOVE || transferType == TransferType.MOVE_GROUP) {
             display.append(
                     S3Util.getTransferPanelDisplayBucketName(
                             sourceRepository,
@@ -189,7 +189,7 @@ public class S3Util {
     private static String getTransferPanelTargetDisplayName(TransferType transferType, String targetRepository, String targetBucket, String targetObjectKey, Path localPath) {
         StringBuilder display = new StringBuilder();
 
-        if (transferType  == TransferType.UPLOAD) {
+        if (transferType  == TransferType.UPLOAD || transferType  == TransferType.UPLOAD_GROUP) {
             display.append(
                     S3Util.getTransferPanelDisplayBucketName(
                             targetRepository,
@@ -198,12 +198,12 @@ public class S3Util {
             display.append(
                     S3Util.getTransferPanelDisplayLastFileFolder(
                             targetObjectKey));
-        } else if (transferType == TransferType.DOWNLOAD) {
+        } else if (transferType == TransferType.DOWNLOAD || transferType == TransferType.DOWNLOAD_GROUP) {
             if (localPath != null) {
                 display.append(S3Util.getTransferPanelDisplayLastFileFolder( localPath.toString()));
             }
 
-        } else if (transferType == TransferType.COPY  || transferType == TransferType.MOVE) {
+        } else if (transferType == TransferType.COPY || transferType == TransferType.COPY_GROUP || transferType == TransferType.MOVE || transferType == TransferType.MOVE_GROUP) {
             display.append(
                     S3Util.getTransferPanelDisplayBucketName(
                             targetRepository,

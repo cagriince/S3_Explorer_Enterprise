@@ -1,6 +1,7 @@
 package com.company.s3explorer.transfer.renderer;
 
 import com.company.s3explorer.transfer.TransferType;
+import com.company.s3explorer.ui.icons.IconProvider;
 
 import javax.swing.table.DefaultTableCellRenderer;
 
@@ -30,28 +31,35 @@ public class CombinedTypeRenderer
 
             switch (type) {
 
-                case UPLOAD ->
-                        setText("⬆ Upload");
-
-                case DOWNLOAD ->
-                        setText("⬇ Download");
-
-                case DELETE ->
-                        setText("🗑 Delete");
-
-                case COPY ->
-                        setText("📄 Copy");
-
-                case MOVE ->
-                        setText("🚚 Move");
-
-                case CREATE_FOLDER ->
-                        setText("📁 Create Folder");
+                case UPLOAD, UPLOAD_GROUP -> {
+                        setText("Upload" + (type == TransferType.UPLOAD_GROUP ? " Group" : ""));
+                        setIcon(IconProvider.ICON_UPLOAD);
+                }
+                case DOWNLOAD, DOWNLOAD_GROUP -> {
+                        setText("Download" + (type == TransferType.DOWNLOAD_GROUP ? " Group" : ""));
+                        setIcon(IconProvider.ICON_DOWNLOAD);
+                }
+                case DELETE, DELETE_GROUP -> {
+                        setText("Delete" + (type == TransferType.DELETE_GROUP ? " Group" : ""));
+                        setIcon(IconProvider.ICON_DELETE);
+                }
+                case COPY, COPY_GROUP -> {
+                        setText("Copy" + (type == TransferType.COPY_GROUP ? " Group" : ""));
+                        setIcon(IconProvider.ICON_COPY);
+                }
+                case MOVE, MOVE_GROUP -> {
+                        setText("Move" + (type == TransferType.MOVE_GROUP ? " Group" : ""));
+                        setIcon(IconProvider.ICON_CUT);
+                }
+                case CREATE_FOLDER -> {
+                        setText("Create Folder");
+                        setIcon(IconProvider.ICON_CREATE_FOLDER);
+                }
             }
 
             return;
         }
-
+/*
         if (value instanceof String operation) {
 
             String normalized =
@@ -74,7 +82,7 @@ public class CombinedTypeRenderer
 
             return;
         }
-
+*/
         super.setValue(value);
     }
 

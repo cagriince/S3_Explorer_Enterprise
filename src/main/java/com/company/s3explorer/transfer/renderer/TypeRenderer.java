@@ -15,12 +15,12 @@ public class TypeRenderer extends DefaultTableCellRenderer {
         }
 
         switch (type) {
-            case UPLOAD -> setText("⬆ Upload");
-            case DOWNLOAD -> setText("⬇ Download");
-            case DELETE -> setText("🗑 Delete");
-            case COPY -> setText("📄 Copy");
-            case MOVE -> setText("🚚 Move");
-            case CREATE_FOLDER -> setText("📁 Create Folder");
+            case UPLOAD -> setText("Upload");
+            case DOWNLOAD -> setText("Download");
+            case DELETE -> setText("Delete");
+            case COPY -> setText("Copy");
+            case MOVE -> setText("Move");
+            case CREATE_FOLDER -> setText("Create Folder");
         }
     }
 }

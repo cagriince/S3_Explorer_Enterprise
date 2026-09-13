@@ -2595,8 +2595,8 @@ public class ExplorerPanel extends JPanel {
                 TransferType groupOperation =
                         operation ==
                                 ExplorerClipboard.Operation.COPY
-                                ? TransferType.COPY
-                                : TransferType.MOVE;
+                                ? TransferType.COPY_GROUP
+                                : TransferType.MOVE_GROUP;
 
                 group =
                         transferManager.createOperationGroup(
@@ -3276,7 +3276,7 @@ public class ExplorerPanel extends JPanel {
 
         TransferGroup group =
                 transferManager.createOperationGroup(
-                        TransferType.DELETE,
+                        TransferType.DELETE_GROUP,
                         groupName,
                         repositoryName,
                         bucket,

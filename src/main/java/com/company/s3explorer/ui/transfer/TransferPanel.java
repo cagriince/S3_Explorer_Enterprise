@@ -602,14 +602,11 @@ public class TransferPanel
 
         JTable table =
                 new JTable(model);
-
+/*
         configureTable(
                 table,
                 100);
 
-        /*
-         * Normal Transfer Table renderer'ları.
-         */
         table.getColumnModel()
                 .getColumn(0)
                 .setCellRenderer(
@@ -634,7 +631,7 @@ public class TransferPanel
                 .getColumn(6)
                 .setCellRenderer(
                         new LongFormatRenderer());
-
+*/
         return table;
     }
 
@@ -1184,7 +1181,7 @@ public class TransferPanel
          */
         configureTable(
                 table,
-                120);
+                100);
 
         /*
          * Combined renderer'lar.
@@ -1233,7 +1230,7 @@ public class TransferPanel
 
         table.getColumnModel()
                 .getColumn(1)
-                .setPreferredWidth(500);
+                .setPreferredWidth(600);
 
         table.getColumnModel()
                 .getColumn(2)
@@ -1258,7 +1255,7 @@ public class TransferPanel
 
         table.getColumnModel()
                 .getColumn(7)
-                .setPreferredWidth(1);
+                .setPreferredWidth(300);
 
         table.getTableHeader()
                 .setReorderingAllowed(false);

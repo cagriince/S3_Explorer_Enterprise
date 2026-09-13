@@ -310,7 +310,7 @@ public class TransferManager {
 
         TransferGroup group =
                 createOperationGroup(
-                        TransferType.DOWNLOAD,
+                        TransferType.DOWNLOAD_GROUP,
                         groupName,
                         repositoryName,
                         bucket,
@@ -383,7 +383,7 @@ public class TransferManager {
 
         TransferGroup group =
                 createOperationGroup(
-                        TransferType.DOWNLOAD,
+                        TransferType.DOWNLOAD_GROUP,
                         displayName,
                         repositoryName,
                         bucket,
@@ -475,7 +475,7 @@ public class TransferManager {
 
         TransferGroup group =
                 createOperationGroup(
-                        TransferType.DOWNLOAD,
+                        TransferType.DOWNLOAD_GROUP,
                         displayName,
                         repositoryName,
                         bucket,
@@ -578,7 +578,7 @@ public class TransferManager {
 
         TransferGroup group =
                 createObjectOperationGroup(
-                        TransferType.COPY,
+                        TransferType.COPY_GROUP,
                         repositoryName,
                         bucket,
                         keySource,
@@ -677,7 +677,7 @@ public class TransferManager {
 
         TransferGroup group =
                 createObjectOperationGroup(
-                        TransferType.MOVE,
+                        TransferType.MOVE_GROUP,
                         repositoryName,
                         bucket,
                         keySource,
@@ -796,7 +796,7 @@ public class TransferManager {
 
         TransferGroup group =
                 createFolderOperationGroup(
-                        TransferType.DELETE,
+                        TransferType.DELETE_GROUP,
                         repositoryName,
                         bucket,
                         prefix,
