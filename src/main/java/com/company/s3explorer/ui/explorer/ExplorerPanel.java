@@ -2166,7 +2166,9 @@ public class ExplorerPanel extends JPanel {
          * Bu bölüm mevcut davranışla aynı tutulmuştur.
          */
         if (group.getOperation() == TransferType.COPY
-                || group.getOperation() == TransferType.MOVE) {
+                || group.getOperation() == TransferType.MOVE
+                || group.getOperation() == TransferType.COPY_GROUP
+                || group.getOperation() == TransferType.MOVE_GROUP) {
 
             String targetBucket =
                     group.getTargetBucket();

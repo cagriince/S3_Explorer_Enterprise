@@ -166,7 +166,7 @@ public abstract class AbstractTransferOperation
                 repository,
                 bucket,
                 prefix,
-                group.getOperation() == TransferType.MOVE);
+                group.getOperation() == TransferType.MOVE || group.getOperation() == TransferType.MOVE_GROUP);
     }
     
     protected void checkCancelled(

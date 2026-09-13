@@ -250,7 +250,7 @@ public abstract class AbstractFolderTransferProducer
                 repository,
                 bucket,
                 prefix,
-                group.getOperation() == TransferType.MOVE);
+                group.getOperation() == TransferType.MOVE || group.getOperation() == TransferType.MOVE_GROUP);
     }
 
     @Override

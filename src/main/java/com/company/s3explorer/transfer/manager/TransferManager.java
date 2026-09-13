@@ -966,7 +966,7 @@ public class TransferManager {
 
         TransferGroup group =
                 createFolderOperationGroup(
-                        TransferType.COPY,
+                        TransferType.COPY_GROUP,
                         repositoryName,
                         sourceBucket,
                         sourcePrefix,
@@ -1045,7 +1045,7 @@ public class TransferManager {
 
         TransferGroup group =
                 createFolderOperationGroup(
-                        TransferType.MOVE,
+                        TransferType.MOVE_GROUP,
                         repositoryName,
                         sourceBucket,
                         sourcePrefix,
