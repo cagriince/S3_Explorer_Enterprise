@@ -2085,18 +2085,26 @@ public class ExplorerPanel extends JPanel {
                  * Kaynak klasör mevcut File Table'da
                  * açıksa tabloyu da yenile.
                  */
+                /*
+                 * Kaynak klasör mevcut File Table'da
+                 * gösterilen parent klasörün içindeyse
+                 * tabloyu yenile.
+                 *
+                 * Klasör root'tan silindiği için
+                 * root File Table yenilenmelidir.
+                 */
                 if (Objects.equals(
                         currentBucket,
                         sourceBucket)
                         && Objects.equals(
                         currentPrefix,
-                        sourcePrefix)) {
+                        sourceParentPrefix)) {
 
                     log.debug(
                             "[EXPLORER SOURCE TABLE REFRESH] " +
                                     "bucket={} prefix={}",
                             sourceBucket,
-                            sourcePrefix);
+                            sourceParentPrefix);
 
                     refreshScheduler.scheduleCurrentTableRefresh();
                 }
