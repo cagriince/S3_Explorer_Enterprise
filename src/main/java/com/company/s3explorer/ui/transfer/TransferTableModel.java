@@ -6,6 +6,7 @@ import com.company.s3explorer.transfer.TransferType;
 import com.company.s3explorer.transfer.model.TransferGroup;
 import com.company.s3explorer.transfer.model.TransferTask;
 import com.company.s3explorer.ui.theme.UIThemeManager;
+import com.company.s3explorer.util.DateFormatter;
 import com.company.s3explorer.util.S3Util;
 
 import javax.swing.table.AbstractTableModel;
@@ -23,8 +24,7 @@ public class TransferTableModel
             "Size",
             "Progress",
             "Status",
-            "Start Time",
-            "End Time",
+            "Start/End Time",
             "Elapsed Time (ms)",
             "Error Message"
     };
@@ -97,15 +97,12 @@ public class TransferTableModel
                     runtime.getStatus();
 
             case 5 ->
-                    runtime.getStartTime();
+                    "<html>" + DateFormatter.format(runtime.getStartTime()) + "<br/>" + DateFormatter.format(runtime.getEndTime()) + "</html>";
 
             case 6 ->
-                    runtime.getEndTime();
-
-            case 7 ->
                     runtime.getElapsedTime();
 
-            case 8 ->
+            case 7 ->
                     runtime.getMessage();
 
             default ->
@@ -134,13 +131,13 @@ public class TransferTableModel
             case 4 ->
                     TransferStatus.class;
 
-            case 5, 6 ->
-                    Instant.class;
+            case 5 ->
+                    String.class;
 
-            case 7 ->
+            case 6 ->
                     Long.class;
 
-            case 8 ->
+            case 7 ->
                     String.class;
 
             default ->

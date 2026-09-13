@@ -9,6 +9,7 @@ import com.company.s3explorer.transfer.manager.TransferManager;
 import com.company.s3explorer.transfer.renderer.*;
 import com.company.s3explorer.transfer.state.TransferStateStore;
 import com.company.s3explorer.ui.icons.IconProvider;
+import com.company.s3explorer.util.S3Util;
 
 import javax.swing.*;
 import java.awt.*;
@@ -630,23 +631,13 @@ public class TransferPanel
                         new StatusRenderer());
 
         table.getColumnModel()
-                .getColumn(5)
-                .setCellRenderer(
-                        new InstantRenderer());
-
-        table.getColumnModel()
                 .getColumn(6)
-                .setCellRenderer(
-                        new InstantRenderer());
-
-        table.getColumnModel()
-                .getColumn(7)
                 .setCellRenderer(
                         new LongFormatRenderer());
 
         return table;
     }
-   
+
     private void updateTabTitles() {
 
         long queued =
@@ -655,23 +646,16 @@ public class TransferPanel
         /*
          * Running:
          *
-         * Unified Running tab'ında:
+         * Tablo en fazla 1000 kayıt gösterir.
+         * Tab başlığında ise gerçek toplam sayı gösterilir.
          *
-         *   [Group rows]
-         *   [Individual transfer rows]
-         *
-         * gösteriliyor.
-         *
-         * Bu nedenle tab sayısı da görünür satır
-         * sayısıyla aynı olmalı.
+         * Group + individual transfer kayıtları birlikte sayılır.
          */
         long runningGroups =
                 groupStateStore.runningSnapshot().size();
 
         long runningTransfers =
-                stateStore.snapshot(
-                                TransferStateStore.View.RUNNING)
-                        .size();
+                stateStore.getRunningCount();
 
         long running =
                 runningGroups
@@ -680,20 +664,16 @@ public class TransferPanel
         /*
          * Finished:
          *
-         * Unified Finished tab'ında:
+         * Tablo en fazla 1000 kayıt gösterir.
+         * Tab başlığında gerçek toplam sayı gösterilir.
          *
-         *   [Group rows]
-         *   [Individual transfer rows]
-         *
-         * gösteriliyor.
+         * Group + individual transfer kayıtları birlikte sayılır.
          */
         long finishedGroups =
                 groupStateStore.finishedSnapshot().size();
 
         long finishedTransfers =
-                stateStore.snapshot(
-                                TransferStateStore.View.FINISHED)
-                        .size();
+                stateStore.getFinishedCount();
 
         long finished =
                 finishedGroups
@@ -702,55 +682,33 @@ public class TransferPanel
         /*
          * All:
          *
-         * Unified All tab'ında:
-         *
-         *   [All group rows]
-         *   [All individual transfer rows]
-         *
-         * gösteriliyor.
+         * All tabında da gerçek toplam sayı gösterilir.
          */
         long allGroups =
                 groupStateStore.snapshot().size();
 
         long allTransfers =
-                stateStore.snapshot(
-                                TransferStateStore.View.ALL)
-                        .size();
+                stateStore.getTotalCount();
 
-        long total =
+        long all =
                 allGroups
                         + allTransfers;
 
         tabs.setTitleAt(
                 0,
-                "Queued (" + queued + ")");
+                "Queued (" + S3Util.formatWithThousandSeparator(queued) + ")");
 
         tabs.setTitleAt(
                 1,
-                "Running (" + running + ")");
+                "Running (" + S3Util.formatWithThousandSeparator(running) + ")");
 
         tabs.setTitleAt(
                 2,
-                "Finished (" + finished + ")");
+                "Finished (" + S3Util.formatWithThousandSeparator(finished) + ")");
 
         tabs.setTitleAt(
                 3,
-                "All (" + total + ")");
-
-        /*
-         * Cancel All task seviyesinde çalışmaya devam ediyor.
-         */
-        cancelAllButton.setEnabled(
-                stateStore.getQueuedCount() > 0
-                        || stateStore.getRunningCount() > 0);
-
-        /*
-         * Clear Logs hem task hem group kayıtlarını
-         * dikkate almalı.
-         */
-        clearButton.setEnabled(
-                stateStore.getFinishedCount() > 0
-                        || !groupStateStore.finishedSnapshot().isEmpty());
+                "All (" + S3Util.formatWithThousandSeparator(all) + ")");
     }
     
     private void updateButtons() {
@@ -1252,17 +1210,7 @@ public class TransferPanel
                         new CombinedStatusRenderer());
 
         table.getColumnModel()
-                .getColumn(5)
-                .setCellRenderer(
-                        new InstantRenderer());
-
-        table.getColumnModel()
                 .getColumn(6)
-                .setCellRenderer(
-                        new InstantRenderer());
-
-        table.getColumnModel()
-                .getColumn(7)
                 .setCellRenderer(
                         new LongFormatRenderer());
 
@@ -1310,10 +1258,6 @@ public class TransferPanel
 
         table.getColumnModel()
                 .getColumn(7)
-                .setPreferredWidth(1);
-
-        table.getColumnModel()
-                .getColumn(8)
                 .setPreferredWidth(1);
 
         table.getTableHeader()

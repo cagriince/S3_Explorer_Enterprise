@@ -3,6 +3,7 @@ package com.company.s3explorer.ui.transfer;
 import com.company.s3explorer.transfer.TransferRuntime;
 import com.company.s3explorer.transfer.model.TransferGroup;
 import com.company.s3explorer.ui.theme.UIThemeManager;
+import com.company.s3explorer.util.DateFormatter;
 import com.company.s3explorer.util.S3Util;
 
 import javax.swing.table.AbstractTableModel;
@@ -21,8 +22,7 @@ public class TransferCombinedTableModel
             "Size",
             "Progress",
             "Status",
-            "Start Time",
-            "End Time",
+            "Start/End Time",
             "Elapsed Time (ms)",
             "Summary"
     };
@@ -113,13 +113,13 @@ public class TransferCombinedTableModel
             case 4 ->
                     Object.class;
 
-            case 5, 6 ->
-                    Instant.class;
+            case 5 ->
+                    String.class;
 
-            case 7 ->
+            case 6 ->
                     Long.class;
 
-            case 8 ->
+            case 7 ->
                     String.class;
 
             default ->
@@ -321,23 +321,16 @@ public class TransferCombinedTableModel
                         group);
 
             /*
-             * Start Time
+             * Start/End Time
              */
             case 5:
 
-                return group.getStartTime();
-
-            /*
-             * End Time
-             */
-            case 6:
-
-                return group.getEndTime();
+                return "<html>" + DateFormatter.format(group.getStartTime()) + "<br/>" + DateFormatter.format(group.getEndTime()) + "</html>";
 
             /*
              * Elapsed Time
              */
-            case 7:
+            case 6:
 
                 return group.getElapsedTime();
 
@@ -347,7 +340,7 @@ public class TransferCombinedTableModel
              * Progress bar'ın tekrarını yapmıyoruz.
              * Burada lifecycle bilgisi gösteriyoruz.
              */
-            case 8:
+            case 7:
 
                 return buildGroupSummary(
                         group);
