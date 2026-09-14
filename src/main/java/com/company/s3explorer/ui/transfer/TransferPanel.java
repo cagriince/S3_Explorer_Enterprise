@@ -54,6 +54,8 @@ public class TransferPanel
 
     private long lastRenderedStateVersion = -1;
 
+    private boolean refreshingTables = false;
+
     private final java.util.concurrent.ConcurrentHashMap<
             UUID,
             TransferGroupUpdatedEvent> pendingGroupUpdates =
@@ -304,7 +306,7 @@ public class TransferPanel
         tabs.addChangeListener(
                 e -> updateButtons());
     }
-    
+
     private void registerSelectionListener(
             JTable table) {
 
@@ -317,7 +319,7 @@ public class TransferPanel
                             }
                         });
     }
-
+    
     /*
      * ÖNEMLİ:
      *
@@ -539,11 +541,10 @@ public class TransferPanel
                 == lastRenderedStateVersion) {
 
             updateTabTitles();
-            updateButtons();
 
             return;
         }
-
+        
         refreshVisibleTables();
 
         lastRenderedStateVersion =
@@ -555,92 +556,73 @@ public class TransferPanel
 
     private void refreshVisibleTables() {
 
-        /*
-         * Refresh öncesinde mevcut seçimleri sakla.
-         *
-         * Group satırları:
-         *     GROUP:<group UUID>
-         *
-         * Normal transfer satırları:
-         *     TRANSFER:<task UUID>
-         *
-         * Böylece model fireTableDataChanged() ile
-         * tamamen yenilense bile seçimleri geri
-         * yükleyebiliriz.
-         */
-        List<String> runningSelection =
-                captureCombinedSelection(
-                        runningTable,
-                        runningModel);
+        if (refreshingTables) {
+            return;
+        }
 
-        List<String> finishedSelection =
-                captureCombinedSelection(
-                        finishedTable,
-                        finishedModel);
+        refreshingTables = true;
 
-        List<String> allSelection =
-                captureCombinedSelection(
-                        allTable,
-                        allModel);
+        try {
 
-        /*
-         * Queued yalnızca individual transfer task'larını
-         * göstermeye devam eder.
-         */
-        queuedModel.setSnapshot(
-                stateStore.snapshot(
-                        TransferStateStore.View.QUEUED));
+            List<String> runningSelection =
+                    captureCombinedSelection(
+                            runningTable,
+                            runningModel);
 
-        /*
-         * Running:
-         *
-         *     [Group rows]
-         *     [Individual transfer rows]
-         */
-        runningModel.setSnapshot(
-                groupStateStore.runningSnapshot(),
-                stateStore.snapshot(
-                        TransferStateStore.View.RUNNING));
+            List<String> finishedSelection =
+                    captureCombinedSelection(
+                            finishedTable,
+                            finishedModel);
 
-        /*
-         * Finished:
-         *
-         *     [Group rows]
-         *     [Individual transfer rows]
-         */
-        finishedModel.setSnapshot(
-                groupStateStore.finishedSnapshot(),
-                stateStore.snapshot(
-                        TransferStateStore.View.FINISHED));
+            List<String> allSelection =
+                    captureCombinedSelection(
+                            allTable,
+                            allModel);
 
-        /*
-         * All:
-         *
-         *     [All group rows]
-         *     [All individual transfer rows]
-         */
-        allModel.setSnapshot(
-                groupStateStore.snapshot(),
-                stateStore.snapshot(
-                        TransferStateStore.View.ALL));
+            queuedModel.setSnapshot(
+                    stateStore.snapshot(
+                            TransferStateStore.View.QUEUED));
 
-        /*
-         * Snapshot tamamlandıktan sonra seçimleri geri yükle.
-         */
-        restoreCombinedSelection(
-                runningTable,
-                runningModel,
-                runningSelection);
+            runningModel.setSnapshot(
+                    groupStateStore.runningSnapshot(),
+                    stateStore.snapshot(
+                            TransferStateStore.View.RUNNING));
 
-        restoreCombinedSelection(
-                finishedTable,
-                finishedModel,
-                finishedSelection);
+            finishedModel.setSnapshot(
+                    groupStateStore.finishedSnapshot(),
+                    stateStore.snapshot(
+                            TransferStateStore.View.FINISHED));
 
-        restoreCombinedSelection(
-                allTable,
-                allModel,
-                allSelection);
+            allModel.setSnapshot(
+                    groupStateStore.snapshot(),
+                    stateStore.snapshot(
+                            TransferStateStore.View.ALL));
+
+            restoreCombinedSelection(
+                    runningTable,
+                    runningModel,
+                    runningSelection);
+
+            restoreCombinedSelection(
+                    finishedTable,
+                    finishedModel,
+                    finishedSelection);
+
+            restoreCombinedSelection(
+                    allTable,
+                    allModel,
+                    allSelection);
+
+        } finally {
+
+            refreshingTables = false;
+
+            /*
+             * Selection restore tamamlandıktan sonra
+             * buton durumunu yalnızca bir kez hesapla.
+             */
+            updateButtons();
+        }
     }
 
 
@@ -895,19 +877,33 @@ public class TransferPanel
 
     private void updateButtons() {
 
+        /*
+         * JTable snapshot refresh'i sırasında
+         * selection geçici olarak boşalabilir.
+         *
+         * Bu sırada butonların enabled durumunu
+         * değiştirmiyoruz.
+         *
+         * Refresh tamamlandığında refreshVisibleTables()
+         * zaten updateButtons() çağıracaktır.
+         */
+        if (refreshingTables) {
+            return;
+        }
+
         JTable table =
                 getSelectedTable();
 
-        cancelButton.setEnabled(
+        boolean cancelEnabled =
                 hasCancelableSelection(
-                        table));
+                        table);
 
         boolean hasActive =
                 stateStore.getQueuedCount() > 0
                         || stateStore.getRunningCount() > 0;
 
-        cancelAllButton.setEnabled(
-                hasActive);
+        boolean cancelAllEnabled =
+                hasActive;
 
         boolean hasFinished =
                 stateStore.getFinishedCount() > 0
@@ -915,8 +911,19 @@ public class TransferPanel
                         .finishedSnapshot()
                         .isEmpty();
 
+        boolean clearEnabled =
+                hasFinished;
+
+        // mevcut BUTTON STATE logun burada kalabilir
+
+        cancelButton.setEnabled(
+                cancelEnabled);
+
+        cancelAllButton.setEnabled(
+                cancelAllEnabled);
+
         clearButton.setEnabled(
-                hasFinished);
+                clearEnabled);
     }
 
     private JTable getSelectedTable() {
