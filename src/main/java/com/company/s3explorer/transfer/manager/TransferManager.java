@@ -17,7 +17,9 @@ import com.company.s3explorer.util.S3Util;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -28,6 +30,9 @@ public class TransferManager {
     private final TransferOperationFactory operationFactory;
     private final ProducerExecutor producerExecutor;
     private final ExecutorService cancellationExecutor;
+
+    private final Map<UUID, ProducerRuntime> groupProducers =
+            new ConcurrentHashMap<>();
 
     public TransferManager(
             S3ClientManager clientManager,
@@ -67,7 +72,47 @@ public class TransferManager {
 
     public boolean cancelGroup(TransferGroup group) {
 
-        return queue.cancelGroup(group);
+        if (group == null
+                || group.getId() == null) {
+
+            return false;
+        }
+
+        UUID groupId =
+                group.getId();
+
+        /*
+         * First mark the group as cancelled and
+         * cancel already queued/running transfer tasks.
+         *
+         * queue.cancelGroup() calls
+         * group.requestCancellation(), so any task
+         * produced concurrently after this point
+         * will also be rejected by TransferQueue.
+         */
+        boolean cancelled =
+                queue.cancelGroup(group);
+
+        /*
+         * The producer itself is separate from the
+         * transfer tasks. Cancel it as well so that
+         * S3 listing/production stops.
+         */
+        ProducerRuntime producerRuntime =
+                groupProducers.remove(groupId);
+
+        if (producerRuntime != null) {
+
+            boolean producerCancelled =
+                    producerExecutor.cancel(
+                            producerRuntime);
+
+            cancelled =
+                    cancelled
+                            || producerCancelled;
+        }
+
+        return cancelled;
     }
     
     public boolean cancelProducer(
@@ -411,7 +456,8 @@ public class TransferManager {
                 firstKey,
                 false);
 
-        producerExecutor.submit(
+        submitGroupProducer(
+                group,
                 new BulkDownloadProducer(
                         transferContext,
                         queue,
@@ -423,7 +469,7 @@ public class TransferManager {
                         group,
                         firstKey)
         );
-
+        
         return group;
     }
 
@@ -503,7 +549,8 @@ public class TransferManager {
                 firstKey,
                 false);
 
-        producerExecutor.submit(
+        submitGroupProducer(
+                group,
                 new BulkDownloadProducer(
                         transferContext,
                         queue,
@@ -823,7 +870,8 @@ public class TransferManager {
                 prefix,
                 false);
 
-        producerExecutor.submit(
+        submitGroupProducer(
+                group,
                 new FolderDeleteProducer(
                         transferContext,
                         queue,
@@ -874,7 +922,8 @@ public class TransferManager {
                 prefix,
                 false);
 
-        producerExecutor.submit(
+        submitGroupProducer(
+                group,
                 new FolderDownloadProducer(
                         transferContext,
                         queue,
@@ -931,7 +980,8 @@ public class TransferManager {
                 prefix,
                 false);
 
-        producerExecutor.submit(
+        submitGroupProducer(
+                group,
                 new FolderDownloadProducer(
                         transferContext,
                         queue,
@@ -1026,7 +1076,8 @@ public class TransferManager {
                 sourcePrefix,
                 false);
 
-        producerExecutor.submit(
+        submitGroupProducer(
+                group,
                 new FolderCopyProducer(
                         transferContext,
                         queue,
@@ -1104,8 +1155,9 @@ public class TransferManager {
                 sourceBucket,
                 sourcePrefix,
                 true);
-        
-        producerExecutor.submit(
+
+        submitGroupProducer(
+                group,
                 new FolderMoveProducer(
                         transferContext,
                         queue,
@@ -1143,6 +1195,31 @@ public class TransferManager {
         producerExecutor.close();
     }
 
+    private ProducerRuntime submitGroupProducer(
+            TransferGroup group,
+            FolderTransferProducer producer) {
+
+        if (group == null) {
+            throw new IllegalArgumentException(
+                    "Transfer group must not be null");
+        }
+
+        if (producer == null) {
+            throw new IllegalArgumentException(
+                    "Producer must not be null");
+        }
+
+        ProducerRuntime runtime =
+                producerExecutor.submit(
+                        producer);
+
+        groupProducers.put(
+                group.getId(),
+                runtime);
+
+        return runtime;
+    }
+    
     private void submit(
             TransferTask task) {
 
