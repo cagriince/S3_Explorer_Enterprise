@@ -83,6 +83,21 @@ public class TransferQueue {
         runtime.setStatus(
                 TransferStatus.QUEUED);
 
+        /*
+         * Group cancellation istendiyse producer'ın
+         * daha sonra ürettiği yeni task'ları queue'ya alma.
+         *
+         * Producer listing'e devam edebilir; ancak bu task
+         * artık gerçek bir transfer olarak çalıştırılmaz.
+         */
+        if (task.getGroup() != null
+                && task.getGroup().isCancellationRequested()) {
+
+            task.getGroup().cancelledFromQueue();
+
+            return null;
+        }
+        
         if (task.getGroup() != null) {
             task.getGroup().queued();
         }
@@ -213,6 +228,126 @@ public class TransferQueue {
         return false;
     }
 
+    /**
+     * Belirli bir TransferGroup'a ait bütün transferleri
+     * iptal eder.
+     *
+     * Queued task'lar queue'dan çıkarılır.
+     * Running task'lara cancellation request gönderilir.
+     */
+    public boolean cancelGroup(UUID groupId) {
+
+        if (groupId == null) {
+            return false;
+        }
+
+        boolean cancelledAny = false;
+
+        /*
+         * Önce group seviyesinde cancellation işaretlenir.
+         *
+         * Böylece producer aynı anda yeni task üretse bile
+         * TransferQueue.add() bu task'ları kabul etmez.
+         */
+        for (TransferRuntime runtime : queue) {
+
+            if (runtime == null
+                    || runtime.getTask() == null
+                    || runtime.getTask().getGroup() == null) {
+
+                continue;
+            }
+
+            TransferGroup group =
+                    runtime.getTask().getGroup();
+
+            if (!groupId.equals(group.getId())) {
+                continue;
+            }
+
+            group.requestCancellation();
+            break;
+        }
+
+        /*
+         * Active task'lar için de group cancellation
+         * flag'ini bul.
+         */
+        for (TransferRuntime runtime :
+                activeTransfers.values()) {
+
+            if (runtime == null
+                    || runtime.getTask() == null
+                    || runtime.getTask().getGroup() == null) {
+
+                continue;
+            }
+
+            TransferGroup group =
+                    runtime.getTask().getGroup();
+
+            if (groupId.equals(group.getId())) {
+
+                group.requestCancellation();
+                break;
+            }
+        }
+
+        /*
+         * Queue'daki task'ları çıkar.
+         */
+        for (TransferRuntime runtime : queue) {
+
+            if (runtime == null
+                    || runtime.getTask() == null
+                    || runtime.getTask().getGroup() == null) {
+
+                continue;
+            }
+
+            TransferGroup group =
+                    runtime.getTask().getGroup();
+
+            if (!groupId.equals(group.getId())) {
+                continue;
+            }
+
+            if (queue.remove(runtime)) {
+
+                cancelRuntime(runtime);
+
+                cancelledAny = true;
+            }
+        }
+
+        /*
+         * Çalışan task'lara cancellation request gönder.
+         */
+        for (TransferRuntime runtime :
+                activeTransfers.values()) {
+
+            if (runtime == null
+                    || runtime.getTask() == null
+                    || runtime.getTask().getGroup() == null) {
+
+                continue;
+            }
+
+            TransferGroup group =
+                    runtime.getTask().getGroup();
+
+            if (!groupId.equals(group.getId())) {
+                continue;
+            }
+
+            runtime.requestCancel();
+
+            cancelledAny = true;
+        }
+
+        return cancelledAny;
+    }
+    
     /**
      * Cancel All başlangıcı.
      *

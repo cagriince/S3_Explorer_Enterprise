@@ -65,6 +65,11 @@ public class TransferManager {
         return queue.cancel(taskId);
     }
 
+    public boolean cancelGroup(UUID groupId) {
+
+        return queue.cancelGroup(groupId);
+    }
+    
     public boolean cancelProducer(
             ProducerRuntime runtime) {
 

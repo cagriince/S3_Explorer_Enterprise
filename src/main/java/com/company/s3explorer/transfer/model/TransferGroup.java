@@ -90,6 +90,9 @@ public class TransferGroup {
     private final AtomicBoolean productionFailed =
             new AtomicBoolean(false);
 
+    private final AtomicBoolean cancellationRequested =
+            new AtomicBoolean(false);
+    
     private final AtomicReference<String> errorMessage =
             new AtomicReference<>();
     
@@ -444,7 +447,28 @@ public class TransferGroup {
         fireCompletionIfNecessary();
     }
 
+    /**
+     * Bu group için kullanıcı tarafından cancellation
+     * istendiğini belirtir.
+     *
+     * Producer yeni task üretmeye devam etse bile
+     * TransferQueue bu task'ları queue'ya almayacaktır.
+     */
+    public void requestCancellation() {
 
+        cancellationRequested.set(true);
+    }
+
+
+    /**
+     * Group cancellation isteğinin mevcut olup olmadığını
+     * döndürür.
+     */
+    public boolean isCancellationRequested() {
+
+        return cancellationRequested.get();
+    }
+    
     /**
      * Çalışmakta olan bir task cancellation nedeniyle
      * durduruldu.
