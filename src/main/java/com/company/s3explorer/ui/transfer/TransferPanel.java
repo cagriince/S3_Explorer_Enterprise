@@ -1056,7 +1056,7 @@ public class TransferPanel
                 }
 
                 transferManager.cancelGroup(
-                        transferGroup.getId());
+                        transferGroup);
 
                 continue;
             }

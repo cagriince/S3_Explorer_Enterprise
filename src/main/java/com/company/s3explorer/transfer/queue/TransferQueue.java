@@ -235,63 +235,27 @@ public class TransferQueue {
      * Queued task'lar queue'dan çıkarılır.
      * Running task'lara cancellation request gönderilir.
      */
-    public boolean cancelGroup(UUID groupId) {
+    public boolean cancelGroup(TransferGroup group) {
 
-        if (groupId == null) {
+        if (group == null
+                || group.getId() == null) {
+
             return false;
         }
+
+        UUID groupId =
+                group.getId();
 
         boolean cancelledAny = false;
 
         /*
-         * Önce group seviyesinde cancellation işaretlenir.
+         * Group cancellation hemen işaretlenir.
          *
-         * Böylece producer aynı anda yeni task üretse bile
-         * TransferQueue.add() bu task'ları kabul etmez.
+         * Henüz task üretilmemiş olsa bile
+         * producer'ın bundan sonra üreteceği task'lar
+         * TransferQueue.add() tarafından kabul edilmez.
          */
-        for (TransferRuntime runtime : queue) {
-
-            if (runtime == null
-                    || runtime.getTask() == null
-                    || runtime.getTask().getGroup() == null) {
-
-                continue;
-            }
-
-            TransferGroup group =
-                    runtime.getTask().getGroup();
-
-            if (!groupId.equals(group.getId())) {
-                continue;
-            }
-
-            group.requestCancellation();
-            break;
-        }
-
-        /*
-         * Active task'lar için de group cancellation
-         * flag'ini bul.
-         */
-        for (TransferRuntime runtime :
-                activeTransfers.values()) {
-
-            if (runtime == null
-                    || runtime.getTask() == null
-                    || runtime.getTask().getGroup() == null) {
-
-                continue;
-            }
-
-            TransferGroup group =
-                    runtime.getTask().getGroup();
-
-            if (groupId.equals(group.getId())) {
-
-                group.requestCancellation();
-                break;
-            }
-        }
+        group.requestCancellation();
 
         /*
          * Queue'daki task'ları çıkar.
@@ -305,10 +269,10 @@ public class TransferQueue {
                 continue;
             }
 
-            TransferGroup group =
+            TransferGroup runtimeGroup =
                     runtime.getTask().getGroup();
 
-            if (!groupId.equals(group.getId())) {
+            if (!groupId.equals(runtimeGroup.getId())) {
                 continue;
             }
 
@@ -333,10 +297,10 @@ public class TransferQueue {
                 continue;
             }
 
-            TransferGroup group =
+            TransferGroup runtimeGroup =
                     runtime.getTask().getGroup();
 
-            if (!groupId.equals(group.getId())) {
+            if (!groupId.equals(runtimeGroup.getId())) {
                 continue;
             }
 
