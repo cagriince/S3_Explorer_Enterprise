@@ -370,8 +370,8 @@ public class TransferCombinedTableModel
 
             if (detected > 0) {
 
-                return "Preparing, Detected: "
-                        + detected;
+                return "Preparing, Discovered: "
+                        + S3Util.formatWithThousandSeparator(detected);
             }
 
             return "Preparing";
@@ -381,14 +381,14 @@ public class TransferCombinedTableModel
                 new StringBuilder();
 
         summary.append(
-                        "Detected: ")
+                        "Discovered: ")
                 .append(
-                        group.getDetected());
+                        S3Util.formatWithThousandSeparator(group.getDetected()));
 
         summary.append(
                         ", Completed: ")
                 .append(
-                        group.getCompleted());
+                        S3Util.formatWithThousandSeparator(group.getCompleted()));
 
         int failed =
                 group.getFailedCount();
@@ -404,7 +404,7 @@ public class TransferCombinedTableModel
             summary.append(
                             ", Failed: ")
                     .append(
-                            failed);
+                            S3Util.formatWithThousandSeparator(failed));
         }
 
         if (cancelled > 0) {
@@ -412,7 +412,7 @@ public class TransferCombinedTableModel
             summary.append(
                             ", Cancelled: ")
                     .append(
-                            cancelled);
+                            S3Util.formatWithThousandSeparator(cancelled));
         }
 
         if (skipped > 0) {
@@ -420,7 +420,7 @@ public class TransferCombinedTableModel
             summary.append(
                             ", Skipped: ")
                     .append(
-                            skipped);
+                            S3Util.formatWithThousandSeparator(skipped));
         }
 
         String errorMessage =

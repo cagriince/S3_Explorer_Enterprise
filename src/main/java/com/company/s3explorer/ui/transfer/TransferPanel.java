@@ -789,11 +789,6 @@ public class TransferPanel
                 .setCellRenderer(
                         new StatusRenderer());
 
-        table.getColumnModel()
-                .getColumn(6)
-                .setCellRenderer(
-                        new LongFormatRenderer());
-
         return table;
     }
 
