@@ -769,7 +769,7 @@ public class TransferPanel
 
         JTable table =
                 new JTable(model);
-/*
+
         configureTable(
                 table,
                 100);
@@ -798,7 +798,7 @@ public class TransferPanel
                 .getColumn(6)
                 .setCellRenderer(
                         new LongFormatRenderer());
-*/
+
         return table;
     }
 
