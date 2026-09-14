@@ -963,8 +963,17 @@ public class TransferPanel
 
     private void cancelSelectedTransfers() {
 
+        System.out.println(
+                "[CANCEL BUTTON] clicked");
+
         JTable table =
                 getSelectedTable();
+
+        System.out.println(
+                "[CANCEL BUTTON] selectedTab=" +
+                        tabs.getSelectedIndex() +
+                        " table=" +
+                        table);
 
         if (table == null) {
             return;
@@ -973,6 +982,10 @@ public class TransferPanel
         int[] selectedRows =
                 table.getSelectedRows();
 
+        System.out.println(
+                "[CANCEL BUTTON] selectedRows=" +
+                        selectedRows.length);
+        
         if (selectedRows.length == 0) {
             return;
         }
@@ -1028,7 +1041,9 @@ public class TransferPanel
              * GROUP
              */
             if (combinedModel.isGroupRow(modelRow)) {
-
+                System.out.println(
+                        "[CANCEL BUTTON] GROUP row modelRow=" +
+                                modelRow);
                 /*
                  * Finished group iptal edilemez.
                  */
@@ -1051,6 +1066,13 @@ public class TransferPanel
                 TransferGroup transferGroup =
                         group.getGroup();
 
+                System.out.println(
+                        "[CANCEL BUTTON] GROUP name=" +
+                                transferGroup.getDisplayName() +
+                                " id=" +
+                                transferGroup.getId() +
+                                " finished=" +
+                                transferGroup.isFinished());
                 if (transferGroup.isFinished()) {
                     continue;
                 }
