@@ -1007,14 +1007,22 @@ public class TransferManager {
                         : folder.toString();
 
         TransferGroup group =
-                createFolderOperationGroup(
+                new TransferGroup(
+                        UUID.randomUUID(),
+                        displayName,
                         TransferType.UPLOAD_GROUP,
+                        folder.toString(),
+                        buildGroupLocation(
+                                repositoryName,
+                                bucket,
+                                targetPrefix + displayName + "/"),
                         repositoryName,
                         bucket,
                         targetPrefix,
                         repositoryName,
                         bucket,
-                        targetPrefix + displayName + "/");
+                        targetPrefix + displayName + "/",
+                        true);
 
         configureGroupCompletion(
                 group,

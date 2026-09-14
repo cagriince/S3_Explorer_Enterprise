@@ -2,14 +2,13 @@ package com.company.s3explorer.ui.transfer;
 
 import com.company.s3explorer.transfer.TransferRuntime;
 import com.company.s3explorer.transfer.TransferStatus;
+import com.company.s3explorer.transfer.TransferType;
 import com.company.s3explorer.transfer.model.TransferGroup;
 import com.company.s3explorer.transfer.model.TransferTask;
-import com.company.s3explorer.ui.theme.UIThemeManager;
 import com.company.s3explorer.util.DateFormatter;
 import com.company.s3explorer.util.S3Util;
 
 import javax.swing.table.AbstractTableModel;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -365,8 +364,8 @@ public class TransferCombinedTableModel
 
         java.nio.file.Path localPath = null;
 
-        if (transferGroup.getOperation() == com.company.s3explorer.transfer.TransferType.DOWNLOAD
-                || transferGroup.getOperation() == com.company.s3explorer.transfer.TransferType.DOWNLOAD_GROUP) {
+        if (transferGroup.getOperation() == TransferType.DOWNLOAD
+                || transferGroup.getOperation() == TransferType.DOWNLOAD_GROUP) {
 
             String targetPrefix =
                     transferGroup.getTargetPrefix();
@@ -380,18 +379,18 @@ public class TransferCombinedTableModel
             }
         }
 
-        else if (transferGroup.getOperation() == com.company.s3explorer.transfer.TransferType.UPLOAD
-                || transferGroup.getOperation() == com.company.s3explorer.transfer.TransferType.UPLOAD_GROUP) {
+        else if (transferGroup.getOperation() == TransferType.UPLOAD
+                || transferGroup.getOperation() == TransferType.UPLOAD_GROUP) {
 
-            String sourcePrefix =
-                    transferGroup.getSourcePrefix();
+            String source =
+                    transferGroup.getSource();
 
-            if (sourcePrefix != null
-                    && !sourcePrefix.isBlank()) {
+            if (source != null
+                    && !source.isBlank()) {
 
                 localPath =
                         java.nio.file.Path.of(
-                                sourcePrefix);
+                                source);
             }
         }
 
