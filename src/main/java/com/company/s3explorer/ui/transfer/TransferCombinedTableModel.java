@@ -353,15 +353,45 @@ public class TransferCombinedTableModel
         }
     }
 
-    private String buildGroupProcessDetail(TransferGroupStateStore.GroupRecord group) {
-        TransferGroup transferGroup = group.getGroup();
+    private String buildGroupProcessDetail(
+            TransferGroupStateStore.GroupRecord group) {
+
+        TransferGroup transferGroup =
+                group.getGroup();
+
         if (transferGroup == null) {
             return "";
         }
-        
-        return S3Util.getTransferPanelProcessDetail(transferGroup.getOperation(), transferGroup.getDisplayName(), transferGroup.getSourceRepository(), transferGroup.getSourceBucket(), transferGroup.getSourcePrefix(), transferGroup.getTargetRepository(), transferGroup.getTargetBucket(), transferGroup.getTargetPrefix(), null);
-    }
 
+        java.nio.file.Path localPath = null;
+
+        if (transferGroup.getOperation() == com.company.s3explorer.transfer.TransferType.DOWNLOAD
+                || transferGroup.getOperation() == com.company.s3explorer.transfer.TransferType.DOWNLOAD_GROUP) {
+
+            String targetPrefix =
+                    transferGroup.getTargetPrefix();
+
+            if (targetPrefix != null
+                    && !targetPrefix.isBlank()) {
+
+                localPath =
+                        java.nio.file.Path.of(
+                                targetPrefix);
+            }
+        }
+
+        return S3Util.getTransferPanelProcessDetail(
+                transferGroup.getOperation(),
+                transferGroup.getDisplayName(),
+                transferGroup.getSourceRepository(),
+                transferGroup.getSourceBucket(),
+                transferGroup.getSourcePrefix(),
+                transferGroup.getTargetRepository(),
+                transferGroup.getTargetBucket(),
+                transferGroup.getTargetPrefix(),
+                localPath);
+    }
+    
     private String buildGroupSummary(
             TransferGroupStateStore.GroupRecord group) {
 
