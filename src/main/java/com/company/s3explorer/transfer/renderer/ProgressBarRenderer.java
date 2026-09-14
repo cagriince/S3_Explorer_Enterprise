@@ -7,7 +7,7 @@ import javax.swing.table.TableCellRenderer;
 import java.awt.*;
 
 public class ProgressBarRenderer extends JProgressBar implements TableCellRenderer {
-    private static final float BAR_SCALE = (float) 0.6;
+    private static final float BAR_SCALE = (float) 0.45;
 
     public ProgressBarRenderer() {
         setMinimum(0);

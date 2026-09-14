@@ -562,9 +562,6 @@ public class TransferPanel
 
         refreshingTables = true;
 
-        List<String> queuedSelection =
-                captureQueuedSelection();
-        
         try {
 
             List<String> runningSelection =
@@ -586,9 +583,6 @@ public class TransferPanel
                     stateStore.snapshot(
                             TransferStateStore.View.QUEUED));
 
-            restoreQueuedSelection(
-                    queuedSelection);
-            
             runningModel.setSnapshot(
                     groupStateStore.runningSnapshot(),
                     stateStore.snapshot(
@@ -623,14 +617,9 @@ public class TransferPanel
 
             refreshingTables = false;
 
-            /*
-             * Selection restore tamamlandıktan sonra
-             * buton durumunu yalnızca bir kez hesapla.
-             */
             updateButtons();
         }
     }
-
 
     /*
      * Combined JTable üzerindeki mevcut seçimleri
@@ -1514,85 +1503,5 @@ public class TransferPanel
 
         table.getTableHeader()
                 .setReorderingAllowed(false);
-    }
-
-    private List<String> captureQueuedSelection() {
-
-        List<String> selection =
-                new ArrayList<>();
-
-        int[] selectedRows =
-                queuedTable.getSelectedRows();
-
-        for (int viewRow : selectedRows) {
-
-            int modelRow =
-                    queuedTable.convertRowIndexToModel(
-                            viewRow);
-
-            TransferRuntime runtime =
-                    queuedModel.getRuntimeAtModelRow(
-                            modelRow);
-
-            if (runtime == null
-                    || runtime.getTask() == null
-                    || runtime.getTask().getId() == null) {
-
-                continue;
-            }
-
-            selection.add(
-                    runtime.getTask().getId().toString());
-        }
-
-        return selection;
-    }
-
-    private void restoreQueuedSelection(
-            List<String> selection) {
-
-        if (selection == null
-                || selection.isEmpty()) {
-
-            return;
-        }
-
-        queuedTable.clearSelection();
-
-        for (int modelRow = 0;
-             modelRow < queuedModel.getRowCount();
-             modelRow++) {
-
-            TransferRuntime runtime =
-                    queuedModel.getRuntimeAtModelRow(
-                            modelRow);
-
-            if (runtime == null
-                    || runtime.getTask() == null
-                    || runtime.getTask().getId() == null) {
-
-                continue;
-            }
-
-            String id =
-                    runtime.getTask()
-                            .getId()
-                            .toString();
-
-            if (!selection.contains(id)) {
-                continue;
-            }
-
-            int viewRow =
-                    queuedTable.convertRowIndexToView(
-                            modelRow);
-
-            if (viewRow >= 0) {
-
-                queuedTable.addRowSelectionInterval(
-                        viewRow,
-                        viewRow);
-            }
-        }
     }
 }

@@ -135,7 +135,7 @@ public class TransferTableModel
                     String.class;
 
             case 6 ->
-                    Long.class;
+                    String.class;
 
             case 7 ->
                     String.class;
@@ -148,6 +148,10 @@ public class TransferTableModel
     public void setSnapshot(
             List<TransferRuntime> snapshot) {
 
+        if (isSameSnapshot(snapshot)) {
+            return;
+        }
+
         runtimes.clear();
 
         if (snapshot != null) {
@@ -155,6 +159,78 @@ public class TransferTableModel
         }
 
         fireTableDataChanged();
+    }
+
+    private boolean isSameSnapshot(
+            List<TransferRuntime> snapshot) {
+
+        if (snapshot == null) {
+            return runtimes.isEmpty();
+        }
+
+        if (runtimes.size() != snapshot.size()) {
+            return false;
+        }
+
+        for (int i = 0;
+             i < runtimes.size();
+             i++) {
+
+            TransferRuntime current =
+                    runtimes.get(i);
+
+            TransferRuntime incoming =
+                    snapshot.get(i);
+
+            if (current == null
+                    || incoming == null) {
+
+                if (current != incoming) {
+                    return false;
+                }
+
+                continue;
+            }
+
+            if (current.getTask() == null
+                    || incoming.getTask() == null) {
+
+                if (current.getTask()
+                        != incoming.getTask()) {
+
+                    return false;
+                }
+
+                continue;
+            }
+
+            if (current.getTask().getId() == null
+                    || incoming.getTask().getId() == null) {
+
+                if (current.getTask().getId()
+                        != incoming.getTask().getId()) {
+
+                    return false;
+                }
+
+                continue;
+            }
+
+            if (!current.getTask()
+                    .getId()
+                    .equals(incoming.getTask().getId())) {
+
+                return false;
+            }
+
+            if (current.getStatus()
+                    != incoming.getStatus()) {
+
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public TransferRuntime getRuntime(
