@@ -27,8 +27,6 @@ public class LongFormatRenderer extends DefaultTableCellRenderer {
             value = numberFormat.format(((Number) value).longValue());
         }
 
-        value = value + " ms";
-
         // Üst sınıftaki metodun atanmış formatlanmış değeri işlemesini sağla
         return super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
     }

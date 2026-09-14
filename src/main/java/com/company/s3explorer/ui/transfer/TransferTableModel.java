@@ -138,7 +138,7 @@ public class TransferTableModel
             return "";
         }
 
-        return runtime.getElapsedTime()
+        return S3Util.formatWithThousandSeparator(runtime.getElapsedTime())
                 + " ms";
     }
 

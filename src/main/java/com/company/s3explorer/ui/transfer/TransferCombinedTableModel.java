@@ -599,7 +599,7 @@ public class TransferCombinedTableModel
             return "";
         }
 
-        return group.getElapsedTime()
+        return S3Util.formatWithThousandSeparator(group.getElapsedTime())
                 + " ms";
     }
 }
