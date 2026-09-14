@@ -2851,6 +2851,55 @@ public class ExplorerPanel extends JPanel {
         }
     }
 
+    private void copyText() {
+
+        JTable table =
+                view.getFileTable();
+
+        int[] selectedRows =
+                table.getSelectedRows();
+
+        if (selectedRows.length == 0) {
+            return;
+        }
+
+        StringBuilder text =
+                new StringBuilder();
+
+        for (int viewRow : selectedRows) {
+
+            int modelRow =
+                    table.convertRowIndexToModel(
+                            viewRow);
+
+            S3FileItem item =
+                    view.getFileTableModel()
+                            .getItem(modelRow);
+
+            if (item == null
+                    || item.isParentFolder()) {
+                continue;
+            }
+
+            if (text.length() > 0) {
+                text.append(System.lineSeparator());
+            }
+
+            text.append(item.getKey());
+        }
+
+        if (text.length() == 0) {
+            return;
+        }
+
+        Toolkit.getDefaultToolkit()
+                .getSystemClipboard()
+                .setContents(
+                        new java.awt.datatransfer.StringSelection(
+                                text.toString()),
+                        null);
+    }
+    
     private boolean submitMove(
             S3FileItem item,
             String targetBucket,
