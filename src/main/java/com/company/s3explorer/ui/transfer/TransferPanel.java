@@ -6,6 +6,7 @@ import com.company.s3explorer.transfer.event.TransferGroupCompletedEvent;
 import com.company.s3explorer.transfer.event.TransferGroupUpdatedEvent;
 import com.company.s3explorer.transfer.event.TransferListener;
 import com.company.s3explorer.transfer.manager.TransferManager;
+import com.company.s3explorer.transfer.model.TransferGroup;
 import com.company.s3explorer.transfer.renderer.*;
 import com.company.s3explorer.transfer.state.TransferStateStore;
 import com.company.s3explorer.ui.icons.IconProvider;
@@ -959,7 +960,7 @@ public class TransferPanel
          */
         return null;
     }
-    
+
     private void cancelSelectedTransfers() {
 
         JTable table =
@@ -984,12 +985,9 @@ public class TransferPanel
             for (int viewRow :
                     selectedRows) {
 
-                /*
-                 * Sorter olmadığı için
-                 * view row == model row.
-                 */
                 int modelRow =
-                        viewRow;
+                        table.convertRowIndexToModel(
+                                viewRow);
 
                 TransferRuntime runtime =
                         queuedModel.getRuntimeAtModelRow(
@@ -1010,11 +1008,7 @@ public class TransferPanel
         }
 
         /*
-         * Running / Finished / All tabloları
-         * TransferCombinedTableModel kullanıyor.
-         *
-         * Group satırları burada bilinçli olarak
-         * atlanır.
+         * Running / Finished / All
          */
         TransferCombinedTableModel combinedModel =
                 getCombinedModelForTable(table);
@@ -1026,22 +1020,52 @@ public class TransferPanel
         for (int viewRow :
                 selectedRows) {
 
-            /*
-             * Sorter olmadığı için
-             * view row == model row.
-             */
             int modelRow =
-                    viewRow;
+                    table.convertRowIndexToModel(
+                            viewRow);
 
-            if (combinedModel.isGroupRow(
-                    modelRow)) {
+            /*
+             * GROUP
+             */
+            if (combinedModel.isGroupRow(modelRow)) {
+
+                /*
+                 * Finished group iptal edilemez.
+                 */
+                if (table != runningTable
+                        && table != allTable) {
+
+                    continue;
+                }
+
+                TransferGroupStateStore.GroupRecord group =
+                        combinedModel.getGroup(modelRow);
+
+                if (group == null
+                        || group.getGroup() == null
+                        || group.getGroup().getId() == null) {
+
+                    continue;
+                }
+
+                TransferGroup transferGroup =
+                        group.getGroup();
+
+                if (transferGroup.isFinished()) {
+                    continue;
+                }
+
+                transferManager.cancelGroup(
+                        transferGroup.getId());
 
                 continue;
             }
 
+            /*
+             * NORMAL TRANSFER
+             */
             TransferRuntime runtime =
-                    combinedModel.getRuntime(
-                            modelRow);
+                    combinedModel.getRuntime(modelRow);
 
             if (runtime == null) {
                 continue;
@@ -1147,12 +1171,15 @@ public class TransferPanel
          */
         if (table == queuedTable) {
 
-            for (int row :
-                    selectedRows) {
+            for (int viewRow : selectedRows) {
+
+                int modelRow =
+                        table.convertRowIndexToModel(
+                                viewRow);
 
                 TransferRuntime runtime =
                         queuedModel.getRuntimeAtModelRow(
-                                row);
+                                modelRow);
 
                 if (runtime != null
                         && runtime.getStatus().isActive()) {
@@ -1174,19 +1201,44 @@ public class TransferPanel
             return false;
         }
 
-        for (int row :
-                selectedRows) {
+        for (int viewRow : selectedRows) {
+
+            int modelRow =
+                    table.convertRowIndexToModel(
+                            viewRow);
 
             /*
-             * Group satırları hiçbir zaman
-             * Cancel Selected için uygun değil.
+             * Group satırı:
+             *
+             * Sadece Running ve All içinde
+             * cancellation yapılabilir.
              */
-            if (combinedModel.isGroupRow(row)) {
+            if (combinedModel.isGroupRow(modelRow)) {
+
+                if (table == runningTable
+                        || table == allTable) {
+
+                    TransferGroupStateStore.GroupRecord group =
+                            combinedModel.getGroup(modelRow);
+
+                    if (group != null
+                            && group.getGroup() != null
+                            && group.getGroup().getId() != null
+                            && !group.getGroup()
+                            .isFinished()) {
+
+                        return true;
+                    }
+                }
+
                 continue;
             }
 
+            /*
+             * Normal transfer satırı
+             */
             TransferRuntime runtime =
-                    combinedModel.getRuntime(row);
+                    combinedModel.getRuntime(modelRow);
 
             if (runtime != null
                     && runtime.getStatus().isActive()) {
