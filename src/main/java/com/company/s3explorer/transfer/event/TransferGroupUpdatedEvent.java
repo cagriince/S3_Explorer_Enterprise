@@ -64,6 +64,7 @@ public class TransferGroupUpdatedEvent {
                         || group.getCompleted() > 0
                         || group.getFailed() > 0
                         || group.getCancelled() > 0
+                        || group.getSkipped() > 0
         );
     }
 
