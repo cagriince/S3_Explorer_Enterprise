@@ -2173,8 +2173,10 @@ public class ExplorerPanel extends JPanel {
          */
         if (group.getOperation() == TransferType.COPY
                 || group.getOperation() == TransferType.MOVE
+                || group.getOperation() == TransferType.RENAME
                 || group.getOperation() == TransferType.COPY_GROUP
-                || group.getOperation() == TransferType.MOVE_GROUP) {
+                || group.getOperation() == TransferType.MOVE_GROUP
+                || group.getOperation() == TransferType.RENAME_GROUP) {
 
             String targetBucket =
                     group.getTargetBucket();

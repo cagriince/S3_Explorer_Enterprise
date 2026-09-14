@@ -20,6 +20,7 @@ public class TypeRenderer extends DefaultTableCellRenderer {
             case DELETE -> setText("Delete");
             case COPY -> setText("Copy");
             case MOVE -> setText("Move");
+            case RENAME -> setText("Rename");
             case CREATE_FOLDER -> setText("Create Folder");
         }
     }

@@ -6,10 +6,12 @@ public enum TransferType {
     DELETE,
     COPY,
     MOVE,
+    RENAME,
     CREATE_FOLDER,
     UPLOAD_GROUP,
     DOWNLOAD_GROUP,
     DELETE_GROUP,
     COPY_GROUP,
     MOVE_GROUP,
+    RENAME_GROUP
 }

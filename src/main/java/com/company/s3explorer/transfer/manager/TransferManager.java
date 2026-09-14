@@ -1177,14 +1177,40 @@ public class TransferManager {
             String prefix,
             String targetPrefix) {
 
-        producerExecutor.submit(
+        TransferGroup group =
+                createFolderOperationGroup(
+                        TransferType.RENAME_GROUP,
+                        repositoryName,
+                        bucket,
+                        prefix,
+                        repositoryName,
+                        bucket,
+                        targetPrefix);
+
+        configureGroupCompletion(
+                group,
+                repositoryName,
+                bucket,
+                prefix,
+                true);
+
+        transferContext.publishGroupUpdated(
+                group,
+                repositoryName,
+                bucket,
+                prefix,
+                true);
+
+        submitGroupProducer(
+                group,
                 new FolderRenameProducer(
                         transferContext,
                         queue,
                         repositoryName,
                         bucket,
                         prefix,
-                        targetPrefix)
+                        targetPrefix,
+                        group)
         );
     }
 

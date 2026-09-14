@@ -18,6 +18,7 @@ public class TransferOperationFactory {
         register(TransferType.DELETE, new DeleteOperation());
         register(TransferType.COPY, new CopyOperation());
         register(TransferType.MOVE, new MoveOperation());
+        register(TransferType.RENAME, new MoveOperation());
         register(TransferType.CREATE_FOLDER, new CreateFolderOperation());
     }
 

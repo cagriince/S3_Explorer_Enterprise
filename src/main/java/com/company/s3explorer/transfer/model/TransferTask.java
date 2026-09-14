@@ -133,6 +133,10 @@ public class TransferTask {
         return new Builder(TransferType.MOVE);
     }
 
+    public static Builder rename() {
+        return new Builder(TransferType.RENAME);
+    }
+
     public static Builder createFolder() {
         return new Builder(TransferType.CREATE_FOLDER);
     }
@@ -242,7 +246,8 @@ public class TransferTask {
                     Objects.requireNonNull(task.objectKey);
                 }
                 case COPY,
-                     MOVE -> {
+                     MOVE,
+                     RENAME -> {
                     Objects.requireNonNull(task.repositoryName);
                     Objects.requireNonNull(task.bucket);
                     Objects.requireNonNull(task.objectKey);

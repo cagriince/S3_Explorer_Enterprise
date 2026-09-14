@@ -173,7 +173,7 @@ public class S3Util {
                         S3Util.getTransferPanelDisplayLastFileFolder(
                                 localPath.toString()));
             }
-        } else if (transferType == TransferType.DOWNLOAD || transferType == TransferType.DOWNLOAD_GROUP || transferType == TransferType.DELETE || transferType == TransferType.DELETE_GROUP || transferType == TransferType.COPY || transferType == TransferType.COPY_GROUP || transferType == TransferType.MOVE || transferType == TransferType.MOVE_GROUP) {
+        } else if (transferType == TransferType.DOWNLOAD || transferType == TransferType.DOWNLOAD_GROUP || transferType == TransferType.DELETE || transferType == TransferType.DELETE_GROUP || transferType == TransferType.COPY || transferType == TransferType.COPY_GROUP || transferType == TransferType.MOVE || transferType == TransferType.MOVE_GROUP || transferType == TransferType.RENAME || transferType == TransferType.RENAME_GROUP) {
             display.append(
                     S3Util.getTransferPanelDisplayBucketName(
                             sourceRepository,
@@ -203,7 +203,7 @@ public class S3Util {
                 display.append(S3Util.getTransferPanelDisplayLastFileFolder( localPath.toString()));
             }
 
-        } else if (transferType == TransferType.COPY || transferType == TransferType.COPY_GROUP || transferType == TransferType.MOVE || transferType == TransferType.MOVE_GROUP) {
+        } else if (transferType == TransferType.COPY || transferType == TransferType.COPY_GROUP || transferType == TransferType.MOVE || transferType == TransferType.MOVE_GROUP || transferType == TransferType.RENAME || transferType == TransferType.RENAME_GROUP) {
             display.append(
                     S3Util.getTransferPanelDisplayBucketName(
                             targetRepository,

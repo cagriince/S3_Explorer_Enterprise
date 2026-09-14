@@ -166,7 +166,7 @@ public abstract class AbstractTransferOperation
                 repository,
                 bucket,
                 prefix,
-                group.getOperation() == TransferType.MOVE || group.getOperation() == TransferType.MOVE_GROUP);
+                group.getOperation() == TransferType.MOVE || group.getOperation() == TransferType.MOVE_GROUP || group.getOperation() == TransferType.RENAME || group.getOperation() == TransferType.RENAME_GROUP);
     }
     
     protected void checkCancelled(
