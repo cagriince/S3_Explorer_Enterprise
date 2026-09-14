@@ -100,7 +100,7 @@ public class TransferTableModel
                     "<html>" + DateFormatter.format(runtime.getStartTime()) + "<br/>" + DateFormatter.format(runtime.getEndTime()) + "</html>";
 
             case 6 ->
-                    runtime.getElapsedTime();
+                    "";
 
             case 7 ->
                     runtime.getMessage();
