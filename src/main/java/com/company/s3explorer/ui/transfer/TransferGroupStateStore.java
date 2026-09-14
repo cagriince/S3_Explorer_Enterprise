@@ -228,7 +228,8 @@ public class TransferGroupStateStore {
                     event.isSourceRefreshRequired();
 
             this.finished =
-                    event.isFinished();
+                    this.finished
+                            || event.isFinished();
 
             /*
              * İlk group update'i lifecycle başlangıcıdır.
