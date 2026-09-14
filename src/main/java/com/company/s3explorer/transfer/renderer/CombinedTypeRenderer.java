@@ -52,8 +52,8 @@ public class CombinedTypeRenderer
                         setIcon(IconProvider.ICON_CUT);
                 }
                 case RENAME, RENAME_GROUP -> {
-                    setText("Rename" + (type == TransferType.MOVE_GROUP ? " Group" : ""));
-                    setIcon(IconProvider.ICON_CUT);
+                    setText("Rename" + (type == TransferType.RENAME_GROUP ? " Group" : ""));
+                    setIcon(IconProvider.ICON_RENAME);
                 }
                 case CREATE_FOLDER -> {
                         setText("Create Folder");

@@ -23,7 +23,7 @@ public class TransferCombinedTableModel
             "Progress",
             "Status",
             "Start/End Time",
-            "Elapsed Time (ms)",
+            "Elapsed Time",
             "Summary"
     };
 
@@ -117,7 +117,7 @@ public class TransferCombinedTableModel
                     String.class;
 
             case 6 ->
-                    Long.class;
+                    String.class;
 
             case 7 ->
                     String.class;
@@ -332,7 +332,7 @@ public class TransferCombinedTableModel
              */
             case 6:
 
-                return group.getElapsedTime();
+                return formatGroupElapsedTime(group);
 
             /*
              * Summary
@@ -588,5 +588,18 @@ public class TransferCombinedTableModel
 
             return transferModelRow;
         }
+    }
+
+    private String formatGroupElapsedTime(
+            TransferGroupStateStore.GroupRecord group) {
+
+        if (group == null
+                || group.getStartTime() == null) {
+
+            return "";
+        }
+
+        return group.getElapsedTime()
+                + " ms";
     }
 }

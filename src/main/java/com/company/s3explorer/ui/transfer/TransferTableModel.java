@@ -3,9 +3,7 @@ package com.company.s3explorer.ui.transfer;
 import com.company.s3explorer.transfer.TransferRuntime;
 import com.company.s3explorer.transfer.TransferStatus;
 import com.company.s3explorer.transfer.TransferType;
-import com.company.s3explorer.transfer.model.TransferGroup;
 import com.company.s3explorer.transfer.model.TransferTask;
-import com.company.s3explorer.ui.theme.UIThemeManager;
 import com.company.s3explorer.util.DateFormatter;
 import com.company.s3explorer.util.S3Util;
 
@@ -25,7 +23,7 @@ public class TransferTableModel
             "Progress",
             "Status",
             "Start/End Time",
-            "Elapsed Time (ms)",
+            "Elapsed Time",
             "Error Message"
     };
 
@@ -77,16 +75,31 @@ public class TransferTableModel
             return "";
         }
 
-        TransferRuntime runtime = runtimes.get(row);
-        TransferTask task = runtime.getTask();
+        TransferRuntime runtime =
+                runtimes.get(row);
+
+        TransferTask task =
+                runtime.getTask();
+
         return switch (column) {
 
             case 0 ->
                     runtime.getTask().getType();
 
             case 1 ->
-                    S3Util.getTransferPanelProcessDetail(task.getType(), task.getGroup() != null ? task.getGroup().getDisplayName() : null, task.getRepositoryName(), task.getBucket(), task.getObjectKey(), task.getTargetRepositoryName(), task.getTargetBucket(), task.getTargetObjectKey(), task.getLocalPath());
-            
+                    S3Util.getTransferPanelProcessDetail(
+                            task.getType(),
+                            task.getGroup() != null
+                                    ? task.getGroup().getDisplayName()
+                                    : null,
+                            task.getRepositoryName(),
+                            task.getBucket(),
+                            task.getObjectKey(),
+                            task.getTargetRepositoryName(),
+                            task.getTargetBucket(),
+                            task.getTargetObjectKey(),
+                            task.getLocalPath());
+
             case 2 ->
                     task.getSize();
 
@@ -97,10 +110,16 @@ public class TransferTableModel
                     runtime.getStatus();
 
             case 5 ->
-                    "<html>" + DateFormatter.format(runtime.getStartTime()) + "<br/>" + DateFormatter.format(runtime.getEndTime()) + "</html>";
+                    "<html>"
+                            + DateFormatter.format(
+                            runtime.getStartTime())
+                            + "<br/>"
+                            + DateFormatter.format(
+                            runtime.getEndTime())
+                            + "</html>";
 
             case 6 ->
-                    "";
+                    formatElapsedTime(runtime);
 
             case 7 ->
                     runtime.getMessage();
@@ -108,6 +127,19 @@ public class TransferTableModel
             default ->
                     "";
         };
+    }
+
+    private String formatElapsedTime(
+            TransferRuntime runtime) {
+
+        if (runtime == null
+                || runtime.getStartTime() == null) {
+
+            return "";
+        }
+
+        return runtime.getElapsedTime()
+                + " ms";
     }
 
     @Override
@@ -218,7 +250,8 @@ public class TransferTableModel
 
             if (!current.getTask()
                     .getId()
-                    .equals(incoming.getTask().getId())) {
+                    .equals(
+                            incoming.getTask().getId())) {
 
                 return false;
             }
