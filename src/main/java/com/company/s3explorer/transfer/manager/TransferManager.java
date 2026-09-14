@@ -1461,10 +1461,19 @@ public class TransferManager {
             String targetBucket,
             String targetPrefix) {
 
+        String displayName =
+                S3Util.extractFolderName(
+                        sourcePrefix);
+
+        if (displayName == null
+                || displayName.isBlank()) {
+
+            displayName = sourcePrefix;
+        }
+
         return new TransferGroup(
                 UUID.randomUUID(),
-                S3Util.extractFileName(
-                        sourcePrefix),
+                displayName,
                 operation,
                 sourcePrefix,
                 targetPrefix,
