@@ -66,7 +66,7 @@ public class CombinedStatusRenderer
 
             return;
         }
-
+/*
         if (value instanceof String status) {
 
             switch (status) {
@@ -109,6 +109,8 @@ public class CombinedStatusRenderer
                 value != null
                         ? value.toString()
                         : "");
+                        
+ */
     }
 
 

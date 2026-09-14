@@ -1,7 +1,9 @@
 package com.company.s3explorer.ui.transfer;
 
 import com.company.s3explorer.transfer.TransferRuntime;
+import com.company.s3explorer.transfer.TransferStatus;
 import com.company.s3explorer.transfer.model.TransferGroup;
+import com.company.s3explorer.transfer.model.TransferTask;
 import com.company.s3explorer.ui.theme.UIThemeManager;
 import com.company.s3explorer.util.DateFormatter;
 import com.company.s3explorer.util.S3Util;
@@ -111,7 +113,7 @@ public class TransferCombinedTableModel
                     Object.class;
 
             case 4 ->
-                    Object.class;
+                    TransferTask.class;
 
             case 5 ->
                     String.class;
@@ -438,11 +440,11 @@ public class TransferCombinedTableModel
         return summary.toString();
     }
 
-    private String getGroupStatus(
+    private TransferStatus getGroupStatus(
             TransferGroupStateStore.GroupRecord group) {
 
         if (group == null) {
-            return "";
+            return null;
         }
 
         /*
@@ -457,15 +459,15 @@ public class TransferCombinedTableModel
         if (group.isFinished()) {
 
             if (group.isFailed()) {
-                return "Failed";
+                return TransferStatus.FAILED;
             }
 
             if (group.getCancelled() > 0) {
-                return "Cancelled";
+                return TransferStatus.CANCELLED;
             }
 
             if (group.isSuccessful()) {
-                return "Completed";
+                return TransferStatus.COMPLETED;
             }
 
             /*
@@ -474,7 +476,7 @@ public class TransferCombinedTableModel
              * başarı durumu henüz kesinleşmemişse
              * güvenli fallback.
              */
-            return "Completed";
+            return TransferStatus.COMPLETED;
         }
 
         /*
@@ -484,14 +486,14 @@ public class TransferCombinedTableModel
          * gösterildiği için status de Running olmalı.
          */
         if (group.isPreparing()) {
-            return "Running";
+            return TransferStatus.RUNNING;
         }
 
         if (group.isRunning()) {
-            return "Running";
+            return TransferStatus.RUNNING;
         }
 
-        return "Running";
+        return TransferStatus.RUNNING;
     }
 
     private String safe(
