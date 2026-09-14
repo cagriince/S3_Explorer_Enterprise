@@ -2176,7 +2176,8 @@ public class ExplorerPanel extends JPanel {
                 || group.getOperation() == TransferType.RENAME
                 || group.getOperation() == TransferType.COPY_GROUP
                 || group.getOperation() == TransferType.MOVE_GROUP
-                || group.getOperation() == TransferType.RENAME_GROUP) {
+                || group.getOperation() == TransferType.RENAME_GROUP
+                || group.getOperation() == TransferType.UPLOAD_GROUP) {
 
             String targetBucket =
                     group.getTargetBucket();
@@ -2190,30 +2191,67 @@ public class ExplorerPanel extends JPanel {
                     currentBucket,
                     targetBucket)) {
 
+                /*
+                 * -------------------------------------------------
+                 * UPLOAD GROUP
+                 * -------------------------------------------------
+                 *
+                 * targetPrefix oluşturulan klasörün kendisidir.
+                 *
+                 * Örnek:
+                 *
+                 *     currentPrefix = TEST/
+                 *     targetPrefix  = TEST/MyFolder/
+                 *
+                 * Refresh edilmesi gereken Tree node:
+                 *
+                 *     TEST/
+                 *
+                 * Çünkü yeni klasör MyFolder/ bunun altında
+                 * görünmelidir.
+                 */
+                String refreshPrefix =
+                        group.getOperation()
+                                == TransferType.UPLOAD_GROUP
+                                ? getParentPrefix(targetPrefix)
+                                : targetPrefix;
+
                 log.debug(
                         "[EXPLORER TARGET TREE REFRESH] " +
-                                "prefix={} operation=ADD",
-                        targetPrefix);
+                                "prefix={} operation=ADD groupOperation={}",
+                        refreshPrefix,
+                        group.getOperation());
 
                 refreshScheduler.scheduleRefresh(
                         List.of(
                                 new RefreshTreeNode(
-                                        targetPrefix,
+                                        refreshPrefix,
                                         RefreshTreeOperation.ADD)));
 
                 /*
-                 * Hedef File Table şu anda açık olan
-                 * prefix ise onu da yenile.
+                 * Hedef File Table şu anda upload'ın
+                 * parent klasörünü gösteriyorsa yenile.
+                 *
+                 * Upload Group:
+                 *
+                 *     targetPrefix = TEST/MyFolder/
+                 *     refreshPrefix = TEST/
+                 *
+                 * currentPrefix = TEST/
+                 *
+                 * olduğunda yeni MyFolder File Table'da
+                 * hemen görünür.
                  */
                 if (Objects.equals(
                         currentPrefix,
-                        targetPrefix)) {
+                        refreshPrefix)) {
 
                     log.debug(
                             "[EXPLORER TARGET TABLE REFRESH] " +
-                                    "bucket={} prefix={}",
+                                    "bucket={} prefix={} groupOperation={}",
                             targetBucket,
-                            targetPrefix);
+                            refreshPrefix,
+                            group.getOperation());
 
                     refreshScheduler.scheduleCurrentTableRefresh();
                 }
