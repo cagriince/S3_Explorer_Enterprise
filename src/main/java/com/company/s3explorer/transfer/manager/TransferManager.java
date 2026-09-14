@@ -894,7 +894,7 @@ public class TransferManager {
                 new TransferGroup(
                         UUID.randomUUID(),
                         S3Util.extractFolderName(prefix),
-                        TransferType.DOWNLOAD,
+                        TransferType.DOWNLOAD_GROUP,
                         buildGroupLocation(
                                 repositoryName,
                                 bucket,
@@ -952,7 +952,7 @@ public class TransferManager {
                 new TransferGroup(
                         UUID.randomUUID(),
                         S3Util.extractFolderName(prefix),
-                        TransferType.DOWNLOAD,
+                        TransferType.DOWNLOAD_GROUP,
                         buildGroupLocation(
                                 repositoryName,
                                 bucket,
