@@ -112,6 +112,7 @@ public class ExplorerPanel extends JPanel {
     private Action copyAction;
     private Action cutAction;
     private Action pasteAction;
+    private Action copyTextAction;
     private Action uploadAction;
     private Action uploadEncryptedAction;
     private Action newFolderAction;
@@ -168,6 +169,7 @@ public class ExplorerPanel extends JPanel {
                 propertiesAction,
                 cutAction,
                 pasteAction,
+                copyTextAction,
                 uploadAction,
                 uploadEncryptedAction,
                 newFolderAction,
@@ -267,6 +269,7 @@ public class ExplorerPanel extends JPanel {
         copyAction = new ExplorerAction("Copy", this::copySelected);
         cutAction = new ExplorerAction("Cut", this::moveSelected);
         pasteAction = new ExplorerAction("Paste", this::pasteClipboard);
+        copyTextAction = new ExplorerAction("Copy Text", this::copyText);
         goToParentAction = new ExplorerAction("GoToParent", this::goToParentFolder);
         renameAction = new ExplorerAction("Rename", this::renameSelected);
         propertiesAction = new ExplorerAction("Properties", this::showProperties);
@@ -454,6 +457,9 @@ public class ExplorerPanel extends JPanel {
         pasteAction.setEnabled(
                 hasClipboard);
 
+        copyTextAction.setEnabled(
+                hasSelection);
+        
         log.debug(
                 "[ACTION STATES] folderSelected={} selectedRows={} hasSelection={} hasClipboard={}",
                 folderSelected,

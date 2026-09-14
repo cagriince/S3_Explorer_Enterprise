@@ -48,6 +48,7 @@ public final class ExplorerView {
     private final Action copyAction;
     private final Action cutAction;
     private final Action pasteAction;
+    private final Action copyTextAction;
     private final Action uploadAction;
     private final Action uploadEncryptedAction;
     private final Action newFolderAction;
@@ -96,6 +97,7 @@ public final class ExplorerView {
             Action propertiesAction,
             Action cutAction,
             Action pasteAction,
+            Action copyTextAction,
             Action uploadAction,
             Action uploadEncryptedAction,
             Action newFolderAction,
@@ -118,6 +120,7 @@ public final class ExplorerView {
         this.propertiesAction = propertiesAction;
         this.cutAction = cutAction;
         this.pasteAction = pasteAction;
+        this.copyTextAction = copyTextAction;
         this.uploadAction = uploadAction;
         this.uploadEncryptedAction = uploadEncryptedAction;
         this.newFolderAction = newFolderAction;
@@ -189,6 +192,7 @@ public final class ExplorerView {
         buttonPanel.add(createIconButton(copyAction));
         buttonPanel.add(createIconButton(cutAction));
         buttonPanel.add(createIconButton(pasteAction));
+        buttonPanel.add(createIconButton(copyTextAction));
 
         JPanel themePanel = new JPanel(new GridBagLayout());
         GridBagConstraints c = new GridBagConstraints();
@@ -484,6 +488,7 @@ public final class ExplorerView {
         JMenuItem copyMenu = new JMenuItem(copyAction);
         JMenuItem cutMenu = new JMenuItem(cutAction);
         JMenuItem pasteMenu = new JMenuItem(pasteAction);
+        JMenuItem copyTextMenu = new JMenuItem(copyTextAction);
 
         filePopup.add(createFolderMenu);
         filePopup.add(deleteMenu);
@@ -500,6 +505,8 @@ public final class ExplorerView {
         filePopup.add(copyMenu);
         filePopup.add(cutMenu);
         filePopup.add(pasteMenu);
+        filePopup.add(copyTextMenu);
+        
         filePopup.addPopupMenuListener(new PopupMenuListener() {
             @Override
             public void popupMenuWillBecomeVisible(PopupMenuEvent e) {
@@ -549,7 +556,9 @@ public final class ExplorerView {
         setActionIcon(copyAction, IconProvider.ICON_COPY);
         setActionIcon(cutAction, IconProvider.ICON_CUT);
         setActionIcon(pasteAction, IconProvider.ICON_PASTE);
+        setActionIcon(copyTextAction, IconProvider.ICON_COPY_TEXT);
         setActionIcon(bulkDownloadAction, IconProvider.ICON_BULK_DOWNLOAD);
+        setActionIcon(copyTextAction, IconProvider.ICON_COPY_TEXT);
     }
 
     private void setActionIcon(Action action, Icon icon) {

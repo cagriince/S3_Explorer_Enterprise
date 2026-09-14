@@ -78,7 +78,10 @@ public class IconProvider {
     public static ImageIcon ICON_BULK_DOWNLOAD = null;
     public static ImageIcon ICON_BULK_DOWNLOAD_NORMAL = loadIcon("download-all");
     public static ImageIcon ICON_BULK_DOWNLOAD_REVERSE = loadIcon("download-all-reverse");
-
+    public static ImageIcon ICON_COPY_TEXT = null;
+    public static ImageIcon ICON_COPY_TEXT_NORMAL = loadIcon("copy-text");
+    public static ImageIcon ICON_COPY_TEXT_REVERSE = loadIcon("copy-text-reverse");
+    
     static {
         reloadSystemIcons(null);
     }
@@ -129,6 +132,7 @@ public class IconProvider {
         ICON_CANCEL = normal ? ICON_CANCEL_NORMAL : ICON_CANCEL_REVERSE;
         ICON_CANCEL_ALL = normal ? ICON_CANCEL_ALL_NORMAL : ICON_CANCEL_ALL_REVERSE;
         ICON_BULK_DOWNLOAD = normal ? ICON_BULK_DOWNLOAD_NORMAL : ICON_BULK_DOWNLOAD_REVERSE;
+        ICON_COPY_TEXT = normal ? ICON_COPY_TEXT_NORMAL : ICON_COPY_TEXT_REVERSE;
     }
 
     public static ImageIcon loadSvgIcon(
