@@ -380,6 +380,21 @@ public class TransferCombinedTableModel
             }
         }
 
+        else if (transferGroup.getOperation() == com.company.s3explorer.transfer.TransferType.UPLOAD
+                || transferGroup.getOperation() == com.company.s3explorer.transfer.TransferType.UPLOAD_GROUP) {
+
+            String sourcePrefix =
+                    transferGroup.getSourcePrefix();
+
+            if (sourcePrefix != null
+                    && !sourcePrefix.isBlank()) {
+
+                localPath =
+                        java.nio.file.Path.of(
+                                sourcePrefix);
+            }
+        }
+
         return S3Util.getTransferPanelProcessDetail(
                 transferGroup.getOperation(),
                 transferGroup.getDisplayName(),
