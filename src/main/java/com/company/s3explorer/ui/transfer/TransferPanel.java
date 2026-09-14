@@ -707,7 +707,7 @@ public class TransferPanel
                 3,
                 "All (" + S3Util.formatWithThousandSeparator(all) + ")");
     }
-    
+
     private void updateButtons() {
 
         JTable table =
@@ -723,6 +723,15 @@ public class TransferPanel
 
         cancelAllButton.setEnabled(
                 hasActive);
+
+        boolean hasFinished =
+                stateStore.getFinishedCount() > 0
+                        || !groupStateStore
+                        .finishedSnapshot()
+                        .isEmpty();
+
+        clearButton.setEnabled(
+                hasFinished);
     }
 
     private JTable getSelectedTable() {
