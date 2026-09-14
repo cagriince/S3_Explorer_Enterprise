@@ -192,6 +192,8 @@ public final class ExplorerView {
         buttonPanel.add(createIconButton(copyAction));
         buttonPanel.add(createIconButton(cutAction));
         buttonPanel.add(createIconButton(pasteAction));
+
+        buttonPanel.add(createSeparator());
         buttonPanel.add(createIconButton(copyTextAction));
 
         JPanel themePanel = new JPanel(new GridBagLayout());
@@ -505,6 +507,8 @@ public final class ExplorerView {
         filePopup.add(copyMenu);
         filePopup.add(cutMenu);
         filePopup.add(pasteMenu);
+
+        filePopup.addSeparator();
         filePopup.add(copyTextMenu);
         
         filePopup.addPopupMenuListener(new PopupMenuListener() {
