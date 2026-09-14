@@ -441,24 +441,57 @@ public class TransferCombinedTableModel
     private String getGroupStatus(
             TransferGroupStateStore.GroupRecord group) {
 
+        if (group == null) {
+            return "";
+        }
+
+        /*
+         * Group lifecycle tamamlandı.
+         *
+         * Status önceliği:
+         *
+         * Failed
+         * Cancelled
+         * Completed
+         */
         if (group.isFinished()) {
 
             if (group.isFailed()) {
                 return "Failed";
             }
 
-            return "Finished";
+            if (group.getCancelled() > 0) {
+                return "Cancelled";
+            }
+
+            if (group.isSuccessful()) {
+                return "Completed";
+            }
+
+            /*
+             * Normalde buraya gelmemeliyiz.
+             * Ancak lifecycle tamamlanmış fakat
+             * başarı durumu henüz kesinleşmemişse
+             * güvenli fallback.
+             */
+            return "Completed";
         }
 
+        /*
+         * Preparing artık ayrı bir UI status'u değil.
+         *
+         * Group hazırlanırken Running altında
+         * gösterildiği için status de Running olmalı.
+         */
         if (group.isPreparing()) {
-            return "Preparing";
+            return "Running";
         }
 
         if (group.isRunning()) {
             return "Running";
         }
 
-        return "Preparing";
+        return "Running";
     }
 
     private String safe(
