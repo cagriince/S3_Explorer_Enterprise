@@ -555,6 +555,34 @@ public class TransferPanel
     private void refreshVisibleTables() {
 
         /*
+         * Refresh öncesinde mevcut seçimleri sakla.
+         *
+         * Group satırları:
+         *     GROUP:<group UUID>
+         *
+         * Normal transfer satırları:
+         *     TRANSFER:<task UUID>
+         *
+         * Böylece model fireTableDataChanged() ile
+         * tamamen yenilense bile seçimleri geri
+         * yükleyebiliriz.
+         */
+        List<String> runningSelection =
+                captureCombinedSelection(
+                        runningTable,
+                        runningModel);
+
+        List<String> finishedSelection =
+                captureCombinedSelection(
+                        finishedTable,
+                        finishedModel);
+
+        List<String> allSelection =
+                captureCombinedSelection(
+                        allTable,
+                        allModel);
+
+        /*
          * Queued yalnızca individual transfer task'larını
          * göstermeye devam eder.
          */
@@ -595,6 +623,162 @@ public class TransferPanel
                 stateStore.snapshot(
                         TransferStateStore.View.ALL));
 
+        /*
+         * Snapshot tamamlandıktan sonra seçimleri geri yükle.
+         */
+        restoreCombinedSelection(
+                runningTable,
+                runningModel,
+                runningSelection);
+
+        restoreCombinedSelection(
+                finishedTable,
+                finishedModel,
+                finishedSelection);
+
+        restoreCombinedSelection(
+                allTable,
+                allModel,
+                allSelection);
+    }
+
+
+    /*
+     * Combined JTable üzerindeki mevcut seçimleri
+     * satırın pozisyonuna göre değil, gerçek kimliğine
+     * göre saklar.
+     */
+    private List<String> captureCombinedSelection(
+            JTable table,
+            TransferCombinedTableModel model) {
+
+        List<String> selection =
+                new ArrayList<>();
+
+        if (table == null
+                || model == null) {
+
+            return selection;
+        }
+
+        int[] selectedRows =
+                table.getSelectedRows();
+
+        for (int viewRow : selectedRows) {
+
+            int modelRow =
+                    table.convertRowIndexToModel(
+                            viewRow);
+
+            if (model.isGroupRow(modelRow)) {
+
+                TransferGroupStateStore.GroupRecord group =
+                        model.getGroup(modelRow);
+
+                if (group == null
+                        || group.getGroup() == null
+                        || group.getGroup().getId() == null) {
+
+                    continue;
+                }
+
+                selection.add(
+                        "GROUP:"
+                                + group.getGroup().getId());
+
+                continue;
+            }
+
+            TransferRuntime runtime =
+                    model.getRuntime(modelRow);
+
+            if (runtime == null
+                    || runtime.getTask() == null
+                    || runtime.getTask().getId() == null) {
+
+                continue;
+            }
+
+            selection.add(
+                    "TRANSFER:"
+                            + runtime.getTask().getId());
+        }
+
+        return selection;
+    }
+
+
+    /*
+     * Snapshot yenilendikten sonra daha önce seçilmiş
+     * Group / Transfer satırlarını tekrar seçer.
+     */
+    private void restoreCombinedSelection(
+            JTable table,
+            TransferCombinedTableModel model,
+            List<String> selection) {
+
+        if (table == null
+                || model == null
+                || selection == null
+                || selection.isEmpty()) {
+
+            return;
+        }
+
+        table.clearSelection();
+
+        for (int modelRow = 0;
+             modelRow < model.getRowCount();
+             modelRow++) {
+
+            String key = null;
+
+            if (model.isGroupRow(modelRow)) {
+
+                TransferGroupStateStore.GroupRecord group =
+                        model.getGroup(modelRow);
+
+                if (group != null
+                        && group.getGroup() != null
+                        && group.getGroup().getId() != null) {
+
+                    key =
+                            "GROUP:"
+                                    + group.getGroup().getId();
+                }
+
+            } else {
+
+                TransferRuntime runtime =
+                        model.getRuntime(modelRow);
+
+                if (runtime != null
+                        && runtime.getTask() != null
+                        && runtime.getTask().getId() != null) {
+
+                    key =
+                            "TRANSFER:"
+                                    + runtime.getTask().getId();
+                }
+            }
+
+            if (key == null
+                    || !selection.contains(key)) {
+
+                continue;
+            }
+
+            int viewRow =
+                    table.convertRowIndexToView(
+                            modelRow);
+
+            if (viewRow >= 0) {
+
+                table.addRowSelectionInterval(
+                        viewRow,
+                        viewRow);
+            }
+        }
     }
 
     private JTable createTable(
