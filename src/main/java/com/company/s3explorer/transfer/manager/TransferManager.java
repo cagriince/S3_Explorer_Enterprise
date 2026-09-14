@@ -993,7 +993,7 @@ public class TransferManager {
                         group)
         );
     }
-    
+
     public void submitFolderUpload(
             String repositoryName,
             String bucket,
@@ -1001,16 +1001,47 @@ public class TransferManager {
             Path folder)
             throws IOException {
 
-        producerExecutor.submit(
+        String displayName =
+                folder.getFileName() != null
+                        ? folder.getFileName().toString()
+                        : folder.toString();
+
+        TransferGroup group =
+                createFolderOperationGroup(
+                        TransferType.UPLOAD_GROUP,
+                        repositoryName,
+                        bucket,
+                        targetPrefix,
+                        repositoryName,
+                        bucket,
+                        targetPrefix + displayName + "/");
+
+        configureGroupCompletion(
+                group,
+                repositoryName,
+                bucket,
+                targetPrefix,
+                false);
+
+        transferContext.publishGroupUpdated(
+                group,
+                repositoryName,
+                bucket,
+                targetPrefix,
+                false);
+
+        submitGroupProducer(
+                group,
                 new FolderUploadProducer(
                         queue,
                         repositoryName,
                         bucket,
                         targetPrefix,
-                        folder)
+                        folder,
+                        group)
         );
     }
-
+    
     public void submitFolderCopy(
             String repositoryName,
             String sourceBucket,

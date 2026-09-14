@@ -10,7 +10,7 @@ import com.company.s3explorer.util.S3Util;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.UUID;
+import java.util.concurrent.CancellationException;
 
 public class FolderUploadProducer
         implements FolderTransferProducer {
@@ -30,18 +30,15 @@ public class FolderUploadProducer
             String repository,
             String bucket,
             String targetPrefix,
-            Path folder) {
+            Path folder,
+            TransferGroup group) {
 
         this.queue = queue;
         this.repository = repository;
         this.bucket = bucket;
         this.targetPrefix = targetPrefix;
         this.folder = folder;
-
-        this.group =
-                new TransferGroup(
-                        UUID.randomUUID(),
-                        folder.getFileName().toString());
+        this.group = group;
     }
 
     @Override
@@ -53,6 +50,8 @@ public class FolderUploadProducer
     public void produce(
             ProducerRuntime runtime)
             throws IOException {
+
+        group.producerStarted();
 
         try (var paths = Files.walk(folder)) {
 
@@ -67,6 +66,30 @@ public class FolderUploadProducer
 
                         runtime.incrementDiscovered();
                     });
+
+            group.markProductionCompleted();
+
+        }
+        catch (RuntimeException ex) {
+
+            if (runtime.isInterruptedOrCancelRequested()
+                    || ex instanceof CancellationException
+                    || ex instanceof ProducerCancelledException) {
+
+                group.markProductionCompleted();
+
+            }
+            else {
+
+                group.markProductionFailed();
+            }
+
+            throw ex;
+
+        }
+        finally {
+
+            group.producerFinished();
         }
     }
 
@@ -102,6 +125,11 @@ public class FolderUploadProducer
                                         RefreshTreeOperation.ADD))
                         .group(group)
                         .build();
+
+        group.detected(
+                Math.max(
+                        0L,
+                        task.getSize()));
 
         queue.add(task);
     }
