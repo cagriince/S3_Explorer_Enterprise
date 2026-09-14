@@ -71,11 +71,7 @@ public class TransferManager {
     }
 
     public boolean cancelGroup(TransferGroup group) {
-        System.out.println(
-                "[CANCEL GROUP] requested group=" +
-                        group.getDisplayName() +
-                        " id=" +
-                        group.getId());
+
         if (group == null
                 || group.getId() == null) {
 
@@ -106,11 +102,7 @@ public class TransferManager {
                 groupProducers.remove(groupId);
 
         if (producerRuntime != null) {
-            System.out.println(
-                    "[CANCEL GROUP] requested group=" +
-                            group.getDisplayName() +
-                            " id=" +
-                            group.getId());
+
             boolean producerCancelled =
                     producerExecutor.cancel(
                             producerRuntime);
@@ -118,13 +110,6 @@ public class TransferManager {
             cancelled =
                     cancelled
                             || producerCancelled;
-        }
-        else {
-            System.out.println(
-                    "[CANCEL GROUP] NO PRODUCER FOUND group=" +
-                            group.getDisplayName() +
-                            " id=" +
-                            group.getId());
         }
 
         return cancelled;
