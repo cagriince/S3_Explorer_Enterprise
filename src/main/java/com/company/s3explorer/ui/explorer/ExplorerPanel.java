@@ -5027,4 +5027,8 @@ public class ExplorerPanel extends JPanel {
                     destinationFolder.toPath());
         }
     }
+
+    public void updateFileTableRowHeight() {
+        view.updateFileTableRowHeight();
+    }
 }

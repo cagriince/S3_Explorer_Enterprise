@@ -381,7 +381,8 @@ public final class ExplorerView {
                 .setCellRenderer(new FileSizeRenderer());
         table.getColumnModel().getColumn(FileTableModel.COL_LAST_MODIFIED)
                 .setCellRenderer(new InstantRenderer());
-
+        updateFileTableRowHeight(table);
+        
         FileTableRowSorter sorter = new FileTableRowSorter(model);
         table.setRowSorter(sorter);
         table.getTableHeader().setReorderingAllowed(false);
@@ -447,6 +448,17 @@ public final class ExplorerView {
         return table;
     }
 
+    private void updateFileTableRowHeight(JTable table) {
+        if (table == null) {
+            return;
+        }
+
+        FontMetrics fontMetrics = table.getFontMetrics(table.getFont());
+        int rowHeight = fontMetrics.getHeight() + 8;
+
+        table.setRowHeight(rowHeight);
+    }
+    
     private void installPopup(JComponent component) {
         component.addMouseListener(new MouseAdapter() {
             @Override
@@ -632,5 +644,9 @@ public final class ExplorerView {
 
         downloadDecryptedButton.setVisible(
                 configured);
+    }
+
+    public void updateFileTableRowHeight() {
+        updateFileTableRowHeight(fileTable);
     }
 }

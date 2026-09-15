@@ -32,7 +32,9 @@ public class FolderTreeCellRenderer
             setIcon(
                     IconProvider.ICON_SYSTEM_CLOSED_FOLDER);
         }
-
+        
+        setBorder(BorderFactory.createEmptyBorder(5,5,5,5));
+        
         return this;
     }
 }

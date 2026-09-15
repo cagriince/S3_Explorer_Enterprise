@@ -75,6 +75,7 @@ public class UIThemeManager {
             IconProvider.reloadSystemIcons(theme);
             setTransferPanelColors(theme);
             com.formdev.flatlaf.FlatLaf.updateUI();
+            explorerPanel.updateFileTableRowHeight();
             explorerPanel.updateBreadcrumb(null);
             explorerPanel.setFolderTreeLeafIcon();
             explorerPanel.setButtonIcons();
