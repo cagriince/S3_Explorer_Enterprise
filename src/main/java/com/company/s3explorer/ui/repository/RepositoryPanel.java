@@ -96,7 +96,8 @@ public class RepositoryPanel extends JPanel {
                         }
                     }
                 });
-
+        updateRepositoryTableRowHeight(table);
+        
         InputMap inputMap =
                 table.getInputMap(
                         JComponent
@@ -497,5 +498,16 @@ public class RepositoryPanel extends JPanel {
                 return;
             }
         }
+    }
+
+    private void updateRepositoryTableRowHeight(JTable table) {
+        if (table == null) {
+            return;
+        }
+
+        FontMetrics fontMetrics = table.getFontMetrics(table.getFont());
+        int rowHeight = fontMetrics.getHeight() + 8;
+
+        table.setRowHeight(rowHeight);
     }
 }
