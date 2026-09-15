@@ -68,6 +68,15 @@ public class RepositoryDefinition {
         this.secretKey = secretKey;
     }
 
+    public boolean hasEncryptionConfiguration() {
+        return this.getEncryptionTransformation() != null
+                && !this.getEncryptionTransformation().isBlank()
+                && this.getEncryptionIv() != null
+                && !this.getEncryptionIv().isBlank()
+                && this.getEncryptionKey() != null
+                && !this.getEncryptionKey().isBlank();
+    }
+    
     public String getEncryptionTransformation() {
         return encryptionTransformation;
     }
@@ -116,6 +125,10 @@ public class RepositoryDefinition {
                         : new ArrayList<>(externalBuckets);
     }
 
+    public boolean hasExternalBucket() {
+        return !getExternalBuckets().isEmpty();
+    }
+    
     @Override
     public String toString() {
         return name;

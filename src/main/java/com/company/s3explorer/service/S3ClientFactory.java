@@ -63,9 +63,6 @@ public class S3ClientFactory {
 
             client = create(repo);
 
-            List<String> externalBuckets =
-                    repo.getExternalBuckets();
-
             /*
              * External bucket tanımlanmışsa
              * ListBuckets yetkisine ihtiyaç duymuyoruz.
@@ -73,9 +70,11 @@ public class S3ClientFactory {
              * Uygulamanın gerçekten kullanacağı
              * bucket'lara erişimi test ediyoruz.
              */
-            if (externalBuckets != null
-                    && !externalBuckets.isEmpty()) {
-
+            if (repo.hasExternalBucket()) {
+                
+                List<String> externalBuckets =
+                        repo.getExternalBuckets();
+                
                 for (String bucket :
                         externalBuckets) {
 

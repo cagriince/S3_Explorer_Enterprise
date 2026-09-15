@@ -600,7 +600,7 @@ public class ExplorerPanel extends JPanel {
                 catch (Exception ex) {
 
                     if (S3ErrorResolver.isAccessDenied(ex)
-                            && !repository.getExternalBuckets().isEmpty()) {
+                            && repository.hasExternalBucket()) {
 
                         String externalBucket =
                                 repository
@@ -4935,12 +4935,7 @@ public class ExplorerPanel extends JPanel {
             return false;
         }
 
-        return repository.getEncryptionTransformation() != null
-                && !repository.getEncryptionTransformation().isBlank()
-                && repository.getEncryptionIv() != null
-                && !repository.getEncryptionIv().isBlank()
-                && repository.getEncryptionKey() != null
-                && !repository.getEncryptionKey().isBlank();
+        return repository.hasEncryptionConfiguration();
     }
 
     private void showBulkDownloadDialog() {

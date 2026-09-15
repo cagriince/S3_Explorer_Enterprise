@@ -3,9 +3,27 @@ package com.company.s3explorer.security;
 import javax.crypto.Cipher;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public final class EncryptionConfigValidator {
+    public static String BYTES_REGEX = "[-+]?\\d+";
+    public enum ENCRYPTION_FIELDS {
+        ENCRYPTION_IV("Encryption IV"),
+        ENCRYPTION_KEY("Encryption key");
 
+        private final String text;
+        
+        ENCRYPTION_FIELDS(String text) {
+            this.text = text;
+        }
+
+        @Override
+        public String toString() {
+            return this.text;
+        }
+    }
+    
     private EncryptionConfigValidator() {
     }
 
@@ -21,23 +39,23 @@ public final class EncryptionConfigValidator {
 
         if (iv == null || iv.isBlank()) {
             throw new IllegalArgumentException(
-                    "Encryption IV is required.");
+                    ENCRYPTION_FIELDS.ENCRYPTION_IV + " is required.");
         }
 
         if (key == null || key.isBlank()) {
             throw new IllegalArgumentException(
-                    "Encryption key is required.");
+                    ENCRYPTION_FIELDS.ENCRYPTION_KEY + " is required.");
         }
 
         validateTransformation(transformation);
 
         byte[] ivBytes = parseBytes(
                 iv,
-                "Encryption IV");
+                ENCRYPTION_FIELDS.ENCRYPTION_IV);
 
         byte[] keyBytes = parseBytes(
                 key,
-                "Encryption key");
+                ENCRYPTION_FIELDS.ENCRYPTION_KEY);
 
         validateIv(
                 transformation,
@@ -62,30 +80,24 @@ public final class EncryptionConfigValidator {
         }
     }
 
-    private static byte[] parseBytes(
+    public static byte[] parseBytes(
             String value,
-            String fieldName) {
+            ENCRYPTION_FIELDS fieldName) {
 
-        String[] parts =
-                value.split(",");
+        Pattern pattern = Pattern.compile(BYTES_REGEX);
+        Matcher matcher = pattern.matcher(value);
 
         List<Byte> bytes =
                 new ArrayList<>();
 
-        for (String part : parts) {
+        while (matcher.find()) {
 
-            String trimmed =
-                    part.trim();
-
-            if (trimmed.isEmpty()) {
-                throw new IllegalArgumentException(
-                        fieldName + " contains an empty value.");
-            }
+            String part = matcher.group();
 
             try {
 
                 int number =
-                        Integer.parseInt(trimmed);
+                        Integer.parseInt(part);
 
                 if (number < -128 || number > 127) {
                     throw new IllegalArgumentException(
@@ -101,7 +113,7 @@ public final class EncryptionConfigValidator {
                 throw new IllegalArgumentException(
                         fieldName
                                 + " contains an invalid byte value: "
-                                + trimmed,
+                                + part,
                         ex);
             }
         }
@@ -125,7 +137,7 @@ public final class EncryptionConfigValidator {
                 && iv.length != 16) {
 
             throw new IllegalArgumentException(
-                    "Encryption IV must contain exactly 16 bytes for CBC.");
+                    ENCRYPTION_FIELDS.ENCRYPTION_IV + " must contain exactly 16 bytes for CBC.");
         }
     }
 
@@ -143,7 +155,7 @@ public final class EncryptionConfigValidator {
                     && length != 32) {
 
                 throw new IllegalArgumentException(
-                        "AES encryption key must contain 16, 24 or 32 bytes.");
+                        "AES " + ENCRYPTION_FIELDS.ENCRYPTION_KEY + " must contain 16, 24 or 32 bytes.");
             }
         }
     }

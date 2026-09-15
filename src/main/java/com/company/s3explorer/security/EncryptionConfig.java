@@ -21,8 +21,8 @@ public final class EncryptionConfig {
                 key);
 
         this.transformation = transformation;
-        this.iv = parseBytes(iv);
-        this.key = parseBytes(key);
+        this.iv = EncryptionConfigValidator.parseBytes(iv, EncryptionConfigValidator.ENCRYPTION_FIELDS.ENCRYPTION_IV);
+        this.key = EncryptionConfigValidator.parseBytes(key, EncryptionConfigValidator.ENCRYPTION_FIELDS.ENCRYPTION_KEY);
     }
 
     public Cipher createCipher(int mode) throws Exception {
@@ -43,22 +43,5 @@ public final class EncryptionConfig {
                 new IvParameterSpec(iv));
 
         return cipher;
-    }
-
-    private byte[] parseBytes(String value) {
-
-        String[] parts =
-                value.split(",");
-
-        byte[] result =
-                new byte[parts.length];
-
-        for (int i = 0; i < parts.length; i++) {
-            result[i] =
-                    (byte) Integer.parseInt(
-                            parts[i].trim());
-        }
-
-        return result;
     }
 }

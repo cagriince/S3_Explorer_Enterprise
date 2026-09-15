@@ -281,13 +281,16 @@ public class RepositoryPanel extends JPanel {
             return;
         }
 
-        String newName =
-                JOptionPane.showInputDialog(
-                        this,
-                        "Enter a new repository name:",
-                        "Duplicate Repository",
-                        JOptionPane.PLAIN_MESSAGE);
-
+        String newName = (String) JOptionPane.showInputDialog(
+                this,
+                "Enter a new repository name:",
+                "Duplicate Repository",
+                JOptionPane.QUESTION_MESSAGE,
+                null,
+                null,
+                selected.getName()
+        );
+        
         if (newName == null) {
             return;
         }

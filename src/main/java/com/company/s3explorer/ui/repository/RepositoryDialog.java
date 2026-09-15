@@ -310,7 +310,7 @@ public class RepositoryDialog extends JDialog {
 
         panel.add(
                 new JLabel(
-                        "Encryption IV"),
+                        EncryptionConfigValidator.ENCRYPTION_FIELDS.ENCRYPTION_IV.toString()),
                 gbc);
 
         gbc.gridx = 1;
@@ -330,7 +330,7 @@ public class RepositoryDialog extends JDialog {
 
         panel.add(
                 new JLabel(
-                        "Encryption Key"),
+                        EncryptionConfigValidator.ENCRYPTION_FIELDS.ENCRYPTION_KEY.toString()),
                 gbc);
 
         gbc.gridx = 1;
@@ -498,12 +498,12 @@ public class RepositoryDialog extends JDialog {
 
             repository.setEncryptionIv(
                     useEncryptionCheckBox.isSelected()
-                            ? encryptionIv
+                            ? Arrays.toString(EncryptionConfigValidator.parseBytes(encryptionIv, EncryptionConfigValidator.ENCRYPTION_FIELDS.ENCRYPTION_IV))
                             : null);
 
             repository.setEncryptionKey(
                     useEncryptionCheckBox.isSelected()
-                            ? encryptionKey
+                            ? Arrays.toString(EncryptionConfigValidator.parseBytes(encryptionKey, EncryptionConfigValidator.ENCRYPTION_FIELDS.ENCRYPTION_KEY))
                             : null);
 
             dispose();

@@ -14,7 +14,9 @@ public class RepositoryTableModel extends AbstractTableModel {
     private static final String[] COLUMNS = {
             "Name",
             "Endpoint",
-            "Access Key"
+            "Access Key",
+            "External Bucket",
+            "Encryption"
     };
 
     @Override
@@ -40,8 +42,18 @@ public class RepositoryTableModel extends AbstractTableModel {
             case 0 -> repo.getName();
             case 1 -> repo.getEndpoint();
             case 2 -> repo.getAccessKey();
+            case 3 -> repo.hasExternalBucket();
+            case 4 -> repo.hasEncryptionConfiguration();
             default -> "";
         };
+    }
+
+    @Override
+    public Class<?> getColumnClass(int columnIndex) {
+        if (columnIndex == 3 || columnIndex == 4) {
+            return Boolean.class;
+        }
+        return super.getColumnClass(columnIndex);
     }
 
     public void setRepositories(
