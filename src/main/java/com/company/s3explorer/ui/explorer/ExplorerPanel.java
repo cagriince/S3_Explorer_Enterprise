@@ -713,29 +713,21 @@ public class ExplorerPanel extends JPanel {
                         pendingBucketSelection = null;
                     }
 
-                    /*
-                     * -------------------------------------------------
-                     * KRİTİK NOKTA
-                     * -------------------------------------------------
-                     *
-                     * Eğer bucket değişmediyse:
-                     *
-                     *     TREE'ye dokunma
-                     *     FILE TABLE'a dokunma
-                     *
-                     * Sadece ComboBox yenilenmiş olsun.
-                     */
                     if (Objects.equals(
                             previousBucket,
                             selectedBucket)
                             && !forceBucketReload) {
 
                         log.debug(
-                                "[BUCKET LOAD] bucket unchanged={} - tree/table refresh skipped",
+                                "[BUCKET LOAD] bucket unchanged={} - refreshing tree/table",
                                 selectedBucket);
 
                         hideOperationDialog(
                                 OperationDialogType.BUCKET);
+
+                        if (selectedBucket != null) {
+                            loadRootFolders(selectedBucket);
+                        }
 
                         return;
                     }
