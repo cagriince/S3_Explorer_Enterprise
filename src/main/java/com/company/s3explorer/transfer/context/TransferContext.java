@@ -1,13 +1,12 @@
 package com.company.s3explorer.transfer.context;
 
+import com.company.s3explorer.service.S3ClientManager;
 import com.company.s3explorer.service.S3ErrorResolver;
 import com.company.s3explorer.service.S3ExplorerService;
-import com.company.s3explorer.service.S3ClientManager;
 import com.company.s3explorer.transfer.TransferRuntime;
 import com.company.s3explorer.transfer.TransferStatus;
 import com.company.s3explorer.transfer.event.TransferEventBus;
 import com.company.s3explorer.transfer.model.TransferGroup;
-import com.company.s3explorer.transfer.producer.ProducerRuntime;
 
 import java.time.Instant;
 
@@ -102,12 +101,6 @@ public class TransferContext {
         eventBus.publish(runtime);
     }
 
-    public void publishProducer(
-            ProducerRuntime runtime) {
-
-        eventBus.publishProducer(runtime);
-    }
-
     public void publishGroupUpdated(
             TransferGroup group,
             String repository,
@@ -136,22 +129,5 @@ public class TransferContext {
                 bucket,
                 prefix,
                 sourceRefreshRequired);
-    }
-
-    /**
-     * Backward-compatible group completion publication.
-     */
-    public void publishGroupCompleted(
-            TransferGroup group,
-            String repository,
-            String bucket,
-            String prefix) {
-
-        eventBus.publishGroupCompleted(
-                group,
-                repository,
-                bucket,
-                prefix,
-                true);
     }
 }

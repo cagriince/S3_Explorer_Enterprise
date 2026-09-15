@@ -4770,9 +4770,6 @@ public class ExplorerPanel extends JPanel {
                 new ArrayList<>(
                         pendingFileTableSelectionKeys);
 
-        JTable table =
-                view.getFileTable();
-
         FileTableModel model =
                 view.getFileTableModel();
 

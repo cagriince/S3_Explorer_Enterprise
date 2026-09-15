@@ -65,7 +65,6 @@ public class TransferEventBus {
 
     /**
      * Publishes the current state of a logical transfer group.
-     *
      * This event represents the same logical operation
      * throughout preparing, executing and finishing.
      */
@@ -113,7 +112,6 @@ public class TransferEventBus {
      * Publishes a group completion event while
      * explicitly describing whether the source side
      * requires a refresh.
-     *
      * This prevents COPY operations from being
      * interpreted as source DELETE operations.
      */
