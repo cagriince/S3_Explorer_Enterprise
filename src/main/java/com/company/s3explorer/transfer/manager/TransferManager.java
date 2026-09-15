@@ -2,11 +2,9 @@ package com.company.s3explorer.transfer.manager;
 
 import com.company.s3explorer.security.EncryptionConfig;
 import com.company.s3explorer.service.S3ClientManager;
-import com.company.s3explorer.service.S3ExplorerService;
 import com.company.s3explorer.transfer.TransferType;
 import com.company.s3explorer.transfer.context.TransferContext;
 import com.company.s3explorer.transfer.event.TransferEventBus;
-import com.company.s3explorer.transfer.factory.TransferOperationFactory;
 import com.company.s3explorer.transfer.model.TransferGroup;
 import com.company.s3explorer.transfer.model.TransferTask;
 import com.company.s3explorer.transfer.producer.*;
@@ -27,7 +25,6 @@ public class TransferManager {
 
     private final TransferQueue queue;
     private final TransferContext transferContext;
-    private final TransferOperationFactory operationFactory;
     private final ProducerExecutor producerExecutor;
     private final ExecutorService cancellationExecutor;
 
@@ -47,9 +44,6 @@ public class TransferManager {
                 new TransferContext(
                         clientManager,
                         eventBus);
-
-        operationFactory =
-                new TransferOperationFactory();
 
         cancellationExecutor =
                 Executors.newSingleThreadExecutor(
@@ -115,12 +109,6 @@ public class TransferManager {
         return cancelled;
     }
     
-    public boolean cancelProducer(
-            ProducerRuntime runtime) {
-
-        return producerExecutor.cancel(runtime);
-    }
-
     public void cancelAll() {
 
         cancellationExecutor.submit(() -> {
@@ -1343,25 +1331,6 @@ public class TransferManager {
     }
 
     /**
-     * Backward-compatible group completion configuration.
-     *
-     * Existing callers use source refresh by default.
-     */
-    public void configureGroupCompletion(
-            TransferGroup group,
-            String repositoryName,
-            String bucket,
-            String prefix) {
-
-        configureGroupCompletion(
-                group,
-                repositoryName,
-                bucket,
-                prefix,
-                true);
-    }
-
-    /**
      * Adds a task to an already configured group.
      *
      * This method intentionally does not mark production
@@ -1395,14 +1364,6 @@ public class TransferManager {
                         task.getSize()));
 
         queue.add(task);
-    }
-
-    public TransferGroup createOperationGroup(
-            String operationName) {
-
-        return new TransferGroup(
-                UUID.randomUUID(),
-                operationName);
     }
 
     public TransferGroup createOperationGroup(
@@ -1562,44 +1523,5 @@ public class TransferManager {
         }
 
         return value.toString();
-    }
-    
-    private TransferGroup createGroup(
-            UUID id,
-            String name) {
-
-        return new TransferGroup(
-                id,
-                name);
-    }
-
-    private S3ExplorerService getService(
-            String repositoryName) {
-
-        return transferContext.getService(
-                repositoryName);
-    }
-
-    private String buildOperationGroupName(
-            String operation,
-            String key) {
-
-        String name = S3Util.extractFolderName(key);
-
-        if (name == null
-                || name.isBlank()) {
-
-            name = S3Util.extractFileName(key);
-        }
-
-        if (name == null
-                || name.isBlank()) {
-
-            name = key;
-        }
-
-        return operation
-                + " — "
-                + name;
     }
 }

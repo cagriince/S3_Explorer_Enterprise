@@ -68,17 +68,6 @@ public class TransferEngine
                 threadCount);
     }
 
-    public int getThreadCount() {
-
-        return workerExecutor.getThreadCount();
-    }
-
-    public int getActiveWorkerCount() {
-
-        return workerExecutor
-                .getActiveWorkerCount();
-    }
-
     @Override
     public void close() {
 

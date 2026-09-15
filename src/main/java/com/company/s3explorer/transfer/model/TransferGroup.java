@@ -125,33 +125,6 @@ public class TransferGroup {
                 false);
     }
 
-
-    /**
-     * Backward-compatible logical metadata constructor.
-     */
-    public TransferGroup(
-            UUID id,
-            String displayName,
-            TransferType operation,
-            String source,
-            String target) {
-
-        this(
-                id,
-                displayName,
-                operation,
-                source,
-                target,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                false);
-    }
-
-
     /**
      * Full transfer group metadata constructor.
      *
@@ -244,12 +217,6 @@ public class TransferGroup {
         return source;
     }
 
-
-    public String getTarget() {
-        return target;
-    }
-
-
     public String getSourceRepository() {
         return sourceRepository;
     }
@@ -293,7 +260,6 @@ public class TransferGroup {
         detected.incrementAndGet();
     }
 
-
     public void detected(long size) {
 
         detected.incrementAndGet();
@@ -302,8 +268,7 @@ public class TransferGroup {
             detectedBytes.addAndGet(size);
         }
     }
-
-
+    
     public long getDetected() {
         return detected.get();
     }
@@ -351,11 +316,6 @@ public class TransferGroup {
 
     public boolean isProductionCompleted() {
         return productionCompleted.get();
-    }
-
-
-    public boolean isProductionFailed() {
-        return productionFailed.get();
     }
 
     public String getErrorMessage() {
@@ -420,19 +380,6 @@ public class TransferGroup {
             failedTasks.add(task);
         }
     }
-
-
-    public void cancelled() {
-
-        cancelledFromUnknownState();
-    }
-
-
-    public void cancelled(TransferTask task) {
-
-        cancelledFromUnknownState();
-    }
-
 
     /**
      * Queue'dan henüz çalışmaya başlamamış bir task
@@ -551,17 +498,6 @@ public class TransferGroup {
         return skipped.get();
     }
 
-
-    public long getTotal() {
-        return detected.get();
-    }
-
-
-    public List<TransferTask> getFailedTasks() {
-        return List.copyOf(failedTasks);
-    }
-
-
     // ---------------------------------------------------------------------
     // STATUS
     // ---------------------------------------------------------------------
@@ -594,15 +530,6 @@ public class TransferGroup {
                 && queued.get() == 0
                 && running.get() == 0;
     }
-
-
-    public boolean isCompleted() {
-
-        return isFinished()
-                && !productionFailed.get()
-                && failed.get() == 0;
-    }
-
 
     public boolean isFailed() {
 

@@ -477,18 +477,6 @@ public class TransferStateStore {
         return runningCount;
     }
 
-    public synchronized long getCompletedCount() {
-        return completedCount;
-    }
-
-    public synchronized long getFailedCount() {
-        return failedCount;
-    }
-
-    public synchronized long getCancelledCount() {
-        return cancelledCount;
-    }
-
     public synchronized long getFinishedCount() {
 
         return completedCount
@@ -498,10 +486,6 @@ public class TransferStateStore {
 
     public synchronized long getTotalCount() {
         return runtimes.size();
-    }
-
-    public int getVisibleLimit() {
-        return visibleLimit;
     }
 
     public synchronized void removeFinished() {

@@ -77,28 +77,16 @@ public class ProducerRuntime {
         }
     }
 
-    public String getMessage() {
-        return message;
-    }
-
     public void setMessage(
             String message) {
 
         this.message = message;
     }
 
-    public Instant getStartTime() {
-        return startTime;
-    }
-
     public void setStartTime(
             Instant startTime) {
 
         this.startTime = startTime;
-    }
-
-    public Instant getEndTime() {
-        return endTime;
     }
 
     public void setEndTime(
@@ -141,22 +129,6 @@ public class ProducerRuntime {
 
     public void forceNextUiPublish() {
         lastUiPublishTime = 0;
-    }
-
-    public long getElapsedTime() {
-
-        if (startTime == null) {
-            return 0;
-        }
-
-        Instant end =
-                endTime != null
-                        ? endTime
-                        : Instant.now();
-
-        return java.time.Duration.between(
-                startTime,
-                end).toMillis();
     }
 
     public boolean isInterruptedOrCancelRequested() {

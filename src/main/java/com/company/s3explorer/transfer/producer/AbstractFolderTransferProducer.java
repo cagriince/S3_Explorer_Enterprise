@@ -83,10 +83,6 @@ public abstract class AbstractFolderTransferProducer
                         S3Util.extractFolderName(prefix));
     }
 
-    public TransferGroup getGroup() {
-        return group;
-    }
-
     @Override
     public void produce(
             ProducerRuntime runtime)

@@ -199,25 +199,6 @@ public abstract class AbstractTransferOperation
         };
     }
 
-    protected void updateProgress(
-            TransferRuntime runtime,
-            TransferContext transferContext,
-            long transferred,
-            long total) {
-
-        checkCancelled(runtime);
-
-        runtime.updateProgress(
-                transferred,
-                total);
-
-        if (runtime.shouldPublishUi(100)) {
-
-            transferContext.publishProgress(
-                    runtime);
-        }
-    }
-
     protected void updateProgressCompleted(
             TransferRuntime runtime,
             TransferContext transferContext) {

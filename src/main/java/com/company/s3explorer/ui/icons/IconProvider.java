@@ -13,14 +13,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public class IconProvider {
     private static final Map<String, ImageIcon> FILE_TYPE_ICONS = new ConcurrentHashMap<>();
     
-    public static ImageIcon ICON_SYSTEM_FOLDER_HOME;
-    public static ImageIcon ICON_SYSTEM_UP_FOLDER;
-    public static ImageIcon ICON_SYSTEM_NEW_FOLDER;
-    public static ImageIcon ICON_SYSTEM_FOLDER;
     public static ImageIcon ICON_SYSTEM_FILE;
-    public static ImageIcon ICON_SYSTEM_OPEN_FOLDER;
     public static ImageIcon ICON_SYSTEM_CLOSED_FOLDER;
-    public static ImageIcon ICON_SYSTEM_LEAF_FILE;
 
     public static ImageIcon ICON_LOGO = loadIcon("logo", 40);//32
     public static ImageIcon ICON_REPOSITORY = null;
@@ -87,14 +81,8 @@ public class IconProvider {
     }
 
     public static void reloadSystemIcons(UITheme theme) {
-        ICON_SYSTEM_FOLDER_HOME = convertIconToImageIcon(UIManager.getIcon("FileChooser.homeFolderIcon"));
-        ICON_SYSTEM_UP_FOLDER = convertIconToImageIcon(UIManager.getIcon("FileChooser.upFolderIcon"));
-        ICON_SYSTEM_NEW_FOLDER = convertIconToImageIcon(UIManager.getIcon("FileChooser.newFolderIcon"));
-        ICON_SYSTEM_FOLDER = convertIconToImageIcon(UIManager.getIcon("FileView.folderIcon"));
         ICON_SYSTEM_FILE = convertIconToImageIcon(UIManager.getIcon("FileView.fileIcon"));
-        ICON_SYSTEM_OPEN_FOLDER  = convertIconToImageIcon(UIManager.getIcon("Tree.openIcon"));
         ICON_SYSTEM_CLOSED_FOLDER = convertIconToImageIcon(UIManager.getIcon("Tree.closedIcon"));
-        ICON_SYSTEM_LEAF_FILE     = convertIconToImageIcon(UIManager.getIcon("Tree.leafIcon"));
 
         if (theme == null) {
             theme = UIThemeManager.DEFAULT_THEME;

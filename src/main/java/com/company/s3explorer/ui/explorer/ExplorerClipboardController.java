@@ -5,11 +5,6 @@ import java.util.List;
 
 public final class ExplorerClipboardController {
 
-    public enum Operation {
-        COPY,
-        MOVE
-    }
-
     private final ExplorerClipboard clipboard;
 
     public ExplorerClipboardController(

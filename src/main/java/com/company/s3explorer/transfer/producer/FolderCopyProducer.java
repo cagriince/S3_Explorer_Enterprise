@@ -19,28 +19,6 @@ public class FolderCopyProducer
             String prefix,
             String targetRepository,
             String targetBucket,
-            String targetPrefix) {
-
-        super(
-                context,
-                queue,
-                repository,
-                bucket,
-                prefix,
-                targetRepository,
-                targetBucket,
-                targetPrefix,
-                false);
-    }
-
-    public FolderCopyProducer(
-            TransferContext context,
-            TransferQueue queue,
-            String repository,
-            String bucket,
-            String prefix,
-            String targetRepository,
-            String targetBucket,
             String targetPrefix,
             TransferGroup group) {
 

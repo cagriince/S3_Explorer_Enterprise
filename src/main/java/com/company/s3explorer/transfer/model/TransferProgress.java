@@ -18,32 +18,7 @@ public class TransferProgress {
         return (int)((transferredBytes * 100) / totalBytes);
     }
 
-    public boolean isStarted() {
-        return transferredBytes > 0;
-    }
-
-    public boolean isCompleted() {
-        return transferredBytes >= totalBytes && totalBytes > 0;
-    }
-
-    public void reset() {
-        transferredBytes = 0;
-        totalBytes = 0;
-    }
-
-    public long getTransferredBytes() {
-        return transferredBytes;
-    }
-
-    public long getTotalBytes() {
-        return totalBytes;
-    }
-
     public void complete() {
         update(totalBytes, totalBytes);
-    }
-
-    public void setPercent(int percent) {
-        update(percent,100);
     }
 }

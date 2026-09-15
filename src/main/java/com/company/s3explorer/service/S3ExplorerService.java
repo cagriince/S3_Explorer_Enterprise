@@ -38,120 +38,6 @@ public class S3ExplorerService {
                 .toList();
     }
 
-    public FolderContent listFolder(
-            String bucket,
-            String prefix) {
-
-        List<String> folders =
-                new ArrayList<>();
-
-        List<S3Object> files =
-                new ArrayList<>();
-
-        ListObjectsV2Request request =
-                ListObjectsV2Request.builder()
-                        .bucket(bucket)
-                        .prefix(prefix)
-                        .maxKeys(250)
-                        .delimiter("/")
-                        .build();
-
-        ListObjectsV2Iterable pages =
-                client.listObjectsV2Paginator(request);
-
-        long start = System.currentTimeMillis();
-
-        System.out.println(
-                "LIST FOLDER START bucket="
-                        + bucket
-                        + " prefix="
-                        + prefix);
-
-        int pageNo = 0;
-        long objectCount = 0;
-        long folderCount = 0;
-        
-        for (ListObjectsV2Response page : pages) {
-            pageNo++;
-
-            objectCount +=
-                    page.contents().size();
-
-            folderCount +=
-                    page.commonPrefixes().size();
-
-            System.out.println(
-                    "LIST FOLDER PAGE "
-                            + pageNo
-                            + " objects="
-                            + objectCount
-                            + " folders="
-                            + folderCount
-                            + " elapsed="
-                            + (System.currentTimeMillis() - start)
-                            + " ms");
-            /*
-             * Klasörler
-             */
-            for (CommonPrefix commonPrefix :
-                    page.commonPrefixes()) {
-
-                folders.add(
-                        commonPrefix.prefix());
-            }
-
-            /*
-             * Dosyalar
-             */
-            for (S3Object object :
-                    page.contents()) {
-
-                /*
-                 * S3 bazen prefix'in kendisini de
-                 * contents içinde döndürebilir.
-                 */
-                if (!object.key().equals(prefix)) {
-
-                    files.add(object);
-                }
-            }
-        }
-
-        return new FolderContent(
-                folders,
-                files);
-    }
-
-    public LimitedFolderContent listFolderWithLimit(
-            String bucket,
-            String prefix,
-            int fileLimit,
-            FileTableSortSpec sortSpec) {
-
-        return listFolderWithLimit(
-                bucket,
-                prefix,
-                fileLimit,
-                sortSpec,
-                new HashMap<>());
-    }
-
-    public LimitedFolderContent listFolderWithLimit(
-            String bucket,
-            String prefix,
-            int fileLimit,
-            FileTableSortSpec sortSpec,
-            Map<String, CollationKey> collationKeyCache) {
-
-        return listFolderWithLimit(
-                bucket,
-                prefix,
-                fileLimit,
-                sortSpec,
-                collationKeyCache,
-                null);
-    }
-
     public LimitedFolderContent listFolderWithLimit(
             String bucket,
             String prefix,
@@ -301,50 +187,6 @@ public class S3ExplorerService {
                 scannedFileCount);
     }
     
-    public FolderContentPage listFolderPage(
-            String bucket,
-            String prefix,
-            String continuationToken) {
-
-        ListObjectsV2Request.Builder builder =
-                ListObjectsV2Request.builder()
-                        .bucket(bucket)
-                        .prefix(prefix == null ? "" : prefix)
-                        .delimiter("/")
-                        .maxKeys(500);
-
-        if (continuationToken != null
-                && !continuationToken.isBlank()) {
-
-            builder.continuationToken(
-                    continuationToken);
-        }
-
-        ListObjectsV2Response response =
-                client.listObjectsV2(
-                        builder.build());
-
-        List<String> folders =
-                response.commonPrefixes()
-                        .stream()
-                        .map(CommonPrefix::prefix)
-                        .toList();
-
-        List<S3Object> files =
-                response.contents()
-                        .stream()
-                        .filter(object ->
-                                !object.key()
-                                        .equals(prefix))
-                        .toList();
-
-        return new FolderContentPage(
-                folders,
-                files,
-                response.nextContinuationToken(),
-                response.isTruncated());
-    }
-
     public HeadObjectResponse getObject(String bucket, String key) {
         try {
             HeadObjectRequest request =
@@ -368,18 +210,6 @@ public class S3ExplorerService {
     // ----------------------------------------------------------------------
     // STREAMING LIST API
     // ----------------------------------------------------------------------
-    public void forEachObject(
-            String bucket,
-            String prefix,
-            Consumer<S3Object> consumer) {
-
-        forEachObject(
-                bucket,
-                prefix,
-                consumer,
-                () -> true);
-    }
-
     public void forEachObject(
             String bucket,
             String prefix,
@@ -432,33 +262,6 @@ public class S3ExplorerService {
                 consumer.accept(object);
             }
         }
-    }
-
-    public void forEachFolder(String bucket, String prefix, Consumer<CommonPrefix> consumer) {
-        ListObjectsV2Request request =
-                ListObjectsV2Request.builder()
-                        .bucket(bucket)
-                        .prefix(prefix)
-                        .delimiter("/")
-                        .build();
-
-        ListObjectsV2Iterable iterable = client.listObjectsV2Paginator(request);
-        for (ListObjectsV2Response page : iterable) {
-            page.commonPrefixes().forEach(consumer);
-        }
-    }
-
-    public Stream<S3Object> streamObjects(String bucket, String prefix) {
-        ListObjectsV2Request request =
-                ListObjectsV2Request.builder()
-                        .bucket(bucket)
-                        .prefix(prefix)
-                        .build();
-
-        return client
-                .listObjectsV2Paginator(request)
-                .stream()
-                .flatMap(page -> page.contents().stream());
     }
 
     // ----------------------------------------------------------------------
@@ -800,24 +603,6 @@ public class S3ExplorerService {
         }
     }
 
-    private byte[] parseEncryptionBytes(String value) {
-
-        String[] parts =
-                value.split(",");
-
-        byte[] result =
-                new byte[parts.length];
-
-        for (int i = 0; i < parts.length; i++) {
-
-            result[i] =
-                    (byte) Integer.parseInt(
-                            parts[i].trim());
-        }
-
-        return result;
-    }
-    
     public void testBucketAccess(
             String bucket) {
 

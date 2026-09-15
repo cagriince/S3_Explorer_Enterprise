@@ -243,31 +243,6 @@ public class TransferCombinedTableModel
                 row.getTransferModelRow());
     }
 
-    public int getTransferModelRow(
-            int modelRow) {
-
-        if (modelRow < 0
-                || modelRow >= rows.size()) {
-
-            return -1;
-        }
-
-        Row row =
-                rows.get(modelRow);
-
-        if (row.isGroup()) {
-            return -1;
-        }
-
-        return row.getTransferModelRow();
-    }
-
-    public boolean isTransferRow(
-            int modelRow) {
-
-        return !isGroupRow(modelRow);
-    }
-
     private Object getGroupValue(
             TransferGroupStateStore.GroupRecord group,
             int column) {
@@ -540,14 +515,6 @@ public class TransferCombinedTableModel
         return TransferStatus.RUNNING;
     }
 
-    private String safe(
-            String value) {
-
-        return value != null
-                ? value
-                : "";
-    }
-
     public static final class GroupProgress {
 
         private final int completed;
@@ -573,18 +540,6 @@ public class TransferCombinedTableModel
                     preparing;
         }
 
-        public int getCompleted() {
-            return completed;
-        }
-
-        public long getDetected() {
-            return detected;
-        }
-
-        public boolean isPreparing() {
-            return preparing;
-        }
-
         public int getPercent() {
 
             if (detected <= 0) {
@@ -599,11 +554,6 @@ public class TransferCombinedTableModel
                     Math.min(
                             100L,
                             percent));
-        }
-
-        public String getText() {
-
-            return getPercent() + "%";
         }
     }
 

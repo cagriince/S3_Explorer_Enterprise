@@ -15,22 +15,6 @@ public class FolderDeleteProducer
             TransferQueue queue,
             String repository,
             String bucket,
-            String prefix) {
-
-        this(
-                context,
-                queue,
-                repository,
-                bucket,
-                prefix,
-                null);
-    }
-
-    public FolderDeleteProducer(
-            TransferContext context,
-            TransferQueue queue,
-            String repository,
-            String bucket,
             String prefix,
             TransferGroup group) {
 

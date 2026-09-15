@@ -10,16 +10,6 @@ public interface TransferListener {
     void onTransferUpdated(
             TransferRuntime runtime);
 
-    default void onTransfersUpdated(
-            List<TransferRuntime> runtimes) {
-
-        for (TransferRuntime runtime :
-                runtimes) {
-
-            onTransferUpdated(runtime);
-        }
-    }
-
     default void onQueuedTransfersCancelled(
             List<TransferRuntime> runtimes) {
     }

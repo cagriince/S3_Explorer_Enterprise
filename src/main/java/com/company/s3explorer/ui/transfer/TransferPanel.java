@@ -341,18 +341,6 @@ public class TransferPanel
     }
 
     @Override
-    public void onTransfersUpdated(
-            List<TransferRuntime> runtimes) {
-
-        if (runtimes == null
-                || runtimes.isEmpty()) {
-            return;
-        }
-
-        stateStore.upsertAll(runtimes);
-    }
-
-    @Override
     public void onQueuedTransfersCancelled(
             List<TransferRuntime> runtimes) {
 
@@ -936,24 +924,6 @@ public class TransferPanel
             default ->
                     null;
         };
-    }
-
-    private TransferTableModel getModelForTable(
-            JTable table) {
-
-        if (table == queuedTable) {
-            return queuedModel;
-        }
-
-        /*
-         * Combined tabloların kendi TransferRuntime
-         * modeline doğrudan erişmiyoruz.
-         *
-         * Bir sonraki adımda combined model üzerinden
-         * seçilen satırın gerçek TransferRuntime'ını
-         * çözeceğiz.
-         */
-        return null;
     }
 
     private void cancelSelectedTransfers() {

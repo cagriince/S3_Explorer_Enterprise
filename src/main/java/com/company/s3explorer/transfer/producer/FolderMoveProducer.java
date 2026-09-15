@@ -19,28 +19,6 @@ public class FolderMoveProducer
             String prefix,
             String targetRepository,
             String targetBucket,
-            String targetPrefix) {
-
-        super(
-                context,
-                queue,
-                repository,
-                bucket,
-                prefix,
-                targetRepository,
-                targetBucket,
-                targetPrefix,
-                true);
-    }
-
-    public FolderMoveProducer(
-            TransferContext context,
-            TransferQueue queue,
-            String repository,
-            String bucket,
-            String prefix,
-            String targetRepository,
-            String targetBucket,
             String targetPrefix,
             TransferGroup group) {
 

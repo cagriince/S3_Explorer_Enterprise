@@ -18,26 +18,6 @@ public class FolderRenameProducer
             String repository,
             String bucket,
             String prefix,
-            String targetPrefix) {
-
-        super(
-                context,
-                queue,
-                repository,
-                bucket,
-                prefix,
-                repository,
-                bucket,
-                targetPrefix,
-                true);
-    }
-
-    public FolderRenameProducer(
-            TransferContext context,
-            TransferQueue queue,
-            String repository,
-            String bucket,
-            String prefix,
             String targetPrefix,
             TransferGroup group) {
 

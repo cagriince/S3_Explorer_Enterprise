@@ -22,24 +22,6 @@ public class FolderDownloadProducer
             String repository,
             String bucket,
             String prefix,
-            Path localFolder) {
-
-        this(
-                context,
-                queue,
-                repository,
-                bucket,
-                prefix,
-                localFolder,
-                null);
-    }
-
-    public FolderDownloadProducer(
-            TransferContext context,
-            TransferQueue queue,
-            String repository,
-            String bucket,
-            String prefix,
             Path localFolder,
             EncryptionConfig encryptionConfig) {
 

@@ -9,10 +9,6 @@ import java.awt.*;
 
 public class FileTableCellRenderer extends PaddedTableCellRenderer {
 
-    private final Icon folderIcon = UIManager.getIcon("FileView.directoryIcon");
-
-    private final Icon fileIcon = UIManager.getIcon("FileView.fileIcon");
-
     @Override
     public Component getTableCellRendererComponent(
             JTable table,

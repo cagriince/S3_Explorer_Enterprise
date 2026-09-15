@@ -313,20 +313,6 @@ public final class ExplorerFileOperationController {
             }
         }
     }
-    
-    public void copy(
-            S3FileItem item,
-            String targetBucket,
-            String targetKey,
-            boolean overwrite) {
-
-        copy(
-                item,
-                targetBucket,
-                targetKey,
-                overwrite,
-                null);
-    }
 
     public void copy(
             S3FileItem item,
@@ -400,20 +386,6 @@ public final class ExplorerFileOperationController {
                     overwrite,
                     group);
         }
-    }
-
-    public void move(
-            S3FileItem item,
-            String targetBucket,
-            String targetKey,
-            boolean overwrite) {
-
-        move(
-                item,
-                targetBucket,
-                targetKey,
-                overwrite,
-                null);
     }
 
     public void move(

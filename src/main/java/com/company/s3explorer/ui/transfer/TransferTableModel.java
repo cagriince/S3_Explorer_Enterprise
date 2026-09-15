@@ -283,8 +283,4 @@ public class TransferTableModel
 
         return getRuntime(modelRow);
     }
-
-    public int getMaxRows() {
-        return maxRows;
-    }
 }

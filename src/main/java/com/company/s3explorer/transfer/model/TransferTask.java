@@ -73,16 +73,8 @@ public class TransferTask {
         return targetRepositoryName;
     }
 
-    public void setTargetBucket(String targetBucket) {
-        this.targetBucket = targetBucket;
-    }
-
     public String getTargetObjectKey() {
         return targetObjectKey;
-    }
-
-    public void setTargetObjectKey(String targetObjectKey) {
-        this.targetObjectKey = targetObjectKey;
     }
 
     public Set<RefreshTreeNode> getAffectedPrefixes() {
@@ -107,10 +99,6 @@ public class TransferTask {
 
     public long getSize() {
         return size;
-    }
-
-    public void setSize(long size) {
-        this.size = size;
     }
 
     public static Builder upload() {

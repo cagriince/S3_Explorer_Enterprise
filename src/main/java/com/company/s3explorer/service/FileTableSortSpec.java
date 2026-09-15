@@ -37,10 +37,6 @@ public final class FileTableSortSpec {
         return ascending;
     }
 
-    public Comparator<S3Object> createFileComparator() {
-        return createFileComparator(new HashMap<>());
-    }
-
     public Comparator<S3Object> createFileComparator(Map<String, CollationKey> collationKeyCache) {
 
         Collator collator =
