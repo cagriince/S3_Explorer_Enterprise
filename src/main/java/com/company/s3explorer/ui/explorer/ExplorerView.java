@@ -160,6 +160,7 @@ public final class ExplorerView {
         });
 
         folderTree.setCellRenderer(new FolderTreeCellRenderer());
+        folderTree.setBorder(BorderFactory.createEmptyBorder(5,5,5,5));
         setFolderTreeLeafIcon();
 
         fileTableModel = new FileTableModel();
