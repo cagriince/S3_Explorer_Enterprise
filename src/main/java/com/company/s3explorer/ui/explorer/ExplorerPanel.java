@@ -726,7 +726,13 @@ public class ExplorerPanel extends JPanel {
                                 OperationDialogType.BUCKET);
 
                         if (selectedBucket != null) {
-                            loadRootFolders(selectedBucket);
+
+                            contentLoader.invalidate(
+                                    selectedBucket,
+                                    S3TreeNode.ROOT_PREFIX);
+
+                            loadRootFolders(
+                                    selectedBucket);
                         }
 
                         return;
