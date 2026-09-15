@@ -5028,6 +5028,10 @@ public class ExplorerPanel extends JPanel {
         }
     }
 
+    public void updateFolderTreeRowHeight() {
+        view.updateFolderTreeRowHeight();
+    }
+
     public void updateFileTableRowHeight() {
         view.updateFileTableRowHeight();
     }

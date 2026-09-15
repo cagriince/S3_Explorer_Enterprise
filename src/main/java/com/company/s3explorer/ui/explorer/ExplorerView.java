@@ -143,6 +143,7 @@ public final class ExplorerView {
 
         folderTree = new JTree(root);
         treeModel = (DefaultTreeModel) folderTree.getModel();
+        updateFolderTreeRowHeight();
 
         folderTree.addTreeWillExpandListener(new TreeWillExpandListener() {
             @Override
@@ -648,5 +649,23 @@ public final class ExplorerView {
 
     public void updateFileTableRowHeight() {
         updateFileTableRowHeight(fileTable);
+    }
+
+    public void updateFolderTreeRowHeight() {
+        updateFolderTreeRowHeightInternal();
+    }
+    
+    private void updateFolderTreeRowHeightInternal() {
+        if (folderTree == null) {
+            return;
+        }
+
+        FontMetrics fm =
+                folderTree.getFontMetrics(folderTree.getFont());
+
+        int rowHeight =
+                fm.getHeight() + 10;
+
+        folderTree.setRowHeight(rowHeight);
     }
 }
