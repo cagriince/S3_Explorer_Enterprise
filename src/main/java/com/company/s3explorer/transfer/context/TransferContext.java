@@ -151,6 +151,7 @@ public class TransferContext {
                 group,
                 repository,
                 bucket,
-                prefix);
+                prefix,
+                true);
     }
 }

@@ -35,23 +35,6 @@ public class TransferEventBus {
         }
     }
 
-    public void publishBatch(
-            List<TransferRuntime> runtimes) {
-
-        if (runtimes == null
-                || runtimes.isEmpty()) {
-
-            return;
-        }
-
-        for (TransferListener listener :
-                listeners) {
-
-            listener.onTransfersUpdated(
-                    runtimes);
-        }
-    }
-
     public void publishQueuedTransfersCancelled(
             List<TransferRuntime> runtimes) {
 
@@ -167,26 +150,5 @@ public class TransferEventBus {
             listener.onTransferGroupCompleted(
                     event);
         }
-    }
-
-    /**
-     * Backward-compatible publication path.
-     *
-     * Existing folder producers continue to use
-     * this method until their source-refresh policy
-     * is explicitly supplied.
-     */
-    public void publishGroupCompleted(
-            TransferGroup group,
-            String repository,
-            String bucket,
-            String prefix) {
-
-        publishGroupCompleted(
-                group,
-                repository,
-                bucket,
-                prefix,
-                true);
     }
 }
