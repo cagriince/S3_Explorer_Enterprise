@@ -68,11 +68,14 @@ public class RepositoryPanel extends JPanel {
         tableModel =
                 new RepositoryTableModel();
 
-        table =
-                new JTable(tableModel);
+        table = new JTable(tableModel);
 
         table.setSelectionMode(
                 ListSelectionModel.SINGLE_SELECTION);
+
+        table.setDefaultRenderer(
+                Boolean.class,
+                new RepositoryBooleanRenderer());
 
         table.getSelectionModel()
                 .addListSelectionListener(e -> {
@@ -512,5 +515,62 @@ public class RepositoryPanel extends JPanel {
         int rowHeight = fontMetrics.getHeight() + 8;
 
         table.setRowHeight(rowHeight);
+    }
+
+    private static class RepositoryBooleanRenderer
+            extends JCheckBox
+            implements javax.swing.table.TableCellRenderer {
+
+        RepositoryBooleanRenderer() {
+            setHorizontalAlignment(
+                    SwingConstants.CENTER);
+
+            setOpaque(true);
+        }
+
+        @Override
+        public Component getTableCellRendererComponent(
+                JTable table,
+                Object value,
+                boolean isSelected,
+                boolean hasFocus,
+                int row,
+                int column) {
+
+            setSelected(
+                    Boolean.TRUE.equals(value));
+
+            if (isSelected) {
+
+                setBackground(
+                        table.getSelectionBackground());
+
+                setForeground(
+                        table.getSelectionForeground());
+
+            } else {
+
+                Color background =
+                        table.getBackground();
+
+                Color alternateBackground =
+                        UIManager.getColor(
+                                "Table.alternateRowColor");
+
+                if (alternateBackground != null
+                        && row % 2 != 0) {
+
+                    background =
+                            alternateBackground;
+                }
+
+                setBackground(background);
+
+                setForeground(
+                        table.getForeground());
+            }
+
+            return this;
+        }
     }
 }
