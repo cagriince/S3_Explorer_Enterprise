@@ -80,6 +80,7 @@ public class ExplorerPanel extends JPanel {
 
     private int pendingDeleteSelectionViewRow = -1;
 
+    private String pendingFileTableRenameOldKey;
     private String pendingFileTableSelectionKey;
     private List<String> pendingFileTableSelectionKeys;
     private boolean restoreFileTableFocus;
@@ -2172,6 +2173,145 @@ public class ExplorerPanel extends JPanel {
         }
 
         /*
+         * ---------------------------------------------------------
+         * RENAME GROUP
+         * ---------------------------------------------------------
+         *
+         * Rename işleminde full refresh yapılmaz.
+         *
+         * File Table:
+         *      oldKey -> remove
+         *      newKey -> insert
+         *
+         * Folder Tree:
+         *      oldKey -> DELETE
+         *      newKey -> ADD
+         *
+         * Böylece yalnızca değişen iki node/row işlenir.
+         */
+        if (group.getOperation()
+                == TransferType.RENAME_GROUP) {
+
+            String sourceKey =
+                    event.getPrefix();
+
+            String targetKey =
+                    group.getTargetPrefix();
+
+            String sourceBucket =
+                    event.getBucket();
+
+            String targetBucket =
+                    group.getTargetBucket();
+
+            log.info(
+                    "[EXPLORER RENAME] source={} target={} folder={}",
+                    sourceKey,
+                    targetKey,
+                    group.isSourceFolder());
+
+            /*
+             * -----------------------------------------------------
+             * FILE TABLE
+             * -----------------------------------------------------
+             */
+            if (Objects.equals(
+                    currentBucket,
+                    sourceBucket)) {
+
+                String sourceParentPrefix =
+                        getParentPrefix(sourceKey);
+
+                if (Objects.equals(
+                        currentPrefix,
+                        sourceParentPrefix)) {
+
+                    boolean removed =
+                            view.getFileTableModel()
+                                    .removeFileByKey(
+                                            sourceKey);
+
+                    log.info(
+                            "[FILE TABLE RENAME REMOVE] key={} removed={}",
+                            sourceKey,
+                            removed);
+                }
+            }
+
+            if (Objects.equals(
+                    currentBucket,
+                    targetBucket)) {
+
+                String targetParentPrefix =
+                        getParentPrefix(targetKey);
+
+                if (Objects.equals(
+                        currentPrefix,
+                        targetParentPrefix)) {
+
+                    addFolderToCurrentFileTable(
+                            targetBucket,
+                            targetKey);
+
+                    log.info(
+                            "[FILE TABLE RENAME INSERT] key={}",
+                            targetKey);
+                }
+            }
+
+            /*
+             * -----------------------------------------------------
+             * FOLDER TREE
+             * -----------------------------------------------------
+             */
+            if (group.isSourceFolder()) {
+
+                if (Objects.equals(
+                        currentBucket,
+                        sourceBucket)) {
+
+                    refreshScheduler.scheduleRefresh(
+                            List.of(
+                                    new RefreshTreeNode(
+                                            sourceKey,
+                                            RefreshTreeOperation.DELETE)));
+
+                    log.info(
+                            "[TREE RENAME REMOVE] key={}",
+                            sourceKey);
+                }
+
+                if (Objects.equals(
+                        currentBucket,
+                        targetBucket)) {
+
+                    refreshScheduler.scheduleRefresh(
+                            List.of(
+                                    new RefreshTreeNode(
+                                            targetKey,
+                                            RefreshTreeOperation.ADD)));
+
+                    log.info(
+                            "[TREE RENAME INSERT] key={}",
+                            targetKey);
+                }
+            }
+
+            /*
+             * -----------------------------------------------------
+             * RENAME SONRASI SELECTION
+             * -----------------------------------------------------
+             *
+             * renameSelected() zaten pendingFileTableSelectionKey
+             * değerini targetKey olarak hazırlıyor.
+             *
+             * Burada ayrıca full table refresh çağırmıyoruz.
+             */
+
+            return;
+        }
+        
+        /*
          * -------------------------------------------------
          * TARGET REFRESH
          * -------------------------------------------------
@@ -2189,7 +2329,6 @@ public class ExplorerPanel extends JPanel {
                 || group.getOperation() == TransferType.RENAME
                 || group.getOperation() == TransferType.COPY_GROUP
                 || group.getOperation() == TransferType.MOVE_GROUP
-                || group.getOperation() == TransferType.RENAME_GROUP
                 || group.getOperation() == TransferType.UPLOAD_GROUP) {
 
             String targetBucket =
@@ -4528,6 +4667,9 @@ public class ExplorerPanel extends JPanel {
         /*
          * Refresh sonrasında yeni item'ı seç.
          */
+        pendingFileTableRenameOldKey =
+                oldKey;
+        
         pendingFileTableSelectionKey =
                 newKey;
 

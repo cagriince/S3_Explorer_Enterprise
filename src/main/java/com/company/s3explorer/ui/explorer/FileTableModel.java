@@ -212,6 +212,38 @@ public class FileTableModel extends AbstractTableModel {
 
         return false;
     }
+
+    public boolean replaceFileByKey(
+            String oldKey,
+            S3FileItem newFile) {
+
+        if (oldKey == null
+                || newFile == null) {
+
+            return false;
+        }
+
+        for (int i = 0;
+             i < files.size();
+             i++) {
+
+            S3FileItem item =
+                    files.get(i);
+
+            if (Objects.equals(
+                    item.getKey(),
+                    oldKey)) {
+
+                files.set(i, newFile);
+
+                fireTableRowsUpdated(i, i);
+
+                return true;
+            }
+        }
+
+        return false;
+    }
     
     public void clear() {
         files.clear();
