@@ -5154,18 +5154,21 @@ public class ExplorerPanel extends JPanel {
                 prefix,
                 removed);
 
-        if (!removed) {
-            return;
+        if (removed) {
+
+            SwingUtilities.invokeLater(() -> {
+
+                log.info(
+                        "[DELETE SELECTION RESTORE TRIGGER] " +
+                                "pendingRow={} rowCount={}",
+                        pendingDeleteSelectionViewRow,
+                        view.getFileTable().getRowCount());
+
+                restoreFileTableSelectionAfterDelete();
+
+                restoreFileTableFocus();
+            });
         }
-
-        SwingUtilities.invokeLater(() -> {
-
-            restoreFileTableSelectionAfterDelete();
-
-            restoreFileTableFocus();
-
-            pendingDeleteSelectionViewRow = -1;
-        });
     }
 
     private void restoreFileTableSelectionAfterDelete() {
