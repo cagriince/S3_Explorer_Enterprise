@@ -6,6 +6,7 @@ import javax.swing.table.AbstractTableModel;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 public class FileTableModel extends AbstractTableModel {
 
@@ -149,6 +150,67 @@ public class FileTableModel extends AbstractTableModel {
                 files.size() - 1);
     }
 
+    public void addFile(
+            S3FileItem file) {
+
+        if (file == null) {
+            return;
+        }
+
+        /*
+         * Aynı key zaten varsa tekrar ekleme.
+         */
+        for (S3FileItem existing : files) {
+
+            if (Objects.equals(
+                    existing.getKey(),
+                    file.getKey())) {
+
+                return;
+            }
+        }
+
+        int row =
+                files.size();
+
+        files.add(file);
+
+        fireTableRowsInserted(
+                row,
+                row);
+    }
+
+    public boolean removeFileByKey(
+            String key) {
+
+        if (key == null) {
+            return false;
+        }
+
+        for (int i = 0;
+             i < files.size();
+             i++) {
+
+            S3FileItem item =
+                    files.get(i);
+
+            if (Objects.equals(
+                    item.getKey(),
+                    key)) {
+
+                files.remove(i);
+
+                fireTableRowsDeleted(
+                        i,
+                        i);
+
+                return true;
+            }
+        }
+
+        return false;
+    }
+    
     public void clear() {
         files.clear();
     }

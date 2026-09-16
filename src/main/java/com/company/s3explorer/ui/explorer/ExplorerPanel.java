@@ -5032,4 +5032,99 @@ public class ExplorerPanel extends JPanel {
     public void updateFileTableRowHeight() {
         view.updateFileTableRowHeight();
     }
+
+    private void addFolderToCurrentFileTable(
+            String bucket,
+            String prefix) {
+
+        if (bucket == null
+                || prefix == null
+                || prefix.isBlank()) {
+
+            return;
+        }
+
+        if (!Objects.equals(
+                currentFileBucket,
+                bucket)) {
+
+            return;
+        }
+
+        String currentPrefix =
+                currentFilePrefix;
+
+        String parentPrefix =
+                getParentPrefix(prefix);
+
+        if (!Objects.equals(
+                currentPrefix,
+                parentPrefix)) {
+
+            return;
+        }
+
+        RepositoryDefinition repository =
+                getCurrentRepository();
+
+        if (repository == null) {
+            return;
+        }
+
+        S3FileItem item =
+                new S3FileItem(
+                        repository.getName(),
+                        bucket,
+                        prefix,
+                        0L,
+                        null,
+                        null,
+                        true);
+
+        view.getFileTableModel()
+                .addFile(item);
+
+        log.info(
+                "[FILE TABLE ROW INSERT] key={} prefix={}",
+                prefix,
+                currentPrefix);
+    }
+
+    private void removeFolderFromCurrentFileTable(
+            String bucket,
+            String prefix) {
+
+        if (bucket == null
+                || prefix == null
+                || prefix.isBlank()) {
+
+            return;
+        }
+
+        if (!Objects.equals(
+                currentFileBucket,
+                bucket)) {
+
+            return;
+        }
+
+        String parentPrefix =
+                getParentPrefix(prefix);
+
+        if (!Objects.equals(
+                currentFilePrefix,
+                parentPrefix)) {
+
+            return;
+        }
+
+        boolean removed =
+                view.getFileTableModel()
+                        .removeFileByKey(prefix);
+
+        log.info(
+                "[FILE TABLE ROW REMOVE] key={} removed={}",
+                prefix,
+                removed);
+    }
 }
