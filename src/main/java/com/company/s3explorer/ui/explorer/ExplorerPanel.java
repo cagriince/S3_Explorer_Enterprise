@@ -1943,8 +1943,18 @@ public class ExplorerPanel extends JPanel {
          */
         if (task.isAffectsObjectList()) {
 
-            refreshScheduler
-                    .scheduleCurrentTableRefresh();
+            if (task.getType()
+                    == TransferType.CREATE_FOLDER) {
+
+                addFolderToCurrentFileTable(
+                        task.getBucket(),
+                        task.getObjectKey());
+
+            } else {
+
+                refreshScheduler
+                        .scheduleCurrentTableRefresh();
+            }
         }
 
         /*
@@ -2086,13 +2096,15 @@ public class ExplorerPanel extends JPanel {
                         currentPrefix,
                         sourceParentPrefix)) {
 
-                    log.debug(
-                            "[EXPLORER SOURCE TABLE REFRESH] " +
-                                    "bucket={} prefix={}",
-                            sourceBucket,
-                            sourceParentPrefix);
+                    boolean removed =
+                            view.getFileTableModel()
+                                    .removeFileByKey(
+                                            sourcePrefix);
 
-                    refreshScheduler.scheduleCurrentTableRefresh();
+                    log.info(
+                            "[FILE TABLE ROW REMOVE] key={} removed={}",
+                            sourcePrefix,
+                            removed);
                 }
 
             } else {
@@ -2125,15 +2137,17 @@ public class ExplorerPanel extends JPanel {
                         sourceBucket)
                         && Objects.equals(
                         currentPrefix,
-                        sourcePrefix)) {
+                        getParentPrefix(sourcePrefix))) {
 
-                    log.debug(
-                            "[EXPLORER SOURCE TABLE REFRESH] " +
-                                    "bucket={} prefix={}",
-                            sourceBucket,
-                            sourcePrefix);
+                    boolean removed =
+                            view.getFileTableModel()
+                                    .removeFileByKey(
+                                            sourcePrefix);
 
-                    refreshScheduler.scheduleCurrentTableRefresh();
+                    log.info(
+                            "[FILE TABLE ROW REMOVE] key={} removed={}",
+                            sourcePrefix,
+                            removed);
                 }
             }
         }
@@ -5035,11 +5049,11 @@ public class ExplorerPanel extends JPanel {
 
     private void addFolderToCurrentFileTable(
             String bucket,
-            String prefix) {
+            String folderKey) {
 
         if (bucket == null
-                || prefix == null
-                || prefix.isBlank()) {
+                || folderKey == null
+                || folderKey.isBlank()) {
 
             return;
         }
@@ -5051,14 +5065,11 @@ public class ExplorerPanel extends JPanel {
             return;
         }
 
-        String currentPrefix =
-                currentFilePrefix;
-
         String parentPrefix =
-                getParentPrefix(prefix);
+                getParentPrefix(folderKey);
 
         if (!Objects.equals(
-                currentPrefix,
+                currentFilePrefix,
                 parentPrefix)) {
 
             return;
@@ -5075,7 +5086,7 @@ public class ExplorerPanel extends JPanel {
                 new S3FileItem(
                         repository.getName(),
                         bucket,
-                        prefix,
+                        folderKey,
                         0L,
                         null,
                         null,
@@ -5086,8 +5097,8 @@ public class ExplorerPanel extends JPanel {
 
         log.info(
                 "[FILE TABLE ROW INSERT] key={} prefix={}",
-                prefix,
-                currentPrefix);
+                folderKey,
+                currentFilePrefix);
     }
 
     private void removeFolderFromCurrentFileTable(
