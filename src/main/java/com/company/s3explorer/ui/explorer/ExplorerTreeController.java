@@ -184,14 +184,32 @@ public final class ExplorerTreeController {
                         : node.getChildCount());
 
         if (node == null) {
-
             log.debug(
                     "[EXPLORER TREE REFRESH NODE] NODE NOT FOUND");
-
             return;
         }
 
-        loadChildren(node, true);
+        switch (request.operation()) {
+
+            case ADD:
+                addNodeIncrementally(
+                        request.prefix());
+                break;
+
+            case DELETE:
+                removeNodeIncrementally(
+                        request.prefix());
+                break;
+
+            case RENAME:
+                renameNodeIncrementally(
+                        request.prefix());
+                break;
+
+            default:
+                loadChildren(node, true);
+                break;
+        }
     }
 
     private void loadChildren(

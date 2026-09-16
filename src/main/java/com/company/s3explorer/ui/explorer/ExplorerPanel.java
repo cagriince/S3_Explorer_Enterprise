@@ -1954,26 +1954,8 @@ public class ExplorerPanel extends JPanel {
                 && affectedPrefixes != null
                 && !affectedPrefixes.isEmpty()) {
 
-            Set<RefreshTreeNode> parentPrefixes =
-                    new HashSet<>();
-
-            for (RefreshTreeNode affected :
-                    affectedPrefixes) {
-
-                String prefix =
-                        affected.prefix();
-
-                String parentPrefix =
-                        getParentPrefix(prefix);
-
-                parentPrefixes.add(
-                        new RefreshTreeNode(
-                                parentPrefix,
-                                affected.operation()));
-            }
-
             refreshScheduler.scheduleRefresh(
-                    parentPrefixes);
+                    affectedPrefixes);
         }
     }
 
