@@ -5158,8 +5158,14 @@ public class ExplorerPanel extends JPanel {
             return;
         }
 
-        SwingUtilities.invokeLater(
-                this::restoreFileTableSelectionAfterDelete);
+        SwingUtilities.invokeLater(() -> {
+
+            restoreFileTableSelectionAfterDelete();
+
+            restoreFileTableFocus();
+
+            pendingDeleteSelectionViewRow = -1;
+        });
     }
 
     private void restoreFileTableSelectionAfterDelete() {
