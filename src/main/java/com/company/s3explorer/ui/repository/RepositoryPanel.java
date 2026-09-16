@@ -1,6 +1,5 @@
 package com.company.s3explorer.ui.repository;
 
-import com.company.s3explorer.application.ActiveRepositoryContext;
 import com.company.s3explorer.repository.RepositoryDefinition;
 import com.company.s3explorer.repository.RepositoryManager;
 import com.company.s3explorer.service.ConnectionTestResult;
@@ -522,10 +521,11 @@ public class RepositoryPanel extends JPanel {
             implements javax.swing.table.TableCellRenderer {
 
         RepositoryBooleanRenderer() {
+
             setHorizontalAlignment(
                     SwingConstants.CENTER);
 
-            setOpaque(true);
+            setOpaque(false);
         }
 
         @Override
@@ -540,35 +540,7 @@ public class RepositoryPanel extends JPanel {
             setSelected(
                     Boolean.TRUE.equals(value));
 
-            if (isSelected) {
-
-                setBackground(
-                        table.getSelectionBackground());
-
-                setForeground(
-                        table.getSelectionForeground());
-
-            } else {
-
-                Color background =
-                        table.getBackground();
-
-                Color alternateBackground =
-                        UIManager.getColor(
-                                "Table.alternateRowColor");
-
-                if (alternateBackground != null
-                        && row % 2 != 0) {
-
-                    background =
-                            alternateBackground;
-                }
-
-                setBackground(background);
-
-                setForeground(
-                        table.getForeground());
-            }
+            setOpaque(false);
 
             return this;
         }
