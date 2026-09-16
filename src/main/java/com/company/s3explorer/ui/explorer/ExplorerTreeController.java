@@ -189,27 +189,7 @@ public final class ExplorerTreeController {
             return;
         }
 
-        switch (request.operation()) {
-
-            case ADD:
-                addNodeIncrementally(
-                        request.prefix());
-                break;
-
-            case DELETE:
-                removeNodeIncrementally(
-                        request.prefix());
-                break;
-
-            case RENAME:
-                renameNodeIncrementally(
-                        request.prefix());
-                break;
-
-            default:
-                loadChildren(node, true);
-                break;
-        }
+        loadChildren(node, true);
     }
 
     private void loadChildren(
