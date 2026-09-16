@@ -2063,7 +2063,7 @@ public class ExplorerPanel extends JPanel {
                     refreshScheduler.scheduleRefresh(
                             List.of(
                                     new RefreshTreeNode(
-                                            sourceParentPrefix,
+                                            sourcePrefix,
                                             RefreshTreeOperation.DELETE)));
                 }
 

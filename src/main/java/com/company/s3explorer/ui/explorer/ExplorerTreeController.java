@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import javax.swing.tree.DefaultTreeModel;
+import javax.swing.tree.MutableTreeNode;
 import javax.swing.tree.TreePath;
 import java.text.Collator;
 import java.util.*;
@@ -189,7 +190,13 @@ public final class ExplorerTreeController {
             addNodeIncrementally(prefix);
             return;
         }
+        if (request.operation()
+                == RefreshTreeOperation.DELETE) {
 
+            removeNodeIncrementally(prefix);
+            return;
+        }
+        
         if (node == null) {
             log.debug(
                     "[EXPLORER TREE REFRESH NODE] NODE NOT FOUND");
@@ -314,6 +321,72 @@ public final class ExplorerTreeController {
                 parentPrefix,
                 childPrefix,
                 insertIndex,
+                parentNode.getChildCount());
+    }
+
+    private void removeNodeIncrementally(
+            String childPrefix) {
+
+        if (childPrefix == null
+                || childPrefix.isBlank()) {
+
+            log.debug(
+                    "[TREE DELETE] invalid childPrefix={}",
+                    childPrefix);
+
+            return;
+        }
+
+        S3TreeNode node =
+                nodeCache.get(childPrefix);
+
+        if (node == null) {
+
+            log.debug(
+                    "[TREE DELETE] node not found prefix={}",
+                    childPrefix);
+
+            return;
+        }
+
+        MutableTreeNode parent =
+                (MutableTreeNode) node.getParent();
+
+        if (!(parent instanceof S3TreeNode parentNode)) {
+
+            log.debug(
+                    "[TREE DELETE] parent not found prefix={}",
+                    childPrefix);
+
+            return;
+        }
+
+        int index =
+                parentNode.getIndex(node);
+
+        if (index < 0) {
+
+            log.debug(
+                    "[TREE DELETE] node index not found prefix={}",
+                    childPrefix);
+
+            return;
+        }
+
+        parentNode.remove(index);
+
+        nodeCache.remove(childPrefix);
+
+        treeModel.nodesWereRemoved(
+                parentNode,
+                new int[]{index},
+                new Object[]{node});
+
+        log.info(
+                "[TREE NODE REMOVE] parent={} child={} index={} childCount={}",
+                getParentPrefix(childPrefix),
+                childPrefix,
+                index,
                 parentNode.getChildCount());
     }
     
