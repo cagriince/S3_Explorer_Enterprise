@@ -2269,18 +2269,23 @@ public class ExplorerPanel extends JPanel {
              * FOLDER TREE
              * -----------------------------------------------------
              */
-            if (group.isSourceFolder()
-                    && Objects.equals(
-                    currentBucket,
-                    sourceBucket)
-                    && Objects.equals(
-                    sourceBucket,
-                    targetBucket)) {
+            /*
+             * -----------------------------------------------------
+             * FOLDER TREE
+             * -----------------------------------------------------
+             *
+             * Sadece klasör rename'inde Tree değiştirilir.
+             *
+             * Dosya rename'inde Folder Tree'ye kesinlikle
+             * dokunulmaz.
+             */
+            if (group.isSourceFolder()) {
 
                 boolean renamed =
-                        treeController.renameNodePreservingChildren(
-                                sourceKey,
-                                targetKey);
+                        treeController
+                                .renameNodePreservingChildren(
+                                        sourceKey,
+                                        targetKey);
 
                 log.info(
                         "[TREE RENAME PRESERVED] source={} target={} success={}",
