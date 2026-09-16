@@ -6,6 +6,7 @@ import com.company.s3explorer.service.ConnectionTestResult;
 import com.company.s3explorer.service.S3ClientFactory;
 
 import javax.swing.*;
+import javax.swing.table.TableCellRenderer;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.MouseAdapter;
@@ -518,14 +519,13 @@ public class RepositoryPanel extends JPanel {
 
     private static class RepositoryBooleanRenderer
             extends JCheckBox
-            implements javax.swing.table.TableCellRenderer {
+            implements TableCellRenderer {
 
         RepositoryBooleanRenderer() {
-
             setHorizontalAlignment(
                     SwingConstants.CENTER);
 
-            setOpaque(false);
+            setOpaque(true);
         }
 
         @Override
@@ -540,7 +540,23 @@ public class RepositoryPanel extends JPanel {
             setSelected(
                     Boolean.TRUE.equals(value));
 
-            setOpaque(false);
+            TableCellRenderer renderer =
+                    table.getDefaultRenderer(String.class);
+
+            Component rendererComponent =
+                    renderer.getTableCellRendererComponent(
+                            table,
+                            "",
+                            isSelected,
+                            hasFocus,
+                            row,
+                            column);
+
+            setBackground(
+                    rendererComponent.getBackground());
+
+            setForeground(
+                    rendererComponent.getForeground());
 
             return this;
         }
