@@ -4009,6 +4009,28 @@ public class ExplorerPanel extends JPanel {
         hideButton.addActionListener(
                 e -> dialog.setVisible(false));
 
+        dialog.getRootPane()
+                .getInputMap(
+                        JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT)
+                .put(
+                        KeyStroke.getKeyStroke(
+                                KeyEvent.VK_ESCAPE,
+                                0),
+                        "hideOperationDialog");
+
+        dialog.getRootPane()
+                .getActionMap()
+                .put(
+                        "hideOperationDialog",
+                        new AbstractAction() {
+                            @Override
+                            public void actionPerformed(
+                                    ActionEvent e) {
+
+                                dialog.setVisible(false);
+                            }
+                        });
+
         JPanel buttonPanel =
                 new JPanel(
                         new FlowLayout(
