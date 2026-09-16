@@ -61,22 +61,34 @@ public class ExplorerRefreshScheduler {
         if (prefixes != null
                 && !prefixes.isEmpty()) {
 
-            for (RefreshTreeNode prefix :
-                    prefixes) {
+            if (prefixes != null
+                    && !prefixes.isEmpty()) {
 
-                if (prefix == null) {
-                    continue;
+                int addedCount = 0;
+
+                for (RefreshTreeNode prefix : prefixes) {
+
+                    if (prefix == null) {
+                        continue;
+                    }
+
+                    if (pendingPrefixes.add(prefix)) {
+
+                        addedCount++;
+
+                        System.out.println(
+                                "[SCHEDULE TREE REFRESH] " +
+                                        "prefix=" +
+                                        prefix.prefix() +
+                                        " operation=" +
+                                        prefix.operation());
+                    }
                 }
 
-                System.out.println(
-                        "[SCHEDULE TREE REFRESH] " +
-                                "prefix=" +
-                                prefix.prefix() +
-                                " operation=" +
-                                prefix.operation());
+                if (addedCount == 0) {
+                    return;
+                }
             }
-
-            pendingPrefixes.addAll(prefixes);
         }
 
         scheduleTimer();
