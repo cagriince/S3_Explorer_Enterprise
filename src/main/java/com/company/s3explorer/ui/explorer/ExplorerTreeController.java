@@ -854,6 +854,9 @@ public final class ExplorerTreeController {
          *
          * Expansion state böylece korunuyor.
          */
+        logExpandedSubtree(
+                node,
+                "");
         treeModel.nodeChanged(node);
 
         log.info(
@@ -1564,6 +1567,51 @@ public final class ExplorerTreeController {
             collectDescendants(
                     childNode,
                     result);
+        }
+    }
+
+    private void logExpandedSubtree(
+            S3TreeNode node,
+            String indent) {
+
+        if (node == null
+                || node.isLoading()) {
+
+            return;
+        }
+
+        TreePath path =
+                new TreePath(
+                        node.getPath());
+
+        boolean expanded =
+                folderTree.isExpanded(path);
+
+        log.info(
+                "[TREE EXPANSION STATE] {}prefix={} expanded={} childCount={}",
+                indent,
+                node.getFullPrefix(),
+                expanded,
+                node.getChildCount());
+
+        for (int i = 0;
+             i < node.getChildCount();
+             i++) {
+
+            Object childObject =
+                    node.getChildAt(i);
+
+            if (!(childObject instanceof S3TreeNode child)) {
+                continue;
+            }
+
+            if (child.isLoading()) {
+                continue;
+            }
+
+            logExpandedSubtree(
+                    child,
+                    indent + "  ");
         }
     }
 }
