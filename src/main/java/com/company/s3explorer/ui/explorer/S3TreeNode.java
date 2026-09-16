@@ -6,9 +6,9 @@ public class S3TreeNode extends DefaultMutableTreeNode {
     public static String ROOT_PREFIX = "";
     public static String LOADING = "Loading...";
 
-    private final String displayName;
-    private final String bucket;
-    private final String fullPrefix;
+    private String displayName;
+    private String bucket;
+    private String fullPrefix;
 
     public S3TreeNode(String displayName, String bucket, String fullPrefix) {
         super(displayName);
@@ -32,5 +32,21 @@ public class S3TreeNode extends DefaultMutableTreeNode {
 
     public boolean isLoading() {
         return LOADING.equals(super.getUserObject());
+    }
+
+    public void rename(
+            String newDisplayName,
+            String newBucket,
+            String newFullPrefix) {
+
+        this.displayName = newDisplayName;
+        this.bucket = newBucket;
+        this.fullPrefix = newFullPrefix;
+
+        setUserObject(newDisplayName);
+    }
+
+    public String getDisplayName() {
+        return displayName;
     }
 }
