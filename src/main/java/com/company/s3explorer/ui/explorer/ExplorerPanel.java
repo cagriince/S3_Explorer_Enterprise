@@ -5201,5 +5201,57 @@ public class ExplorerPanel extends JPanel {
                 "[FILE TABLE ROW REMOVE] key={} removed={}",
                 prefix,
                 removed);
+
+        if (removed
+                && restoreFileTableFocus
+                && pendingDeleteSelectionViewRow >= 0) {
+
+            SwingUtilities.invokeLater(() -> {
+
+                JTable table =
+                        view.getFileTable();
+
+                int rowCount =
+                        table.getRowCount();
+
+                if (rowCount <= 0) {
+
+                    pendingDeleteSelectionViewRow = -1;
+                    return;
+                }
+
+                /*
+                 * Silinen satırın önceki satırını seç.
+                 *
+                 * Eğer silinen satır son satırsa,
+                 * yeni son satırı seç.
+                 */
+                int targetViewRow =
+                        Math.min(
+                                pendingDeleteSelectionViewRow,
+                                rowCount - 1);
+
+                table.setRowSelectionInterval(
+                        targetViewRow,
+                        targetViewRow);
+
+                table.scrollRectToVisible(
+                        table.getCellRect(
+                                targetViewRow,
+                                0,
+                                true));
+
+                table.requestFocusInWindow();
+
+                log.info(
+                        "[DELETE SELECTION RESTORE] " +
+                                "deletedViewRow={} targetViewRow={} rowCount={}",
+                        pendingDeleteSelectionViewRow,
+                        targetViewRow,
+                        rowCount);
+
+                pendingDeleteSelectionViewRow = -1;
+            });
+        }
     }
 }
