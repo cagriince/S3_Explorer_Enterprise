@@ -2105,6 +2105,25 @@ public class ExplorerPanel extends JPanel {
                             "[FILE TABLE ROW REMOVE] key={} removed={}",
                             sourcePrefix,
                             removed);
+
+                    if (removed
+                            && pendingDeleteSelectionViewRow >= 0) {
+
+                        SwingUtilities.invokeLater(() -> {
+
+                            log.info(
+                                    "[DELETE SELECTION RESTORE TRIGGER] " +
+                                            "pendingRow={} rowCount={}",
+                                    pendingDeleteSelectionViewRow,
+                                    view.getFileTable().getRowCount());
+
+                            restoreFileTableSelectionAfterDelete();
+
+                            restoreFileTableFocus();
+
+                            pendingDeleteSelectionViewRow = -1;
+                        });
+                    }
                 }
 
             } else {
