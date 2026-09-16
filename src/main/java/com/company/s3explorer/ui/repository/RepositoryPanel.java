@@ -6,7 +6,6 @@ import com.company.s3explorer.service.ConnectionTestResult;
 import com.company.s3explorer.service.S3ClientFactory;
 
 import javax.swing.*;
-import javax.swing.table.TableCellRenderer;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.MouseAdapter;
@@ -73,9 +72,11 @@ public class RepositoryPanel extends JPanel {
         table.setSelectionMode(
                 ListSelectionModel.SINGLE_SELECTION);
 
-        table.setDefaultRenderer(
-                Boolean.class,
-                new RepositoryBooleanRenderer());
+        JComponent booleanRenderer =
+                (JComponent) table.getDefaultRenderer(
+                        Boolean.class);
+
+        booleanRenderer.setOpaque(true);
 
         table.getSelectionModel()
                 .addListSelectionListener(e -> {
@@ -515,50 +516,5 @@ public class RepositoryPanel extends JPanel {
         int rowHeight = fontMetrics.getHeight() + 8;
 
         table.setRowHeight(rowHeight);
-    }
-
-    private static class RepositoryBooleanRenderer
-            extends JCheckBox
-            implements TableCellRenderer {
-
-        RepositoryBooleanRenderer() {
-            setHorizontalAlignment(
-                    SwingConstants.CENTER);
-
-            setOpaque(true);
-        }
-
-        @Override
-        public Component getTableCellRendererComponent(
-                JTable table,
-                Object value,
-                boolean isSelected,
-                boolean hasFocus,
-                int row,
-                int column) {
-
-            setSelected(
-                    Boolean.TRUE.equals(value));
-
-            TableCellRenderer renderer =
-                    table.getDefaultRenderer(String.class);
-
-            Component rendererComponent =
-                    renderer.getTableCellRendererComponent(
-                            table,
-                            "",
-                            isSelected,
-                            hasFocus,
-                            row,
-                            column);
-
-            setBackground(
-                    rendererComponent.getBackground());
-
-            setForeground(
-                    rendererComponent.getForeground());
-
-            return this;
-        }
     }
 }
