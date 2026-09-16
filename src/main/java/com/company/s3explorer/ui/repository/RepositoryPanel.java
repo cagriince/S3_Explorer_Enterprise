@@ -8,6 +8,7 @@ import com.company.s3explorer.service.S3ClientFactory;
 import javax.swing.*;
 import javax.swing.table.JTableHeader;
 import javax.swing.table.TableCellRenderer;
+import javax.swing.table.TableColumnModel;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.MouseAdapter;
@@ -111,6 +112,13 @@ public class RepositoryPanel extends JPanel {
 
                     return component;
                 });
+
+        TableColumnModel columns = table.getColumnModel();
+        columns.getColumn(0).setPreferredWidth(180);
+        columns.getColumn(1).setPreferredWidth(300);
+        columns.getColumn(2).setPreferredWidth(180);
+        columns.getColumn(3).setPreferredWidth(110);
+        columns.getColumn(4).setPreferredWidth(110);
         
         table.getSelectionModel()
                 .addListSelectionListener(e -> {
