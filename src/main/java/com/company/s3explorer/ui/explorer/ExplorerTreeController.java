@@ -183,6 +183,13 @@ public final class ExplorerTreeController {
                         ? -1
                         : node.getChildCount());
 
+        if (request.operation()
+                == RefreshTreeOperation.ADD) {
+
+            addNodeIncrementally(prefix);
+            return;
+        }
+
         if (node == null) {
             log.debug(
                     "[EXPLORER TREE REFRESH NODE] NODE NOT FOUND");
@@ -192,6 +199,124 @@ public final class ExplorerTreeController {
         loadChildren(node, true);
     }
 
+    private void addNodeIncrementally(
+            String childPrefix) {
+
+        if (childPrefix == null
+                || childPrefix.isBlank()) {
+
+            log.debug(
+                    "[TREE ADD] invalid childPrefix={}",
+                    childPrefix);
+
+            return;
+        }
+
+        String bucket =
+                currentBucketSupplier.get();
+
+        if (bucket == null
+                || bucket.isBlank()) {
+
+            log.debug(
+                    "[TREE ADD] bucket unavailable");
+            return;
+        }
+
+        /*
+         * Yeni node'un parent prefix'ini bul.
+         *
+         * Örnek:
+         *
+         * SIL71/
+         *   -> ""
+         *
+         * A/B/
+         *   -> A/
+         */
+        String parentPrefix =
+                getParentPrefix(childPrefix);
+
+        S3TreeNode parentNode =
+                nodeCache.get(parentPrefix);
+
+        if (parentNode == null) {
+
+            log.warn(
+                    "[TREE ADD] parent node not found " +
+                            "childPrefix={} parentPrefix={}",
+                    childPrefix,
+                    parentPrefix);
+
+            return;
+        }
+
+        /*
+         * Aynı node zaten eklenmişse tekrar ekleme.
+         */
+        if (nodeCache.containsKey(childPrefix)) {
+
+            log.debug(
+                    "[TREE ADD] node already exists prefix={}",
+                    childPrefix);
+
+            return;
+        }
+
+        String displayName =
+                S3Util.extractFolderName(
+                        childPrefix);
+
+        S3TreeNode child =
+                new S3TreeNode(
+                        displayName,
+                        bucket,
+                        childPrefix);
+
+        /*
+         * Normal Tree node'ları lazy-load edilebilir.
+         * Bu nedenle mevcut node'larla aynı Loading marker'ını ekle.
+         */
+        child.add(
+                new S3TreeNode(
+                        S3TreeNode.LOADING,
+                        bucket,
+                        childPrefix));
+
+        /*
+         * Sıralamayı bozmamak için doğru index'i bul.
+         */
+        int insertIndex =
+                findInsertIndex(
+                        parentNode,
+                        child);
+
+        parentNode.insert(
+                child,
+                insertIndex);
+
+        nodeCache.put(
+                childPrefix,
+                child);
+
+        /*
+         * reload() YOK.
+         *
+         * Sadece eklenen node'un Tree model'e
+         * bildirimi yapılıyor.
+         */
+        treeModel.nodesWereInserted(
+                parentNode,
+                new int[]{insertIndex});
+
+        log.info(
+                "[TREE NODE INSERT] parent={} child={} index={} childCount={}",
+                parentPrefix,
+                childPrefix,
+                insertIndex,
+                parentNode.getChildCount());
+    }
+    
     private void loadChildren(
             S3TreeNode parentNode,
             boolean forceRefresh) {
@@ -950,5 +1075,74 @@ public final class ExplorerTreeController {
                         collator));
 
         return sortedFolders;
+    }
+
+    private int findInsertIndex(
+            S3TreeNode parentNode,
+            S3TreeNode newNode) {
+
+        String newName =
+                newNode.toString();
+
+        Collator collator =
+                Collator.getInstance();
+
+        for (int i = 0;
+             i < parentNode.getChildCount();
+             i++) {
+
+            Object childObject =
+                    parentNode.getChildAt(i);
+
+            if (!(childObject
+                    instanceof S3TreeNode existing)) {
+
+                continue;
+            }
+
+            /*
+             * Loading marker gerçek bir klasör değil.
+             */
+            if (existing.isLoading()) {
+                continue;
+            }
+
+            if (collator.compare(
+                    newName,
+                    existing.toString()) < 0) {
+
+                return i;
+            }
+        }
+
+        return parentNode.getChildCount();
+    }
+
+    private String getParentPrefix(
+            String prefix) {
+
+        if (prefix == null
+                || prefix.isBlank()) {
+
+            return S3TreeNode.ROOT_PREFIX;
+        }
+
+        String normalized =
+                prefix.endsWith("/")
+                        ? prefix.substring(
+                        0,
+                        prefix.length() - 1)
+                        : prefix;
+
+        int slashIndex =
+                normalized.lastIndexOf('/');
+
+        if (slashIndex < 0) {
+            return S3TreeNode.ROOT_PREFIX;
+        }
+
+        return normalized.substring(
+                0,
+                slashIndex + 1);
     }
 }
