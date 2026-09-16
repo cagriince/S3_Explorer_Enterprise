@@ -2057,7 +2057,12 @@ public class ExplorerPanel extends JPanel {
              * GERÇEK KLASÖR DELETE / MOVE
              * -------------------------------------------------
              */
-            if (group.isSourceFolder()) {
+            if (group.getOperation()
+                    == TransferType.RENAME_GROUP) {
+
+                // Rename kendi incremental source/target işlemini
+                // aşağıdaki özel blokta yapacak.
+            } else if (group.isSourceFolder()) {
 
                 String sourceParentPrefix =
                         getParentPrefix(sourcePrefix);
