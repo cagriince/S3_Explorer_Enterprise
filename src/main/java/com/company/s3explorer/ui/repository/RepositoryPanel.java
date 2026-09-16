@@ -6,6 +6,8 @@ import com.company.s3explorer.service.ConnectionTestResult;
 import com.company.s3explorer.service.S3ClientFactory;
 
 import javax.swing.*;
+import javax.swing.table.JTableHeader;
+import javax.swing.table.TableCellRenderer;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.MouseAdapter;
@@ -78,6 +80,38 @@ public class RepositoryPanel extends JPanel {
 
         booleanRenderer.setOpaque(true);
 
+        JTableHeader header = table.getTableHeader();
+
+        TableCellRenderer defaultHeaderRenderer =
+                header.getDefaultRenderer();
+
+        header.setDefaultRenderer(
+                (tableHeader,
+                 value,
+                 isSelected,
+                 hasFocus,
+                 row,
+                 column) -> {
+
+                    Component component =
+                            defaultHeaderRenderer
+                                    .getTableCellRendererComponent(
+                                            tableHeader,
+                                            value,
+                                            isSelected,
+                                            hasFocus,
+                                            row,
+                                            column);
+
+                    if (component instanceof JLabel) {
+                        ((JLabel) component)
+                                .setHorizontalAlignment(
+                                        SwingConstants.CENTER);
+                    }
+
+                    return component;
+                });
+        
         table.getSelectionModel()
                 .addListSelectionListener(e -> {
 
