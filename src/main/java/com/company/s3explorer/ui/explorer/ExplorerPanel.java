@@ -2269,37 +2269,24 @@ public class ExplorerPanel extends JPanel {
              * FOLDER TREE
              * -----------------------------------------------------
              */
-            if (group.isSourceFolder()) {
+            if (group.isSourceFolder()
+                    && Objects.equals(
+                    currentBucket,
+                    sourceBucket)
+                    && Objects.equals(
+                    sourceBucket,
+                    targetBucket)) {
 
-                if (Objects.equals(
-                        currentBucket,
-                        sourceBucket)) {
+                boolean renamed =
+                        treeController.renameNodePreservingChildren(
+                                sourceKey,
+                                targetKey);
 
-                    refreshScheduler.scheduleRefresh(
-                            List.of(
-                                    new RefreshTreeNode(
-                                            sourceKey,
-                                            RefreshTreeOperation.DELETE)));
-
-                    log.info(
-                            "[TREE RENAME REMOVE] key={}",
-                            sourceKey);
-                }
-
-                if (Objects.equals(
-                        currentBucket,
-                        targetBucket)) {
-
-                    refreshScheduler.scheduleRefresh(
-                            List.of(
-                                    new RefreshTreeNode(
-                                            targetKey,
-                                            RefreshTreeOperation.ADD)));
-
-                    log.info(
-                            "[TREE RENAME INSERT] key={}",
-                            targetKey);
-                }
+                log.info(
+                        "[TREE RENAME PRESERVED] source={} target={} success={}",
+                        sourceKey,
+                        targetKey,
+                        renamed);
             }
 
             /*

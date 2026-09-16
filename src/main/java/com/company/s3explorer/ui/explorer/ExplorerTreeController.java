@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
+import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.MutableTreeNode;
 import javax.swing.tree.TreePath;
@@ -648,6 +649,326 @@ public final class ExplorerTreeController {
         return selectedNode.getFullPrefix();
     }
 
+    public boolean renameNodePreservingChildren(
+            String sourcePrefix,
+            String targetPrefix) {
+
+        if (sourcePrefix == null
+                || sourcePrefix.isBlank()
+                || targetPrefix == null
+                || targetPrefix.isBlank()) {
+
+            return false;
+        }
+
+        if (Objects.equals(
+                sourcePrefix,
+                targetPrefix)) {
+
+            return false;
+        }
+
+        S3TreeNode node =
+                nodeCache.get(sourcePrefix);
+
+        if (node == null) {
+
+            log.warn(
+                    "[TREE RENAME PRESERVED] source node not found source={}",
+                    sourcePrefix);
+
+            return false;
+        }
+
+        MutableTreeNode parent =
+                (MutableTreeNode) node.getParent();
+
+        if (!(parent instanceof S3TreeNode)) {
+
+            log.warn(
+                    "[TREE RENAME PRESERVED] parent not found source={}",
+                    sourcePrefix);
+
+            return false;
+        }
+
+        /*
+         * ---------------------------------------------------------
+         * SUBTREE SNAPSHOT
+         * ---------------------------------------------------------
+         *
+         * Önce bütün mevcut node'ların eski prefix'lerini
+         * snapshot'lıyoruz.
+         *
+         * Örnek:
+         *
+         * SIL71/
+         *   A/
+         *     B/
+         *
+         * snapshot:
+         *
+         * SIL71/
+         * A/
+         * A/B/
+         *
+         * Daha sonra hiçbir node'u kaybetmeden bunları:
+         *
+         * SIL72/
+         * A/
+         * A/B/
+         *
+         * haline getireceğiz.
+         */
+        List<S3TreeNode> subtree =
+                new ArrayList<>();
+
+        collectSubtreeNodes(
+                node,
+                subtree);
+
+        /*
+         * Eski prefix'leri mutation'dan önce sakla.
+         */
+        Map<S3TreeNode, String> oldPrefixes =
+                new IdentityHashMap<>();
+
+        for (S3TreeNode subtreeNode :
+                subtree) {
+
+            oldPrefixes.put(
+                    subtreeNode,
+                    subtreeNode.getFullPrefix());
+        }
+
+        /*
+         * ---------------------------------------------------------
+         * CACHE'DEN ESKİ PREFIX'LERİ ÇIKAR
+         * ---------------------------------------------------------
+         */
+        for (String oldPrefix :
+                oldPrefixes.values()) {
+
+            nodeCache.remove(oldPrefix);
+        }
+
+        /*
+         * ---------------------------------------------------------
+         * ROOT NODE RENAME
+         * ---------------------------------------------------------
+         */
+        String newDisplayName =
+                S3Util.extractFolderName(
+                        targetPrefix);
+
+        node.rename(
+                newDisplayName,
+                node.getBucket(),
+                targetPrefix);
+
+        /*
+         * ---------------------------------------------------------
+         * DESCENDANT NODE'LARI RENAME
+         * ---------------------------------------------------------
+         *
+         * ÖNEMLİ:
+         *
+         * Burada eski prefix'i snapshot'tan alıyoruz.
+         *
+         * Böylece bir child'ın prefix'ini değiştirdikten sonra
+         * recursive işlemde eski prefix kaybolmuyor.
+         */
+        for (S3TreeNode subtreeNode :
+                subtree) {
+
+            if (subtreeNode == node) {
+                continue;
+            }
+
+            String oldChildPrefix =
+                    oldPrefixes.get(
+                            subtreeNode);
+
+            if (oldChildPrefix == null
+                    || !oldChildPrefix.startsWith(
+                    sourcePrefix)) {
+
+                continue;
+            }
+
+            String relativePrefix =
+                    oldChildPrefix.substring(
+                            sourcePrefix.length());
+
+            String newChildPrefix =
+                    targetPrefix
+                            + relativePrefix;
+
+            subtreeNode.rename(
+                    subtreeNode.getDisplayName(),
+                    subtreeNode.getBucket(),
+                    newChildPrefix);
+        }
+
+        /*
+         * ---------------------------------------------------------
+         * CACHE'E YENİ PREFIX'LERİ EKLE
+         * ---------------------------------------------------------
+         */
+        for (S3TreeNode subtreeNode :
+                subtree) {
+
+            nodeCache.put(
+                    subtreeNode.getFullPrefix(),
+                    subtreeNode);
+        }
+
+        /*
+         * ---------------------------------------------------------
+         * TREE MODEL
+         * ---------------------------------------------------------
+         *
+         * Burada:
+         *
+         *     remove()
+         *     insert()
+         *     reload()
+         *
+         * YOK.
+         *
+         * Aynı S3TreeNode nesnesi parent'ın altında kalıyor.
+         *
+         * Dolayısıyla:
+         *
+         * SIL71/
+         *   A/
+         *     B/
+         *
+         * aynı Java node'larıyla:
+         *
+         * SIL72/
+         *   A/
+         *     B/
+         *
+         * oluyor.
+         *
+         * Expansion state böylece korunuyor.
+         */
+        treeModel.nodeChanged(node);
+
+        log.info(
+                "[TREE RENAME PRESERVED] source={} target={} " +
+                        "childCount={} subtreeSize={}",
+                sourcePrefix,
+                targetPrefix,
+                node.getChildCount(),
+                subtree.size());
+
+        return true;
+    }
+
+    private void collectSubtreeNodes(
+            S3TreeNode node,
+            List<S3TreeNode> result) {
+
+        if (node == null
+                || result == null) {
+
+            return;
+        }
+
+        result.add(node);
+
+        for (int i = 0;
+             i < node.getChildCount();
+             i++) {
+
+            Object childObject =
+                    node.getChildAt(i);
+
+            if (!(childObject instanceof S3TreeNode child)) {
+                continue;
+            }
+
+            /*
+             * Loading marker gerçek klasör node'u değildir.
+             */
+            if (child.isLoading()) {
+                continue;
+            }
+
+            collectSubtreeNodes(
+                    child,
+                    result);
+        }
+    }
+    
+    private void reindexRenamedSubtree(
+            S3TreeNode parentNode,
+            String sourcePrefix,
+            String targetPrefix) {
+
+        for (int i = 0;
+             i < parentNode.getChildCount();
+             i++) {
+
+            Object childObject =
+                    parentNode.getChildAt(i);
+
+            if (!(childObject instanceof S3TreeNode child)) {
+                continue;
+            }
+
+            /*
+             * Loading marker gerçek folder node'u değildir.
+             */
+            if (child.isLoading()) {
+                continue;
+            }
+
+            String oldChildPrefix =
+                    child.getFullPrefix();
+
+            if (oldChildPrefix == null
+                    || !oldChildPrefix.startsWith(
+                    sourcePrefix)) {
+
+                continue;
+            }
+
+            String newChildPrefix =
+                    targetPrefix
+                            + oldChildPrefix.substring(
+                            sourcePrefix.length());
+
+            /*
+             * Child node'un kendisini de koruyoruz.
+             */
+            child.rename(
+                    child.getDisplayName(),
+                    child.getBucket(),
+                    newChildPrefix);
+
+            /*
+             * Cache key'ini değiştir.
+             */
+            nodeCache.remove(
+                    oldChildPrefix);
+
+            nodeCache.put(
+                    newChildPrefix,
+                    child);
+
+            /*
+             * Daha aşağıdaki subtree'yi de güncelle.
+             */
+            reindexRenamedSubtree(
+                    child,
+                    sourcePrefix,
+                    targetPrefix);
+        }
+    }
+    
     public S3TreeNode findNodeByPrefix(
             String prefix) {
 
@@ -1217,166 +1538,6 @@ public final class ExplorerTreeController {
         return normalized.substring(
                 0,
                 slashIndex + 1);
-    }
-
-    private void renameNodeIncrementally(
-            String oldPrefix,
-            String newPrefix) {
-
-        if (oldPrefix == null
-                || oldPrefix.isBlank()
-                || newPrefix == null
-                || newPrefix.isBlank()) {
-
-            return;
-        }
-
-        S3TreeNode node =
-                nodeCache.get(oldPrefix);
-
-        if (node == null) {
-
-            log.warn(
-                    "[TREE RENAME] source node not found oldPrefix={}",
-                    oldPrefix);
-
-            return;
-        }
-
-        String bucket =
-                currentBucketSupplier.get();
-
-        if (bucket == null
-                || bucket.isBlank()) {
-
-            return;
-        }
-
-        String newDisplayName =
-                S3Util.extractFolderName(
-                        newPrefix);
-
-        /*
-         * -----------------------------------------------------
-         * CACHE KEY'LERİNİ GÜNCELLE
-         * -----------------------------------------------------
-         *
-         * Eğer SIL71 altında:
-         *
-         * SIL71/
-         *   A/
-         *     B/
-         *
-         * varsa cache'te:
-         *
-         * SIL71/
-         * A/
-         * A/B/
-         *
-         * gibi kayıtlar bulunabilir.
-         *
-         * Rename sonrasında bunları:
-         *
-         * SIL72/
-         * A/
-         * A/B/
-         *
-         * olarak taşıyoruz.
-         */
-        List<S3TreeNode> descendants =
-                new ArrayList<>();
-
-        collectDescendants(
-                node,
-                descendants);
-
-        /*
-         * Eski cache kayıtlarını önce çıkar.
-         */
-        List<String> oldPrefixes =
-                new ArrayList<>();
-
-        oldPrefixes.add(oldPrefix);
-
-        for (S3TreeNode descendant :
-                descendants) {
-
-            oldPrefixes.add(
-                    descendant.getFullPrefix());
-        }
-
-        for (String oldKey :
-                oldPrefixes) {
-
-            nodeCache.remove(oldKey);
-        }
-
-        /*
-         * -----------------------------------------------------
-         * NODE PREFIX'LERİNİ GÜNCELLE
-         * -----------------------------------------------------
-         */
-        node.rename(
-                newDisplayName,
-                bucket,
-                newPrefix);
-
-        /*
-         * Root node'dan itibaren alt node'ların prefix'lerini
-         * yeni parent prefix'e göre güncelle.
-         */
-        for (S3TreeNode descendant :
-                descendants) {
-
-            String oldDescendantPrefix =
-                    descendant.getFullPrefix();
-
-            String relative =
-                    oldDescendantPrefix.substring(
-                            oldPrefix.length());
-
-            String newDescendantPrefix =
-                    newPrefix + relative;
-
-            descendant.rename(
-                    descendant.getDisplayName(),
-                    bucket,
-                    newDescendantPrefix);
-        }
-
-        /*
-         * -----------------------------------------------------
-         * CACHE'İ YENİ PREFIX'LERLE DOLDUR
-         * -----------------------------------------------------
-         */
-        nodeCache.put(
-                newPrefix,
-                node);
-
-        for (S3TreeNode descendant :
-                descendants) {
-
-            nodeCache.put(
-                    descendant.getFullPrefix(),
-                    descendant);
-        }
-
-        /*
-         * -----------------------------------------------------
-         * TREE MODEL
-         * -----------------------------------------------------
-         *
-         * reload YOK.
-         * Node aynı node olduğu için child'lar ve expansion
-         * state korunuyor.
-         */
-        treeModel.nodeChanged(node);
-
-        log.info(
-                "[TREE NODE RENAME] old={} new={} childCount={}",
-                oldPrefix,
-                newPrefix,
-                node.getChildCount());
     }
 
     private void collectDescendants(
