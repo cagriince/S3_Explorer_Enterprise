@@ -150,11 +150,11 @@ public class FileTableModel extends AbstractTableModel {
                 files.size() - 1);
     }
 
-    public void addFile(
+    public boolean addFile(
             S3FileItem file) {
 
         if (file == null) {
-            return;
+            return false;
         }
 
         /*
@@ -166,7 +166,7 @@ public class FileTableModel extends AbstractTableModel {
                     existing.getKey(),
                     file.getKey())) {
 
-                return;
+                return false;
             }
         }
 
@@ -178,8 +178,10 @@ public class FileTableModel extends AbstractTableModel {
         fireTableRowsInserted(
                 row,
                 row);
-    }
 
+        return true;
+    }
+    
     public boolean removeFileByKey(
             String key) {
 
@@ -231,5 +233,30 @@ public class FileTableModel extends AbstractTableModel {
     public List<S3FileItem> getItems() {
 
         return List.copyOf(files);
+    }
+
+    public int findRowByKey(
+            String key) {
+
+        if (key == null) {
+            return -1;
+        }
+
+        for (int i = 0;
+             i < files.size();
+             i++) {
+
+            S3FileItem item =
+                    files.get(i);
+
+            if (Objects.equals(
+                    item.getKey(),
+                    key)) {
+
+                return i;
+            }
+        }
+
+        return -1;
     }
 }

@@ -5092,13 +5092,77 @@ public class ExplorerPanel extends JPanel {
                         null,
                         true);
 
-        view.getFileTableModel()
-                .addFile(item);
+        boolean added =
+                view.getFileTableModel()
+                        .addFile(item);
+
+        if (!added) {
+
+            log.debug(
+                    "[FILE TABLE ROW INSERT] already exists key={}",
+                    folderKey);
+
+            return;
+        }
 
         log.info(
                 "[FILE TABLE ROW INSERT] key={} prefix={}",
                 folderKey,
                 currentFilePrefix);
+
+        /*
+         * CREATE_FOLDER işleminde oluşturulan klasörü
+         * seç ve File Table focus'unu geri ver.
+         */
+        if (Objects.equals(
+                pendingFileTableSelectionKey,
+                folderKey)
+                && restoreFileTableFocus) {
+
+            SwingUtilities.invokeLater(() -> {
+
+                int modelRow =
+                        view.getFileTableModel()
+                                .findRowByKey(folderKey);
+
+                if (modelRow < 0) {
+                    return;
+                }
+
+                JTable table =
+                        view.getFileTable();
+
+                int viewRow =
+                        table.convertRowIndexToView(
+                                modelRow);
+
+                if (viewRow < 0) {
+                    return;
+                }
+
+                table.setRowSelectionInterval(
+                        viewRow,
+                        viewRow);
+
+                table.scrollRectToVisible(
+                        table.getCellRect(
+                                viewRow,
+                                0,
+                                true));
+
+                table.requestFocusInWindow();
+
+                log.info(
+                        "[FILE TABLE SELECTION RESTORE] " +
+                                "key={} viewRow={} modelRow={}",
+                        folderKey,
+                        viewRow,
+                        modelRow);
+
+                pendingFileTableSelectionKey = null;
+                restoreFileTableFocus = false;
+            });
+        }
     }
 
     private void removeFolderFromCurrentFileTable(
