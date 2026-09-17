@@ -2019,10 +2019,15 @@ public class ExplorerPanel extends JPanel {
 
         /*
          * =========================================================
-         * RENAME GROUP
+         * RENAME
          * =========================================================
          *
-         * Rename diğer transfer operasyonlarından ayrı ele alınır.
+         * Rename iki şekilde gelebilir:
+         *
+         *     TransferType.RENAME
+         *     TransferType.RENAME_GROUP
+         *
+         * Bu nedenle ikisini de burada özel olarak ele alıyoruz.
          *
          * DOSYA RENAME:
          *
@@ -2032,7 +2037,7 @@ public class ExplorerPanel extends JPanel {
          *
          * File Table'daki mevcut satır yerinde değiştirilir.
          *
-         * Folder Tree'ye KESİNLİKLE dokunulmaz.
+         * Folder Tree'ye kesinlikle dokunulmaz.
          *
          *
          * KLASÖR RENAME:
@@ -2048,11 +2053,13 @@ public class ExplorerPanel extends JPanel {
          * Folder Tree:
          *     mevcut SIL71 node'u SIL72 olarak rename edilir.
          *
-         * Node değiştirilmediği için altındaki child node'lar,
+         * Aynı Tree node'u korunduğu için altındaki child node'lar,
          * cache kayıtları ve expansion state korunur.
          * =========================================================
          */
         if (group.getOperation()
+                == TransferType.RENAME
+                || group.getOperation()
                 == TransferType.RENAME_GROUP) {
 
             String sourceKey =
@@ -2078,7 +2085,7 @@ public class ExplorerPanel extends JPanel {
 
             /*
              * -----------------------------------------------------
-             * FILE TABLE
+             * FILE TABLE - SOURCE
              * -----------------------------------------------------
              */
             if (Objects.equals(
@@ -2104,8 +2111,7 @@ public class ExplorerPanel extends JPanel {
                          * -----------------------------------------
                          *
                          * Klasörün mevcut satırını kaldırıyoruz.
-                         * Hedef satır aşağıdaki target bölümünde
-                         * tekrar eklenecek.
+                         * Hedef satır aşağıda tekrar eklenecek.
                          */
                         boolean removed =
                                 view.getFileTableModel()
@@ -2125,14 +2131,10 @@ public class ExplorerPanel extends JPanel {
                          * DOSYA RENAME
                          * -----------------------------------------
                          *
-                         * Dosyayı silip tekrar addFile() ile
-                         * eklemiyoruz.
+                         * Satırı silip tekrar eklemiyoruz.
                          *
-                         * Çünkü bu durumda satır listenin sonuna
-                         * gidebilir.
-                         *
-                         * Mevcut satırın yerinde yalnızca S3FileItem
-                         * değiştirilir.
+                         * Aynı satırdaki S3FileItem değiştirilir.
+                         * Böylece dosyanın sıra konumu korunur.
                          */
                         int sourceRow =
                                 view.getFileTableModel()
@@ -2196,11 +2198,11 @@ public class ExplorerPanel extends JPanel {
 
             /*
              * -----------------------------------------------------
-             * TARGET FILE TABLE
+             * FILE TABLE - TARGET
              * -----------------------------------------------------
              *
              * Sadece KLASÖR rename'inde ayrıca hedef klasör
-             * eklenir.
+             * File Table'a eklenir.
              *
              * Dosya rename'inde yukarıdaki replaceFileByKey()
              * zaten işlemi tamamladı.
@@ -2217,14 +2219,6 @@ public class ExplorerPanel extends JPanel {
                         currentPrefix,
                         targetParentPrefix)) {
 
-                    /*
-                     * Kaynak ve hedef parent farklıysa hedef
-                     * klasörü ayrıca eklememiz gerekir.
-                     *
-                     * Aynı parent durumunda ise kaynak satır
-                     * yukarıda kaldırıldı ve hedef satır burada
-                     * tekrar eklenir.
-                     */
                     addFolderToCurrentFileTable(
                             targetBucket,
                             targetKey);
@@ -2241,26 +2235,29 @@ public class ExplorerPanel extends JPanel {
              * FOLDER TREE
              * -----------------------------------------------------
              *
-             * ÇOK ÖNEMLİ:
+             * DOSYA RENAME:
              *
-             * Dosya rename'inde buraya hiçbir Tree refresh
-             * çağrısı gelmez.
+             *     Tree'ye hiçbir şey yapma.
              *
-             * Dolayısıyla:
+             * Çünkü dosya Folder Tree'nin node'u değildir.
              *
-             *     SIL71/1.json
-             *          ->
-             *     SIL71/2.json
+             * KLASÖR RENAME:
              *
-             * sonucunda:
+             *     Mevcut Tree node'unu yerinde rename et.
+             *
+             * Böylece:
              *
              *     SIL71/
-             *         ├── A/
-             *         └── ...
+             *       └── A/
+             *           └── B/
              *
-             * aynen kalır.
+             * rename sonrasında:
              *
-             * 2.json diye sahte Tree node'u oluşmaz.
+             *     SIL72/
+             *       └── A/
+             *           └── B/
+             *
+             * olarak aynı node nesneleriyle korunur.
              */
             if (sourceIsFolder) {
 
@@ -2316,10 +2313,20 @@ public class ExplorerPanel extends JPanel {
             }
 
             /*
+             * -----------------------------------------------------
+             * ÇOK ÖNEMLİ
+             * -----------------------------------------------------
+             *
              * Rename işlemi burada tamamen biter.
              *
-             * Özellikle aşağıdaki normal TARGET REFRESH bölümüne
-             * düşmemeliyiz.
+             * Normal TARGET REFRESH bölümüne kesinlikle
+             * düşülmemelidir.
+             *
+             * Özellikle dosya rename'inde:
+             *
+             *     SIL71/2.json
+             *
+             * Folder Tree'ye ADD olarak gönderilmemelidir.
              */
             return;
         }
@@ -2450,18 +2457,29 @@ public class ExplorerPanel extends JPanel {
          * TARGET REFRESH
          * =========================================================
          *
-         * Rename buraya gelemez.
+         * Buraya RENAME kesinlikle gelemez.
          *
-         * COPY / MOVE / UPLOAD gibi operasyonlarda hedefe
-         * yeni içerik geldiği için ADD refresh uygulanır.
+         * Sadece:
+         *
+         *     COPY
+         *     MOVE
+         *     COPY_GROUP
+         *     MOVE_GROUP
+         *     UPLOAD_GROUP
+         *
+         * gibi operasyonlar hedef Tree'yi günceller.
          * =========================================================
          */
-        if (group.getOperation() == TransferType.COPY
-                || group.getOperation() == TransferType.MOVE
-                || group.getOperation() == TransferType.RENAME
-                || group.getOperation() == TransferType.COPY_GROUP
-                || group.getOperation() == TransferType.MOVE_GROUP
-                || group.getOperation() == TransferType.UPLOAD_GROUP) {
+        if (group.getOperation()
+                == TransferType.COPY
+                || group.getOperation()
+                == TransferType.MOVE
+                || group.getOperation()
+                == TransferType.COPY_GROUP
+                || group.getOperation()
+                == TransferType.MOVE_GROUP
+                || group.getOperation()
+                == TransferType.UPLOAD_GROUP) {
 
             String targetBucket =
                     group.getTargetBucket();
