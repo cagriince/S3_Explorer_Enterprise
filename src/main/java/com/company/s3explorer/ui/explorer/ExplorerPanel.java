@@ -2001,12 +2001,31 @@ public class ExplorerPanel extends JPanel {
              */
             if (task.getGroup() != null) {
 
+                TransferGroup group =
+                        task.getGroup();
+
+                /*
+                 * Tek dosya COPY:
+                 *
+                 * Group completion'ı beklemeden mevcut File Table'a
+                 * incremental olarak ekle.
+                 *
+                 * Klasör COPY ve çoklu COPY burada mevcut davranışını
+                 * korur; onların UI güncellemesi group completion'da yapılır.
+                 */
+                if (task.getType() == TransferType.COPY
+                        && !group.isSourceFolder()
+                        && group.getDetected() == 1) {
+
+                    addCopiedFileToCurrentTable(task);
+                }
+
                 log.debug(
-                        "[EXPLORER REFRESH] grouped task completed; "
-                                + "refresh deferred until group completion. "
-                                + "task={} group={}",
+                        "[EXPLORER REFRESH] grouped task completed; " +
+                                "refresh deferred until group completion. " +
+                                "task={} group={}",
                         task.getObjectKey(),
-                        task.getGroup().getDisplayName());
+                        group.getDisplayName());
 
                 return;
             }
