@@ -2032,9 +2032,9 @@ public class ExplorerPanel extends JPanel {
          *          ->
          *     SIL71/2.json
          *
-         * Sadece File Table güncellenir.
+         * File Table'daki mevcut satır yerinde değiştirilir.
          *
-         * Folder Tree'ye kesinlikle dokunulmaz.
+         * Folder Tree'ye KESİNLİKLE dokunulmaz.
          *
          *
          * KLASÖR RENAME:
@@ -2050,8 +2050,8 @@ public class ExplorerPanel extends JPanel {
          * Folder Tree:
          *     mevcut SIL71 node'u SIL72 olarak rename edilir.
          *
-         * Node değişmediği için altındaki child node'lar,
-         * expansion state ve cache korunur.
+         * Node değiştirilmediği için altındaki child node'lar,
+         * cache kayıtları ve expansion state korunur.
          * =========================================================
          */
         if (group.getOperation()
@@ -2090,17 +2090,25 @@ public class ExplorerPanel extends JPanel {
                 String sourceParentPrefix =
                         getParentPrefix(sourceKey);
 
+                /*
+                 * Kaynak item şu anda açık olan File Table'ın
+                 * içinde gösteriliyorsa işlem yap.
+                 */
                 if (Objects.equals(
                         currentPrefix,
                         sourceParentPrefix)) {
 
-                    /*
-                     * -------------------------------------------------
-                     * KLASÖR RENAME
-                     * -------------------------------------------------
-                     */
                     if (sourceIsFolder) {
 
+                        /*
+                         * -----------------------------------------
+                         * KLASÖR RENAME
+                         * -----------------------------------------
+                         *
+                         * Klasörün mevcut satırını kaldırıyoruz.
+                         * Hedef satır aşağıdaki target bölümünde
+                         * tekrar eklenecek.
+                         */
                         boolean removed =
                                 view.getFileTableModel()
                                         .removeFileByKey(
@@ -2112,25 +2120,22 @@ public class ExplorerPanel extends JPanel {
                                 sourceKey,
                                 removed);
 
-                        /*
-                         * -------------------------------------------------
-                         * DOSYA RENAME
-                         * -------------------------------------------------
-                         *
-                         * Burada remove + add YAPMIYORUZ.
-                         *
-                         * Çünkü addFile() yeni satırı listenin sonuna
-                         * ekler ve File Table davranışını bozabilir.
-                         *
-                         * Bunun yerine mevcut S3FileItem'ın metadata'sını
-                         * koruyup yalnızca key'i değişmiş yeni bir
-                         * S3FileItem oluşturuyoruz.
-                         *
-                         * FileTableModel.replaceFileByKey() mevcut satırı
-                         * yerinde değiştiriyor.
-                         */
                     } else {
 
+                        /*
+                         * -----------------------------------------
+                         * DOSYA RENAME
+                         * -----------------------------------------
+                         *
+                         * Dosyayı silip tekrar addFile() ile
+                         * eklemiyoruz.
+                         *
+                         * Çünkü bu durumda satır listenin sonuna
+                         * gidebilir.
+                         *
+                         * Mevcut satırın yerinde yalnızca S3FileItem
+                         * değiştirilir.
+                         */
                         int sourceRow =
                                 view.getFileTableModel()
                                         .findRowByKey(
@@ -2179,7 +2184,8 @@ public class ExplorerPanel extends JPanel {
 
                                 log.info(
                                         "[FILE TABLE RENAME REPLACE] " +
-                                                "source={} target={} replaced={} row={}",
+                                                "source={} target={} " +
+                                                "replaced={} row={}",
                                         sourceKey,
                                         targetKey,
                                         replaced,
@@ -2195,12 +2201,11 @@ public class ExplorerPanel extends JPanel {
              * TARGET FILE TABLE
              * -----------------------------------------------------
              *
-             * Aynı parent altında rename yapıldığı için yukarıdaki
-             * replace işlemi yeterlidir.
+             * Sadece KLASÖR rename'inde ayrıca hedef klasör
+             * eklenir.
              *
-             * Farklı parent/bucket durumunda burada ayrıca işlem
-             * yapılması gerekebilir; ancak renameSelected() mevcut
-             * haliyle aynı repository/bucket içinde rename yapıyor.
+             * Dosya rename'inde yukarıdaki replaceFileByKey()
+             * zaten işlemi tamamladı.
              */
             if (sourceIsFolder
                     && Objects.equals(
@@ -2215,24 +2220,21 @@ public class ExplorerPanel extends JPanel {
                         targetParentPrefix)) {
 
                     /*
-                     * Kaynak ve hedef parent aynıysa yukarıdaki
-                     * remove sonrasında yeni klasörü ekle.
+                     * Kaynak ve hedef parent farklıysa hedef
+                     * klasörü ayrıca eklememiz gerekir.
                      *
-                     * Dosya rename'i burada özellikle ele alınmaz.
+                     * Aynı parent durumunda ise kaynak satır
+                     * yukarıda kaldırıldı ve hedef satır burada
+                     * tekrar eklenir.
                      */
-                    if (!Objects.equals(
-                            getParentPrefix(sourceKey),
-                            targetParentPrefix)) {
+                    addFolderToCurrentFileTable(
+                            targetBucket,
+                            targetKey);
 
-                        addFolderToCurrentFileTable(
-                                targetBucket,
-                                targetKey);
-
-                        log.info(
-                                "[FILE TABLE RENAME INSERT] " +
-                                        "folder key={}",
-                                targetKey);
-                    }
+                    log.info(
+                            "[FILE TABLE RENAME INSERT] " +
+                                    "folder key={}",
+                            targetKey);
                 }
             }
 
@@ -2241,22 +2243,26 @@ public class ExplorerPanel extends JPanel {
              * FOLDER TREE
              * -----------------------------------------------------
              *
-             * Sadece gerçek klasör rename'inde Tree değiştirilir.
+             * ÇOK ÖNEMLİ:
              *
-             * Dosya rename'inde kesinlikle:
+             * Dosya rename'inde buraya hiçbir Tree refresh
+             * çağrısı gelmez.
              *
-             *     scheduleRefresh(...)
-             *
-             * yapılmaz.
-             *
-             * Böylece:
+             * Dolayısıyla:
              *
              *     SIL71/1.json
              *          ->
              *     SIL71/2.json
              *
-             * işlemi Folder Tree'de 2.json isminde sahte bir
-             * klasör oluşturmaz.
+             * sonucunda:
+             *
+             *     SIL71/
+             *         ├── A/
+             *         └── ...
+             *
+             * aynen kalır.
+             *
+             * 2.json diye sahte Tree node'u oluşmaz.
              */
             if (sourceIsFolder) {
 
@@ -2291,9 +2297,31 @@ public class ExplorerPanel extends JPanel {
             }
 
             /*
-             * Rename tamamlandı.
+             * -----------------------------------------------------
+             * RENAME SONRASI SELECTION
+             * -----------------------------------------------------
+             */
+            if (pendingFileTableSelectionKey != null) {
+
+                String selectionKey =
+                        pendingFileTableSelectionKey;
+
+                SwingUtilities.invokeLater(() -> {
+
+                    restoreFileTableSelectionByKey(
+                            selectionKey);
+
+                    if (restoreFileTableFocus) {
+                        restoreFileTableFocus();
+                    }
+                });
+            }
+
+            /*
+             * Rename işlemi burada tamamen biter.
              *
-             * Normal TARGET REFRESH'e düşmemeli.
+             * Özellikle aşağıdaki normal TARGET REFRESH bölümüne
+             * düşmemeliyiz.
              */
             return;
         }
@@ -2303,10 +2331,7 @@ public class ExplorerPanel extends JPanel {
          * SOURCE REFRESH
          * =========================================================
          *
-         * Buraya yalnızca RENAME dışında kalan operasyonlar gelir.
-         *
-         * DELETE / MOVE vb. operasyonlarda kaynak tarafındaki
-         * değişiklik Explorer'a uygulanır.
+         * Rename dışındaki DELETE / MOVE vb. operasyonlar.
          * =========================================================
          */
         if (event.isSourceRefreshRequired()) {
@@ -2330,7 +2355,7 @@ public class ExplorerPanel extends JPanel {
                 /*
                  * Folder Tree:
                  *
-                 * Kaynak klasörün kendisi silindi.
+                 * Kaynak klasör gerçekten silindi/taşındı.
                  */
                 if (Objects.equals(
                         currentBucket,
@@ -2351,8 +2376,8 @@ public class ExplorerPanel extends JPanel {
                 /*
                  * File Table:
                  *
-                 * Kaynak klasörün parent'ı açıksa klasörü
-                 * mevcut tablodan kaldır.
+                 * Kaynak klasörün parent'ı açıksa klasör
+                 * mevcut tablodan kaldırılır.
                  */
                 if (Objects.equals(
                         currentBucket,
@@ -2427,10 +2452,10 @@ public class ExplorerPanel extends JPanel {
          * TARGET REFRESH
          * =========================================================
          *
-         * DELETE için target refresh yapılmaz.
+         * Rename buraya gelemez.
          *
-         * COPY / MOVE / UPLOAD gibi operasyonlarda hedefe yeni
-         * içerik geldiği için Tree/Table ADD refresh uygulanır.
+         * COPY / MOVE / UPLOAD gibi operasyonlarda hedefe
+         * yeni içerik geldiği için ADD refresh uygulanır.
          * =========================================================
          */
         if (group.getOperation() == TransferType.COPY
@@ -2453,9 +2478,8 @@ public class ExplorerPanel extends JPanel {
                     targetBucket)) {
 
                 /*
-                 * -------------------------------------------------
-                 * UPLOAD GROUP
-                 * -------------------------------------------------
+                 * Upload Group'da targetPrefix oluşturulan
+                 * klasörün kendisidir. Parent refresh edilir.
                  */
                 String refreshPrefix =
                         group.getOperation()
@@ -2476,9 +2500,8 @@ public class ExplorerPanel extends JPanel {
                                         RefreshTreeOperation.ADD)));
 
                 /*
-                 * -------------------------------------------------
-                 * TARGET FILE TABLE
-                 * -------------------------------------------------
+                 * Hedef File Table açık olan parent klasörse
+                 * tabloyu güncelle.
                  */
                 if (Objects.equals(
                         currentPrefix,
