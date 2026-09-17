@@ -3866,6 +3866,38 @@ public class ExplorerPanel extends JPanel {
             return;
         }
 
+        if (items.size() == 1) {
+
+            S3FileItem item = items.getFirst();
+
+            try {
+
+                fileOperationController.delete(item);
+
+                log.info(
+                        "[DELETE] submitted source={} group=NONE",
+                        item.getKey());
+
+            } catch (Exception ex) {
+
+                log.error(
+                        "[DELETE] failed source={}",
+                        item.getKey(),
+                        ex);
+
+                SwingUtilities.invokeLater(() ->
+                                                   JOptionPane.showMessageDialog(
+                                                           this,
+                                                           ex.getMessage(),
+                                                           "Delete Failed",
+                                                           JOptionPane.ERROR_MESSAGE));
+
+                return;
+            }
+
+            updateActionStates();
+            return;
+        }
         /*
          * ---------------------------------------------------------
          * FOLDER DELETE
