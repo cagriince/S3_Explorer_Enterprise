@@ -1969,6 +1969,48 @@ public class ExplorerPanel extends JPanel {
 
             /*
              * ---------------------------------------------------------
+             * GROUP TASK
+             * ---------------------------------------------------------
+             *
+             * Bir TransferGroup'a ait task'ın tamamlanması,
+             * Explorer refresh'i için yeterli değildir.
+             *
+             * Örneğin klasör silmede:
+             *
+             *     task 1 -> completed
+             *     task 2 -> completed
+             *     task 3 -> completed
+             *     ...
+             *
+             * Bu noktada File Table refresh edilmemelidir.
+             *
+             * Çünkü onTransferGroupCompleted() bütün grup
+             * tamamlandıktan sonra gerekli incremental UI
+             * güncellemelerini zaten yapıyor:
+             *
+             *     - File Table satırını kaldırma
+             *     - Tree node kaldırma
+             *     - Rename işlemleri
+             *     - Selection restore
+             *
+             * Özellikle DELETE/MOVE gibi grup işlemlerinde burada
+             * scheduleCurrentTableRefresh() çağrılması File Table'ın
+             * gereksiz yere tamamen reload edilmesine neden olur.
+             */
+            if (task.getGroup() != null) {
+
+                log.debug(
+                        "[EXPLORER REFRESH] grouped task completed; "
+                                + "refresh deferred until group completion. "
+                                + "task={} group={}",
+                        task.getObjectKey(),
+                        task.getGroup().getDisplayName());
+
+                return;
+            }
+
+            /*
+             * ---------------------------------------------------------
              * RENAME
              * ---------------------------------------------------------
              *
@@ -1995,10 +2037,10 @@ public class ExplorerPanel extends JPanel {
                     || task.getType() == TransferType.RENAME_GROUP) {
 
                 log.debug(
-                        "[EXPLORER TRANSFER EVENT] " +
-                                "rename task - incremental group completion " +
-                                "will update Explorer. " +
-                                "type={} objectKey={}",
+                        "[EXPLORER TRANSFER EVENT] "
+                                + "rename task - incremental group completion "
+                                + "will update Explorer. "
+                                + "type={} objectKey={}",
                         task.getType(),
                         task.getObjectKey());
 

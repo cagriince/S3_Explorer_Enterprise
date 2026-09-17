@@ -136,12 +136,16 @@ public class ExplorerRefreshScheduler {
 
     private void executeRefresh() {
 
+        System.out.println(
+                "[REFRESH SCHEDULER EXECUTE] " +
+                        "currentTableRefreshPending=" +
+                        currentTableRefreshPending +
+                        " pendingPrefixes=" +
+                        pendingPrefixes);
+
         /*
          * Önce o anda bekleyen refresh isteklerini
-         * atomik olarak tüket.
-         *
-         * Böylece callback çalışırken yeni bir refresh
-         * isteği gelirse kaybolmaz.
+         * tüketiyoruz.
          */
         boolean refreshTable =
                 currentTableRefreshPending;
@@ -149,15 +153,31 @@ public class ExplorerRefreshScheduler {
         currentTableRefreshPending = false;
 
         /*
-         * Current File Table
+         * ---------------------------------------------------------
+         * CURRENT FILE TABLE
+         * ---------------------------------------------------------
          */
         if (refreshTable) {
 
+            System.out.println(
+                    "[REFRESH SCHEDULER TABLE REFRESH] " +
+                            "calling currentTableRefreshAction");
+
             currentTableRefreshAction.run();
+
+            System.out.println(
+                    "[REFRESH SCHEDULER TABLE REFRESH] " +
+                            "currentTableRefreshAction completed");
+        } else {
+
+            System.out.println(
+                    "[REFRESH SCHEDULER TABLE REFRESH] skipped");
         }
 
         /*
-         * Folder Tree
+         * ---------------------------------------------------------
+         * FOLDER TREE
+         * ---------------------------------------------------------
          */
         if (!pendingPrefixes.isEmpty()) {
 
@@ -167,26 +187,49 @@ public class ExplorerRefreshScheduler {
 
             pendingPrefixes.removeAll(prefixes);
 
+            System.out.println(
+                    "[REFRESH SCHEDULER TREE REFRESH] " +
+                            "count=" +
+                            prefixes.size() +
+                            " prefixes=" +
+                            prefixes);
+
             for (RefreshTreeNode prefix :
                     prefixes) {
 
                 refreshAction.accept(prefix);
             }
+        } else {
+
+            System.out.println(
+                    "[REFRESH SCHEDULER TREE REFRESH] skipped");
         }
 
         /*
-         * executeRefresh() çalışırken yeni bir refresh
-         * isteği geldiyse onu kaybetme.
-         *
-         * Yeni event zaten timer'ı schedule etmiş olabilir.
+         * ---------------------------------------------------------
+         * NEW REQUESTS DURING EXECUTION
+         * ---------------------------------------------------------
          */
         if (currentTableRefreshPending
                 || !pendingPrefixes.isEmpty()) {
 
+            System.out.println(
+                    "[REFRESH SCHEDULER RESCHEDULE] " +
+                            "currentTableRefreshPending=" +
+                            currentTableRefreshPending +
+                            " pendingPrefixes=" +
+                            pendingPrefixes);
+
             scheduleTimer();
+
+        } else {
+
+            System.out.println(
+                    "[REFRESH SCHEDULER COMPLETE] " +
+                            "no pending refresh");
         }
     }
-
+    
     public void cancel() {
 
         timer.stop();
