@@ -35,8 +35,10 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.Collator;
+import java.time.Instant;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -2095,7 +2097,14 @@ public class ExplorerPanel extends JPanel {
                             task.getBucket(),
                             task.getObjectKey());
 
-                } else {
+                }
+                else if (task.getType()
+                        == TransferType.UPLOAD) {
+
+                    addUploadedFileToCurrentFileTable(task);
+
+                }
+                else {
 
                     refreshScheduler
                             .scheduleCurrentTableRefresh();
@@ -5692,5 +5701,139 @@ public class ExplorerPanel extends JPanel {
                 rowCount);
 
         pendingDeleteSelectionViewRow = -1;
+    }
+
+    private void addUploadedFileToCurrentFileTable(
+            TransferTask task) {
+
+        if (task == null) {
+            return;
+        }
+
+        String bucket =
+                task.getTargetBucket();
+
+        String objectKey =
+                task.getTargetObjectKey();
+
+        if (bucket == null
+                || objectKey == null
+                || objectKey.isBlank()) {
+
+            log.warn(
+                    "[FILE TABLE UPLOAD INSERT] " +
+                            "missing target bucket/key");
+            return;
+        }
+
+        String parentPrefix =
+                getParentPrefix(objectKey);
+
+        /*
+         * Upload edilen dosyanın parent klasörü
+         * şu anda açık değilse File Table'a dokunma.
+         */
+        if (!Objects.equals(
+                currentFileBucket,
+                bucket)
+                || !Objects.equals(
+                currentFilePrefix,
+                parentPrefix)) {
+
+            log.debug(
+                    "[FILE TABLE UPLOAD INSERT] " +
+                            "skipped bucket={} prefix={} " +
+                            "currentBucket={} currentPrefix={}",
+                    bucket,
+                    parentPrefix,
+                    currentFileBucket,
+                    currentFilePrefix);
+
+            return;
+        }
+
+        RepositoryDefinition repository =
+                getCurrentRepository();
+
+        if (repository == null) {
+            return;
+        }
+
+        /*
+         * Upload task zaten local dosyanın boyutunu
+         * taşıyor.
+         */
+        long size =
+                task.getSize();
+
+        Instant lastModified = null;
+
+        if (task.getLocalPath() != null) {
+            try {
+                lastModified =
+                        Files.getLastModifiedTime(
+                                        task.getLocalPath())
+                                .toInstant();
+
+            } catch (Exception ex) {
+                log.debug(
+                        "[FILE TABLE UPLOAD INSERT] " +
+                                "local lastModified could not be read " +
+                                "key={}",
+                        objectKey,
+                        ex);
+            }
+        }
+
+        S3FileItem item =
+                new S3FileItem(
+                        repository.getName(),
+                        bucket,
+                        objectKey,
+                        size,
+                        lastModified,
+                        null,
+                        false);
+
+        boolean added =
+                view.getFileTableModel()
+                        .addFile(item);
+
+        log.info(
+                "[FILE TABLE UPLOAD INSERT] " +
+                        "key={} size={} added={}",
+                objectKey,
+                size,
+                added);
+
+        if (!added) {
+            return;
+        }
+
+        /*
+         * JTable'ın mevcut TableRowSorter'ı
+         * model event'ini aldıktan sonra yeni satırı
+         * seçili kolonun sıralamasına göre
+         * yeniden konumlandıracaktır.
+         */
+        if (Objects.equals(
+                pendingFileTableSelectionKey,
+                objectKey)
+                && restoreFileTableFocus) {
+
+            SwingUtilities.invokeLater(() -> {
+
+                restoreFileTableSelectionByKey(
+                        objectKey);
+
+                restoreFileTableFocus();
+
+                pendingFileTableSelectionKey =
+                        null;
+
+                restoreFileTableFocus =
+                        false;
+            });
+        }
     }
 }
