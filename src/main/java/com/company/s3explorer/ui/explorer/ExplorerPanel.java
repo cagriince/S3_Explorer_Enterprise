@@ -3737,27 +3737,8 @@ public class ExplorerPanel extends JPanel {
 
         /*
          * ---------------------------------------------------------
-         * DELETE GROUP
+         * DELETE CONTEXT
          * ---------------------------------------------------------
-         *
-         * Tek item DELETE dahil bütün DELETE işlemlerini
-         * aynı TransferGroup lifecycle'ına sokuyoruz.
-         *
-         * Böylece:
-         *
-         *     DELETE task
-         *         ->
-         *     TransferGroupCompletedEvent
-         *         ->
-         *     onTransferGroupCompleted()
-         *         ->
-         *     File Table incremental update
-         *
-         * zinciri her DELETE için aynı şekilde çalışır.
-         *
-         * Özellikle tek dosya DELETE'te daha önce
-         * fileOperationController.delete(item) kullanıldığı için
-         * group completion'a girmeyen bir akış oluşuyordu.
          */
 
         S3FileItem firstItem =
@@ -3769,37 +3750,26 @@ public class ExplorerPanel extends JPanel {
         String bucket =
                 getCurrentBucket();
 
-        String sourcePrefix =
-                getCurrentPrefix();
-
         if (repositoryName == null
-                || bucket == null
-                || sourcePrefix == null) {
+                || bucket == null) {
 
             log.warn(
-                    "[DELETE GROUP] missing context repository={} bucket={} prefix={}",
+                    "[DELETE GROUP] missing context repository={} bucket={}",
                     repositoryName,
-                    bucket,
-                    sourcePrefix);
+                    bucket);
 
             return;
         }
 
-        String groupName =
-                getOperationGroupName(items);
-
-        TransferType groupOperation;
-
         /*
-         * Klasör içeren DELETE'lerde FolderDeleteProducer
-         * kendi özel lifecycle'ını kullanmalıdır.
+         * ---------------------------------------------------------
+         * FOLDER DELETE
+         * ---------------------------------------------------------
          *
-         * Bu nedenle:
+         * Gerçek klasör DELETE lifecycle'ına dokunmuyoruz.
          *
-         * - yalnızca dosyalardan oluşan seçimlerde
-         *   DELETE_GROUP kullanıyoruz.
-         * - klasör içeren seçimlerde mevcut deleteObject()
-         *   akışını koruyoruz.
+         * FolderDeleteProducer kendi group lifecycle'ını
+         * yönetmeye devam edecek.
          */
         boolean allFiles =
                 items.stream()
@@ -3821,14 +3791,43 @@ public class ExplorerPanel extends JPanel {
          * ---------------------------------------------------------
          * FILE DELETE GROUP
          * ---------------------------------------------------------
+         *
+         * Buradaki sourcePrefix ÇOK ÖNEMLİ.
+         *
+         * Önceden:
+         *
+         *     currentFilePrefix
+         *
+         * kullanıyorduk.
+         *
+         * Örneğin:
+         *
+         *     currentFilePrefix = SIL71/
+         *
+         * Bu durumda completion event:
+         *
+         *     prefix=SIL71/
+         *
+         * taşıyordu.
+         *
+         * Fakat silinen gerçek object:
+         *
+         *     SIL71/1.json
+         *
+         * olduğundan onTransferGroupCompleted()
+         * FileTable'dan yanlış key'i silmeye çalışıyordu.
+         *
+         * Şimdi gerçek kaynak object key'ini taşıyoruz.
          */
+        String sourcePrefix =
+                firstItem.getKey();
 
-        groupOperation =
-                TransferType.DELETE_GROUP;
+        String groupName =
+                getOperationGroupName(items);
 
         TransferGroup group =
                 transferManager.createOperationGroup(
-                        groupOperation,
+                        TransferType.DELETE_GROUP,
                         groupName,
                         repositoryName,
                         bucket,
@@ -3838,14 +3837,8 @@ public class ExplorerPanel extends JPanel {
                         sourcePrefix);
 
         /*
-         * DELETE tamamlandığında ExplorerPanel'in
-         * onTransferGroupCompleted() metodu:
-         *
-         *     - File Table satırlarını kaldıracak
-         *     - Tree'ye dokunmayacak
-         *     - gerekiyorsa selection restore yapacak
-         *
-         * Bu yüzden burada ayrıca refresh çağırmıyoruz.
+         * Completion event'i gerçek silinen object key'i
+         * prefix alanında taşıyacak.
          */
         transferManager.configureGroupCompletion(
                 group,
@@ -3853,6 +3846,19 @@ public class ExplorerPanel extends JPanel {
                 bucket,
                 sourcePrefix,
                 true);
+
+        log.info(
+                "[DELETE GROUP] created group={} sourcePrefix={} currentFilePrefix={} itemCount={}",
+                group.getDisplayName(),
+                sourcePrefix,
+                currentFilePrefix,
+                items.size());
+
+        /*
+         * ---------------------------------------------------------
+         * SUBMIT FILE DELETE TASKS
+         * ---------------------------------------------------------
+         */
 
         for (S3FileItem item : items) {
 
@@ -3882,10 +3888,6 @@ public class ExplorerPanel extends JPanel {
                                                            "Delete Failed",
                                                            JOptionPane.ERROR_MESSAGE));
 
-                /*
-                 * Submit edilemeyen task'ı group lifecycle'ına
-                 * failed olarak dahil ediyoruz.
-                 */
                 group.failed();
             }
         }
@@ -3893,8 +3895,17 @@ public class ExplorerPanel extends JPanel {
         /*
          * Artık group'a yeni task eklenmeyecek.
          *
-         * Gerçek completion event'i bundan sonra,
-         * bütün task'lar tamamlandığında üretilecek.
+         * Son task tamamlandığında:
+         *
+         *     TransferGroup
+         *          ↓
+         *     TransferGroupCompletedEvent
+         *          ↓
+         *     onTransferGroupCompleted()
+         *          ↓
+         *     removeFileByKey(event.getPrefix())
+         *
+         * çalışacak.
          */
         group.markProductionCompleted();
 
