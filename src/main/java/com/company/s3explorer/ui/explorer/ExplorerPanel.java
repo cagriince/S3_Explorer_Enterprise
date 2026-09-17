@@ -2050,8 +2050,8 @@ public class ExplorerPanel extends JPanel {
          * Folder Tree:
          *     mevcut SIL71 node'u SIL72 olarak rename edilir.
          *
-         * Node değiştirilmediği için altındaki child node'lar,
-         * cache kayıtları ve mevcut Tree yapısı korunur.
+         * Node değişmediği için altındaki child node'lar,
+         * expansion state ve cache korunur.
          * =========================================================
          */
         if (group.getOperation()
@@ -2080,7 +2080,7 @@ public class ExplorerPanel extends JPanel {
 
             /*
              * -----------------------------------------------------
-             * FILE TABLE - SOURCE REMOVE
+             * FILE TABLE
              * -----------------------------------------------------
              */
             if (Objects.equals(
@@ -2094,25 +2094,116 @@ public class ExplorerPanel extends JPanel {
                         currentPrefix,
                         sourceParentPrefix)) {
 
-                    boolean removed =
-                            view.getFileTableModel()
-                                    .removeFileByKey(
-                                            sourceKey);
+                    /*
+                     * -------------------------------------------------
+                     * KLASÖR RENAME
+                     * -------------------------------------------------
+                     */
+                    if (sourceIsFolder) {
 
-                    log.info(
-                            "[FILE TABLE RENAME REMOVE] " +
-                                    "key={} removed={}",
-                            sourceKey,
-                            removed);
+                        boolean removed =
+                                view.getFileTableModel()
+                                        .removeFileByKey(
+                                                sourceKey);
+
+                        log.info(
+                                "[FILE TABLE RENAME REMOVE] " +
+                                        "folder key={} removed={}",
+                                sourceKey,
+                                removed);
+
+                        /*
+                         * -------------------------------------------------
+                         * DOSYA RENAME
+                         * -------------------------------------------------
+                         *
+                         * Burada remove + add YAPMIYORUZ.
+                         *
+                         * Çünkü addFile() yeni satırı listenin sonuna
+                         * ekler ve File Table davranışını bozabilir.
+                         *
+                         * Bunun yerine mevcut S3FileItem'ın metadata'sını
+                         * koruyup yalnızca key'i değişmiş yeni bir
+                         * S3FileItem oluşturuyoruz.
+                         *
+                         * FileTableModel.replaceFileByKey() mevcut satırı
+                         * yerinde değiştiriyor.
+                         */
+                    } else {
+
+                        int sourceRow =
+                                view.getFileTableModel()
+                                        .findRowByKey(
+                                                sourceKey);
+
+                        if (sourceRow < 0) {
+
+                            log.warn(
+                                    "[FILE TABLE RENAME] " +
+                                            "source file row not found " +
+                                            "source={}",
+                                    sourceKey);
+
+                        } else {
+
+                            S3FileItem sourceItem =
+                                    view.getFileTableModel()
+                                            .getItem(
+                                                    sourceRow);
+
+                            if (sourceItem == null) {
+
+                                log.warn(
+                                        "[FILE TABLE RENAME] " +
+                                                "source file item is null " +
+                                                "source={}",
+                                        sourceKey);
+
+                            } else {
+
+                                S3FileItem renamedItem =
+                                        new S3FileItem(
+                                                sourceItem.getRepositoryName(),
+                                                targetBucket,
+                                                targetKey,
+                                                sourceItem.getSize(),
+                                                sourceItem.getLastModified(),
+                                                sourceItem.getStorageClass(),
+                                                false);
+
+                                boolean replaced =
+                                        view.getFileTableModel()
+                                                .replaceFileByKey(
+                                                        sourceKey,
+                                                        renamedItem);
+
+                                log.info(
+                                        "[FILE TABLE RENAME REPLACE] " +
+                                                "source={} target={} replaced={} row={}",
+                                        sourceKey,
+                                        targetKey,
+                                        replaced,
+                                        sourceRow);
+                            }
+                        }
+                    }
                 }
             }
 
             /*
              * -----------------------------------------------------
-             * FILE TABLE - TARGET INSERT
+             * TARGET FILE TABLE
              * -----------------------------------------------------
+             *
+             * Aynı parent altında rename yapıldığı için yukarıdaki
+             * replace işlemi yeterlidir.
+             *
+             * Farklı parent/bucket durumunda burada ayrıca işlem
+             * yapılması gerekebilir; ancak renameSelected() mevcut
+             * haliyle aynı repository/bucket içinde rename yapıyor.
              */
-            if (Objects.equals(
+            if (sourceIsFolder
+                    && Objects.equals(
                     currentBucket,
                     targetBucket)) {
 
@@ -2124,16 +2215,14 @@ public class ExplorerPanel extends JPanel {
                         targetParentPrefix)) {
 
                     /*
-                     * Hem dosya hem klasör için
-                     * File Table'a doğru item eklenir.
+                     * Kaynak ve hedef parent aynıysa yukarıdaki
+                     * remove sonrasında yeni klasörü ekle.
                      *
-                     * addFolderToCurrentFileTable()
-                     * klasör için kullanılabilir.
-                     *
-                     * Dosya için ise gerçek S3 nesnesinin
-                     * bilgilerini korumak gerekir.
+                     * Dosya rename'i burada özellikle ele alınmaz.
                      */
-                    if (sourceIsFolder) {
+                    if (!Objects.equals(
+                            getParentPrefix(sourceKey),
+                            targetParentPrefix)) {
 
                         addFolderToCurrentFileTable(
                                 targetBucket,
@@ -2143,44 +2232,6 @@ public class ExplorerPanel extends JPanel {
                                 "[FILE TABLE RENAME INSERT] " +
                                         "folder key={}",
                                 targetKey);
-
-                    } else {
-
-                        /*
-                         * Dosya rename'de S3 nesnesi zaten mevcut.
-                         *
-                         * Target key ile File Table'a yeni item
-                         * eklenir.
-                         *
-                         * Burada Tree refresh YOK.
-                         */
-                        S3FileItem renamedItem =
-                                createRenamedFileTableItem(
-                                        sourceKey,
-                                        targetKey,
-                                        sourceBucket,
-                                        targetBucket);
-
-                        if (renamedItem != null) {
-
-                            view.getFileTableModel()
-                                    .addFile(
-                                            renamedItem);
-
-                            log.info(
-                                    "[FILE TABLE RENAME INSERT] " +
-                                            "file key={}",
-                                    targetKey);
-
-                        } else {
-
-                            log.warn(
-                                    "[FILE TABLE RENAME INSERT] " +
-                                            "could not create file item " +
-                                            "source={} target={}",
-                                    sourceKey,
-                                    targetKey);
-                        }
                     }
                 }
             }
@@ -2190,21 +2241,22 @@ public class ExplorerPanel extends JPanel {
              * FOLDER TREE
              * -----------------------------------------------------
              *
-             * ÇOK ÖNEMLİ:
-             *
              * Sadece gerçek klasör rename'inde Tree değiştirilir.
              *
-             * Dosya rename'inde:
+             * Dosya rename'inde kesinlikle:
              *
-             *     SIL71/1.json -> SIL71/2.json
+             *     scheduleRefresh(...)
              *
-             * için kesinlikle:
+             * yapılmaz.
              *
-             *     refreshScheduler.scheduleRefresh(...)
+             * Böylece:
              *
-             * çağrılmıyor.
+             *     SIL71/1.json
+             *          ->
+             *     SIL71/2.json
              *
-             * Böylece 2.json Tree'de klasör gibi görünmez.
+             * işlemi Folder Tree'de 2.json isminde sahte bir
+             * klasör oluşturmaz.
              */
             if (sourceIsFolder) {
 
@@ -2228,6 +2280,7 @@ public class ExplorerPanel extends JPanel {
                         sourceKey,
                         targetKey,
                         renamed);
+
             } else {
 
                 log.debug(
@@ -2238,14 +2291,9 @@ public class ExplorerPanel extends JPanel {
             }
 
             /*
-             * -----------------------------------------------------
-             * RENAME SONRASI FILE TABLE SELECTION
-             * -----------------------------------------------------
+             * Rename tamamlandı.
              *
-             * renameSelected() targetKey'i zaten
-             * pendingFileTableSelectionKey'e koyuyor.
-             *
-             * Burada full refresh yapılmıyor.
+             * Normal TARGET REFRESH'e düşmemeli.
              */
             return;
         }
@@ -2283,14 +2331,6 @@ public class ExplorerPanel extends JPanel {
                  * Folder Tree:
                  *
                  * Kaynak klasörün kendisi silindi.
-                 *
-                 * Örneğin:
-                 *
-                 *     SIL71/
-                 *
-                 * için:
-                 *
-                 *     DELETE SIL71/
                  */
                 if (Objects.equals(
                         currentBucket,
@@ -2309,9 +2349,10 @@ public class ExplorerPanel extends JPanel {
                 }
 
                 /*
-                 * -------------------------------------------------
-                 * FILE TABLE
-                 * -------------------------------------------------
+                 * File Table:
+                 *
+                 * Kaynak klasörün parent'ı açıksa klasörü
+                 * mevcut tablodan kaldır.
                  */
                 if (Objects.equals(
                         currentBucket,
@@ -2358,11 +2399,7 @@ public class ExplorerPanel extends JPanel {
                  * DOSYA DELETE / MOVE
                  * -------------------------------------------------
                  *
-                 * Burada Folder Tree'ye dokunulmuyor.
-                 *
-                 * sourcePrefix dosyanın bulunduğu parent prefix'i
-                 * temsil eden mevcut TransferGroup davranışına
-                 * göre kullanılıyor.
+                 * Folder Tree'ye dokunulmaz.
                  */
                 if (Objects.equals(
                         currentBucket,
