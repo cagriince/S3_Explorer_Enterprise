@@ -4819,7 +4819,7 @@ public class ExplorerPanel extends JPanel {
 
             } else {
 
-                transferManager.submitMove(
+                transferManager.submitRename(
                         repositoryName,
                         bucket,
                         oldKey,

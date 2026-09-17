@@ -804,6 +804,63 @@ public class TransferManager {
                 group);
     }
 
+    public TransferGroup submitRename(
+            String repositoryName,
+            String bucket,
+            String keySource,
+            String targetRepositoryName,
+            String targetBucket,
+            String keyTarget,
+            long size,
+            boolean overwrite) {
+
+        TransferGroup group =
+                createObjectOperationGroup(
+                        TransferType.RENAME,
+                        repositoryName,
+                        bucket,
+                        keySource,
+                        targetRepositoryName,
+                        targetBucket,
+                        keyTarget);
+
+        configureGroupCompletion(
+                group,
+                repositoryName,
+                bucket,
+                keySource,
+                true);
+
+        TransferTask task =
+                TransferTask.rename()
+                        .repositoryName(
+                                repositoryName)
+                        .bucket(
+                                bucket)
+                        .objectKey(
+                                keySource)
+                        .targetRepositoryName(
+                                targetRepositoryName)
+                        .targetBucket(
+                                targetBucket)
+                        .targetObjectKey(
+                                keyTarget)
+                        .size(size)
+                        .overwrite(overwrite)
+                        .affectsObjectList(true)
+                        .affectsFolderTree(false)
+                        .group(group)
+                        .build();
+
+        submitGroupedTask(
+                task,
+                group);
+
+        group.markProductionCompleted();
+
+        return group;
+    }
+    
     public void submitCreateFolder(
             String repositoryName,
             String bucket,
