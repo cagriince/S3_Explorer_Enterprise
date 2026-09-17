@@ -1268,10 +1268,59 @@ public class ExplorerPanel extends JPanel {
                     selectedNode.getFullPrefix();
 
             log.info(
-                    "[TREE SELECTION] bucket={} prefix={} node={}",
+                    "[TREE SELECTION] bucket={} prefix={} node={} currentFilePrefix={}",
                     bucket,
                     prefix,
-                    selectedNode);
+                    selectedNode,
+                    currentFilePrefix);
+
+            /*
+             * ---------------------------------------------------------
+             * TREE MODEL REFRESH GUARD
+             * ---------------------------------------------------------
+             *
+             * Tree modeli programatik olarak değişirken Swing bazen
+             * TreeSelectionEvent üretebilir.
+             *
+             * Örneğin:
+             *
+             *     File Table = root
+             *     Tree        = root
+             *
+             * SIL72 silinirken Tree'den node kaldırılır.
+             *
+             * Bu sırada root tekrar selection event'i üretirse
+             * aynı root için loadFiles() çalıştırmak gereksizdir.
+             *
+             * Özellikle DELETE işleminde bu event:
+             *
+             *     nodesWereRemoved()
+             *          -> TreeSelectionListener
+             *          -> loadFiles()
+             *
+             * zincirini oluşturup File Table'ın tamamını yeniden
+             * yüklemesine neden olabilir.
+             *
+             * Eğer Tree zaten File Table'da gösterilen prefix'i
+             * gösteriyorsa tekrar yükleme yapma.
+             * ---------------------------------------------------------
+             */
+            if (Objects.equals(
+                    currentFileBucket,
+                    bucket)
+                    && Objects.equals(
+                    currentFilePrefix,
+                    prefix)) {
+
+                log.info(
+                        "[TREE SELECTION SKIP] " +
+                                "same prefix already displayed; " +
+                                "bucket={} prefix={}",
+                        bucket,
+                        prefix);
+
+                return;
+            }
 
             /*
              * Tree selection event'i tamamen bitsin.
@@ -1286,13 +1335,40 @@ public class ExplorerPanel extends JPanel {
                  * Selection hâlâ aynı mı?
                  */
                 TreePath actualPath =
-                        view.getFolderTree().getSelectionPath();
+                        view.getFolderTree()
+                                .getSelectionPath();
 
                 if (actualPath == null
-                        || !actualPath.equals(selectedPath)) {
+                        || !actualPath.equals(
+                        selectedPath)) {
 
                     log.warn(
-                            "[TREE SELECTION] selection changed before processing prefix={}",
+                            "[TREE SELECTION] " +
+                                    "selection changed before processing " +
+                                    "prefix={}",
+                            prefix);
+
+                    return;
+                }
+
+                /*
+                 * invokeLater() sonrasında da aynı prefix
+                 * zaten File Table'da gösteriliyor olabilir.
+                 *
+                 * İkinci bir güvenlik kontrolü.
+                 */
+                if (Objects.equals(
+                        currentFileBucket,
+                        bucket)
+                        && Objects.equals(
+                        currentFilePrefix,
+                        prefix)) {
+
+                    log.info(
+                            "[TREE SELECTION SKIP] " +
+                                    "same prefix already displayed after EDT; " +
+                                    "bucket={} prefix={}",
+                            bucket,
                             prefix);
 
                     return;
