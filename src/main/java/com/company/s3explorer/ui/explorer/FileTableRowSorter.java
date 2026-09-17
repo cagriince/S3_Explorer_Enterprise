@@ -16,25 +16,54 @@ public class FileTableRowSorter
 
     public FileTableRowSorter(
             FileTableModel model) {
+
         super(model);
 
-        Collator turkceCollator = Collator.getInstance(new Locale("tr", "TR"));
-        turkceCollator.setStrength(Collator.PRIMARY);
+        /*
+         * ÖNEMLİ:
+         *
+         * FileTableModel'de rename / replace işlemi
+         *
+         *     fireTableRowsUpdated(...)
+         *
+         * gönderiyor.
+         *
+         * Sorter'ın bu update sonrasında satırı mevcut
+         * sıralama kriterine göre yeniden konumlandırması gerekir.
+         *
+         * Varsayılan Swing davranışında sortsOnUpdates false'tur.
+         */
+        setSortsOnUpdates(true);
+
+        Collator turkceCollator =
+                Collator.getInstance(
+                        new Locale("tr", "TR"));
+
+        turkceCollator.setStrength(
+                Collator.PRIMARY);
 
         this.setComparator(
                 FileTableModel.COL_FOLDER,
-                Comparator.nullsFirst(Integer::compareTo));
-        this.setComparator(FileTableModel.COL_NAME,
+                Comparator.nullsFirst(
+                        Integer::compareTo));
+
+        this.setComparator(
+                FileTableModel.COL_NAME,
                 Comparator.comparing(
-                        item -> S3Util.extractFolderName(((S3FileItem) item).getKey()),
+                        item ->
+                                S3Util.extractFolderName(
+                                        ((S3FileItem) item).getKey()),
                         turkceCollator));
+
         this.setComparator(
                 FileTableModel.COL_SIZE,
-                Comparator.nullsFirst(Long::compareTo));
+                Comparator.nullsFirst(
+                        Long::compareTo));
+
         this.setComparator(
                 FileTableModel.COL_LAST_MODIFIED,
-                Comparator.nullsFirst(Instant::compareTo));
-
+                Comparator.nullsFirst(
+                        Instant::compareTo));
     }
 
     @Override
@@ -90,7 +119,6 @@ public class FileTableRowSorter
 
         /*
          * Klasörler her zaman dosyalardan önce.
-         *
          */
         yeniAnahtarlar.add(
                 new SortKey(
