@@ -606,7 +606,7 @@ public class TransferManager {
                 group);
     }
 
-    public TransferGroup submitCopy(
+    public void submitCopy(
             String repositoryName,
             String bucket,
             String keySource,
@@ -616,24 +616,7 @@ public class TransferManager {
             long size,
             boolean overwrite) {
 
-        TransferGroup group =
-                createObjectOperationGroup(
-                        TransferType.COPY_GROUP,
-                        repositoryName,
-                        bucket,
-                        keySource,
-                        targetRepositoryName,
-                        targetBucket,
-                        keyTarget);
-
-        configureGroupCompletion(
-                group,
-                repositoryName,
-                bucket,
-                keySource,
-                false);
-
-        TransferTask task =
+        submit(
                 TransferTask.copy()
                         .repositoryName(
                                 repositoryName)
@@ -651,16 +634,8 @@ public class TransferManager {
                         .overwrite(overwrite)
                         .affectsObjectList(true)
                         .affectsFolderTree(false)
-                        .group(group)
-                        .build();
-
-        submitGroupedTask(
-                task,
-                group);
-
-        group.markProductionCompleted();
-
-        return group;
+                        .build()
+              );
     }
 
     public void submitCopy(
