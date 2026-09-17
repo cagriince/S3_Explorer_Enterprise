@@ -5969,6 +5969,36 @@ public class ExplorerPanel extends JPanel {
             return;
         }
 
+        /*
+         * Paste sırasında File Table reload edilmiyor.
+         *
+         * Bu nedenle pendingFileTableSelectionKeys burada
+         * incremental INSERT sonrasında doğrudan restore edilmelidir.
+         */
+        if (pendingFileTableSelectionKeys != null
+                && !pendingFileTableSelectionKeys.isEmpty()
+                && !pasteSelectionCollectionInProgress) {
+
+            SwingUtilities.invokeLater(() -> {
+
+                if (restorePendingPasteSelection()) {
+
+                    restoreFileTableFocus();
+
+                    log.info(
+                            "[FILE TABLE COPY SELECTION] " +
+                                    "paste selection restored incrementally key={}",
+                            objectKey);
+                }
+            });
+
+            return;
+        }
+
+        /*
+         * Upload / tekil COPY gibi eski tek-key selection
+         * mekanizmasını koru.
+         */
         if (Objects.equals(
                 pendingFileTableSelectionKey,
                 objectKey)
