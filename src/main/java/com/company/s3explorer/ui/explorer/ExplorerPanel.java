@@ -2096,15 +2096,30 @@ public class ExplorerPanel extends JPanel {
                  * zinciri oluşur ve bütün File Table gereksiz
                  * yere yeniden yüklenir.
                  */
-                if (task.getType() == TransferType.DELETE
-                        || task.getType() == TransferType.DELETE_GROUP) {
+                if (task.getType() == TransferType.DELETE_GROUP) {
 
                     log.debug(
-                            "[EXPLORER REFRESH] delete task refresh deferred; " +
+                            "[EXPLORER REFRESH] delete group task refresh deferred; " +
                                     "incremental group completion will update Explorer. " +
                                     "type={} objectKey={}",
                             task.getType(),
                             task.getObjectKey());
+
+                    return;
+                }
+
+                if (task.getType() == TransferType.DELETE) {
+
+                    boolean removed =
+                            view.getFileTableModel()
+                                    .removeFileByKey(
+                                            task.getObjectKey());
+
+                    log.info(
+                            "[FILE TABLE DELETE REMOVE] " +
+                                    "key={} removed={}",
+                            task.getObjectKey(),
+                            removed);
 
                     return;
                 }
