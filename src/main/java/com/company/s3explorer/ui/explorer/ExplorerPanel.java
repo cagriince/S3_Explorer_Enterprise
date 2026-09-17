@@ -2998,6 +2998,7 @@ public class ExplorerPanel extends JPanel {
 
         TransferGroup group = null;
         int skippedCount = 0;
+        int acceptedFileCount = 0;
 
         /*
          * Folder producer kendi production lifecycle'ını yönetir.
@@ -3116,13 +3117,34 @@ public class ExplorerPanel extends JPanel {
             }
 
             /*
-             * Create the shared group only after the item has
-             * actually been accepted.
+             * ---------------------------------------------------------
+             * GROUP CREATION
+             * ---------------------------------------------------------
              *
-             * This prevents an empty group when all conflict
-             * dialogs are answered NO.
+             * Single file COPY/MOVE:
+             *
+             *     no TransferGroup
+             *
+             * Multiple files:
+             *
+             *     shared TransferGroup
+             *
+             * Folder:
+             *
+             *     shared TransferGroup because the folder producer
+             *     owns the production lifecycle.
+             *
+             * We therefore create the group only when:
+             *
+             *     - this is a folder, OR
+             *     - a second accepted file is encountered.
              */
-            if (group == null) {
+            boolean requiresGroup =
+                    item.isFolder()
+                            || acceptedFileCount > 0;
+
+            if (group == null
+                    && requiresGroup) {
 
                 String groupName =
                         getOperationGroupName(items);
@@ -3198,13 +3220,13 @@ public class ExplorerPanel extends JPanel {
              * ACTUAL TRANSFER SUBMISSION
              * ---------------------------------------------------------
              *
-             * This is the part that must remain in the paste loop.
-             *
              * File:
              *     submitCopy / submitMove -> single TransferTask
              *
              * Folder:
              *     submitCopy / submitMove -> FolderProducer
+             *
+             * group == null is intentional for a single file.
              */
             boolean submitted;
 
@@ -3241,6 +3263,15 @@ public class ExplorerPanel extends JPanel {
                         item.getName());
 
                 /*
+                 * A file accepted for transfer counts toward
+                 * deciding whether a shared group is needed.
+                 */
+                if (!item.isFolder()) {
+
+                    acceptedFileCount++;
+                }
+
+                /*
                  * Folder producer artık production lifecycle'ının
                  * sahibidir.
                  */
@@ -3265,8 +3296,11 @@ public class ExplorerPanel extends JPanel {
          * For folder operations, the asynchronous folder producer
          * owns production lifecycle.
          *
-         * For file-only operations, there is no producer, therefore
-         * ExplorerPanel completes production here.
+         * For multi-file operations, ExplorerPanel completes
+         * production here.
+         *
+         * For a single file operation there is no group and
+         * therefore nothing to complete here.
          */
         pasteSelectionCollectionInProgress = false;
 
@@ -3340,9 +3374,7 @@ public class ExplorerPanel extends JPanel {
             boolean overwrite,
             TransferGroup group) {
 
-        if (item == null
-                || group == null) {
-
+        if (item == null) {
             return false;
         }
 
@@ -3360,7 +3392,9 @@ public class ExplorerPanel extends JPanel {
                     item.getKey(),
                     targetKey,
                     overwrite,
-                    group.getDisplayName());
+                    group == null
+                            ? "NONE"
+                            : group.getDisplayName());
 
             return true;
 
@@ -3370,15 +3404,17 @@ public class ExplorerPanel extends JPanel {
                     "[COPY] failed source={} target={} group={}",
                     item.getKey(),
                     targetKey,
-                    group.getDisplayName(),
+                    group == null
+                            ? "NONE"
+                            : group.getDisplayName(),
                     ex);
 
             SwingUtilities.invokeLater(() ->
-                    JOptionPane.showMessageDialog(
-                            this,
-                            ex.getMessage(),
-                            "Copy Failed",
-                            JOptionPane.ERROR_MESSAGE));
+                                               JOptionPane.showMessageDialog(
+                                                       this,
+                                                       ex.getMessage(),
+                                                       "Copy Failed",
+                                                       JOptionPane.ERROR_MESSAGE));
 
             return false;
         }
