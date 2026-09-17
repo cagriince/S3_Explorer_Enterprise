@@ -2679,21 +2679,55 @@ public class ExplorerPanel extends JPanel {
                                         RefreshTreeOperation.ADD)));
 
                 /*
-                 * Hedef File Table açık olan parent klasörse
-                 * tabloyu güncelle.
+                 * ---------------------------------------------------------
+                 * TARGET FILE TABLE
+                 * ---------------------------------------------------------
+                 *
+                 * COPY / MOVE / UPLOAD işlemlerinde File Table'ı
+                 * gereksiz yere tamamen reload etme.
+                 *
+                 * File Table zaten mevcut klasörü gösteriyorsa:
+                 *
+                 *     COPY file
+                 *         -> doğrudan INSERT
+                 *
+                 *     UPLOAD file
+                 *         -> doğrudan INSERT
+                 *
+                 *     MOVE file
+                 *         -> source REMOVE + target INSERT
+                 *
+                 * Klasör operasyonlarında ise mevcut davranış
+                 * korunabilir.
                  */
                 if (Objects.equals(
                         currentPrefix,
                         refreshPrefix)) {
 
-                    log.debug(
-                            "[EXPLORER TARGET TABLE REFRESH] " +
-                                    "bucket={} prefix={} groupOperation={}",
-                            targetBucket,
-                            refreshPrefix,
-                            group.getOperation());
+                    boolean targetIsFolder =
+                            group.isSourceFolder();
 
-                    refreshScheduler.scheduleCurrentTableRefresh();
+                    if (targetIsFolder) {
+
+                        log.debug(
+                                "[EXPLORER TARGET TABLE REFRESH] " +
+                                        "folder target bucket={} prefix={} groupOperation={}",
+                                targetBucket,
+                                refreshPrefix,
+                                group.getOperation());
+
+                        refreshScheduler.scheduleCurrentTableRefresh();
+
+                    } else {
+
+                        log.debug(
+                                "[EXPLORER TARGET TABLE REFRESH SKIP] " +
+                                        "file target bucket={} prefix={} groupOperation={} " +
+                                        "File Table will be updated incrementally",
+                                targetBucket,
+                                refreshPrefix,
+                                group.getOperation());
+                    }
                 }
             }
         }
