@@ -2123,7 +2123,7 @@ public class ExplorerPanel extends JPanel {
                     addUploadedFileToCurrentFileTable(task);
 
                 }
-                else if (task.getType() == TransferType.COPY) {
+                else if (task.getType() == TransferType.COPY || task.getType() == TransferType.MOVE) {
 
                     addCopiedFileToCurrentTable(task);
 
