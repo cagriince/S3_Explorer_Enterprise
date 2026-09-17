@@ -1996,17 +1996,6 @@ public class ExplorerPanel extends JPanel {
                 event.isSourceRefreshRequired(),
                 group.isSourceFolder());
 
-        /*
-         * ---------------------------------------------------------
-         * GROUP TAMAMLANMIŞTIR.
-         * ---------------------------------------------------------
-         *
-         * Burada event.isSuccessful() kontrolü yapmıyoruz.
-         *
-         * Kısmi başarılı operation'larda başarılı olan
-         * değişikliklerin Explorer'da da gösterilmesi gerekir.
-         */
-
         String currentBucket =
                 currentFileBucket;
 
@@ -2031,18 +2020,246 @@ public class ExplorerPanel extends JPanel {
                 group.isSourceFolder());
 
         /*
-         * -------------------------------------------------
+         * =========================================================
+         * RENAME GROUP
+         * =========================================================
+         *
+         * Rename diğer transfer operasyonlarından ayrı ele alınır.
+         *
+         * DOSYA RENAME:
+         *
+         *     SIL71/1.json
+         *          ->
+         *     SIL71/2.json
+         *
+         * Sadece File Table güncellenir.
+         *
+         * Folder Tree'ye kesinlikle dokunulmaz.
+         *
+         *
+         * KLASÖR RENAME:
+         *
+         *     SIL71/
+         *          ->
+         *     SIL72/
+         *
+         * File Table:
+         *     SIL71/ remove
+         *     SIL72/ insert
+         *
+         * Folder Tree:
+         *     mevcut SIL71 node'u SIL72 olarak rename edilir.
+         *
+         * Node değiştirilmediği için altındaki child node'lar,
+         * cache kayıtları ve mevcut Tree yapısı korunur.
+         * =========================================================
+         */
+        if (group.getOperation()
+                == TransferType.RENAME_GROUP) {
+
+            String sourceKey =
+                    event.getPrefix();
+
+            String targetKey =
+                    group.getTargetPrefix();
+
+            String sourceBucket =
+                    event.getBucket();
+
+            String targetBucket =
+                    group.getTargetBucket();
+
+            boolean sourceIsFolder =
+                    group.isSourceFolder();
+
+            log.info(
+                    "[EXPLORER RENAME] source={} target={} folder={}",
+                    sourceKey,
+                    targetKey,
+                    sourceIsFolder);
+
+            /*
+             * -----------------------------------------------------
+             * FILE TABLE - SOURCE REMOVE
+             * -----------------------------------------------------
+             */
+            if (Objects.equals(
+                    currentBucket,
+                    sourceBucket)) {
+
+                String sourceParentPrefix =
+                        getParentPrefix(sourceKey);
+
+                if (Objects.equals(
+                        currentPrefix,
+                        sourceParentPrefix)) {
+
+                    boolean removed =
+                            view.getFileTableModel()
+                                    .removeFileByKey(
+                                            sourceKey);
+
+                    log.info(
+                            "[FILE TABLE RENAME REMOVE] " +
+                                    "key={} removed={}",
+                            sourceKey,
+                            removed);
+                }
+            }
+
+            /*
+             * -----------------------------------------------------
+             * FILE TABLE - TARGET INSERT
+             * -----------------------------------------------------
+             */
+            if (Objects.equals(
+                    currentBucket,
+                    targetBucket)) {
+
+                String targetParentPrefix =
+                        getParentPrefix(targetKey);
+
+                if (Objects.equals(
+                        currentPrefix,
+                        targetParentPrefix)) {
+
+                    /*
+                     * Hem dosya hem klasör için
+                     * File Table'a doğru item eklenir.
+                     *
+                     * addFolderToCurrentFileTable()
+                     * klasör için kullanılabilir.
+                     *
+                     * Dosya için ise gerçek S3 nesnesinin
+                     * bilgilerini korumak gerekir.
+                     */
+                    if (sourceIsFolder) {
+
+                        addFolderToCurrentFileTable(
+                                targetBucket,
+                                targetKey);
+
+                        log.info(
+                                "[FILE TABLE RENAME INSERT] " +
+                                        "folder key={}",
+                                targetKey);
+
+                    } else {
+
+                        /*
+                         * Dosya rename'de S3 nesnesi zaten mevcut.
+                         *
+                         * Target key ile File Table'a yeni item
+                         * eklenir.
+                         *
+                         * Burada Tree refresh YOK.
+                         */
+                        S3FileItem renamedItem =
+                                createRenamedFileTableItem(
+                                        sourceKey,
+                                        targetKey,
+                                        sourceBucket,
+                                        targetBucket);
+
+                        if (renamedItem != null) {
+
+                            view.getFileTableModel()
+                                    .addFile(
+                                            renamedItem);
+
+                            log.info(
+                                    "[FILE TABLE RENAME INSERT] " +
+                                            "file key={}",
+                                    targetKey);
+
+                        } else {
+
+                            log.warn(
+                                    "[FILE TABLE RENAME INSERT] " +
+                                            "could not create file item " +
+                                            "source={} target={}",
+                                    sourceKey,
+                                    targetKey);
+                        }
+                    }
+                }
+            }
+
+            /*
+             * -----------------------------------------------------
+             * FOLDER TREE
+             * -----------------------------------------------------
+             *
+             * ÇOK ÖNEMLİ:
+             *
+             * Sadece gerçek klasör rename'inde Tree değiştirilir.
+             *
+             * Dosya rename'inde:
+             *
+             *     SIL71/1.json -> SIL71/2.json
+             *
+             * için kesinlikle:
+             *
+             *     refreshScheduler.scheduleRefresh(...)
+             *
+             * çağrılmıyor.
+             *
+             * Böylece 2.json Tree'de klasör gibi görünmez.
+             */
+            if (sourceIsFolder) {
+
+                boolean renamed =
+                        false;
+
+                if (Objects.equals(
+                        currentBucket,
+                        sourceBucket)) {
+
+                    renamed =
+                            treeController
+                                    .renameNodePreservingChildren(
+                                            sourceKey,
+                                            targetKey);
+                }
+
+                log.info(
+                        "[TREE RENAME PRESERVED] " +
+                                "source={} target={} success={}",
+                        sourceKey,
+                        targetKey,
+                        renamed);
+            } else {
+
+                log.debug(
+                        "[TREE RENAME SKIP] " +
+                                "file rename source={} target={}",
+                        sourceKey,
+                        targetKey);
+            }
+
+            /*
+             * -----------------------------------------------------
+             * RENAME SONRASI FILE TABLE SELECTION
+             * -----------------------------------------------------
+             *
+             * renameSelected() targetKey'i zaten
+             * pendingFileTableSelectionKey'e koyuyor.
+             *
+             * Burada full refresh yapılmıyor.
+             */
+            return;
+        }
+
+        /*
+         * =========================================================
          * SOURCE REFRESH
-         * -------------------------------------------------
+         * =========================================================
          *
-         * DELETE ve MOVE işlemlerinde kaynak tarafı
-         * değişmiştir.
+         * Buraya yalnızca RENAME dışında kalan operasyonlar gelir.
          *
-         * Kaynağın klasör mü dosya mı olduğu artık
-         * sourcePrefix.endsWith("/") ile tahmin edilmiyor.
-         *
-         * Bunun yerine TransferGroup içindeki
-         * sourceIsFolder metadata'sı kullanılıyor.
+         * DELETE / MOVE vb. operasyonlarda kaynak tarafındaki
+         * değişiklik Explorer'a uygulanır.
+         * =========================================================
          */
         if (event.isSourceRefreshRequired()) {
 
@@ -2057,16 +2274,24 @@ public class ExplorerPanel extends JPanel {
              * GERÇEK KLASÖR DELETE / MOVE
              * -------------------------------------------------
              */
-            if (group.getOperation()
-                    == TransferType.RENAME_GROUP) {
-
-                // Rename kendi incremental source/target işlemini
-                // aşağıdaki özel blokta yapacak.
-            } else if (group.isSourceFolder()) {
+            if (group.isSourceFolder()) {
 
                 String sourceParentPrefix =
                         getParentPrefix(sourcePrefix);
 
+                /*
+                 * Folder Tree:
+                 *
+                 * Kaynak klasörün kendisi silindi.
+                 *
+                 * Örneğin:
+                 *
+                 *     SIL71/
+                 *
+                 * için:
+                 *
+                 *     DELETE SIL71/
+                 */
                 if (Objects.equals(
                         currentBucket,
                         sourceBucket)) {
@@ -2074,7 +2299,7 @@ public class ExplorerPanel extends JPanel {
                     log.debug(
                             "[EXPLORER SOURCE TREE REFRESH] " +
                                     "prefix={} operation=DELETE",
-                            sourceParentPrefix);
+                            sourcePrefix);
 
                     refreshScheduler.scheduleRefresh(
                             List.of(
@@ -2084,16 +2309,9 @@ public class ExplorerPanel extends JPanel {
                 }
 
                 /*
-                 * Kaynak klasör mevcut File Table'da
-                 * açıksa tabloyu da yenile.
-                 */
-                /*
-                 * Kaynak klasör mevcut File Table'da
-                 * gösterilen parent klasörün içindeyse
-                 * tabloyu yenile.
-                 *
-                 * Klasör root'tan silindiği için
-                 * root File Table yenilenmelidir.
+                 * -------------------------------------------------
+                 * FILE TABLE
+                 * -------------------------------------------------
                  */
                 if (Objects.equals(
                         currentBucket,
@@ -2108,7 +2326,8 @@ public class ExplorerPanel extends JPanel {
                                             sourcePrefix);
 
                     log.info(
-                            "[FILE TABLE ROW REMOVE] key={} removed={}",
+                            "[FILE TABLE ROW REMOVE] " +
+                                    "key={} removed={}",
                             sourcePrefix,
                             removed);
 
@@ -2136,26 +2355,14 @@ public class ExplorerPanel extends JPanel {
 
                 /*
                  * -------------------------------------------------
-                 * DOSYA / ÇOKLU DOSYA DELETE / MOVE
+                 * DOSYA DELETE / MOVE
                  * -------------------------------------------------
                  *
-                 * sourcePrefix burada dosyanın bulunduğu
-                 * klasörün prefix'idir.
+                 * Burada Folder Tree'ye dokunulmuyor.
                  *
-                 * Örnek:
-                 *
-                 *     TEST3/OEK21.json
-                 *
-                 * için çoklu MOVE group'unda:
-                 *
-                 *     sourcePrefix = TEST3/
-                 *
-                 * olacaktır.
-                 *
-                 * Burada klasör taşınmadığı için Folder Tree
-                 * kesinlikle refresh edilmemelidir.
-                 *
-                 * Sadece kaynak File Table yenilenir.
+                 * sourcePrefix dosyanın bulunduğu parent prefix'i
+                 * temsil eden mevcut TransferGroup davranışına
+                 * göre kullanılıyor.
                  */
                 if (Objects.equals(
                         currentBucket,
@@ -2170,7 +2377,8 @@ public class ExplorerPanel extends JPanel {
                                             sourcePrefix);
 
                     log.info(
-                            "[FILE TABLE ROW REMOVE] key={} removed={}",
+                            "[FILE TABLE ROW REMOVE] " +
+                                    "key={} removed={}",
                             sourcePrefix,
                             removed);
                 }
@@ -2178,148 +2386,15 @@ public class ExplorerPanel extends JPanel {
         }
 
         /*
-         * ---------------------------------------------------------
-         * RENAME GROUP
-         * ---------------------------------------------------------
-         *
-         * Rename işleminde full refresh yapılmaz.
-         *
-         * File Table:
-         *      oldKey -> remove
-         *      newKey -> insert
-         *
-         * Folder Tree:
-         *      oldKey -> DELETE
-         *      newKey -> ADD
-         *
-         * Böylece yalnızca değişen iki node/row işlenir.
-         */
-        if (group.getOperation()
-                == TransferType.RENAME_GROUP) {
-
-            String sourceKey =
-                    event.getPrefix();
-
-            String targetKey =
-                    group.getTargetPrefix();
-
-            String sourceBucket =
-                    event.getBucket();
-
-            String targetBucket =
-                    group.getTargetBucket();
-
-            log.info(
-                    "[EXPLORER RENAME] source={} target={} folder={}",
-                    sourceKey,
-                    targetKey,
-                    group.isSourceFolder());
-
-            /*
-             * -----------------------------------------------------
-             * FILE TABLE
-             * -----------------------------------------------------
-             */
-            if (Objects.equals(
-                    currentBucket,
-                    sourceBucket)) {
-
-                String sourceParentPrefix =
-                        getParentPrefix(sourceKey);
-
-                if (Objects.equals(
-                        currentPrefix,
-                        sourceParentPrefix)) {
-
-                    boolean removed =
-                            view.getFileTableModel()
-                                    .removeFileByKey(
-                                            sourceKey);
-
-                    log.info(
-                            "[FILE TABLE RENAME REMOVE] key={} removed={}",
-                            sourceKey,
-                            removed);
-                }
-            }
-
-            if (Objects.equals(
-                    currentBucket,
-                    targetBucket)) {
-
-                String targetParentPrefix =
-                        getParentPrefix(targetKey);
-
-                if (Objects.equals(
-                        currentPrefix,
-                        targetParentPrefix)) {
-
-                    addFolderToCurrentFileTable(
-                            targetBucket,
-                            targetKey);
-
-                    log.info(
-                            "[FILE TABLE RENAME INSERT] key={}",
-                            targetKey);
-                }
-            }
-
-            /*
-             * -----------------------------------------------------
-             * FOLDER TREE
-             * -----------------------------------------------------
-             */
-            /*
-             * -----------------------------------------------------
-             * FOLDER TREE
-             * -----------------------------------------------------
-             *
-             * Sadece klasör rename'inde Tree değiştirilir.
-             *
-             * Dosya rename'inde Folder Tree'ye kesinlikle
-             * dokunulmaz.
-             */
-            if (group.isSourceFolder()) {
-
-                boolean renamed =
-                        treeController
-                                .renameNodePreservingChildren(
-                                        sourceKey,
-                                        targetKey);
-
-                log.info(
-                        "[TREE RENAME PRESERVED] source={} target={} success={}",
-                        sourceKey,
-                        targetKey,
-                        renamed);
-            }
-
-            /*
-             * -----------------------------------------------------
-             * RENAME SONRASI SELECTION
-             * -----------------------------------------------------
-             *
-             * renameSelected() zaten pendingFileTableSelectionKey
-             * değerini targetKey olarak hazırlıyor.
-             *
-             * Burada ayrıca full table refresh çağırmıyoruz.
-             */
-
-            return;
-        }
-        
-        /*
-         * -------------------------------------------------
+         * =========================================================
          * TARGET REFRESH
-         * -------------------------------------------------
+         * =========================================================
          *
-         * DELETE işleminde target refresh YOK.
+         * DELETE için target refresh yapılmaz.
          *
-         * COPY / MOVE işlemlerinde hedef tarafına
-         * yeni object/folder geldiği için ADD refresh
-         * gerekir.
-         *
-         * Bu bölüm mevcut davranışla aynı tutulmuştur.
+         * COPY / MOVE / UPLOAD gibi operasyonlarda hedefe yeni
+         * içerik geldiği için Tree/Table ADD refresh uygulanır.
+         * =========================================================
          */
         if (group.getOperation() == TransferType.COPY
                 || group.getOperation() == TransferType.MOVE
@@ -2344,20 +2419,6 @@ public class ExplorerPanel extends JPanel {
                  * -------------------------------------------------
                  * UPLOAD GROUP
                  * -------------------------------------------------
-                 *
-                 * targetPrefix oluşturulan klasörün kendisidir.
-                 *
-                 * Örnek:
-                 *
-                 *     currentPrefix = TEST/
-                 *     targetPrefix  = TEST/MyFolder/
-                 *
-                 * Refresh edilmesi gereken Tree node:
-                 *
-                 *     TEST/
-                 *
-                 * Çünkü yeni klasör MyFolder/ bunun altında
-                 * görünmelidir.
                  */
                 String refreshPrefix =
                         group.getOperation()
@@ -2378,18 +2439,9 @@ public class ExplorerPanel extends JPanel {
                                         RefreshTreeOperation.ADD)));
 
                 /*
-                 * Hedef File Table şu anda upload'ın
-                 * parent klasörünü gösteriyorsa yenile.
-                 *
-                 * Upload Group:
-                 *
-                 *     targetPrefix = TEST/MyFolder/
-                 *     refreshPrefix = TEST/
-                 *
-                 * currentPrefix = TEST/
-                 *
-                 * olduğunda yeni MyFolder File Table'da
-                 * hemen görünür.
+                 * -------------------------------------------------
+                 * TARGET FILE TABLE
+                 * -------------------------------------------------
                  */
                 if (Objects.equals(
                         currentPrefix,
