@@ -1875,99 +1875,97 @@ public class ExplorerPanel extends JPanel {
     public void onTransferEvent(
             TransferRuntime runtime) {
 
-        if (runtime == null) {
-            return;
-        }
-
-        if (runtime.getStatus()
+        if (runtime == null
+                || runtime.getStatus()
                 != TransferStatus.COMPLETED) {
 
             return;
         }
 
-        TransferTask task =
-                runtime.getTask();
+        SwingUtilities.invokeLater(() -> {
 
-        if (task == null) {
-            return;
-        }
+            TransferTask task =
+                    runtime.getTask();
 
-        /*
-         * ---------------------------------------------------------
-         * GROUP TASK
-         * ---------------------------------------------------------
-         *
-         * Bir TransferGroup'a ait task'ın tamamlanması,
-         * Explorer refresh'i için yeterli değildir.
-         *
-         * Group devam ederken her task completion event'i
-         * File Table / Tree refresh edersek:
-         *
-         *     task 1 → refresh
-         *     task 2 → refresh
-         *     task 3 → refresh
-         *     ...
-         *
-         * şeklinde gereksiz reload oluşur.
-         *
-         * Group'un tamamlanmasını bekliyoruz.
-         *
-         * Final refresh onTransferGroupCompleted()
-         * tarafından yapılacaktır.
-         */
-        if (task.getGroup() != null) {
+            if (task == null) {
+                return;
+            }
 
-            log.debug(
-                    "[EXPLORER REFRESH] grouped task completed; " +
-                            "refresh deferred until group completion. " +
-                            "task={} group={}",
-                    task.getObjectKey(),
-                    task.getGroup().getDisplayName());
+            /*
+             * ---------------------------------------------------------
+             * RENAME
+             * ---------------------------------------------------------
+             *
+             * Rename işlemlerinin Explorer UI güncellemesi
+             * onTransferGroupCompleted() tarafından yapılır.
+             *
+             * Özellikle DOSYA RENAME işleminde:
+             *
+             *     SIL71/1.json
+             *          ->
+             *     SIL71/2.json
+             *
+             * Folder Tree'ye hiçbir refresh gönderilmemelidir.
+             *
+             * Aksi halde affectedPrefixes içinde bulunan
+             * SIL71/2.json değeri Tree tarafından klasör
+             * prefix'i sanılır ve sahte Tree node'u oluşur.
+             *
+             * KLASÖR RENAME'de de Tree güncellemesi
+             * onTransferGroupCompleted() içindeki
+             * renameNodePreservingChildren() tarafından yapılır.
+             */
+            if (task.getType() == TransferType.RENAME
+                    || task.getType() == TransferType.RENAME_GROUP) {
 
-            return;
-        }
-
-        /*
-         * ---------------------------------------------------------
-         * STANDALONE TASK
-         * ---------------------------------------------------------
-         *
-         * Group'a bağlı olmayan normal işlemlerde
-         * mevcut refresh davranışı devam eder.
-         */
-
-        Set<RefreshTreeNode> affectedPrefixes =
-                task.getAffectedPrefixes();
-
-        /*
-         * File Table refresh.
-         */
-        if (task.isAffectsObjectList()) {
-
-            if (task.getType()
-                    == TransferType.CREATE_FOLDER) {
-
-                addFolderToCurrentFileTable(
-                        task.getBucket(),
+                log.debug(
+                        "[EXPLORER TRANSFER EVENT] " +
+                                "rename task - incremental group completion " +
+                                "will update Explorer. " +
+                                "type={} objectKey={}",
+                        task.getType(),
                         task.getObjectKey());
 
-            } else {
-
-                refreshScheduler
-                        .scheduleCurrentTableRefresh();
+                return;
             }
-        }
 
-        /*
-         * Folder Tree refresh.
-         */
-        if (task.isAffectsFolderTree()
-                && affectedPrefixes != null
-                && !affectedPrefixes.isEmpty()) {
+            Set<RefreshTreeNode> affectedPrefixes =
+                    task.getAffectedPrefixes();
 
-            refreshScheduler.scheduleRefresh(
-                    affectedPrefixes);
-        }
+            /*
+             * ---------------------------------------------------------
+             * FILE TABLE
+             * ---------------------------------------------------------
+             */
+            if (task.isAffectsObjectList()) {
+
+                if (task.getType()
+                        == TransferType.CREATE_FOLDER) {
+
+                    addFolderToCurrentFileTable(
+                            task.getBucket(),
+                            task.getObjectKey());
+
+                } else {
+
+                    refreshScheduler
+                            .scheduleCurrentTableRefresh();
+                }
+            }
+
+            /*
+             * ---------------------------------------------------------
+             * FOLDER TREE
+             * ---------------------------------------------------------
+             */
+            if (task.isAffectsFolderTree()
+                    && affectedPrefixes != null
+                    && !affectedPrefixes.isEmpty()) {
+
+                refreshScheduler.scheduleRefresh(
+                        affectedPrefixes);
+            }
+        });
     }
 
     private void onTransferGroupCompleted(
