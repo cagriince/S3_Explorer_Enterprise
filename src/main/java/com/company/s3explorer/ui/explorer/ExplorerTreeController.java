@@ -683,7 +683,7 @@ public final class ExplorerTreeController {
         MutableTreeNode parent =
                 (MutableTreeNode) node.getParent();
 
-        if (!(parent instanceof S3TreeNode)) {
+        if (!(parent instanceof S3TreeNode parentNode)) {
 
             log.warn(
                     "[TREE RENAME PRESERVED] parent not found source={}",
@@ -697,28 +697,15 @@ public final class ExplorerTreeController {
          * SUBTREE SNAPSHOT
          * ---------------------------------------------------------
          *
-         * Önce bütün mevcut node'ların eski prefix'lerini
-         * snapshot'lıyoruz.
+         * Aynı Java node'larını koruyoruz.
          *
-         * Örnek:
+         * Böylece klasörün:
          *
-         * SIL71/
-         *   A/
-         *     B/
+         * - alt node'ları
+         * - expansion state'i
+         * - node cache ilişkileri
          *
-         * snapshot:
-         *
-         * SIL71/
-         * A/
-         * A/B/
-         *
-         * Daha sonra hiçbir node'u kaybetmeden bunları:
-         *
-         * SIL72/
-         * A/
-         * A/B/
-         *
-         * haline getireceğiz.
+         * kaybolmuyor.
          */
         List<S3TreeNode> subtree =
                 new ArrayList<>();
@@ -770,13 +757,6 @@ public final class ExplorerTreeController {
          * ---------------------------------------------------------
          * DESCENDANT NODE'LARI RENAME
          * ---------------------------------------------------------
-         *
-         * ÖNEMLİ:
-         *
-         * Burada eski prefix'i snapshot'tan alıyoruz.
-         *
-         * Böylece bir child'ın prefix'ini değiştirdikten sonra
-         * recursive işlemde eski prefix kaybolmuyor.
          */
         for (S3TreeNode subtreeNode :
                 subtree) {
@@ -825,45 +805,64 @@ public final class ExplorerTreeController {
 
         /*
          * ---------------------------------------------------------
-         * TREE MODEL
+         * TREE NODE'U YENİDEN SIRALA
          * ---------------------------------------------------------
          *
-         * Burada:
+         * Rename sonrasında node eski index'inde bırakılmıyor.
          *
-         *     remove()
-         *     insert()
-         *     reload()
+         * Önce mevcut parent'dan çıkarıyoruz.
+         * Ardından yeni adına göre doğru index'i
+         * hesaplayıp aynı node nesnesini tekrar ekliyoruz.
          *
-         * YOK.
-         *
-         * Aynı S3TreeNode nesnesi parent'ın altında kalıyor.
-         *
-         * Dolayısıyla:
-         *
-         * SIL71/
-         *   A/
-         *     B/
-         *
-         * aynı Java node'larıyla:
-         *
-         * SIL72/
-         *   A/
-         *     B/
-         *
-         * oluyor.
-         *
-         * Expansion state böylece korunuyor.
+         * Böylece subtree ve expansion state korunuyor.
+         */
+        int oldIndex =
+                parentNode.getIndex(node);
+
+        if (oldIndex >= 0) {
+
+            parentNode.remove(oldIndex);
+
+            treeModel.nodesWereRemoved(
+                    parentNode,
+                    new int[]{oldIndex},
+                    new Object[]{node});
+        }
+
+        int newIndex =
+                findInsertIndex(
+                        parentNode,
+                        node);
+
+        parentNode.insert(
+                node,
+                newIndex);
+
+        treeModel.nodesWereInserted(
+                parentNode,
+                new int[]{newIndex});
+
+        /*
+         * Node'un görüntülenen adı değişti.
+         */
+        treeModel.nodeChanged(node);
+
+        /*
+         * Expansion state ve subtree yapısını
+         * kontrol amaçlı logla.
          */
         logExpandedSubtree(
                 node,
                 "");
-        treeModel.nodeChanged(node);
 
         log.info(
                 "[TREE RENAME PRESERVED] source={} target={} " +
+                        "oldIndex={} newIndex={} " +
                         "childCount={} subtreeSize={}",
                 sourcePrefix,
                 targetPrefix,
+                oldIndex,
+                newIndex,
                 node.getChildCount(),
                 subtree.size());
 
@@ -1482,7 +1481,11 @@ public final class ExplorerTreeController {
                 newNode.toString();
 
         Collator collator =
-                Collator.getInstance();
+                Collator.getInstance(
+                        new Locale("tr", "TR"));
+
+        collator.setStrength(
+                Collator.PRIMARY);
 
         for (int i = 0;
              i < parentNode.getChildCount();
@@ -1498,7 +1501,7 @@ public final class ExplorerTreeController {
             }
 
             /*
-             * Loading marker gerçek bir klasör değil.
+             * Loading marker gerçek klasör değildir.
              */
             if (existing.isLoading()) {
                 continue;
