@@ -3468,7 +3468,7 @@ public class ExplorerPanel extends JPanel {
                                 text.toString()),
                         null);
     }
-    
+
     private boolean submitMove(
             S3FileItem item,
             String targetBucket,
@@ -3476,9 +3476,7 @@ public class ExplorerPanel extends JPanel {
             boolean overwrite,
             TransferGroup group) {
 
-        if (item == null
-                || group == null) {
-
+        if (item == null) {
             return false;
         }
 
@@ -3496,7 +3494,9 @@ public class ExplorerPanel extends JPanel {
                     item.getKey(),
                     targetKey,
                     overwrite,
-                    group.getDisplayName());
+                    group == null
+                            ? "NONE"
+                            : group.getDisplayName());
 
             return true;
 
@@ -3506,15 +3506,17 @@ public class ExplorerPanel extends JPanel {
                     "[MOVE] failed source={} target={} group={}",
                     item.getKey(),
                     targetKey,
-                    group.getDisplayName(),
+                    group == null
+                            ? "NONE"
+                            : group.getDisplayName(),
                     ex);
 
             SwingUtilities.invokeLater(() ->
-                    JOptionPane.showMessageDialog(
-                            this,
-                            ex.getMessage(),
-                            "Move Failed",
-                            JOptionPane.ERROR_MESSAGE));
+                                               JOptionPane.showMessageDialog(
+                                                       this,
+                                                       ex.getMessage(),
+                                                       "Move Failed",
+                                                       JOptionPane.ERROR_MESSAGE));
 
             return false;
         }
