@@ -2104,6 +2104,11 @@ public class ExplorerPanel extends JPanel {
                     addUploadedFileToCurrentFileTable(task);
 
                 }
+                else if (task.getType() == TransferType.COPY) {
+
+                    addCopiedFileToCurrentTable(task);
+
+                }
                 else {
 
                     refreshScheduler
@@ -5816,6 +5821,101 @@ public class ExplorerPanel extends JPanel {
          * seçili kolonun sıralamasına göre
          * yeniden konumlandıracaktır.
          */
+        if (Objects.equals(
+                pendingFileTableSelectionKey,
+                objectKey)
+                && restoreFileTableFocus) {
+
+            SwingUtilities.invokeLater(() -> {
+
+                restoreFileTableSelectionByKey(
+                        objectKey);
+
+                restoreFileTableFocus();
+
+                pendingFileTableSelectionKey =
+                        null;
+
+                restoreFileTableFocus =
+                        false;
+            });
+        }
+    }
+
+    private void addCopiedFileToCurrentTable(
+            TransferTask task) {
+
+        if (task == null) {
+            return;
+        }
+
+        String bucket =
+                task.getTargetBucket();
+
+        String objectKey =
+                task.getTargetObjectKey();
+
+        if (bucket == null
+                || objectKey == null
+                || objectKey.isBlank()) {
+
+            log.warn(
+                    "[FILE TABLE COPY INSERT] " +
+                            "missing target bucket/key");
+            return;
+        }
+
+        String parentPrefix =
+                getParentPrefix(objectKey);
+
+        if (!Objects.equals(
+                currentFileBucket,
+                bucket)
+                || !Objects.equals(
+                currentFilePrefix,
+                parentPrefix)) {
+
+            log.debug(
+                    "[FILE TABLE COPY INSERT] skipped " +
+                            "bucket={} prefix={} " +
+                            "currentBucket={} currentPrefix={}",
+                    bucket,
+                    parentPrefix,
+                    currentFileBucket,
+                    currentFilePrefix);
+
+            return;
+        }
+
+        S3FileItem item =
+                new S3FileItem(
+                        task.getTargetRepositoryName(),
+                        bucket,
+                        objectKey,
+                        task.getSize(),
+                        null,
+                        null,
+                        false);
+
+        boolean added =
+                view.getFileTableModel()
+                        .addFile(item);
+
+        log.info(
+                "[FILE TABLE COPY INSERT] " +
+                        "source={}/{} target={}/{} " +
+                        "size={} added={}",
+                task.getBucket(),
+                task.getObjectKey(),
+                bucket,
+                objectKey,
+                task.getSize(),
+                added);
+
+        if (!added) {
+            return;
+        }
+
         if (Objects.equals(
                 pendingFileTableSelectionKey,
                 objectKey)
