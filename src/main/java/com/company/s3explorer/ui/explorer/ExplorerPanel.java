@@ -2057,6 +2057,37 @@ public class ExplorerPanel extends JPanel {
              */
             if (task.isAffectsObjectList()) {
 
+                /*
+                 * DELETE işlemleri ExplorerPanel'in
+                 * onTransferGroupCompleted() / incremental
+                 * güncelleme akışı tarafından ele alınır.
+                 *
+                 * DELETE sırasında burada scheduler ile
+                 * current File Table refresh edilirse:
+                 *
+                 *     DELETE
+                 *       -> removeFileByKey()
+                 *       -> scheduleCurrentTableRefresh()
+                 *       -> refreshCurrentTable()
+                 *       -> loadFiles()
+                 *       -> setFiles()
+                 *
+                 * zinciri oluşur ve bütün File Table gereksiz
+                 * yere yeniden yüklenir.
+                 */
+                if (task.getType() == TransferType.DELETE
+                        || task.getType() == TransferType.DELETE_GROUP) {
+
+                    log.debug(
+                            "[EXPLORER REFRESH] delete task refresh deferred; " +
+                                    "incremental group completion will update Explorer. " +
+                                    "type={} objectKey={}",
+                            task.getType(),
+                            task.getObjectKey());
+
+                    return;
+                }
+
                 if (task.getType()
                         == TransferType.CREATE_FOLDER) {
 
