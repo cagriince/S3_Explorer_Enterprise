@@ -3680,7 +3680,7 @@ public class ExplorerPanel extends JPanel {
 
         group.markProductionCompleted();
     }
-    
+
     public void deleteSelected() {
 
         log.info(
@@ -3737,45 +3737,28 @@ public class ExplorerPanel extends JPanel {
 
         /*
          * ---------------------------------------------------------
-         * TEK ITEM
+         * DELETE GROUP
          * ---------------------------------------------------------
          *
-         * Mevcut davranış tamamen korunuyor.
+         * Tek item DELETE dahil bütün DELETE işlemlerini
+         * aynı TransferGroup lifecycle'ına sokuyoruz.
          *
-         * Klasör DELETE burada kendi FolderDeleteProducer
-         * lifecycle'ını kullanmaya devam eder.
+         * Böylece:
+         *
+         *     DELETE task
+         *         ->
+         *     TransferGroupCompletedEvent
+         *         ->
+         *     onTransferGroupCompleted()
+         *         ->
+         *     File Table incremental update
+         *
+         * zinciri her DELETE için aynı şekilde çalışır.
+         *
+         * Özellikle tek dosya DELETE'te daha önce
+         * fileOperationController.delete(item) kullanıldığı için
+         * group completion'a girmeyen bir akış oluşuyordu.
          */
-        if (items.size() == 1) {
-
-            deleteObject(
-                    items.getFirst());
-
-            return;
-        }
-
-        /*
-         * ---------------------------------------------------------
-         * MULTI SELECTION
-         * ---------------------------------------------------------
-         *
-         * Seçimde klasör varsa mevcut davranışı koruyoruz.
-         *
-         * Sadece tamamen dosyalardan oluşan çoklu seçimlerde
-         * ortak DELETE Group oluşturacağız.
-         */
-        boolean allFiles =
-                items.stream()
-                        .noneMatch(S3FileItem::isFolder);
-
-        if (!allFiles) {
-
-            for (S3FileItem item : items) {
-
-                deleteObject(item);
-            }
-
-            return;
-        }
 
         S3FileItem firstItem =
                 items.getFirst();
@@ -3793,21 +3776,59 @@ public class ExplorerPanel extends JPanel {
                 || bucket == null
                 || sourcePrefix == null) {
 
+            log.warn(
+                    "[DELETE GROUP] missing context repository={} bucket={} prefix={}",
+                    repositoryName,
+                    bucket,
+                    sourcePrefix);
+
+            return;
+        }
+
+        String groupName =
+                getOperationGroupName(items);
+
+        TransferType groupOperation;
+
+        /*
+         * Klasör içeren DELETE'lerde FolderDeleteProducer
+         * kendi özel lifecycle'ını kullanmalıdır.
+         *
+         * Bu nedenle:
+         *
+         * - yalnızca dosyalardan oluşan seçimlerde
+         *   DELETE_GROUP kullanıyoruz.
+         * - klasör içeren seçimlerde mevcut deleteObject()
+         *   akışını koruyoruz.
+         */
+        boolean allFiles =
+                items.stream()
+                        .noneMatch(S3FileItem::isFolder);
+
+        if (!allFiles) {
+
+            for (S3FileItem item : items) {
+
+                deleteObject(item);
+            }
+
+            updateActionStates();
+
             return;
         }
 
         /*
-         * Group adı:
-         *
-         * COPY / MOVE group'larında kullandığımız yaklaşımla
-         * ilk seçilen dosyanın adını kullanıyoruz.
+         * ---------------------------------------------------------
+         * FILE DELETE GROUP
+         * ---------------------------------------------------------
          */
-        String groupName =
-                getOperationGroupName(items);
+
+        groupOperation =
+                TransferType.DELETE_GROUP;
 
         TransferGroup group =
                 transferManager.createOperationGroup(
-                        TransferType.DELETE_GROUP,
+                        groupOperation,
                         groupName,
                         repositoryName,
                         bucket,
@@ -3817,8 +3838,14 @@ public class ExplorerPanel extends JPanel {
                         sourcePrefix);
 
         /*
-         * DELETE tamamlandığında kaynak File Table ve Tree
-         * refresh edilecek.
+         * DELETE tamamlandığında ExplorerPanel'in
+         * onTransferGroupCompleted() metodu:
+         *
+         *     - File Table satırlarını kaldıracak
+         *     - Tree'ye dokunmayacak
+         *     - gerekiyorsa selection restore yapacak
+         *
+         * Bu yüzden burada ayrıca refresh çağırmıyoruz.
          */
         transferManager.configureGroupCompletion(
                 group,
@@ -3827,9 +3854,6 @@ public class ExplorerPanel extends JPanel {
                 sourcePrefix,
                 true);
 
-        /*
-         * Bütün seçili dosyaları aynı DELETE Group'a bağlıyoruz.
-         */
         for (S3FileItem item : items) {
 
             try {
@@ -3837,6 +3861,11 @@ public class ExplorerPanel extends JPanel {
                 fileOperationController.delete(
                         item,
                         group);
+
+                log.info(
+                        "[DELETE GROUP] submitted source={} group={}",
+                        item.getKey(),
+                        group.getDisplayName());
 
             } catch (Exception ex) {
 
@@ -3847,11 +3876,11 @@ public class ExplorerPanel extends JPanel {
                         ex);
 
                 SwingUtilities.invokeLater(() ->
-                        JOptionPane.showMessageDialog(
-                                this,
-                                ex.getMessage(),
-                                "Delete Failed",
-                                JOptionPane.ERROR_MESSAGE));
+                                                   JOptionPane.showMessageDialog(
+                                                           this,
+                                                           ex.getMessage(),
+                                                           "Delete Failed",
+                                                           JOptionPane.ERROR_MESSAGE));
 
                 /*
                  * Submit edilemeyen task'ı group lifecycle'ına
@@ -3862,7 +3891,10 @@ public class ExplorerPanel extends JPanel {
         }
 
         /*
-         * Artık group yeni task üretmeyecek.
+         * Artık group'a yeni task eklenmeyecek.
+         *
+         * Gerçek completion event'i bundan sonra,
+         * bütün task'lar tamamlandığında üretilecek.
          */
         group.markProductionCompleted();
 
