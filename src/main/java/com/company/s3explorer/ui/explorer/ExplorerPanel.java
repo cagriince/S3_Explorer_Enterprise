@@ -2357,6 +2357,104 @@ public class ExplorerPanel extends JPanel {
 
             /*
              * ---------------------------------------------------------
+             * MULTI DELETE SELECTION RESTORE
+             * ---------------------------------------------------------
+             *
+             * DELETE group tamamlandığında bütün silinen satırlar
+             * incremental olarak File Table'dan kaldırılmış olur.
+             *
+             * Silme öncesinde pendingDeleteSelectionViewRow ile
+             * ilk seçili satırın view index'i saklanmıştır.
+             *
+             * Şimdi:
+             *
+             *     1. bütün silinen satırlar kaldırıldı
+             *     2. yeni rowCount hesaplanır
+             *     3. mümkünse aynı view row seçilir
+             *     4. eğer o satır artık mevcut değilse son satır seçilir
+             *
+             * Böylece:
+             *
+             *     [1] [2] [3] [4] [5]
+             *          ^^^^^^^^^^^^^
+             *          DELETE
+             *
+             * sonrasında:
+             *
+             *     [1] [5]
+             *          ^
+             *          selection
+             *
+             * veya silinenlerin arasında başka satırlar varsa
+             * mümkün olduğunca eski konuma yakın satır seçilir.
+             */
+            if (group.getOperation()
+                    == TransferType.DELETE_GROUP
+                    && !group.isSourceFolder()
+                    && pendingDeleteSelectionViewRow >= 0) {
+
+                SwingUtilities.invokeLater(() -> {
+
+                    int rowCount =
+                            view.getFileTable().getRowCount();
+
+                    int targetViewRow =
+                            Math.min(
+                                    pendingDeleteSelectionViewRow,
+                                    rowCount - 1);
+
+                    log.info(
+                            "[DELETE GROUP SELECTION RESTORE] " +
+                                    "pendingRow={} rowCount={} targetRow={}",
+                            pendingDeleteSelectionViewRow,
+                            rowCount,
+                            targetViewRow);
+
+                    if (targetViewRow >= 0) {
+
+                        JTable table =
+                                view.getFileTable();
+
+                        table.clearSelection();
+
+                        table.setRowSelectionInterval(
+                                targetViewRow,
+                                targetViewRow);
+
+                        table.scrollRectToVisible(
+                                table.getCellRect(
+                                        targetViewRow,
+                                        0,
+                                        true));
+
+                        restoreFileTableFocus();
+
+                        log.info(
+                                "[DELETE GROUP SELECTION RESTORE] " +
+                                        "success targetViewRow={} selectedRowCount={}",
+                                targetViewRow,
+                                table.getSelectedRowCount());
+
+                    } else {
+
+                        /*
+                         * Tablo tamamen boşaldıysa selection yapılamaz.
+                         */
+                        log.info(
+                                "[DELETE GROUP SELECTION RESTORE] " +
+                                        "table empty; no selection");
+
+                        restoreFileTableFocus();
+                    }
+
+                    pendingDeleteSelectionViewRow = -1;
+
+                    updateActionStates();
+                });
+            }
+            
+            /*
+             * ---------------------------------------------------------
              * GROUP SELECTION RESTORE
              * ---------------------------------------------------------
              *
