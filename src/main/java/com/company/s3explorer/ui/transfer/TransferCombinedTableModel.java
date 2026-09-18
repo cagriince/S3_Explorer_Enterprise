@@ -285,6 +285,9 @@ public class TransferCombinedTableModel
 
                 return new GroupProgress(
                         group.getCompleted(),
+                        group.getFailedCount(),
+                        group.getCancelled(),
+                        group.getSkipped(),
                         group.getDetected(),
                         group.isPreparing());
 
@@ -518,11 +521,19 @@ public class TransferCombinedTableModel
     public static final class GroupProgress {
 
         private final int completed;
+        private final int failed;
+        private final int cancelled;
+        private final int skipped;
+
         private final long detected;
+
         private final boolean preparing;
 
         private GroupProgress(
                 int completed,
+                int failed,
+                int cancelled,
+                int skipped,
                 long detected,
                 boolean preparing) {
 
@@ -530,6 +541,21 @@ public class TransferCombinedTableModel
                     Math.max(
                             0,
                             completed);
+
+            this.failed =
+                    Math.max(
+                            0,
+                            failed);
+
+            this.cancelled =
+                    Math.max(
+                            0,
+                            cancelled);
+
+            this.skipped =
+                    Math.max(
+                            0,
+                            skipped);
 
             this.detected =
                     Math.max(
@@ -546,8 +572,14 @@ public class TransferCombinedTableModel
                 return 0;
             }
 
+            long finished =
+                    (long) completed
+                            + failed
+                            + cancelled
+                            + skipped;
+
             long percent =
-                    completed * 100L / detected;
+                    finished * 100L / detected;
 
             return (int) Math.max(
                     0L,
