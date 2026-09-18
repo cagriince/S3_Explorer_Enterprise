@@ -3182,54 +3182,79 @@ public class ExplorerPanel extends JPanel {
         }
 
         /*
-         * The paste operation may trigger file-table reloads
-         * before all overwrite dialogs have been answered.
+         * ---------------------------------------------------------
+         * SELECTION COLLECTION
+         * ---------------------------------------------------------
          *
-         * Selection restoration must therefore remain suspended
-         * until the complete paste decision phase has finished.
+         * Paste sırasında overwrite dialog'ları açılabileceği için
+         * selection restore işlemini bütün karar süreci bitene kadar
+         * askıya alıyoruz.
          */
         pasteSelectionCollectionInProgress = true;
 
         List<String> selectionKeys =
                 new ArrayList<>();
 
-        TransferGroup group = null;
+        /*
+         * ---------------------------------------------------------
+         * ACCEPTED ITEMS
+         * ---------------------------------------------------------
+         *
+         * Önce bütün paste kararlarını alıyoruz.
+         *
+         * Bunun önemli sebebi:
+         *
+         *     1 dosya kabul edildi
+         *         -> group YOK
+         *
+         *     2 veya daha fazla dosya kabul edildi
+         *         -> bütün dosyalar AYNI group içinde
+         *
+         * Böylece ilk dosyanın group dışında,
+         * sonraki dosyaların group içinde kalması engelleniyor.
+         */
+        List<S3FileItem> acceptedItems =
+                new ArrayList<>();
+
+        List<String> acceptedTargetKeys =
+                new ArrayList<>();
+
+        List<Boolean> acceptedOverwrites =
+                new ArrayList<>();
+
         int skippedCount = 0;
-        int acceptedFileCount = 0;
 
         /*
-         * Folder producer kendi production lifecycle'ını yönetir.
-         *
-         * File-only paste işleminde ise production lifecycle
-         * ExplorerPanel tarafından tamamlanır.
+         * Folder producer'ın production lifecycle'ı kendisine aittir.
          */
         boolean folderProducerSubmitted = false;
 
+        /*
+         * ---------------------------------------------------------
+         * PHASE 1
+         * PASTE DECISIONS
+         * ---------------------------------------------------------
+         */
         for (S3FileItem item : items) {
 
             if (item == null) {
                 continue;
             }
 
-            /*
-             * For files:
-             *
-             *     targetSubmissionKey = targetPrefix + fileName
-             *     targetSelectionKey  = targetPrefix + fileName
-             *
-             * For folders:
-             *
-             *     targetSubmissionPrefix = targetPrefix
-             *     targetSelectionKey     = targetPrefix + folderName + "/"
-             *
-             * Folder producers build the actual destination folder
-             * from the source folder name.
-             */
             String targetSubmissionKey;
             String targetSelectionKey;
 
+            /*
+             * -----------------------------------------------------
+             * TARGET KEY
+             * -----------------------------------------------------
+             */
             if (item.isFolder()) {
 
+                /*
+                 * Folder producer destination prefix'i kendisi
+                 * source folder name üzerinden oluşturur.
+                 */
                 targetSubmissionKey =
                         targetPrefix;
 
@@ -3254,11 +3279,9 @@ public class ExplorerPanel extends JPanel {
             }
 
             /*
-             * Do not paste an item onto itself.
-             *
-             * For folders the selection key represents the actual
-             * destination folder, while the producer receives the
-             * destination prefix.
+             * -----------------------------------------------------
+             * SELF TARGET
+             * -----------------------------------------------------
              */
             if (item.getBucket().equals(targetBucket)
                     && item.getKey().equals(targetSelectionKey)) {
@@ -3272,10 +3295,15 @@ public class ExplorerPanel extends JPanel {
             }
 
             /*
-             * Folder Copy/Move silently merges.
+             * -----------------------------------------------------
+             * OVERWRITE DECISION
+             * -----------------------------------------------------
              *
-             * File Copy/Move requires the existing overwrite
-             * confirmation flow.
+             * Folder Copy/Move:
+             *     mevcut davranış korunuyor.
+             *
+             * File Copy/Move:
+             *     mevcut conflict dialog'u kullanılıyor.
              */
             boolean overwrite = false;
 
@@ -3286,14 +3314,7 @@ public class ExplorerPanel extends JPanel {
                         item,
                         targetSubmissionKey)) {
 
-                    if (group != null) {
-
-                        group.skipped();
-
-                    } else {
-
-                        skippedCount++;
-                    }
+                    skippedCount++;
 
                     log.info(
                             operation == ExplorerClipboard.Operation.COPY
@@ -3314,117 +3335,193 @@ public class ExplorerPanel extends JPanel {
             }
 
             /*
-             * ---------------------------------------------------------
-             * GROUP CREATION
-             * ---------------------------------------------------------
-             *
-             * Single file COPY/MOVE:
-             *
-             *     no TransferGroup
-             *
-             * Multiple files:
-             *
-             *     shared TransferGroup
-             *
-             * Folder:
-             *
-             *     shared TransferGroup because the folder producer
-             *     owns the production lifecycle.
-             *
-             * We therefore create the group only when:
-             *
-             *     - this is a folder, OR
-             *     - a second accepted file is encountered.
+             * -----------------------------------------------------
+             * ACCEPTED
+             * -----------------------------------------------------
              */
-            boolean requiresGroup =
-                    item.isFolder()
-                            || acceptedFileCount > 0;
+            acceptedItems.add(item);
+            acceptedTargetKeys.add(targetSubmissionKey);
+            acceptedOverwrites.add(overwrite);
 
-            if (group == null
-                    && requiresGroup) {
+            log.info(
+                    "[PASTE DECISION] accepted source={} target={} overwrite={} folder={}",
+                    item.getKey(),
+                    targetSubmissionKey,
+                    overwrite,
+                    item.isFolder());
+        }
 
-                String groupName =
-                        getOperationGroupName(items);
+        /*
+         * ---------------------------------------------------------
+         * NO ACCEPTED ITEMS
+         * ---------------------------------------------------------
+         */
+        if (acceptedItems.isEmpty()) {
 
-                String sourcePrefix;
+            pasteSelectionCollectionInProgress = false;
 
-                if (item.isFolder()) {
+            pendingFileTableSelectionKeys = null;
 
-                    sourcePrefix =
-                            item.getKey();
+            log.info(
+                    "[PASTE SELECTION] no items accepted");
 
-                } else {
+            updateActionStates();
 
-                    sourcePrefix =
-                            S3Util.extractParentPrefix(
-                                    item.getKey());
-                }
+            return;
+        }
 
-                TransferType groupOperation =
-                        operation ==
-                                ExplorerClipboard.Operation.COPY
-                                ? TransferType.COPY_GROUP
-                                : TransferType.MOVE_GROUP;
+        /*
+         * ---------------------------------------------------------
+         * GROUP DECISION
+         * ---------------------------------------------------------
+         *
+         * BURASI KRİTİK.
+         *
+         * Tek dosya:
+         *
+         *     acceptedItems.size() == 1
+         *
+         *     group = null
+         *
+         * Çoklu:
+         *
+         *     acceptedItems.size() > 1
+         *
+         *     group oluştur
+         *
+         * Böylece ilk dosya da diğer dosyalarla aynı group'a
+         * dahil edilir.
+         *
+         * Folder işlemlerinde producer lifecycle'ı korunur.
+         */
+        TransferGroup group = null;
 
-                group =
-                        transferManager.createOperationGroup(
-                                groupOperation,
-                                groupName,
-                                item.getRepositoryName(),
-                                item.getBucket(),
-                                sourcePrefix,
-                                getCurrentRepository().getName(),
-                                targetBucket,
-                                targetPrefix);
+        boolean hasFolder =
+                acceptedItems.stream()
+                        .anyMatch(S3FileItem::isFolder);
 
-                transferManager.configureGroupCompletion(
-                        group,
-                        item.getRepositoryName(),
-                        item.getBucket(),
-                        sourcePrefix,
-                        operation ==
-                                ExplorerClipboard.Operation.MOVE);
+        boolean requiresGroup =
+                hasFolder
+                        || acceptedItems.size() > 1;
 
-                log.info(
-                        "[PASTE GROUP] created operation={} group={} sourcePrefix={} targetPrefix={} sourceRefreshRequired={}",
-                        groupOperation,
-                        group.getDisplayName(),
-                        sourcePrefix,
-                        targetSubmissionKey,
-                        operation ==
-                                ExplorerClipboard.Operation.MOVE);
+        if (requiresGroup) {
 
-                if (skippedCount > 0) {
+            S3FileItem firstItem =
+                    acceptedItems.getFirst();
 
-                    for (int i = 0;
-                         i < skippedCount;
-                         i++) {
+            String groupName =
+                    getOperationGroupName(items);
 
-                        group.skipped();
-                    }
-
-                    log.info(
-                            "[PASTE GROUP] transferred skipped decisions count={} group={}",
-                            skippedCount,
-                            group.getDisplayName());
-
-                    skippedCount = 0;
-                }
-            }
+            String sourcePrefix;
 
             /*
-             * ---------------------------------------------------------
-             * ACTUAL TRANSFER SUBMISSION
-             * ---------------------------------------------------------
+             * Gerçek folder operation:
              *
-             * File:
-             *     submitCopy / submitMove -> single TransferTask
+             *     sourcePrefix = folder key
              *
-             * Folder:
-             *     submitCopy / submitMove -> FolderProducer
+             * Çoklu file operation:
              *
-             * group == null is intentional for a single file.
+             *     sourcePrefix = ortak parent prefix
              */
+            if (firstItem.isFolder()) {
+
+                sourcePrefix =
+                        firstItem.getKey();
+
+            } else {
+
+                sourcePrefix =
+                        S3Util.extractParentPrefix(
+                                firstItem.getKey());
+            }
+
+            TransferType groupOperation =
+                    operation ==
+                            ExplorerClipboard.Operation.COPY
+                            ? TransferType.COPY_GROUP
+                            : TransferType.MOVE_GROUP;
+
+            group =
+                    transferManager.createOperationGroup(
+                            groupOperation,
+                            groupName,
+                            firstItem.getRepositoryName(),
+                            firstItem.getBucket(),
+                            sourcePrefix,
+                            getCurrentRepository().getName(),
+                            targetBucket,
+                            targetPrefix);
+
+            transferManager.configureGroupCompletion(
+                    group,
+                    firstItem.getRepositoryName(),
+                    firstItem.getBucket(),
+                    sourcePrefix,
+                    operation ==
+                            ExplorerClipboard.Operation.MOVE);
+
+            log.info(
+                    "[PASTE GROUP] created operation={} group={} sourcePrefix={} targetPrefix={} sourceRefreshRequired={}",
+                    groupOperation,
+                    group.getDisplayName(),
+                    sourcePrefix,
+                    targetPrefix,
+                    operation ==
+                            ExplorerClipboard.Operation.MOVE);
+
+            /*
+             * İlk karar aşamasında skip edilen dosyalar da group
+             * lifecycle'ına dahil edilmelidir.
+             */
+            if (skippedCount > 0) {
+
+                for (int i = 0;
+                     i < skippedCount;
+                     i++) {
+
+                    group.skipped();
+                }
+
+                log.info(
+                        "[PASTE GROUP] transferred skipped decisions count={} group={}",
+                        skippedCount,
+                        group.getDisplayName());
+
+                skippedCount = 0;
+            }
+        }
+
+        /*
+         * ---------------------------------------------------------
+         * PHASE 2
+         * ACTUAL TRANSFER SUBMISSION
+         * ---------------------------------------------------------
+         *
+         * Artık group kararı kesinleşti.
+         *
+         * Tek dosya:
+         *
+         *     group == null
+         *
+         * Çoklu:
+         *
+         *     group != null
+         *
+         * Dolayısıyla bütün çoklu dosyalar aynı group'a gönderilir.
+         */
+        for (int i = 0;
+             i < acceptedItems.size();
+             i++) {
+
+            S3FileItem item =
+                    acceptedItems.get(i);
+
+            String targetSubmissionKey =
+                    acceptedTargetKeys.get(i);
+
+            boolean overwrite =
+                    acceptedOverwrites.get(i);
+
             boolean submitted;
 
             if (operation ==
@@ -3451,53 +3548,83 @@ public class ExplorerPanel extends JPanel {
 
             if (submitted) {
 
+                String targetSelectionKey;
+
+                if (item.isFolder()) {
+
+                    targetSelectionKey =
+                            S3Util.combineKey(
+                                    targetPrefix,
+                                    item.getName());
+
+                    if (!targetSelectionKey.endsWith("/")) {
+                        targetSelectionKey += "/";
+                    }
+
+                } else {
+
+                    targetSelectionKey =
+                            targetSubmissionKey;
+                }
+
                 selectionKeys.add(
                         targetSelectionKey);
 
                 log.info(
-                        "[PASTE SELECTION] accepted key={} item={}",
+                        "[PASTE SELECTION] accepted key={} item={} group={}",
                         targetSelectionKey,
-                        item.getName());
+                        item.getName(),
+                        group == null
+                                ? "NONE"
+                                : group.getDisplayName());
 
-                /*
-                 * A file accepted for transfer counts toward
-                 * deciding whether a shared group is needed.
-                 */
-                if (!item.isFolder()) {
-
-                    acceptedFileCount++;
-                }
-
-                /*
-                 * Folder producer artık production lifecycle'ının
-                 * sahibidir.
-                 */
                 if (item.isFolder()) {
-
                     folderProducerSubmitted = true;
                 }
 
             } else {
 
+                /*
+                 * Submission başarısız olduysa selection'a ekleme.
+                 */
+                String targetSelectionKey;
+
+                if (item.isFolder()) {
+
+                    targetSelectionKey =
+                            S3Util.combineKey(
+                                    targetPrefix,
+                                    item.getName());
+
+                    if (!targetSelectionKey.endsWith("/")) {
+                        targetSelectionKey += "/";
+                    }
+
+                } else {
+
+                    targetSelectionKey =
+                            targetSubmissionKey;
+                }
+
                 log.info(
-                        "[PASTE SELECTION] not selected key={} item={}",
+                        "[PASTE SELECTION] not selected key={} item={} submitFailed=true",
                         targetSelectionKey,
                         item.getName());
             }
         }
 
         /*
-         * All overwrite dialogs have now been answered and all
-         * accepted items have been submitted.
+         * ---------------------------------------------------------
+         * PRODUCTION COMPLETION
+         * ---------------------------------------------------------
          *
-         * For folder operations, the asynchronous folder producer
-         * owns production lifecycle.
+         * Folder producer lifecycle'ı kendisi yönetir.
          *
-         * For multi-file operations, ExplorerPanel completes
-         * production here.
+         * File-only group'da ise bütün task'lar submit edildiği için
+         * production burada tamamlanır.
          *
-         * For a single file operation there is no group and
-         * therefore nothing to complete here.
+         * Tek dosyada group olmadığı için hiçbir lifecycle işlemi
+         * yapılmaz.
          */
         pasteSelectionCollectionInProgress = false;
 
@@ -3507,30 +3634,38 @@ public class ExplorerPanel extends JPanel {
             group.markProductionCompleted();
 
             log.info(
-                    "[PASTE GROUP] production completed immediately group={} queued={} running={} completed={} failed={} cancelled={}",
+                    "[PASTE GROUP] production completed immediately group={} queued={} running={} completed={} failed={} cancelled={} skipped={}",
                     group.getDisplayName(),
                     group.getQueued(),
                     group.getRunning(),
                     group.getCompleted(),
                     group.getFailed(),
-                    group.getCancelled());
+                    group.getCancelled(),
+                    group.getSkipped());
 
         } else if (group != null) {
 
             log.info(
-                    "[PASTE GROUP] production remains owned by folder producer group={} queued={} running={} completed={} failed={} cancelled={}",
+                    "[PASTE GROUP] production remains owned by folder producer group={} queued={} running={} completed={} failed={} cancelled={} skipped={}",
                     group.getDisplayName(),
                     group.getQueued(),
                     group.getRunning(),
                     group.getCompleted(),
                     group.getFailed(),
-                    group.getCancelled());
+                    group.getCancelled(),
+                    group.getSkipped());
         }
 
+        /*
+         * ---------------------------------------------------------
+         * SELECTION
+         * ---------------------------------------------------------
+         */
         if (!selectionKeys.isEmpty()) {
 
             pendingFileTableSelectionKeys =
-                    new ArrayList<>(selectionKeys);
+                    new ArrayList<>(
+                            selectionKeys);
 
             restoreFileTableFocus = true;
 
@@ -3552,8 +3687,9 @@ public class ExplorerPanel extends JPanel {
         }
 
         /*
-         * MOVE clears the clipboard after all decisions have
-         * been made. COPY keeps it available.
+         * ---------------------------------------------------------
+         * MOVE CLIPBOARD
+         * ---------------------------------------------------------
          */
         if (operation ==
                 ExplorerClipboard.Operation.MOVE) {
@@ -3563,7 +3699,7 @@ public class ExplorerPanel extends JPanel {
 
         updateActionStates();
     }
-
+    
     private boolean submitCopy(
             S3FileItem item,
             String targetBucket,
