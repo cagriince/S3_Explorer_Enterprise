@@ -41,6 +41,8 @@ import java.text.Collator;
 import java.time.Instant;
 import java.util.*;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
@@ -107,6 +109,9 @@ public class ExplorerPanel extends JPanel {
     private boolean suppressBucketSelectionEvent;
     private boolean forceBucketReload;
 
+    private final Map<UUID, List<TransferTask>> completedGroupTasks =
+            new ConcurrentHashMap<>();
+    
     private final ExplorerClipboard clipboard = new ExplorerClipboard();
 
     private Action downloadAction;
@@ -1960,44 +1965,65 @@ public class ExplorerPanel extends JPanel {
             return;
         }
 
+        TransferTask completedTask =
+                runtime.getTask();
+
+        if (completedTask == null) {
+            return;
+        }
+
+        /*
+         * ---------------------------------------------------------
+         * GROUP TASK RESULT COLLECTOR
+         * ---------------------------------------------------------
+         *
+         * Çoklu COPY / MOVE / DELETE işlemlerinde
+         * TransferGroup başarılı task'ları kendi içinde
+         * saklamıyor.
+         *
+         * Bu nedenle tamamlanan task'ı burada, EDT'ye
+         * geçmeden önce topluyoruz.
+         *
+         * ÖNEMLİ:
+         *
+         * Group completion callback'i, son task'ın
+         * SwingUtilities.invokeLater() içindeki kodu
+         * çalışmadan önce gelebilir.
+         *
+         * Bu yüzden collector kesinlikle invokeLater()
+         * dışında olmalıdır.
+         */
+        TransferGroup taskGroup =
+                completedTask.getGroup();
+
+        if (taskGroup != null) {
+
+            completedGroupTasks
+                    .computeIfAbsent(
+                            taskGroup.getId(),
+                            id -> new CopyOnWriteArrayList<>())
+                    .add(completedTask);
+
+            log.debug(
+                    "[EXPLORER GROUP TASK COLLECT] " +
+                            "group={} task={} type={} collectedCount={}",
+                    taskGroup.getDisplayName(),
+                    completedTask.getObjectKey(),
+                    completedTask.getType(),
+                    completedGroupTasks
+                            .get(taskGroup.getId())
+                            .size());
+        }
+
         SwingUtilities.invokeLater(() -> {
 
             TransferTask task =
-                    runtime.getTask();
-
-            if (task == null) {
-                return;
-            }
+                    completedTask;
 
             /*
              * ---------------------------------------------------------
              * GROUP TASK
              * ---------------------------------------------------------
-             *
-             * Bir TransferGroup'a ait task'ın tamamlanması,
-             * Explorer refresh'i için yeterli değildir.
-             *
-             * Örneğin klasör silmede:
-             *
-             *     task 1 -> completed
-             *     task 2 -> completed
-             *     task 3 -> completed
-             *     ...
-             *
-             * Bu noktada File Table refresh edilmemelidir.
-             *
-             * Çünkü onTransferGroupCompleted() bütün grup
-             * tamamlandıktan sonra gerekli incremental UI
-             * güncellemelerini zaten yapıyor:
-             *
-             *     - File Table satırını kaldırma
-             *     - Tree node kaldırma
-             *     - Rename işlemleri
-             *     - Selection restore
-             *
-             * Özellikle DELETE/MOVE gibi grup işlemlerinde burada
-             * scheduleCurrentTableRefresh() çağrılması File Table'ın
-             * gereksiz yere tamamen reload edilmesine neden olur.
              */
             if (task.getGroup() != null) {
 
@@ -2005,13 +2031,15 @@ public class ExplorerPanel extends JPanel {
                         task.getGroup();
 
                 /*
-                 * Tek dosya COPY:
+                 * -----------------------------------------------------
+                 * TEK DOSYA COPY
+                 * -----------------------------------------------------
                  *
-                 * Group completion'ı beklemeden mevcut File Table'a
-                 * incremental olarak ekle.
+                 * Tekli COPY artık group kullanmadığı normal akışta
+                 * buraya düşmeyecek.
                  *
-                 * Klasör COPY ve çoklu COPY burada mevcut davranışını
-                 * korur; onların UI güncellemesi group completion'da yapılır.
+                 * Eski group'lu tekli COPY için de güvenli fallback
+                 * olarak korunuyor.
                  */
                 if (task.getType() == TransferType.COPY
                         && !group.isSourceFolder()
@@ -2034,25 +2062,6 @@ public class ExplorerPanel extends JPanel {
              * ---------------------------------------------------------
              * RENAME
              * ---------------------------------------------------------
-             *
-             * Rename işlemlerinin Explorer UI güncellemesi
-             * onTransferGroupCompleted() tarafından yapılır.
-             *
-             * Özellikle DOSYA RENAME işleminde:
-             *
-             *     SIL71/1.json
-             *          ->
-             *     SIL71/2.json
-             *
-             * Folder Tree'ye hiçbir refresh gönderilmemelidir.
-             *
-             * Aksi halde affectedPrefixes içinde bulunan
-             * SIL71/2.json değeri Tree tarafından klasör
-             * prefix'i sanılır ve sahte Tree node'u oluşur.
-             *
-             * KLASÖR RENAME'de de Tree güncellemesi
-             * onTransferGroupCompleted() içindeki
-             * renameNodePreservingChildren() tarafından yapılır.
              */
             if (task.getType() == TransferType.RENAME
                     || task.getType() == TransferType.RENAME_GROUP) {
@@ -2079,35 +2088,11 @@ public class ExplorerPanel extends JPanel {
             if (task.isAffectsObjectList()) {
 
                 /*
-                 * DELETE işlemleri ExplorerPanel'in
-                 * onTransferGroupCompleted() / incremental
-                 * güncelleme akışı tarafından ele alınır.
+                 * Tekli DELETE:
                  *
-                 * DELETE sırasında burada scheduler ile
-                 * current File Table refresh edilirse:
-                 *
-                 *     DELETE
-                 *       -> removeFileByKey()
-                 *       -> scheduleCurrentTableRefresh()
-                 *       -> refreshCurrentTable()
-                 *       -> loadFiles()
-                 *       -> setFiles()
-                 *
-                 * zinciri oluşur ve bütün File Table gereksiz
-                 * yere yeniden yüklenir.
+                 * Group kullanılmadığı için burada doğrudan
+                 * incremental remove yapılır.
                  */
-                if (task.getType() == TransferType.DELETE_GROUP) {
-
-                    log.debug(
-                            "[EXPLORER REFRESH] delete group task refresh deferred; " +
-                                    "incremental group completion will update Explorer. " +
-                                    "type={} objectKey={}",
-                            task.getType(),
-                            task.getObjectKey());
-
-                    return;
-                }
-
                 if (task.getType() == TransferType.DELETE) {
 
                     boolean removed =
@@ -2138,7 +2123,8 @@ public class ExplorerPanel extends JPanel {
                     addUploadedFileToCurrentFileTable(task);
 
                 }
-                else if (task.getType() == TransferType.COPY || task.getType() == TransferType.MOVE) {
+                else if (task.getType() == TransferType.COPY
+                        || task.getType() == TransferType.MOVE) {
 
                     addCopiedFileToCurrentTable(task);
 
@@ -2191,6 +2177,21 @@ public class ExplorerPanel extends JPanel {
                 event.isSourceRefreshRequired(),
                 group.isSourceFolder());
 
+        List<TransferTask> completedTasks =
+                completedGroupTasks.remove(
+                        group.getId());
+
+        if (completedTasks == null) {
+            completedTasks =
+                    List.of();
+        }
+
+        log.info(
+                "[EXPLORER GROUP TASKS] group={} collectedTasks={} detected={}",
+                group.getDisplayName(),
+                completedTasks.size(),
+                group.getDetected());
+        
         String currentBucket =
                 currentFileBucket;
 
@@ -2214,6 +2215,187 @@ public class ExplorerPanel extends JPanel {
                 group.getTargetPrefix(),
                 group.isSourceFolder());
 
+        /*
+         * =========================================================
+         * INCREMENTAL MULTI FILE OPERATIONS
+         * =========================================================
+         *
+         * Group içindeki bütün başarılı task'lar artık burada
+         * elimizde.
+         *
+         * File Table reload edilmez.
+         */
+        if (!completedTasks.isEmpty()
+                && !group.isSourceFolder()
+                && (group.getOperation() == TransferType.COPY_GROUP
+                || group.getOperation() == TransferType.MOVE_GROUP
+                || group.getOperation() == TransferType.DELETE_GROUP)) {
+
+            for (TransferTask task : completedTasks) {
+
+                if (task == null) {
+                    continue;
+                }
+
+                /*
+                 * -----------------------------------------------------
+                 * MULTI DELETE
+                 * -----------------------------------------------------
+                 */
+                if (task.getType() == TransferType.DELETE) {
+
+                    if (Objects.equals(
+                            currentBucket,
+                            task.getBucket())
+                            && Objects.equals(
+                            currentPrefix,
+                            getParentPrefix(
+                                    task.getObjectKey()))) {
+
+                        boolean removed =
+                                view.getFileTableModel()
+                                        .removeFileByKey(
+                                                task.getObjectKey());
+
+                        log.info(
+                                "[FILE TABLE GROUP DELETE REMOVE] " +
+                                        "key={} removed={} group={}",
+                                task.getObjectKey(),
+                                removed,
+                                group.getDisplayName());
+                    }
+
+                    continue;
+                }
+
+                /*
+                 * -----------------------------------------------------
+                 * MULTI COPY / MOVE - TARGET
+                 * -----------------------------------------------------
+                 */
+                if (task.getType() == TransferType.COPY
+                        || task.getType() == TransferType.MOVE) {
+
+                    String targetBucket =
+                            task.getTargetBucket();
+
+                    String targetKey =
+                            task.getTargetObjectKey();
+
+                    if (targetBucket == null
+                            || targetKey == null
+                            || targetKey.isBlank()) {
+
+                        continue;
+                    }
+
+                    String targetParentPrefix =
+                            getParentPrefix(targetKey);
+
+                    if (Objects.equals(
+                            currentBucket,
+                            targetBucket)
+                            && Objects.equals(
+                            currentPrefix,
+                            targetParentPrefix)) {
+
+                        S3FileItem item =
+                                new S3FileItem(
+                                        task.getTargetRepositoryName(),
+                                        targetBucket,
+                                        targetKey,
+                                        task.getSize(),
+                                        null,
+                                        null,
+                                        false);
+
+                        boolean added =
+                                view.getFileTableModel()
+                                        .addFile(item);
+
+                        log.info(
+                                "[FILE TABLE GROUP INSERT] " +
+                                        "source={}/{} target={}/{} " +
+                                        "size={} added={} group={}",
+                                task.getBucket(),
+                                task.getObjectKey(),
+                                targetBucket,
+                                targetKey,
+                                task.getSize(),
+                                added,
+                                group.getDisplayName());
+                    }
+
+                    /*
+                     * -------------------------------------------------
+                     * MULTI MOVE - SOURCE
+                     * -------------------------------------------------
+                     *
+                     * MOVE'd edilen kaynak File Table'da açıksa
+                     * kaynak satırı da incremental kaldır.
+                     */
+                    if (task.getType() == TransferType.MOVE
+                            && Objects.equals(
+                            currentBucket,
+                            task.getBucket())
+                            && Objects.equals(
+                            currentPrefix,
+                            getParentPrefix(
+                                    task.getObjectKey()))) {
+
+                        boolean removed =
+                                view.getFileTableModel()
+                                        .removeFileByKey(
+                                                task.getObjectKey());
+
+                        log.info(
+                                "[FILE TABLE GROUP MOVE REMOVE] " +
+                                        "key={} removed={} group={}",
+                                task.getObjectKey(),
+                                removed,
+                                group.getDisplayName());
+                    }
+                }
+            }
+
+            /*
+             * ---------------------------------------------------------
+             * GROUP SELECTION RESTORE
+             * ---------------------------------------------------------
+             *
+             * Bütün task'lar File Table'a eklendikten sonra
+             * selection yalnızca BİR KEZ restore edilir.
+             *
+             * Böylece ilk kopyalanan dosyada selection restore edilip
+             * sonraki dosyaların akışı bozulmaz.
+             */
+            if (pendingFileTableSelectionKeys != null
+                    && !pendingFileTableSelectionKeys.isEmpty()) {
+
+                SwingUtilities.invokeLater(() -> {
+
+                    if (restorePendingPasteSelection()) {
+
+                        restoreFileTableFocus();
+
+                        log.info(
+                                "[FILE TABLE GROUP SELECTION] " +
+                                        "restored keys={}",
+                                pendingFileTableSelectionKeys);
+                    }
+                });
+            }
+
+            /*
+             * ---------------------------------------------------------
+             * GROUP FILE OPERATION TAMAMLANDI
+             * ---------------------------------------------------------
+             *
+             * Tree tarafındaki mevcut group refresh mekanizmasının
+             * devam etmesine izin ver.
+             */
+        }
+        
         /*
          * =========================================================
          * RENAME
