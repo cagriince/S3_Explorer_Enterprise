@@ -2865,117 +2865,237 @@ public class ExplorerPanel extends JPanel {
          *
          * DELETE_GROUP buraya girmez.
          */
+        /*
+         * =========================================================
+         * NORMAL SOURCE REFRESH
+         * =========================================================
+         *
+         * DELETE_GROUP kendi özel bloğunda işlenir.
+         *
+         * MOVE_GROUP'da ise source tarafını
+         * group.isSourceFolder() üzerinden belirleyemeyiz.
+         * Çünkü aynı group içinde:
+         *
+         *     klasör
+         *     klasör
+         *     dosya
+         *
+         * gibi karışık seçim olabilir.
+         *
+         * Bu nedenle tamamlanan task'ların kendisine bakıyoruz.
+         */
         if (event.isSourceRefreshRequired()
                 && group.getOperation()
                 != TransferType.DELETE_GROUP) {
 
-            String sourceBucket =
-                    event.getBucket();
-
-            String sourcePrefix =
-                    event.getPrefix();
-
             /*
              * -------------------------------------------------
-             * GERÇEK KLASÖR DELETE / MOVE
+             * MOVE GROUP - FOLDER TREE
              * -------------------------------------------------
+             *
+             * Her MOVE task'ı içerisinde gerçek source object key
+             * bulunuyor.
+             *
+             * Klasör ise:
+             *
+             *     sourceKey.endsWith("/")
+             *
+             * olur.
+             *
+             * Folder Tree'den tam olarak bu node silinir.
              */
-            if (group.isSourceFolder()) {
+            if (group.getOperation()
+                    == TransferType.MOVE_GROUP) {
 
-                String sourceParentPrefix =
-                        getParentPrefix(sourcePrefix);
+                List<RefreshTreeNode> sourceTreeRefreshes =
+                        new ArrayList<>();
 
-                /*
-                 * Folder Tree:
-                 *
-                 * Kaynak klasör gerçekten silindi/taşındı.
-                 */
-                if (Objects.equals(
-                        currentBucket,
-                        sourceBucket)) {
+                for (TransferTask task : completedTasks) {
 
-                    log.debug(
-                            "[EXPLORER SOURCE TREE REFRESH] " +
-                                    "prefix={} operation=DELETE",
-                            sourcePrefix);
+                    if (task == null
+                            || task.getType()
+                            != TransferType.MOVE) {
+                        continue;
+                    }
+
+                    String sourceKey =
+                            task.getObjectKey();
+
+                    if (sourceKey == null
+                            || !sourceKey.endsWith("/")) {
+                        continue;
+                    }
+
+                    if (!Objects.equals(
+                            currentBucket,
+                            task.getBucket())) {
+                        continue;
+                    }
+
+                    sourceTreeRefreshes.add(
+                            new RefreshTreeNode(
+                                    sourceKey,
+                                    RefreshTreeOperation.DELETE));
+                }
+
+                if (!sourceTreeRefreshes.isEmpty()) {
+
+                    log.info(
+                            "[EXPLORER SOURCE FOLDER TREE REFRESH] "
+                                    + "group={} operation={} prefixes={}",
+                            group.getDisplayName(),
+                            group.getOperation(),
+                            sourceTreeRefreshes);
 
                     refreshScheduler.scheduleRefresh(
-                            List.of(
-                                    new RefreshTreeNode(
-                                            sourcePrefix,
-                                            RefreshTreeOperation.DELETE)));
+                            sourceTreeRefreshes);
                 }
 
                 /*
-                 * File Table:
+                 * -------------------------------------------------
+                 * MOVE GROUP - FILE TABLE SOURCE
+                 * -------------------------------------------------
                  *
-                 * Kaynak klasörün parent'ı açıksa klasör
-                 * mevcut tablodan kaldırılır.
+                 * File Table zaten group tamamlandığında
+                 * incremental olarak güncelleniyor.
+                 *
+                 * Burada yalnızca legacy davranışı korumak
+                 * için source dosya/klasör satırlarını kaldırıyoruz.
                  */
-                if (Objects.equals(
-                        currentBucket,
-                        sourceBucket)
-                        && Objects.equals(
-                        currentPrefix,
-                        sourceParentPrefix)) {
+                for (TransferTask task : completedTasks) {
+
+                    if (task == null
+                            || task.getType()
+                            != TransferType.MOVE) {
+                        continue;
+                    }
+
+                    String sourceKey =
+                            task.getObjectKey();
+
+                    if (sourceKey == null) {
+                        continue;
+                    }
+
+                    if (!Objects.equals(
+                            currentBucket,
+                            task.getBucket())) {
+                        continue;
+                    }
+
+                    if (!Objects.equals(
+                            currentPrefix,
+                            getParentPrefix(sourceKey))) {
+                        continue;
+                    }
 
                     boolean removed =
                             view.getFileTableModel()
-                                    .removeFileByKey(
-                                            sourcePrefix);
+                                    .removeFileByKey(sourceKey);
 
                     log.info(
-                            "[FILE TABLE ROW REMOVE] " +
-                                    "key={} removed={}",
-                            sourcePrefix,
-                            removed);
-
-                    if (removed
-                            && pendingDeleteSelectionViewRow >= 0) {
-
-                        SwingUtilities.invokeLater(() -> {
-
-                            log.info(
-                                    "[DELETE SELECTION RESTORE TRIGGER] " +
-                                            "pendingRow={} rowCount={}",
-                                    pendingDeleteSelectionViewRow,
-                                    view.getFileTable().getRowCount());
-
-                            restoreFileTableSelectionAfterDelete();
-
-                            restoreFileTableFocus();
-
-                            pendingDeleteSelectionViewRow = -1;
-                        });
-                    }
+                            "[FILE TABLE GROUP MOVE REMOVE] "
+                                    + "source={} removed={} group={}",
+                            sourceKey,
+                            removed,
+                            group.getDisplayName());
                 }
 
             } else {
 
                 /*
                  * -------------------------------------------------
-                 * DOSYA DELETE / MOVE
+                 * NORMAL / LEGACY SOURCE REFRESH
                  * -------------------------------------------------
                  *
-                 * Folder Tree'ye dokunulmaz.
+                 * Tek tip source operasyonlarında mevcut
+                 * davranışı koruyoruz.
                  */
-                if (Objects.equals(
-                        currentBucket,
-                        sourceBucket)
-                        && Objects.equals(
-                        currentPrefix,
-                        getParentPrefix(sourcePrefix))) {
+                String sourceBucket =
+                        event.getBucket();
 
-                    boolean removed =
-                            view.getFileTableModel()
-                                    .removeFileByKey(
-                                            sourcePrefix);
+                String sourcePrefix =
+                        event.getPrefix();
 
-                    log.info(
-                            "[FILE TABLE ROW REMOVE] " +
-                                    "key={} removed={}",
-                            sourcePrefix,
-                            removed);
+                if (group.isSourceFolder()) {
+
+                    String sourceParentPrefix =
+                            getParentPrefix(sourcePrefix);
+
+                    if (Objects.equals(
+                            currentBucket,
+                            sourceBucket)) {
+
+                        log.debug(
+                                "[EXPLORER SOURCE TREE REFRESH] "
+                                        + "prefix={} operation=DELETE",
+                                sourcePrefix);
+
+                        refreshScheduler.scheduleRefresh(
+                                List.of(
+                                        new RefreshTreeNode(
+                                                sourcePrefix,
+                                                RefreshTreeOperation.DELETE)));
+                    }
+
+                    if (Objects.equals(
+                            currentBucket,
+                            sourceBucket)
+                            && Objects.equals(
+                            currentPrefix,
+                            sourceParentPrefix)) {
+
+                        boolean removed =
+                                view.getFileTableModel()
+                                        .removeFileByKey(
+                                                sourcePrefix);
+
+                        log.info(
+                                "[FILE TABLE ROW REMOVE] "
+                                        + "key={} removed={}",
+                                sourcePrefix,
+                                removed);
+
+                        if (removed
+                                && pendingDeleteSelectionViewRow >= 0) {
+
+                            SwingUtilities.invokeLater(() -> {
+
+                                log.info(
+                                        "[DELETE SELECTION RESTORE TRIGGER] "
+                                                + "pendingRow={} rowCount={}",
+                                        pendingDeleteSelectionViewRow,
+                                        view.getFileTable().getRowCount());
+
+                                restoreFileTableSelectionAfterDelete();
+
+                                restoreFileTableFocus();
+
+                                pendingDeleteSelectionViewRow = -1;
+                            });
+                        }
+                    }
+
+                } else {
+
+                    if (Objects.equals(
+                            currentBucket,
+                            sourceBucket)
+                            && Objects.equals(
+                            currentPrefix,
+                            getParentPrefix(sourcePrefix))) {
+
+                        boolean removed =
+                                view.getFileTableModel()
+                                        .removeFileByKey(
+                                                sourcePrefix);
+
+                        log.info(
+                                "[FILE TABLE ROW REMOVE] "
+                                        + "key={} removed={}",
+                                sourcePrefix,
+                                removed);
+                    }
                 }
             }
         }
