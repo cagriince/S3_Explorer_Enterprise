@@ -56,6 +56,44 @@ public abstract class AbstractTransferOperation
                     runtime.getTask().getId(),
                     runtime.getTask().getObjectKey());
 
+            /*
+             * Önce task'ın COMPLETED event'ini yayınla.
+             *
+             * ExplorerPanel bu event sırasında task'ı
+             * completedGroupTasks collector'ına ekliyor.
+             *
+             * Group completion bundan sonra tetiklenmelidir.
+             *
+             * Aksi halde son task için:
+             *
+             *     group.completed()
+             *          ↓
+             *     group callback
+             *          ↓
+             *     Explorer onTransferGroupCompleted()
+             *          ↓
+             *     collector okunuyor
+             *          ↓
+             *     son task henüz collector'da yok
+             *
+             * yarışı oluşur.
+             */
+            transferContext.publishCompleted(
+                    runtime);
+
+            log.debug(
+                    "[OPERATION PUBLISHED COMPLETED] {}",
+                    runtime.getTask().getId());
+
+            /*
+             * Artık Explorer task'ı collector'a almış durumda.
+             *
+             * Bundan sonra group.completed() çağrılır.
+             *
+             * Son task ise group completion callback'i
+             * artık bütün completed task'lar collector'a
+             * girdikten sonra çalışacaktır.
+             */
             if (group != null) {
 
                 group.completed();
@@ -64,14 +102,6 @@ public abstract class AbstractTransferOperation
                         group,
                         transferContext);
             }
-
-            transferContext.publishCompleted(
-                    runtime);
-
-            log.debug(
-                    "[OPERATION PUBLISHED COMPLETED] {}",
-                    runtime.getTask().getId());
-
         }
         catch (CancellationException ex) {
 

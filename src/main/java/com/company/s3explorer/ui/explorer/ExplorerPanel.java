@@ -230,9 +230,6 @@ public class ExplorerPanel extends JPanel {
                 this::onRepositoryChanged);
 
         eventBus.subscribe(
-                this::onTransferEvent);
-
-        eventBus.subscribe(
                 new TransferListener() {
 
                     @Override
