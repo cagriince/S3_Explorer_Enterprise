@@ -3012,87 +3012,86 @@ public class ExplorerPanel extends JPanel {
             String targetBucket =
                     group.getTargetBucket();
 
-            String targetPrefix =
-                    group.getTargetPrefix();
-
             if (targetBucket != null
-                    && targetPrefix != null
                     && Objects.equals(
                     currentBucket,
                     targetBucket)) {
 
+                List<RefreshTreeNode> targetTreeRefreshes =
+                        new ArrayList<>();
+
                 /*
-                 * Upload Group'da targetPrefix oluşturulan
-                 * klasörün kendisidir. Parent refresh edilir.
+                 * COPY_GROUP / MOVE_GROUP:
+                 *
+                 * group.getTargetPrefix()
+                 * klasör + dosya karışık seçimde yalnızca
+                 * parent prefix'i temsil eder.
+                 *
+                 * Folder Tree'ye gerçek oluşturulan klasör
+                 * object key'ini göndermeliyiz.
                  */
-                String refreshPrefix =
-                        group.getOperation()
-                                == TransferType.UPLOAD_GROUP
-                                ? getParentPrefix(targetPrefix)
-                                : targetPrefix;
+                if (group.getOperation()
+                        == TransferType.COPY_GROUP
+                        || group.getOperation()
+                        == TransferType.MOVE_GROUP) {
 
-                log.debug(
-                        "[EXPLORER TARGET TREE REFRESH] " +
-                                "prefix={} operation=ADD groupOperation={}",
-                        refreshPrefix,
-                        group.getOperation());
+                    for (TransferTask task : completedTasks) {
 
-                refreshScheduler.scheduleRefresh(
-                        List.of(
+                        if (task == null) {
+                            continue;
+                        }
+
+                        String targetObjectKey =
+                                task.getTargetObjectKey();
+
+                        if (targetObjectKey == null
+                                || !targetObjectKey.endsWith("/")) {
+                            continue;
+                        }
+
+                        if (!Objects.equals(
+                                currentBucket,
+                                task.getTargetBucket())) {
+                            continue;
+                        }
+
+                        targetTreeRefreshes.add(
+                                new RefreshTreeNode(
+                                        targetObjectKey,
+                                        RefreshTreeOperation.ADD));
+                    }
+
+                } else {
+
+                    String targetPrefix =
+                            group.getTargetPrefix();
+
+                    if (targetPrefix != null) {
+
+                        String refreshPrefix =
+                                group.getOperation()
+                                        == TransferType.UPLOAD_GROUP
+                                        ? getParentPrefix(targetPrefix)
+                                        : targetPrefix;
+
+                        targetTreeRefreshes.add(
                                 new RefreshTreeNode(
                                         refreshPrefix,
-                                        RefreshTreeOperation.ADD)));
-
-                /*
-                 * ---------------------------------------------------------
-                 * TARGET FILE TABLE
-                 * ---------------------------------------------------------
-                 *
-                 * COPY / MOVE / UPLOAD işlemlerinde File Table'ı
-                 * gereksiz yere tamamen reload etme.
-                 *
-                 * File Table zaten mevcut klasörü gösteriyorsa:
-                 *
-                 *     COPY file
-                 *         -> doğrudan INSERT
-                 *
-                 *     UPLOAD file
-                 *         -> doğrudan INSERT
-                 *
-                 *     MOVE file
-                 *         -> source REMOVE + target INSERT
-                 *
-                 * Klasör operasyonlarında ise mevcut davranış
-                 * korunabilir.
-                 */
-                if (Objects.equals(
-                        currentPrefix,
-                        refreshPrefix)) {
-
-                    boolean targetIsFolder =
-                            group.isSourceFolder();
-
-                    if (targetIsFolder) {
-
-                        log.debug(
-                                "[EXPLORER TARGET TABLE REFRESH] " +
-                                        "folder target bucket={} prefix={} groupOperation={}",
-                                targetBucket,
-                                refreshPrefix,
-                                group.getOperation());
-
-                        refreshScheduler.scheduleCurrentTableRefresh();
-
-                    } else {
-
-                        log.debug(
-                                "[EXPLORER TARGET TABLE REFRESH SKIP] " +
-                                        "file target bucket={} prefix={} groupOperation={} " +
-                                        "File Table will be updated incrementally",
-                                targetBucket,
-                                refreshPrefix,
-                                group.getOperation());
+                                        RefreshTreeOperation.ADD));
                     }
+                }
+
+                if (!targetTreeRefreshes.isEmpty()) {
+
+                    log.info(
+                            "[EXPLORER TARGET TREE REFRESH] " +
+                                    "group={} operation={} prefixes={}",
+                            group.getDisplayName(),
+                            group.getOperation(),
+                            targetTreeRefreshes);
+
+                    refreshScheduler.scheduleRefresh(
+                            targetTreeRefreshes);
                 }
             }
         }
