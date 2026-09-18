@@ -2223,7 +2223,6 @@ public class ExplorerPanel extends JPanel {
          * File Table reload edilmez.
          */
         if (!completedTasks.isEmpty()
-                && !group.isSourceFolder()
                 && (group.getOperation() == TransferType.COPY_GROUP
                 || group.getOperation() == TransferType.MOVE_GROUP
                 || group.getOperation() == TransferType.DELETE_GROUP)) {
@@ -2393,7 +2392,6 @@ public class ExplorerPanel extends JPanel {
              */
             if (group.getOperation()
                     == TransferType.DELETE_GROUP
-                    && !group.isSourceFolder()
                     && pendingDeleteSelectionViewRow >= 0) {
 
                 SwingUtilities.invokeLater(() -> {
@@ -2810,13 +2808,66 @@ public class ExplorerPanel extends JPanel {
 
         /*
          * =========================================================
-         * SOURCE REFRESH
-         * =========================================================
-         *
-         * Rename dışındaki DELETE / MOVE vb. operasyonlar.
+         * DELETE GROUP - FOLDER TREE
          * =========================================================
          */
-        if (event.isSourceRefreshRequired()) {
+        if (group.getOperation()
+                == TransferType.DELETE_GROUP
+                && event.isSourceRefreshRequired()) {
+
+            List<RefreshTreeNode> deleteRefreshes =
+                    new ArrayList<>();
+
+            for (TransferTask task : completedTasks) {
+
+                if (task == null
+                        || task.getType() != TransferType.DELETE) {
+                    continue;
+                }
+
+                String objectKey =
+                        task.getObjectKey();
+
+                if (objectKey == null
+                        || !objectKey.endsWith("/")) {
+                    continue;
+                }
+
+                if (!Objects.equals(
+                        currentBucket,
+                        task.getBucket())) {
+                    continue;
+                }
+
+                deleteRefreshes.add(
+                        new RefreshTreeNode(
+                                objectKey,
+                                RefreshTreeOperation.DELETE));
+            }
+
+            if (!deleteRefreshes.isEmpty()) {
+
+                log.info(
+                        "[EXPLORER GROUP DELETE TREE REFRESH] " +
+                                "group={} prefixes={}",
+                        group.getDisplayName(),
+                        deleteRefreshes);
+
+                refreshScheduler.scheduleRefresh(
+                        deleteRefreshes);
+            }
+        }
+
+        /*
+         * =========================================================
+         * NORMAL SOURCE REFRESH
+         * =========================================================
+         *
+         * DELETE_GROUP buraya girmez.
+         */
+        if (event.isSourceRefreshRequired()
+                && group.getOperation()
+                != TransferType.DELETE_GROUP) {
 
             String sourceBucket =
                     event.getBucket();
