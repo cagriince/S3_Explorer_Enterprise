@@ -83,7 +83,8 @@ public class ExplorerPanel extends JPanel {
     private File lastOpenedFolderToDownload;
 
     private int pendingDeleteSelectionViewRow = -1;
-
+    private final Set<String> pendingFolderDeleteKeys = ConcurrentHashMap.newKeySet();
+    
     private String pendingFileTableRenameOldKey;
     private String pendingFileTableSelectionKey;
     private List<String> pendingFileTableSelectionKeys;
@@ -109,8 +110,7 @@ public class ExplorerPanel extends JPanel {
     private boolean suppressBucketSelectionEvent;
     private boolean forceBucketReload;
 
-    private final Map<UUID, List<TransferTask>> completedGroupTasks =
-            new ConcurrentHashMap<>();
+    private final Map<UUID, List<TransferTask>> completedGroupTasks = new ConcurrentHashMap<>();
     
     private final ExplorerClipboard clipboard = new ExplorerClipboard();
 
@@ -4491,6 +4491,24 @@ public class ExplorerPanel extends JPanel {
         pendingDeleteSelectionViewRow =
                 table.getSelectedRow();
 
+        pendingFolderDeleteKeys.clear();
+
+        for (int viewRow : table.getSelectedRows()) {
+
+            int modelRow =
+                    table.convertRowIndexToModel(viewRow);
+
+            S3FileItem item =
+                    view.getFileTableModel()
+                            .getItem(modelRow);
+
+            if (item != null && item.isFolder()) {
+
+                pendingFolderDeleteKeys.add(
+                        item.getKey());
+            }
+        }
+        
         log.info(
                 "[DELETE] trigger selectedRows={} restoreFocus={} selectedViewRow={}",
                 table.getSelectedRowCount(),
