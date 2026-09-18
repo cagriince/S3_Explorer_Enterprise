@@ -2296,6 +2296,9 @@ public class ExplorerPanel extends JPanel {
                             currentPrefix,
                             targetParentPrefix)) {
 
+                        boolean targetIsFolder =
+                                targetKey != null && targetKey.endsWith("/");
+
                         S3FileItem item =
                                 new S3FileItem(
                                         task.getTargetRepositoryName(),
@@ -2304,7 +2307,7 @@ public class ExplorerPanel extends JPanel {
                                         task.getSize(),
                                         null,
                                         null,
-                                        false);
+                                        targetIsFolder);
 
                         boolean added =
                                 view.getFileTableModel()
