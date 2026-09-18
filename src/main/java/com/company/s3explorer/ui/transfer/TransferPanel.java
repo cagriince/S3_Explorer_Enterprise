@@ -1456,7 +1456,7 @@ public class TransferPanel
 
         table.getColumnModel()
                 .getColumn(5)
-                .setPreferredWidth(1);
+                .setPreferredWidth(50);
 
         table.getColumnModel()
                 .getColumn(6)
