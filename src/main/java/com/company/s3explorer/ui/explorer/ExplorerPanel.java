@@ -4329,66 +4329,47 @@ public class ExplorerPanel extends JPanel {
             updateActionStates();
             return;
         }
-        /*
-         * ---------------------------------------------------------
-         * FOLDER DELETE
-         * ---------------------------------------------------------
-         *
-         * Gerçek klasör DELETE lifecycle'ına dokunmuyoruz.
-         *
-         * FolderDeleteProducer kendi group lifecycle'ını
-         * yönetmeye devam edecek.
-         */
-        boolean allFiles =
-                items.stream()
-                        .noneMatch(S3FileItem::isFolder);
-
-        if (!allFiles) {
-
-            for (S3FileItem item : items) {
-
-                deleteObject(item);
-            }
-
-            updateActionStates();
-
-            return;
-        }
 
         /*
          * ---------------------------------------------------------
-         * FILE DELETE GROUP
+         * MULTI DELETE GROUP
          * ---------------------------------------------------------
          *
-         * Buradaki sourcePrefix ÇOK ÖNEMLİ.
-         *
-         * Önceden:
-         *
-         *     currentFilePrefix
-         *
-         * kullanıyorduk.
+         * Dosya + klasör karışık seçim dahil bütün öğeler
+         * AYNI TransferGroup içinde çalışır.
          *
          * Örneğin:
          *
-         *     currentFilePrefix = SIL71/
+         *     SIL1/      folder
+         *     SIL3/      folder
+         *     1.json     file
+         *     2.json     file
          *
-         * Bu durumda completion event:
+         * hepsi:
          *
-         *     prefix=SIL71/
+         *     DELETE_GROUP
+         *          |
+         *          +-- FolderDeleteProducer(SIL1/)
+         *          +-- FolderDeleteProducer(SIL3/)
+         *          +-- delete(1.json)
+         *          +-- delete(2.json)
          *
-         * taşıyordu.
-         *
-         * Fakat silinen gerçek object:
-         *
-         *     SIL71/1.json
-         *
-         * olduğundan onTransferGroupCompleted()
-         * FileTable'dan yanlış key'i silmeye çalışıyordu.
-         *
-         * Şimdi gerçek kaynak object key'ini taşıyoruz.
+         * olacaktır.
          */
-        String sourcePrefix =
-                firstItem.getKey();
+
+        String sourcePrefix;
+
+        if (firstItem.isFolder()) {
+
+            sourcePrefix =
+                    firstItem.getKey();
+
+        } else {
+
+            sourcePrefix =
+                    S3Util.extractParentPrefix(
+                            firstItem.getKey());
+        }
 
         String groupName =
                 getOperationGroupName(items);
@@ -4404,10 +4385,6 @@ public class ExplorerPanel extends JPanel {
                         bucket,
                         sourcePrefix);
 
-        /*
-         * Completion event'i gerçek silinen object key'i
-         * prefix alanında taşıyacak.
-         */
         transferManager.configureGroupCompletion(
                 group,
                 repositoryName,
@@ -4416,10 +4393,9 @@ public class ExplorerPanel extends JPanel {
                 true);
 
         log.info(
-                "[DELETE GROUP] created group={} sourcePrefix={} currentFilePrefix={} itemCount={}",
+                "[DELETE GROUP] created group={} sourcePrefix={} itemCount={}",
                 group.getDisplayName(),
                 sourcePrefix,
-                currentFilePrefix,
                 items.size());
 
         /*
@@ -4432,14 +4408,30 @@ public class ExplorerPanel extends JPanel {
 
             try {
 
-                fileOperationController.delete(
-                        item,
-                        group);
+                if (item.isFolder()) {
 
-                log.info(
-                        "[DELETE GROUP] submitted source={} group={}",
-                        item.getKey(),
-                        group.getDisplayName());
+                    transferManager.submitFolderDelete(
+                            repositoryName,
+                            bucket,
+                            item.getKey(),
+                            group);
+
+                    log.info(
+                            "[DELETE GROUP] submitted folder source={} group={}",
+                            item.getKey(),
+                            group.getDisplayName());
+
+                } else {
+
+                    fileOperationController.delete(
+                            item,
+                            group);
+
+                    log.info(
+                            "[DELETE GROUP] submitted file source={} group={}",
+                            item.getKey(),
+                            group.getDisplayName());
+                }
 
             } catch (Exception ex) {
 
@@ -4460,21 +4452,6 @@ public class ExplorerPanel extends JPanel {
             }
         }
 
-        /*
-         * Artık group'a yeni task eklenmeyecek.
-         *
-         * Son task tamamlandığında:
-         *
-         *     TransferGroup
-         *          ↓
-         *     TransferGroupCompletedEvent
-         *          ↓
-         *     onTransferGroupCompleted()
-         *          ↓
-         *     removeFileByKey(event.getPrefix())
-         *
-         * çalışacak.
-         */
         group.markProductionCompleted();
 
         updateActionStates();

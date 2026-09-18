@@ -879,6 +879,36 @@ public class TransferManager {
         return group;
     }
 
+    public void submitFolderDelete(
+            String repositoryName,
+            String bucket,
+            String prefix,
+            TransferGroup group) {
+
+        if (group == null) {
+            throw new IllegalArgumentException(
+                    "Transfer group must not be null");
+        }
+
+        transferContext.publishGroupUpdated(
+                group,
+                repositoryName,
+                bucket,
+                prefix,
+                false);
+
+        submitGroupProducer(
+                group,
+                new FolderDeleteProducer(
+                        transferContext,
+                        queue,
+                        repositoryName,
+                        bucket,
+                        prefix,
+                        group)
+                           );
+    }
+    
     public void submitFolderDownload(
             String repositoryName,
             String bucket,
