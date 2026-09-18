@@ -3451,6 +3451,83 @@ public class ExplorerPanel extends JPanel {
 
         /*
          * ---------------------------------------------------------
+         * SAME FOLDER COPY / MOVE
+         * ---------------------------------------------------------
+         *
+         * Kaynak item zaten mevcut File Table'da gösterilen
+         * klasörün içindeyse, aynı klasöre COPY veya MOVE
+         * yapılamaz.
+         *
+         * Örnek:
+         *
+         * current target:
+         *     SIL70/
+         *
+         * source:
+         *     SIL70/1.json
+         *
+         * veya:
+         *
+         * source:
+         *     SIL70/SIL1/
+         *
+         * Bu durumda işlem teknik olarak self-target'e
+         * dönüşmektedir.
+         *
+         * Bunu sessizce skip etmek yerine kullanıcıya
+         * açık bir hata gösteriyoruz.
+         *
+         * Birden fazla item varsa içlerinden yalnızca biri bile
+         * aynı klasördeyse bütün paste işlemini başlatmıyoruz.
+         * Böylece group içinde kısmi/şaşırtıcı bir işlem oluşmuyor.
+         */
+        for (S3FileItem item : items) {
+
+            if (item == null) {
+                continue;
+            }
+
+            if (!Objects.equals(
+                    item.getBucket(),
+                    targetBucket)) {
+                continue;
+            }
+
+            String sourceParentPrefix =
+                    getParentPrefix(
+                            item.getKey());
+
+            if (Objects.equals(
+                    sourceParentPrefix,
+                    targetPrefix)) {
+
+                String operationName =
+                        operation == ExplorerClipboard.Operation.COPY
+                                ? "copy"
+                                : "move";
+
+                log.info(
+                        "[PASTE] rejected same-folder {} source={} targetPrefix={}",
+                        operationName,
+                        item.getKey(),
+                        targetPrefix);
+
+                SwingUtilities.invokeLater(() ->
+                                                   JOptionPane.showMessageDialog(
+                                                           this,
+                                                           "The selected item is already in this folder.",
+                                                           "Cannot " +
+                                                                   (operation == ExplorerClipboard.Operation.COPY
+                                                                           ? "Copy"
+                                                                           : "Move"),
+                                                           JOptionPane.WARNING_MESSAGE));
+
+                return;
+            }
+        }
+        
+        /*
+         * ---------------------------------------------------------
          * SELECTION COLLECTION
          * ---------------------------------------------------------
          *
