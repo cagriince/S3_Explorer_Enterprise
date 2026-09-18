@@ -410,9 +410,10 @@ public class TransferCombinedTableModel
                         S3Util.formatWithThousandSeparator(group.getDetected()));
 
         summary.append(
-                        ", Completed: ")
+                        ", Success: ")
                 .append(
-                        S3Util.formatWithThousandSeparator(group.getCompleted()));
+                        S3Util.formatWithThousandSeparator(
+                                group.getCompleted()));
 
         int failed =
                 group.getFailedCount();
@@ -470,50 +471,35 @@ public class TransferCombinedTableModel
         }
 
         /*
-         * Group lifecycle tamamlandı.
+         * ---------------------------------------------------------
+         * GROUP LIFECYCLE
+         * ---------------------------------------------------------
          *
-         * Status önceliği:
+         * Group status, individual task sonuçlarından bağımsızdır.
          *
-         * Failed
-         * Cancelled
-         * Completed
+         * Group:
+         *
+         *     Preparing -> Running -> Completed
+         *
+         * Individual task'lar ise ayrıca:
+         *
+         *     Success / Failed / Cancelled / Skipped
+         *
+         * olabilir.
+         *
+         * Bu nedenle group içinde bir veya daha fazla task
+         * fail olsa bile group FAILED olmaz.
          */
+
         if (group.isFinished()) {
-
-            if (group.isFailed()) {
-                return TransferStatus.FAILED;
-            }
-
-            if (group.getCancelled() > 0) {
-                return TransferStatus.CANCELLED;
-            }
-
-            if (group.isSuccessful()) {
-                return TransferStatus.COMPLETED;
-            }
-
-            /*
-             * Normalde buraya gelmemeliyiz.
-             * Ancak lifecycle tamamlanmış fakat
-             * başarı durumu henüz kesinleşmemişse
-             * güvenli fallback.
-             */
             return TransferStatus.COMPLETED;
         }
 
         /*
-         * Preparing artık ayrı bir UI status'u değil.
+         * Preparing ayrı bir group status'u değildir.
          *
-         * Group hazırlanırken Running altında
-         * gösterildiği için status de Running olmalı.
+         * Preparing aşamasında da UI'da Running gösteriyoruz.
          */
-        if (group.isPreparing()) {
-            return TransferStatus.RUNNING;
-        }
-
-        if (group.isRunning()) {
-            return TransferStatus.RUNNING;
-        }
 
         return TransferStatus.RUNNING;
     }
