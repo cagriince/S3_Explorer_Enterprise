@@ -1,8 +1,10 @@
 package com.company.s3explorer.util;
 
+import java.io.InputStream;
 import java.net.*;
 import java.util.List;
 import java.util.Locale;
+import java.util.Scanner;
 
 public class ProxyConfigurer {
     public static void configureSystemProxies() {
@@ -19,11 +21,18 @@ public class ProxyConfigurer {
      * WINDOWS: Windows Registry ve sistem seviyesindeki proxy ayarlarını çeker.
      */
     private static void configureWindowsProxies() {
-        // Java'nın yerel Windows (WinINet) API proxy sürücüsünü aktif eder
+        // 1. Native Windows proxy seçim mekanizmasını aktif et
         System.setProperty("java.net.useSystemProxies", "true");
 
-        // Windows Registry'deki nonProxyHosts ayarlarını sorgular (örn: <local>;*.example.com)
-        // Eğer sistem seviyesinde manuel tanımlama gerekirse:
+        // 2. Windows'tan 'nonProxyHosts' / 'NO_PROXY' değerini çek
+        String nonProxyHosts = getWindowsNonProxyHosts();
+
+        if (nonProxyHosts != null && !nonProxyHosts.isBlank()) {
+            System.setProperty("http.nonProxyHosts", nonProxyHosts);
+            System.out.println("[Windows Proxy] http.nonProxyHosts set edildi: " + nonProxyHosts);
+        }
+
+        // 3. Etkin Proxy Adresini Algıla ve Set Et
         try {
             List<Proxy> proxies = ProxySelector.getDefault().select(new URI("http://www.google.com"));
             for (Proxy proxy : proxies) {
@@ -33,19 +42,71 @@ public class ProxyConfigurer {
                     System.setProperty("http.proxyPort", String.valueOf(addr.getPort()));
                     System.setProperty("https.proxyHost", addr.getHostString());
                     System.setProperty("https.proxyPort", String.valueOf(addr.getPort()));
-                    System.out.println("[Windows Proxy] Sistem proxy'si algılandı: " + addr);
+                    System.out.println("[Windows Proxy] Aktif Proxy: " + addr);
                     break;
                 }
             }
         } catch (Exception e) {
-            System.err.println("[Windows Proxy] Ayarlar okunurken hata: " + e.getMessage());
+            System.err.println("[Windows Proxy] Proxy adresi sorgulanırken hata: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Windows 11 üzerinde Proxy Bypass listesini sırasıyla:
+     * 1. Ortam Değişkenlerinden (NO_PROXY / no_proxy)
+     * 2. Windows Registry (ProxyOverride) kaydından
+     * okur ve Java 'http.nonProxyHosts' (|) formatına çevirir.
+     */
+    private static String getWindowsNonProxyHosts() {
+        // A) Öncelik: Windows Ortam Değişkenleri
+        String envNoProxy = System.getenv("NO_PROXY");
+        if (envNoProxy == null || envNoProxy.isBlank()) {
+            envNoProxy = System.getenv("no_proxy");
         }
 
-        // Windows "<local>" temsilini Java formatına ekle
-        String existingBypass = System.getProperty("http.nonProxyHosts", "");
-        if (existingBypass.isBlank()) {
-            System.setProperty("http.nonProxyHosts", "localhost|127.0.0.1|<local>");
+        if (envNoProxy != null && !envNoProxy.isBlank()) {
+            return convertNoProxyToJavaFormat(envNoProxy);
         }
+
+        // B) İkinci Yol: Windows Registry (WinINet Internet Settings ProxyOverride)
+        String registryOverride = readWindowsRegistryProxyOverride();
+        if (registryOverride != null && !registryOverride.isBlank()) {
+            // Windows Registry formatı noktalı virgül (;) kullanır. Örn: "10.11.*;*.example.com;<local>"
+            // Bunu Java'nın beklediği '|' formatına çeviriyoruz:
+            return registryOverride.replace(";", "|");
+        }
+
+        // C) Fallback (Varsayılan Yerel Adresler)
+        return "localhost|127.0.0.1|<local>";
+    }
+
+    /**
+     * Windows Registry üzerinden 'ProxyOverride' değerini okur.
+     */
+    private static String readWindowsRegistryProxyOverride() {
+        try {
+            Process process = new ProcessBuilder(
+                    "reg", "query",
+                    "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings",
+                    "/v", "ProxyOverride"
+            ).start();
+
+            try (InputStream is = process.getInputStream();
+                 Scanner scanner = new Scanner(is)) {
+                while (scanner.hasNextLine()) {
+                    String line = scanner.nextLine();
+                    if (line.contains("ProxyOverride")) {
+                        String[] parts = line.split("REG_SZ");
+                        if (parts.length > 1) {
+                            return parts[1].trim();
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // Registry okuma başarısız olursa sessizce geç
+        }
+        return null;
     }
 
     /**
