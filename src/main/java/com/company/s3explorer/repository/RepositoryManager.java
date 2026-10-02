@@ -185,6 +185,7 @@ public class RepositoryManager {
                 new RepositoryDefinition();
 
         duplicate.setName(name);
+        duplicate.setEnvironment(source.getEnvironment());
         duplicate.setEndpoint(
                 source.getEndpoint());
         duplicate.setAccessKey(

@@ -1,5 +1,6 @@
 package com.company.s3explorer.ui.repository;
 
+import com.company.s3explorer.repository.RepositoryEnvironment;
 import com.company.s3explorer.repository.RepositoryDefinition;
 import com.company.s3explorer.security.EncryptionConfigValidator;
 
@@ -13,6 +14,7 @@ import java.util.List;
 public class RepositoryDialog extends JDialog {
 
     private JTextField nameField;
+    private JComboBox<RepositoryEnvironment> environmentComboBox;
     private JTextField endpointField;
     private JTextField accessKeyField;
     private JPasswordField secretKeyField;
@@ -41,6 +43,11 @@ public class RepositoryDialog extends JDialog {
 
         nameField.setText(
                 repository.getName());
+
+        if (repository.getEnvironment() != null) {
+            environmentComboBox.setSelectedItem(
+                    repository.getEnvironment());
+        }
 
         endpointField.setText(
                 repository.getEndpoint());
@@ -88,7 +95,7 @@ public class RepositoryDialog extends JDialog {
 
         setSize(
                 500,
-                500);
+                530);
 
         setLocationRelativeTo(
                 getOwner());
@@ -175,11 +182,34 @@ public class RepositoryDialog extends JDialog {
         gbc.weightx = 0.0;
 
         panel.add(
-                new JLabel("Endpoint"),
+                new JLabel("Environment"),
                 gbc);
 
         gbc.gridx = 1;
         gbc.gridy = 1;
+        gbc.weightx = 1.0;
+
+        environmentComboBox =
+                new JComboBox<>(
+                        RepositoryEnvironment.values());
+
+        environmentComboBox.setSelectedItem(
+                null);
+
+        panel.add(
+                environmentComboBox,
+                gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy = 2;
+        gbc.weightx = 0.0;
+
+        panel.add(
+                new JLabel("Endpoint"),
+                gbc);
+
+        gbc.gridx = 1;
+        gbc.gridy = 2;
         gbc.weightx = 1.0;
 
         endpointField =
@@ -190,7 +220,7 @@ public class RepositoryDialog extends JDialog {
                 gbc);
 
         gbc.gridx = 0;
-        gbc.gridy = 2;
+        gbc.gridy = 3;
         gbc.weightx = 0.0;
 
         panel.add(
@@ -198,7 +228,7 @@ public class RepositoryDialog extends JDialog {
                 gbc);
 
         gbc.gridx = 1;
-        gbc.gridy = 2;
+        gbc.gridy = 3;
         gbc.weightx = 1.0;
 
         accessKeyField =
@@ -209,7 +239,7 @@ public class RepositoryDialog extends JDialog {
                 gbc);
 
         gbc.gridx = 0;
-        gbc.gridy = 3;
+        gbc.gridy = 4;
         gbc.weightx = 0.0;
 
         panel.add(
@@ -217,7 +247,7 @@ public class RepositoryDialog extends JDialog {
                 gbc);
 
         gbc.gridx = 1;
-        gbc.gridy = 3;
+        gbc.gridy = 4;
         gbc.weightx = 1.0;
 
         secretKeyField =
@@ -228,7 +258,7 @@ public class RepositoryDialog extends JDialog {
                 gbc);
 
         gbc.gridx = 0;
-        gbc.gridy = 4;
+        gbc.gridy = 5;
         gbc.weightx = 0.0;
         gbc.weighty = 1.0;
         gbc.fill =
@@ -241,7 +271,7 @@ public class RepositoryDialog extends JDialog {
                 gbc);
 
         gbc.gridx = 1;
-        gbc.gridy = 4;
+        gbc.gridy = 5;
         gbc.weightx = 1.0;
         gbc.weighty = 1.0;
 
@@ -262,7 +292,7 @@ public class RepositoryDialog extends JDialog {
                 gbc);
 
         gbc.gridx = 0;
-        gbc.gridy = 5;
+        gbc.gridy = 6;
         gbc.gridwidth = 2;
         gbc.weightx = 1.0;
         gbc.weighty = 0.0;
@@ -285,7 +315,7 @@ public class RepositoryDialog extends JDialog {
         gbc.gridwidth = 1;
 
         gbc.gridx = 0;
-        gbc.gridy = 6;
+        gbc.gridy = 7;
         gbc.weightx = 0.0;
 
         panel.add(
@@ -294,7 +324,7 @@ public class RepositoryDialog extends JDialog {
                 gbc);
 
         gbc.gridx = 1;
-        gbc.gridy = 6;
+        gbc.gridy = 7;
         gbc.weightx = 1.0;
 
         encryptionTransformationField =
@@ -305,7 +335,7 @@ public class RepositoryDialog extends JDialog {
                 gbc);
 
         gbc.gridx = 0;
-        gbc.gridy = 7;
+        gbc.gridy = 8;
         gbc.weightx = 0.0;
 
         panel.add(
@@ -314,7 +344,7 @@ public class RepositoryDialog extends JDialog {
                 gbc);
 
         gbc.gridx = 1;
-        gbc.gridy = 7;
+        gbc.gridy = 8;
         gbc.weightx = 1.0;
 
         encryptionIvField =
@@ -325,7 +355,7 @@ public class RepositoryDialog extends JDialog {
                 gbc);
 
         gbc.gridx = 0;
-        gbc.gridy = 8;
+        gbc.gridy = 9;
         gbc.weightx = 0.0;
 
         panel.add(
@@ -334,7 +364,7 @@ public class RepositoryDialog extends JDialog {
                 gbc);
 
         gbc.gridx = 1;
-        gbc.gridy = 8;
+        gbc.gridy = 9;
         gbc.weightx = 1.0;
 
         encryptionKeyField =
@@ -427,10 +457,15 @@ public class RepositoryDialog extends JDialog {
                         .getText()
                         .trim();
 
+        RepositoryEnvironment environment =
+                (RepositoryEnvironment)
+                        environmentComboBox.getSelectedItem();
+
         if (name.isEmpty()
                 || endpoint.isEmpty()
                 || accessKey.isEmpty()
-                || secretKey.isEmpty()) {
+                || secretKey.isEmpty()
+                || environment == null) {
 
             JOptionPane.showMessageDialog(
                     this,
@@ -478,6 +513,9 @@ public class RepositoryDialog extends JDialog {
 
             repository.setName(
                     name);
+
+            repository.setEnvironment(
+                    environment);
 
             repository.setEndpoint(
                     endpoint);

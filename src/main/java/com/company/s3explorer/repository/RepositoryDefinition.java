@@ -144,7 +144,14 @@ public class RepositoryDefinition {
     
     @Override
     public String toString() {
-        return name;
+
+        if (environment == null) {
+            return name;
+        }
+
+        return name
+                + " - "
+                + environment;
     }
 
     @Override

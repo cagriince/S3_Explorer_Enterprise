@@ -115,10 +115,11 @@ public class RepositoryPanel extends JPanel {
 
         TableColumnModel columns = table.getColumnModel();
         columns.getColumn(0).setPreferredWidth(180);
-        columns.getColumn(1).setPreferredWidth(300);
-        columns.getColumn(2).setPreferredWidth(180);
-        columns.getColumn(3).setPreferredWidth(110);
+        columns.getColumn(1).setPreferredWidth(120);
+        columns.getColumn(2).setPreferredWidth(300);
+        columns.getColumn(3).setPreferredWidth(180);
         columns.getColumn(4).setPreferredWidth(110);
+        columns.getColumn(5).setPreferredWidth(110);
         
         table.getSelectionModel()
                 .addListSelectionListener(e -> {

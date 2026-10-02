@@ -8,11 +8,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-public class RepositoryTableModel extends AbstractTableModel {
-    private final List<RepositoryDefinition> repositories = new ArrayList<>();
+public class RepositoryTableModel
+        extends AbstractTableModel {
+
+    private final List<RepositoryDefinition> repositories =
+            new ArrayList<>();
 
     private static final String[] COLUMNS = {
             "Name",
+            "Environment",
             "Endpoint",
             "Access Key",
             "External Bucket",
@@ -30,30 +34,57 @@ public class RepositoryTableModel extends AbstractTableModel {
     }
 
     @Override
-    public String getColumnName(int column) {
+    public String getColumnName(
+            int column) {
+
         return COLUMNS[column];
     }
 
     @Override
-    public Object getValueAt(int rowIndex, int columnIndex) {
-        RepositoryDefinition repo = repositories.get(rowIndex);
+    public Object getValueAt(
+            int rowIndex,
+            int columnIndex) {
+
+        RepositoryDefinition repo =
+                repositories.get(rowIndex);
 
         return switch (columnIndex) {
-            case 0 -> repo.getName();
-            case 1 -> repo.getEndpoint();
-            case 2 -> repo.getAccessKey();
-            case 3 -> repo.hasExternalBucket();
-            case 4 -> repo.hasEncryptionConfiguration();
-            default -> "";
+
+            case 0 ->
+                    repo.getName();
+
+            case 1 ->
+                    repo.getEnvironment();
+
+            case 2 ->
+                    repo.getEndpoint();
+
+            case 3 ->
+                    repo.getAccessKey();
+
+            case 4 ->
+                    repo.hasExternalBucket();
+
+            case 5 ->
+                    repo.hasEncryptionConfiguration();
+
+            default ->
+                    "";
         };
     }
 
     @Override
-    public Class<?> getColumnClass(int columnIndex) {
-        if (columnIndex == 3 || columnIndex == 4) {
+    public Class<?> getColumnClass(
+            int columnIndex) {
+
+        if (columnIndex == 4
+                || columnIndex == 5) {
+
             return Boolean.class;
         }
-        return super.getColumnClass(columnIndex);
+
+        return super.getColumnClass(
+                columnIndex);
     }
 
     public void setRepositories(
@@ -62,6 +93,7 @@ public class RepositoryTableModel extends AbstractTableModel {
         repositories.clear();
 
         if (list != null) {
+
             repositories.addAll(list);
         }
 
@@ -80,8 +112,10 @@ public class RepositoryTableModel extends AbstractTableModel {
 
         fireTableDataChanged();
     }
-    
-    public RepositoryDefinition getRepository(int row) {
+
+    public RepositoryDefinition getRepository(
+            int row) {
+
         return repositories.get(row);
     }
 }
