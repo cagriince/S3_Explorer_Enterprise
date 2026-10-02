@@ -64,6 +64,7 @@ public class ExplorerPanel extends JPanel {
     private ExplorerClipboardController clipboardController;
     private ExplorerPasteController pasteController;
     private ExplorerRenameController renameController;
+    private ExplorerDeleteController deleteController;
 
     private final AtomicLong fileLoadGeneration = new AtomicLong();
     private final AtomicLong operationGeneration = new AtomicLong();
@@ -292,7 +293,7 @@ public class ExplorerPanel extends JPanel {
         newFolderAction = new ExplorerAction("New Folder", this::createFolder);
         downloadAction = new ExplorerAction("Download", this::downloadSelected);
         downloadDecryptedAction = new ExplorerAction("Download Decrypted", this::downloadSelectedDecrypted);
-        deleteAction = new ExplorerAction("Delete", this::deleteSelectedWithFocusRestore);
+        deleteAction = new ExplorerAction("Delete", () -> deleteController.deleteSelectedWithFocusRestore());
         copyAction = new ExplorerAction("Copy", this::copySelected);
         cutAction = new ExplorerAction("Cut", this::moveSelected);
         pasteAction = new ExplorerAction("Paste", this::pasteClipboard);
@@ -410,6 +411,19 @@ public class ExplorerPanel extends JPanel {
                                 pendingFileTableSelectionKey = value,
                         value ->
                                 restoreFileTableFocus = value);
+
+        deleteController =
+                new ExplorerDeleteController(
+                        view,
+                        transferManager,
+                        fileOperationController,
+                        this::getCurrentBucket,
+                        value ->
+                                restoreFileTableFocus = value,
+                        value ->
+                                pendingDeleteSelectionViewRow = value,
+                        pendingFolderDeleteKeys,
+                        this::updateActionStates);
 
         return mainSplit;
     }
@@ -3759,284 +3773,6 @@ public class ExplorerPanel extends JPanel {
         group.markProductionCompleted();
     }
 
-    public void deleteSelected() {
-
-        log.info(
-                "[DELETE] invoked selectedRows={} tableFocus={} restoreFocus={}",
-                view.getFileTable().getSelectedRowCount(),
-                view.getFileTable().hasFocus(),
-                restoreFileTableFocus);
-
-        List<S3FileItem> items =
-                getSelectedItems();
-
-        if (items.isEmpty()) {
-            return;
-        }
-
-        StringBuilder sb =
-                new StringBuilder();
-
-        for (S3FileItem item : items) {
-
-            if (!sb.isEmpty()) {
-                sb.append("\n");
-            }
-
-            sb.append(item.getKey());
-        }
-
-        String message;
-
-        if (items.size() == 1) {
-
-            message =
-                    "Delete " +
-                            sb +
-                            " ?";
-
-        } else {
-
-            message =
-                    "Delete followings?\n" +
-                            sb;
-        }
-
-        int result =
-                JOptionPane.showConfirmDialog(
-                        this,
-                        message,
-                        "Confirm",
-                        JOptionPane.YES_NO_OPTION);
-
-        if (result != JOptionPane.YES_OPTION) {
-            return;
-        }
-
-        /*
-         * ---------------------------------------------------------
-         * DELETE CONTEXT
-         * ---------------------------------------------------------
-         */
-
-        S3FileItem firstItem =
-                items.getFirst();
-
-        String repositoryName =
-                firstItem.getRepositoryName();
-
-        String bucket =
-                getCurrentBucket();
-
-        if (repositoryName == null
-                || bucket == null) {
-
-            log.warn(
-                    "[DELETE GROUP] missing context repository={} bucket={}",
-                    repositoryName,
-                    bucket);
-
-            return;
-        }
-
-        if (items.size() == 1) {
-
-            S3FileItem item = items.getFirst();
-
-            try {
-
-                fileOperationController.delete(item);
-
-                log.info(
-                        "[DELETE] submitted source={} group=NONE",
-                        item.getKey());
-
-            } catch (Exception ex) {
-
-                log.error(
-                        "[DELETE] failed source={}",
-                        item.getKey(),
-                        ex);
-
-                SwingUtilities.invokeLater(() ->
-                                                   JOptionPane.showMessageDialog(
-                                                           this,
-                                                           ex.getMessage(),
-                                                           "Delete Failed",
-                                                           JOptionPane.ERROR_MESSAGE));
-
-                return;
-            }
-
-            updateActionStates();
-            return;
-        }
-
-        /*
-         * ---------------------------------------------------------
-         * MULTI DELETE GROUP
-         * ---------------------------------------------------------
-         *
-         * Dosya + klasör karışık seçim dahil bütün öğeler
-         * AYNI TransferGroup içinde çalışır.
-         *
-         * Örneğin:
-         *
-         *     SIL1/      folder
-         *     SIL3/      folder
-         *     1.json     file
-         *     2.json     file
-         *
-         * hepsi:
-         *
-         *     DELETE_GROUP
-         *          |
-         *          +-- FolderDeleteProducer(SIL1/)
-         *          +-- FolderDeleteProducer(SIL3/)
-         *          +-- delete(1.json)
-         *          +-- delete(2.json)
-         *
-         * olacaktır.
-         */
-
-        String sourcePrefix;
-
-        if (firstItem.isFolder()) {
-
-            sourcePrefix =
-                    firstItem.getKey();
-
-        } else {
-
-            sourcePrefix =
-                    S3Util.extractParentPrefix(
-                            firstItem.getKey());
-        }
-
-        String groupName =
-                getOperationGroupName(items);
-
-        TransferGroup group =
-                transferManager.createOperationGroup(
-                        TransferType.DELETE_GROUP,
-                        groupName,
-                        repositoryName,
-                        bucket,
-                        sourcePrefix,
-                        null,
-                        bucket,
-                        sourcePrefix);
-
-        transferManager.configureGroupCompletion(
-                group,
-                repositoryName,
-                bucket,
-                sourcePrefix,
-                true);
-
-        log.info(
-                "[DELETE GROUP] created group={} sourcePrefix={} itemCount={}",
-                group.getDisplayName(),
-                sourcePrefix,
-                items.size());
-
-        /*
-         * ---------------------------------------------------------
-         * SUBMIT FILE DELETE TASKS
-         * ---------------------------------------------------------
-         */
-
-        for (S3FileItem item : items) {
-
-            try {
-
-                if (item.isFolder()) {
-
-                    transferManager.submitFolderDelete(
-                            repositoryName,
-                            bucket,
-                            item.getKey(),
-                            group);
-
-                    log.info(
-                            "[DELETE GROUP] submitted folder source={} group={}",
-                            item.getKey(),
-                            group.getDisplayName());
-
-                } else {
-
-                    fileOperationController.delete(
-                            item,
-                            group);
-
-                    log.info(
-                            "[DELETE GROUP] submitted file source={} group={}",
-                            item.getKey(),
-                            group.getDisplayName());
-                }
-
-            } catch (Exception ex) {
-
-                log.error(
-                        "[DELETE GROUP] failed source={} group={}",
-                        item.getKey(),
-                        group.getDisplayName(),
-                        ex);
-
-                SwingUtilities.invokeLater(() ->
-                                                   JOptionPane.showMessageDialog(
-                                                           this,
-                                                           ex.getMessage(),
-                                                           "Delete Failed",
-                                                           JOptionPane.ERROR_MESSAGE));
-
-                group.failed();
-            }
-        }
-
-        group.markProductionCompleted();
-
-        updateActionStates();
-    }
-
-    private void deleteSelectedWithFocusRestore() {
-
-        JTable table =
-                view.getFileTable();
-
-        restoreFileTableFocus =
-                table.getSelectedRowCount() > 0;
-
-        pendingDeleteSelectionViewRow =
-                table.getSelectedRow();
-
-        pendingFolderDeleteKeys.clear();
-
-        for (int viewRow : table.getSelectedRows()) {
-
-            int modelRow =
-                    table.convertRowIndexToModel(viewRow);
-
-            S3FileItem item =
-                    view.getFileTableModel()
-                            .getItem(modelRow);
-
-            if (item != null && item.isFolder()) {
-
-                pendingFolderDeleteKeys.add(
-                        item.getKey());
-            }
-        }
-        
-        log.info(
-                "[DELETE] trigger selectedRows={} restoreFocus={} selectedViewRow={}",
-                table.getSelectedRowCount(),
-                restoreFileTableFocus,
-                pendingDeleteSelectionViewRow);
-
-        deleteSelected();
-    }
-    
     private void showRepositoryManager() {
         RepositoryPanel panel =
                 new RepositoryPanel(
