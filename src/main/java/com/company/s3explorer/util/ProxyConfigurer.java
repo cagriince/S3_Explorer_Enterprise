@@ -173,6 +173,56 @@ public class ProxyConfigurer {
     }
 
     private static String convertNoProxyToJavaFormat(String noProxy) {
+        String[] entries = noProxy.split("[,;]"); // Hem virgül hem noktalı virgül desteği
+        StringBuilder javaFormat = new StringBuilder();
+
+        for (String entry : entries) {
+            String item = entry.trim();
+            if (item.isEmpty()) continue;
+
+            if (javaFormat.length() > 0) {
+                javaFormat.append("|");
+            }
+
+            // 1. CIDR Dönüşümü (10.11.0.0/16 -> Apache için '10.11.' yapar)
+            if (item.contains("/")) {
+                item = convertCidrToApacheFormat(item);
+            }
+            // 2. Eğer zaten '10.11.*' veya '10.11.*.*' yazılmışsa sondaki yıldızları ve gereksiz noktaları temizle
+            else if (item.matches("^[0-9.]+\\*.*$")) {
+                item = item.replaceAll("\\.\\*+$", "."); // "10.11.*" -> "10.11."
+            }
+            // 3. Domain Dönüşümü (*.example.com -> .example.com)
+            else if (item.startsWith("*.")) {
+                item = item.substring(1); // '*.example.com' yerine '.example.com'
+            }
+
+            javaFormat.append(item);
+        }
+
+        return javaFormat.toString();
+    }
+
+    private static String convertCidrToApacheFormat(String cidr) {
+        String[] parts = cidr.split("/");
+        String ip = parts[0].trim();
+        int prefix = Integer.parseInt(parts[1].trim());
+
+        String[] octets = ip.split("\\.");
+
+        // ApacheHttpClient için yıldız (*) KOYMADAN sadece nokta (.) ile bitiriyoruz
+        if (prefix == 16) {
+            return octets[0] + "." + octets[1] + "."; // Örn: "10.11."
+        } else if (prefix == 24) {
+            return octets[0] + "." + octets[1] + "." + octets[2] + "."; // Örn: "192.168.1."
+        } else if (prefix == 8) {
+            return octets[0] + "."; // Örn: "10."
+        }
+
+        return ip;
+    }
+/*
+    private static String convertNoProxyToJavaFormat(String noProxy) {
         String[] entries = noProxy.split(",");
         StringBuilder javaFormat = new StringBuilder();
 
@@ -206,7 +256,7 @@ public class ProxyConfigurer {
 
         return javaFormat.toString();
     }
-
+*/
     private static String convertCidrToWildcard(String cidr) {
         String[] parts = cidr.split("/");
         if (parts.length != 2) return cidr;
