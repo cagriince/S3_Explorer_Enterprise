@@ -51,32 +51,34 @@ public class ProxyConfigurer {
         }
     }
 
+//--------
     /**
-     * Windows 11 üzerinde Proxy Bypass listesini sırasıyla:
-     * 1. Ortam Değişkenlerinden (NO_PROXY / no_proxy)
-     * 2. Windows Registry (ProxyOverride) kaydından
-     * okur ve Java 'http.nonProxyHosts' (|) formatına çevirir.
+     * Windows 11 / 10 üzerinde Proxy Bypass listesini okur ve ApacheHttpClient / Java
+     * uyumlu 'http.nonProxyHosts' (|) formatına dönüştürür.
      */
     private static String getWindowsNonProxyHosts() {
-        // A) Öncelik: Windows Ortam Değişkenleri
+        String rawNoProxy = null;
+
+        // 1. Öncelik: Windows Ortam Değişkenleri (NO_PROXY veya no_proxy)
         String envNoProxy = System.getenv("NO_PROXY");
         if (envNoProxy == null || envNoProxy.isBlank()) {
             envNoProxy = System.getenv("no_proxy");
         }
 
         if (envNoProxy != null && !envNoProxy.isBlank()) {
-            return convertNoProxyToJavaFormat(envNoProxy);
+            rawNoProxy = envNoProxy;
+        }
+        // 2. İkinci Yol: Windows Registry (WinINet / Internet Settings ProxyOverride)
+        else {
+            rawNoProxy = readWindowsRegistryProxyOverride();
         }
 
-        // B) İkinci Yol: Windows Registry (WinINet Internet Settings ProxyOverride)
-        String registryOverride = readWindowsRegistryProxyOverride();
-        if (registryOverride != null && !registryOverride.isBlank()) {
-            // Windows Registry formatı noktalı virgül (;) kullanır. Örn: "10.11.*;*.example.com;<local>"
-            // Bunu Java'nın beklediği '|' formatına çeviriyoruz:
-            return registryOverride.replace(";", "|");
+        // Değer bulunduysa ApacheHttpClient'ın beklediği formata dönüştür
+        if (rawNoProxy != null && !rawNoProxy.isBlank()) {
+            return convertToApacheNonProxyHosts(rawNoProxy);
         }
 
-        // C) Fallback (Varsayılan Yerel Adresler)
+        // 3. Fallback (Varsayılan Yerel Adresler)
         return "localhost|127.0.0.1|<local>";
     }
 
@@ -104,10 +106,74 @@ public class ProxyConfigurer {
                 }
             }
         } catch (Exception e) {
-            // Registry okuma başarısız olursa sessizce geç
+            System.err.println("[Windows Registry] ProxyOverride okuma hatası: " + e.getMessage());
         }
         return null;
     }
+
+    /**
+     * Windows / Linux'tan gelen ham no_proxy değerlerini (virgül, noktalı virgül, CIDR, yıldız)
+     * ApacheHttpClient'ın regex motorunu bozmayacak formata dönüştürür.
+     */
+    private static String convertToApacheNonProxyHosts(String rawNoProxy) {
+        // Windows Registry noktalı virgül (;), Linux ortam değişkenleri virgül (,) kullanır
+        String[] entries = rawNoProxy.split("[,;]");
+        StringBuilder javaFormat = new StringBuilder();
+
+        for (String entry : entries) {
+            String item = entry.trim();
+            if (item.isEmpty()) continue;
+
+            if (javaFormat.length() > 0) {
+                javaFormat.append("|");
+            }
+
+            // 1. CIDR Dönüşümü (örn: 10.11.0.0/16 -> Apache için yıldızsız "10.11.")
+            if (item.contains("/")) {
+                item = convertCidrToApacheFormat(item);
+            }
+            // 2. Yıldızlı IP Temizliği (örn: "10.11.*" veya "10.11.*.*" -> Apache için "10.11.")
+            else if (item.matches("^[0-9.]+\\*.*$")) {
+                item = item.replaceAll("\\.\\*.*$", ".");
+            }
+            // 3. Domain Temizliği (örn: "*.abc.com" -> Apache için ".abc.com")
+            else if (item.startsWith("*.")) {
+                item = item.substring(1); // Baştaki yıldızı kaldırır, kalanı ".abc.com" olur
+            }
+
+            javaFormat.append(item);
+        }
+
+        // Windows '<local>' takısını koru/ekle
+        String result = javaFormat.toString();
+        if (!result.contains("<local>")) {
+            result += "|<local>";
+        }
+
+        return result;
+    }
+
+    private static String convertCidrToApacheFormat(String cidr) {
+        try {
+            String[] parts = cidr.split("/");
+            String ip = parts[0].trim();
+            int prefix = Integer.parseInt(parts[1].trim());
+            String[] octets = ip.split("\\.");
+
+            // ApacheHttpClient için yıldız (*) KOYMADAN sadece nokta (.) ile bitiriyoruz
+            if (prefix == 16 && octets.length >= 2) {
+                return octets[0] + "." + octets[1] + "."; // Örn: 10.11.0.0/16 -> "10.11."
+            } else if (prefix == 24 && octets.length >= 3) {
+                return octets[0] + "." + octets[1] + "." + octets[2] + "."; // Örn: 192.168.1.0/24 -> "192.168.1."
+            } else if (prefix == 8 && octets.length >= 1) {
+                return octets[0] + "."; // Örn: 10.0.0.0/8 -> "10."
+            }
+            return ip;
+        } catch (Exception e) {
+            return cidr.split("/")[0];
+        }
+    }
+// ------
 
     /**
      * LINUX / MACOS: Ortam değişkenlerini (http_proxy, NO_PROXY) okur ve dönüştürür.
@@ -134,7 +200,6 @@ public class ProxyConfigurer {
     }
 
     // --- YARDIMCI METOTLAR ---
-
     private static void setProxyUrlProperties(String proxyUrlString, String protocol) {
         try {
             if (!proxyUrlString.startsWith("http://") && !proxyUrlString.startsWith("https://")) {
@@ -171,7 +236,7 @@ public class ProxyConfigurer {
             System.err.println("[" + protocol + " Proxy] Hata: " + e.getMessage());
         }
     }
-
+/*
     private static String convertNoProxyToJavaFormat(String noProxy) {
         String[] entries = noProxy.split("[,;]"); // Hem virgül hem noktalı virgül desteği
         StringBuilder javaFormat = new StringBuilder();
@@ -202,26 +267,7 @@ public class ProxyConfigurer {
 
         return javaFormat.toString();
     }
-
-    private static String convertCidrToApacheFormat(String cidr) {
-        String[] parts = cidr.split("/");
-        String ip = parts[0].trim();
-        int prefix = Integer.parseInt(parts[1].trim());
-
-        String[] octets = ip.split("\\.");
-
-        // ApacheHttpClient için yıldız (*) KOYMADAN sadece nokta (.) ile bitiriyoruz
-        if (prefix == 16) {
-            return octets[0] + "." + octets[1] + "."; // Örn: "10.11."
-        } else if (prefix == 24) {
-            return octets[0] + "." + octets[1] + "." + octets[2] + "."; // Örn: "192.168.1."
-        } else if (prefix == 8) {
-            return octets[0] + "."; // Örn: "10."
-        }
-
-        return ip;
-    }
-/*
+*/
     private static String convertNoProxyToJavaFormat(String noProxy) {
         String[] entries = noProxy.split(",");
         StringBuilder javaFormat = new StringBuilder();
@@ -256,7 +302,7 @@ public class ProxyConfigurer {
 
         return javaFormat.toString();
     }
-*/
+
     private static String convertCidrToWildcard(String cidr) {
         String[] parts = cidr.split("/");
         if (parts.length != 2) return cidr;
