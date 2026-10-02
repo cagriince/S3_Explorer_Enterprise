@@ -14,6 +14,7 @@ public class RepositoryDefinition {
     private List<String> externalBuckets = new ArrayList<>();
 
     private String name;
+    private RepositoryEnvironment environment;
     private String endpoint;
     private String accessKey;
     private String secretKey;
@@ -42,6 +43,18 @@ public class RepositoryDefinition {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public RepositoryEnvironment getEnvironment() {
+
+        return environment;
+    }
+
+    public void setEnvironment(
+            RepositoryEnvironment environment) {
+
+        this.environment =
+                environment;
     }
 
     public String getEndpoint() {
