@@ -22,7 +22,11 @@ public class ProxyConfigurer {
      */
     private static void configureWindowsProxies() {
         // 1. Native Windows proxy seçim mekanizmasını aktif et
-        System.setProperty("java.net.useSystemProxies", "true");
+        // Neden? java.net.useSystemProxies=true satırı Java'nın tüm TCP soket
+        // kontrolünü Windows 11 WinINet sürücüsüne devreder. Bu satır silindiğinde
+        // System.getProperty("http.proxyHost") gibi değerler hala okunabilir kalır
+        // ancak alt seviye soketler Windows tarafından manipüle edilmez.
+        // System.setProperty("java.net.useSystemProxies", "true");
 
         // 2. Windows'tan 'nonProxyHosts' / 'NO_PROXY' değerini çek
         String nonProxyHosts = getWindowsNonProxyHosts();
