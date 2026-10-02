@@ -116,6 +116,51 @@ public class ProxyConfigurer {
      * ApacheHttpClient'ın regex motorunu bozmayacak formata dönüştürür.
      */
     private static String convertToApacheNonProxyHosts(String rawNoProxy) {
+        String[] entries = rawNoProxy.split("[,;]");
+        StringBuilder javaFormat = new StringBuilder();
+
+        for (String entry : entries) {
+            String item = entry.trim();
+            if (item.isEmpty()) continue;
+
+            if (javaFormat.length() > 0) {
+                javaFormat.append("|");
+            }
+
+            // 1. IP Yıldız Wildcard'larını Regex Anchor Yapısına Çevir
+            // Örn: "10.11.*.*" veya "10.11.*" -> "^10\.11\..*"
+            if (item.matches("^[0-9.]+\\*.*$")) {
+                String baseIp = item.replaceAll("\\.\\*.*$", ""); // "10.11" kalır
+                String escapedIp = baseIp.replace(".", "\\.");  // "10\.11"
+                item = "^" + escapedIp + "\\..*";               // "^10\.11\..*"
+            }
+            // 2. CIDR Dönüşümü (10.11.0.0/16 -> "^10\.11\..*")
+            else if (item.contains("/")) {
+                String[] parts = item.split("/");
+                String ip = parts[0].trim();
+                int prefix = Integer.parseInt(parts[1].trim());
+                String[] octets = ip.split("\\.");
+
+                if (prefix == 16 && octets.length >= 2) {
+                    item = "^" + octets[0] + "\\." + octets[1] + "\\..*";
+                } else if (prefix == 24 && octets.length >= 3) {
+                    item = "^" + octets[0] + "\\." + octets[1] + "\\." + octets[2] + "\\..*";
+                } else {
+                    item = ip;
+                }
+            }
+            // 3. Domain Dönüşümü (*.abc.com -> .abc.com)
+            else if (item.startsWith("*.")) {
+                item = item.substring(1);
+            }
+
+            javaFormat.append(item);
+        }
+
+        return javaFormat.toString();
+    }
+    /*
+    private static String convertToApacheNonProxyHosts(String rawNoProxy) {
         // Windows Registry noktalı virgül (;), Linux ortam değişkenleri virgül (,) kullanır
         String[] entries = rawNoProxy.split("[,;]");
         StringBuilder javaFormat = new StringBuilder();
@@ -152,7 +197,7 @@ public class ProxyConfigurer {
 
         return result;
     }
-
+*/
     private static String convertCidrToApacheFormat(String cidr) {
         try {
             String[] parts = cidr.split("/");
