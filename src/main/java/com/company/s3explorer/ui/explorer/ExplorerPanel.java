@@ -63,7 +63,8 @@ public class ExplorerPanel extends JPanel {
     private ExplorerFileOperationController fileOperationController;
     private ExplorerClipboardController clipboardController;
     private ExplorerPasteController pasteController;
-    
+    private ExplorerRenameController renameController;
+
     private final AtomicLong fileLoadGeneration = new AtomicLong();
     private final AtomicLong operationGeneration = new AtomicLong();
     private String currentFileBucket;
@@ -297,7 +298,7 @@ public class ExplorerPanel extends JPanel {
         pasteAction = new ExplorerAction("Paste", this::pasteClipboard);
         copyTextAction = new ExplorerAction("Copy Text", this::copyText);
         goToParentAction = new ExplorerAction("GoToParent", this::goToParentFolder);
-        renameAction = new ExplorerAction("Rename", this::renameSelected);
+        renameAction = new ExplorerAction("Rename", () -> renameController.renameSelected());
         propertiesAction = new ExplorerAction("Properties", this::showProperties);
         bulkDownloadAction = new ExplorerAction("Bulk Download", this::showBulkDownloadDialog);
     }
@@ -395,7 +396,21 @@ public class ExplorerPanel extends JPanel {
                                     : repository.getName();
                         },
                         this::getCurrentBucket);
-        
+
+        renameController =
+                new ExplorerRenameController(
+                        view,
+                        transferManager,
+                        this::getCurrentBucket,
+                        this::exists,
+                        this::updateActionStates,
+                        value ->
+                                pendingFileTableRenameOldKey = value,
+                        value ->
+                                pendingFileTableSelectionKey = value,
+                        value ->
+                                restoreFileTableFocus = value);
+
         return mainSplit;
     }
 
@@ -4933,203 +4948,6 @@ public class ExplorerPanel extends JPanel {
         log.warn(
                 "[FILE TABLE SELECTION RESTORE] key not found={}",
                 key);
-    }
-
-    private void renameSelected() {
-
-        JTable table =
-                view.getFileTable();
-
-        int selectedRowCount =
-                table.getSelectedRowCount();
-
-        if (selectedRowCount != 1) {
-
-            log.warn(
-                    "[RENAME] exactly one item must be selected selectedRows={}",
-                    selectedRowCount);
-
-            return;
-        }
-
-        int viewRow =
-                table.getSelectedRow();
-
-        if (viewRow < 0) {
-            return;
-        }
-
-        int modelRow =
-                table.convertRowIndexToModel(
-                        viewRow);
-
-        S3FileItem item =
-                view.getFileTableModel()
-                        .getItem(modelRow);
-
-        if (item == null
-                || item.isParentFolder()) {
-
-            log.warn(
-                    "[RENAME] invalid selected item");
-
-            return;
-        }
-
-        String oldKey =
-                item.getKey();
-
-        String oldName =
-                item.getName();
-
-        String newName =
-                JOptionPane.showInputDialog(
-                        this,
-                        "New name:",
-                        oldName);
-
-        if (newName == null) {
-            return;
-        }
-
-        newName =
-                newName.trim();
-
-        if (newName.isBlank()) {
-
-            JOptionPane.showMessageDialog(
-                    this,
-                    "New name can not be empty.",
-                    "Rename",
-                    JOptionPane.WARNING_MESSAGE);
-
-            return;
-        }
-
-        if (newName.equals(oldName)) {
-            return;
-        }
-
-        /*
-         * Yeni ad içinde path ayırıcı kullanmayalım.
-         */
-        if (newName.contains("/")
-                || newName.contains("\\")) {
-
-            JOptionPane.showMessageDialog(
-                    this,
-                    "New name can not contain folder.",
-                    "Rename",
-                    JOptionPane.WARNING_MESSAGE);
-
-            return;
-        }
-
-        String parentPrefix =
-                S3Util.extractParentPrefix(
-                        oldKey);
-
-        String newKey =
-                S3Util.combineKey(
-                        parentPrefix,
-                        newName);
-
-        if (item.isFolder()) {
-            newKey += "/";
-        }
-
-        if (exists(newKey)) {
-
-            log.warn(
-                    "[RENAME] target already exists source={} target={}",
-                    oldKey,
-                    newKey);
-
-            JOptionPane.showMessageDialog(
-                    this,
-                    newName + " is already used.\n"
-                            + "Please select a different one.",
-                    "Rename",
-                    JOptionPane.WARNING_MESSAGE);
-
-            return;
-        }
-        
-        String repositoryName =
-                item.getRepositoryName();
-
-        String bucket =
-                item.getBucket();
-
-        if (repositoryName == null
-                || bucket == null) {
-
-            log.warn(
-                    "[RENAME] repository/bucket missing oldKey={}",
-                    oldKey);
-
-            return;
-        }
-
-        /*
-         * Refresh sonrasında yeni item'ı seç.
-         */
-        pendingFileTableRenameOldKey =
-                oldKey;
-        
-        pendingFileTableSelectionKey =
-                newKey;
-
-        restoreFileTableFocus =
-                true;
-
-        log.info(
-                "[RENAME] source={} target={} folder={}",
-                oldKey,
-                newKey,
-                item.isFolder());
-
-        try {
-
-            if (item.isFolder()) {
-
-                transferManager.submitFolderRename(
-                        repositoryName,
-                        bucket,
-                        oldKey,
-                        newKey);
-
-            } else {
-
-                transferManager.submitRename(
-                        repositoryName,
-                        bucket,
-                        oldKey,
-                        repositoryName,
-                        bucket,
-                        newKey,
-                        item.getSize(),
-                        false);
-            }
-
-        } catch (Exception ex) {
-
-            pendingFileTableSelectionKey = null;
-            restoreFileTableFocus = false;
-
-            log.error(
-                    "[RENAME] submit failed source={} target={}",
-                    oldKey,
-                    newKey,
-                    ex);
-
-            SwingUtilities.invokeLater(() ->
-                    JOptionPane.showMessageDialog(
-                            this,
-                            ex.getMessage(),
-                            "Rename Failed",
-                            JOptionPane.ERROR_MESSAGE));
-        }
     }
 
     private List<String> getSelectedFileTableKeys() {
