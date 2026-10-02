@@ -10,6 +10,8 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3Configuration;
 import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
 import software.amazon.awssdk.services.s3.model.S3Exception;
+import software.amazon.awssdk.http.apache.ApacheHttpClient;
+import software.amazon.awssdk.http.apache.ProxyConfiguration;
 
 import java.io.IOException;
 import java.net.ConnectException;
@@ -45,8 +47,15 @@ public class S3ClientFactory {
                 .overrideConfiguration(
                         ClientOverrideConfiguration.builder()
                                 .apiCallAttemptTimeout(
-                                        Duration.ofSeconds(10))
+                                        Duration.ofSeconds(60))
                                 .build())
+                /*.httpClientBuilder(ApacheHttpClient.builder()
+                        // PROXY'Yİ KESİN OLARAK DEVRE DİŞİ BIRA KAN AYAR:
+                        .proxyConfiguration(ProxyConfiguration.builder()
+                                //.useSystemPropertyValues(true) // Sistem değişkenlerini okuMA
+                                .useEnvironmentVariableValues(false) // HTTP_PROXY / http_proxy okuMA
+                                .build())
+                )*/
                 .region(
                         Region.US_EAST_1)
                 .build();
