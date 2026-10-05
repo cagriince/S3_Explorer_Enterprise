@@ -145,20 +145,132 @@ public class MainFrame extends JFrame {
     }
 
     private void buildUI() {
-        JPanel root = new JPanel(new BorderLayout());
 
-        split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, explorerPanel, transferPanel);
+        JPanel root =
+                new JPanel(
+                        new BorderLayout());
+
+        split =
+                new JSplitPane(
+                        JSplitPane.VERTICAL_SPLIT,
+                        explorerPanel,
+                        transferPanel);
+
         split.setResizeWeight(0.75);
-        root.add(split, BorderLayout.CENTER);
+
+        root.add(
+                split,
+                BorderLayout.CENTER);
 
         setContentPane(root);
 
-        addWindowListener(new WindowAdapter() {
+        setJMenuBar(
+                createMenuBar());
+
+        addWindowListener(
+                new WindowAdapter() {
+
                     @Override
-                    public void windowClosing(WindowEvent e) {
+                    public void windowClosing(
+                            WindowEvent e) {
+
                         saveApplicationState();
                     }
                 });
+    }
+
+    private JMenuBar createMenuBar() {
+
+        JMenuBar menuBar =
+                new JMenuBar();
+
+        // -------------------------------------------------
+        // File
+        // -------------------------------------------------
+
+        JMenu fileMenu =
+                new JMenu("File");
+
+        JMenuItem exitItem =
+                new JMenuItem("Exit");
+
+        exitItem.addActionListener(
+                e ->
+                        dispatchEvent(
+                                new WindowEvent(
+                                        this,
+                                        WindowEvent.WINDOW_CLOSING)));
+        fileMenu.add(exitItem);
+
+        // -------------------------------------------------
+        // Repository
+        // -------------------------------------------------
+
+        JMenu repositoryMenu =
+                new JMenu("Repository");
+
+        JMenuItem repositoryManagerItem =
+                new JMenuItem(
+                        "Repository Manager");
+
+        repositoryManagerItem.addActionListener(
+                e ->
+                        explorerPanel
+                                .openRepositoryManager());
+
+        repositoryMenu.add(
+                repositoryManagerItem);
+
+        // -------------------------------------------------
+        // Settings
+        // -------------------------------------------------
+
+        JMenu settingsMenu =
+                new JMenu("Settings");
+
+        JMenuItem preferencesItem =
+                new JMenuItem("Preferences");
+
+        preferencesItem.addActionListener(
+                e ->
+                        JOptionPane.showMessageDialog(
+                                this,
+                                "Preferences",
+                                "Preferences",
+                                JOptionPane.INFORMATION_MESSAGE));
+
+        settingsMenu.add(
+                preferencesItem);
+
+        // -------------------------------------------------
+        // Help
+        // -------------------------------------------------
+
+        JMenu helpMenu =
+                new JMenu("Help");
+
+        JMenuItem aboutItem =
+                new JMenuItem("About");
+
+        aboutItem.addActionListener(
+                e ->
+                        JOptionPane.showMessageDialog(
+                                this,
+                                "S3 Explorer",
+                                "About",
+                                JOptionPane.INFORMATION_MESSAGE));
+
+        helpMenu.add(
+                aboutItem);
+
+        // -------------------------------------------------
+
+        menuBar.add(fileMenu);
+        menuBar.add(repositoryMenu);
+        menuBar.add(settingsMenu);
+        menuBar.add(helpMenu);
+
+        return menuBar;
     }
 
     private void saveApplicationState() {

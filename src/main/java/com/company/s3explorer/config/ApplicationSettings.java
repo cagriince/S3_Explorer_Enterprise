@@ -1,6 +1,7 @@
 package com.company.s3explorer.config;
 
 public class ApplicationSettings {
+    private ProxySettings proxySettings = new ProxySettings();
     private String lastSelectedRepository;
     private String lastSelectedBucket;
     private String lastSelectedTheme;
@@ -13,6 +14,16 @@ public class ApplicationSettings {
     private int windowX = -1;
     private int windowY = -1;
 
+    public ProxySettings getProxySettings() {
+        return proxySettings;
+    }
+
+    public void setProxySettings(
+            ProxySettings proxySettings) {
+
+        this.proxySettings =
+                proxySettings;
+    }
     public String getLastSelectedRepository() {
         return lastSelectedRepository;
     }

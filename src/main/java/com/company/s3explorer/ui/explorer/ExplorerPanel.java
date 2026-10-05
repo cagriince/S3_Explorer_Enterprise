@@ -5603,4 +5603,8 @@ public class ExplorerPanel extends JPanel {
             });
         }
     }
+
+    public void openRepositoryManager() {
+        showRepositoryManager();
+    }
 }
