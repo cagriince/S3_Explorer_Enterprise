@@ -1,5 +1,7 @@
 package com.company.s3explorer.util;
 
+import com.company.s3explorer.config.ProxySettings;
+
 import java.io.InputStream;
 import java.net.*;
 import java.util.List;
@@ -7,20 +9,32 @@ import java.util.Locale;
 import java.util.Scanner;
 
 public class ProxyConfigurer {
-    public static void configureSystemProxies() {
+    public static void configureSystemProxies(ProxySettings proxySettings) {
         String osName = System.getProperty("os.name").toLowerCase(Locale.ENGLISH);
 
-        if (osName.contains("win")) {
-            configureWindowsProxies();
-        } else {
-            configureUnixProxies();
+        if (proxySettings.getMode().equals(ProxySettings.Mode.DO_NOT_USE_PROXY)) {
+            clearProxySettings();
+        }
+        else if (proxySettings.getMode().equals(ProxySettings.Mode.DO_NOT_USE_PROXY)) {
+            if (osName.contains("win")) {
+                configureWindowsProxies(proxySettings);
+            } else {
+                configureUnixProxies(proxySettings);
+            }
+        }
+        else if (proxySettings.getMode().equals(ProxySettings.Mode.MANUAL_PROXY_CONFIGURATION)) {
+            if (osName.contains("win")) {
+                setManuelProxy(proxySettings, convertToApacheNonProxyHosts(proxySettings.getNoProxy()));
+            } else {
+                setManuelProxy(proxySettings, convertNoProxyToJavaFormat(proxySettings.getNoProxy()));
+            }
         }
     }
 
     /**
      * WINDOWS: Windows Registry ve sistem seviyesindeki proxy ayarlarını çeker.
      */
-    private static void configureWindowsProxies() {
+    private static void configureWindowsProxies(ProxySettings proxySettings) {
         // 1. Native Windows proxy seçim mekanizmasını aktif et
         // Neden? java.net.useSystemProxies=true satırı Java'nın tüm TCP soket
         // kontrolünü Windows 11 WinINet sürücüsüne devreder. Bu satır silindiğinde
@@ -167,7 +181,7 @@ public class ProxyConfigurer {
     /**
      * LINUX / MACOS: Ortam değişkenlerini (http_proxy, NO_PROXY) okur ve dönüştürür.
      */
-    private static void configureUnixProxies() {
+    private static void configureUnixProxies(ProxySettings proxySettings) {
         // 1. HTTP / HTTPS Proxy
         String httpProxy = getEnvValue("http_proxy", "HTTP_PROXY");
         if (httpProxy != null && !httpProxy.isBlank()) {
@@ -186,6 +200,39 @@ public class ProxyConfigurer {
             System.setProperty("http.nonProxyHosts", javaNonProxy);
             System.out.println("[Unix Proxy] http.nonProxyHosts set edildi: " + javaNonProxy);
         }
+    }
+
+    private static void setManuelProxy(ProxySettings proxySettings, String noProxyStr) {
+        String[] httpProxyStrs = proxySettings.getHttpProxy().split(":");
+        String[] httpsProxyStrs = proxySettings.getHttpsProxy().split(":");
+        System.setProperty("http.proxyHost", httpProxyStrs[0]);
+        System.setProperty("http.proxyPort", (httpProxyStrs.length >= 2 ? httpProxyStrs[1] : "80"));
+        System.setProperty("https.proxyHost", httpsProxyStrs[0]);
+        System.setProperty("https.proxyPort", (httpsProxyStrs.length >= 2 ? httpsProxyStrs[1] : "443"));
+        if (proxySettings.getNoProxy() != null) {
+            System.setProperty("http.nonProxyHosts", noProxyStr);
+        }
+        if (proxySettings.isUseAuthentication()) {
+            Authenticator.setDefault(new Authenticator() {
+                @Override
+                protected PasswordAuthentication getPasswordAuthentication() {
+                    // Yalnızca PROXY türündeki istekler için kimlik doğrula
+                    if (getRequestorType() == RequestorType.PROXY) {
+                        return new PasswordAuthentication(proxySettings.getUsername(), proxySettings.getPassword().toCharArray());
+                    }
+                    return null;
+                }
+            });
+        }
+    }
+
+    private static void clearProxySettings() {
+        System.clearProperty("http.proxyHost");
+        System.clearProperty("http.proxyPort");
+        System.clearProperty("https.proxyHost");
+        System.clearProperty("https.proxyPort");
+        System.clearProperty("https.nonProxyHosts");
+        Authenticator.setDefault(null);
     }
 
     private static void setProxyUrlProperties(String proxyUrlString, String protocol) {

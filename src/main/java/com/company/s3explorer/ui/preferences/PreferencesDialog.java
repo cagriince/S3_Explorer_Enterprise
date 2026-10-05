@@ -2,6 +2,7 @@ package com.company.s3explorer.ui.preferences;
 
 import com.company.s3explorer.config.ApplicationSettings;
 import com.company.s3explorer.config.ProxySettings;
+import com.company.s3explorer.util.ProxyConfigurer;
 
 import javax.swing.*;
 import javax.swing.border.TitledBorder;
@@ -12,13 +13,26 @@ public class PreferencesDialog
 
     private final ApplicationSettings settings;
 
-    private JComboBox<ProxySettings.Mode> proxyModeComboBox;
+    private final ProxySettings proxySettings;
+
+    private JComboBox<ProxySettings.Mode>
+            proxyModeComboBox;
 
     private JPanel manualProxyPanel;
 
     private JTextField httpProxyField;
+
     private JTextField httpsProxyField;
+
     private JTextField noProxyField;
+
+    private JCheckBox useAuthenticationCheckBox;
+
+    private JPanel authenticationPanel;
+
+    private JTextField usernameField;
+
+    private JPasswordField passwordField;
 
     public PreferencesDialog(
             Window owner,
@@ -31,13 +45,17 @@ public class PreferencesDialog
 
         this.settings = settings;
 
+        this.proxySettings =
+                copyProxySettings(
+                        settings.getProxySettings());
+
         buildUI();
         loadSettings();
 
         setMinimumSize(
                 new Dimension(
                         600,
-                        400));
+                        300));
 
         setSize(
                 650,
@@ -63,7 +81,7 @@ public class PreferencesDialog
 
         contentPanel.add(
                 createPreferencesPanel(),
-                BorderLayout.CENTER);
+                BorderLayout.NORTH);
 
         contentPanel.add(
                 createButtonPanel(),
@@ -85,9 +103,6 @@ public class PreferencesDialog
 
         panel.add(
                 createProxySettingsPanel());
-
-        panel.add(
-                Box.createVerticalGlue());
 
         return panel;
     }
@@ -151,15 +166,13 @@ public class PreferencesDialog
         gbc.gridy = 1;
         gbc.gridwidth = 2;
         gbc.weightx = 1.0;
-        gbc.fill =
-                GridBagConstraints.HORIZONTAL;
 
         panel.add(
                 manualProxyPanel,
                 gbc);
 
         proxyModeComboBox.addActionListener(
-                e -> updateManualProxyVisibility());
+                e -> updateProxyVisibility());
 
         return panel;
     }
@@ -246,6 +259,101 @@ public class PreferencesDialog
                 noProxyField,
                 gbc);
 
+        useAuthenticationCheckBox =
+                new JCheckBox(
+                        "Use Authentication");
+
+        gbc.gridx = 0;
+        gbc.gridy = 3;
+        gbc.gridwidth = 2;
+        gbc.weightx = 1.0;
+
+        panel.add(
+                useAuthenticationCheckBox,
+                gbc);
+
+        authenticationPanel =
+                createAuthenticationPanel();
+
+        gbc.gridx = 0;
+        gbc.gridy = 4;
+        gbc.gridwidth = 2;
+        gbc.weightx = 1.0;
+
+        panel.add(
+                authenticationPanel,
+                gbc);
+
+        useAuthenticationCheckBox
+                .addActionListener(
+                        e ->
+                                updateAuthenticationVisibility());
+
+        return panel;
+    }
+
+    private JPanel createAuthenticationPanel() {
+
+        JPanel panel =
+                new JPanel(
+                        new GridBagLayout());
+
+        GridBagConstraints gbc =
+                new GridBagConstraints();
+
+        gbc.insets =
+                new Insets(
+                        5,
+                        5,
+                        5,
+                        5);
+
+        gbc.anchor =
+                GridBagConstraints.WEST;
+
+        gbc.fill =
+                GridBagConstraints.HORIZONTAL;
+
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.weightx = 0.0;
+
+        panel.add(
+                new JLabel(
+                        "Username:"),
+                gbc);
+
+        usernameField =
+                new JTextField();
+
+        gbc.gridx = 1;
+        gbc.gridy = 0;
+        gbc.weightx = 1.0;
+
+        panel.add(
+                usernameField,
+                gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        gbc.weightx = 0.0;
+
+        panel.add(
+                new JLabel(
+                        "Password:"),
+                gbc);
+
+        passwordField =
+                new JPasswordField();
+
+        gbc.gridx = 1;
+        gbc.gridy = 1;
+        gbc.weightx = 1.0;
+
+        panel.add(
+                passwordField,
+                gbc);
+
         return panel;
     }
 
@@ -263,35 +371,165 @@ public class PreferencesDialog
         cancelButton.addActionListener(
                 e -> dispose());
 
-        JButton okButton =
+        JButton saveButton =
                 new JButton(
-                        "OK");
+                        "Save");
 
-        okButton.addActionListener(
+        saveButton.addActionListener(
                 e -> saveSettings());
 
         panel.add(
                 cancelButton);
 
         panel.add(
-                okButton);
+                saveButton);
 
         return panel;
     }
 
-    private void loadSettings() {
+    private void saveSettings() {
 
-        ProxySettings proxySettings =
-                settings.getProxySettings();
+        ProxySettings.Mode mode =
+                (ProxySettings.Mode)
+                        proxyModeComboBox
+                                .getSelectedItem();
 
-        if (proxySettings == null) {
+        /*
+         * Manual proxy configuration seçildiyse
+         * Http Proxy veya Https Proxy alanlarından
+         * en az biri doldurulmuş olmalı.
+         */
+        if (mode
+                == ProxySettings.Mode
+                .MANUAL_PROXY_CONFIGURATION) {
 
-            proxySettings =
-                    new ProxySettings();
+            String httpProxy =
+                    httpProxyField
+                            .getText()
+                            .trim();
 
-            settings.setProxySettings(
-                    proxySettings);
+            String httpsProxy =
+                    httpsProxyField
+                            .getText()
+                            .trim();
+
+            if (httpProxy.isEmpty()
+                    && httpsProxy.isEmpty()) {
+
+                JOptionPane.showMessageDialog(
+                        this,
+                        "Please enter at least one of " +
+                                "Http Proxy or Https Proxy.",
+                        "Invalid Proxy Settings",
+                        JOptionPane.WARNING_MESSAGE);
+
+                if (httpProxy.isEmpty()) {
+                    httpProxyField.requestFocusInWindow();
+                } else {
+                    httpsProxyField.requestFocusInWindow();
+                }
+
+                return;
+            }
         }
+
+        /*
+         * Authentication seçildiyse Username ve Password
+         * alanlarının ikisi de doldurulmuş olmalı.
+         */
+        if (mode
+                == ProxySettings.Mode
+                .MANUAL_PROXY_CONFIGURATION
+                && useAuthenticationCheckBox.isSelected()) {
+
+            String username =
+                    usernameField
+                            .getText()
+                            .trim();
+
+            String password =
+                    new String(
+                            passwordField
+                                    .getPassword())
+                            .trim();
+
+            if (username.isEmpty()) {
+
+                JOptionPane.showMessageDialog(
+                        this,
+                        "Please enter a Username.",
+                        "Invalid Proxy Authentication",
+                        JOptionPane.WARNING_MESSAGE);
+
+                usernameField.requestFocusInWindow();
+
+                return;
+            }
+
+            if (password.isEmpty()) {
+
+                JOptionPane.showMessageDialog(
+                        this,
+                        "Please enter a Password.",
+                        "Invalid Proxy Authentication",
+                        JOptionPane.WARNING_MESSAGE);
+
+                passwordField.requestFocusInWindow();
+
+                return;
+            }
+        }
+
+        /*
+         * Validation başarılı.
+         * Artık geçici ProxySettings değerlerini
+         * güncelliyoruz.
+         */
+        proxySettings.setMode(
+                mode);
+
+        proxySettings.setHttpProxy(
+                httpProxyField
+                        .getText()
+                        .trim());
+
+        proxySettings.setHttpsProxy(
+                httpsProxyField
+                        .getText()
+                        .trim());
+
+        proxySettings.setNoProxy(
+                noProxyField
+                        .getText()
+                        .trim());
+
+        proxySettings.setUseAuthentication(
+                useAuthenticationCheckBox
+                        .isSelected());
+
+        proxySettings.setUsername(
+                usernameField
+                        .getText()
+                        .trim());
+
+        proxySettings.setPassword(
+                new String(
+                        passwordField
+                                .getPassword()));
+
+        /*
+         * Sadece başarılı Save sonrasında
+         * gerçek ApplicationSettings değiştirilir.
+         */
+        settings.setProxySettings(
+                copyProxySettings(
+                        proxySettings));
+
+        ProxyConfigurer.configureSystemProxies(proxySettings);
+        dispose();
+    }
+
+    private void loadSettings() {
 
         proxyModeComboBox.setSelectedItem(
                 proxySettings.getMode());
@@ -308,10 +546,21 @@ public class PreferencesDialog
                 valueOrEmpty(
                         proxySettings.getNoProxy()));
 
-        updateManualProxyVisibility();
+        useAuthenticationCheckBox.setSelected(
+                proxySettings.isUseAuthentication());
+
+        usernameField.setText(
+                valueOrEmpty(
+                        proxySettings.getUsername()));
+
+        passwordField.setText(
+                valueOrEmpty(
+                        proxySettings.getPassword()));
+
+        updateProxyVisibility();
     }
 
-    private void updateManualProxyVisibility() {
+    private void updateProxyVisibility() {
 
         boolean manual =
                 proxyModeComboBox.getSelectedItem()
@@ -321,8 +570,36 @@ public class PreferencesDialog
         manualProxyPanel.setVisible(
                 manual);
 
-        manualProxyPanel.revalidate();
-        manualProxyPanel.repaint();
+        if (!manual) {
+
+            useAuthenticationCheckBox
+                    .setSelected(false);
+        }
+
+        updateAuthenticationVisibility();
+
+        refreshDialog();
+    }
+
+    private void updateAuthenticationVisibility() {
+
+        boolean visible =
+                proxyModeComboBox.getSelectedItem()
+                        == ProxySettings.Mode
+                        .MANUAL_PROXY_CONFIGURATION
+                        && useAuthenticationCheckBox
+                        .isSelected();
+
+        authenticationPanel.setVisible(
+                visible);
+
+        refreshDialog();
+    }
+
+    private void refreshDialog() {
+
+        revalidate();
+        repaint();
 
         pack();
 
@@ -330,37 +607,43 @@ public class PreferencesDialog
                 new Dimension(
                         600,
                         300));
+
+        setLocationRelativeTo(
+                getOwner());
     }
 
-    private void saveSettings() {
+    private ProxySettings copyProxySettings(
+            ProxySettings source) {
 
-        ProxySettings proxySettings =
-                settings.getProxySettings();
+        ProxySettings copy =
+                new ProxySettings();
 
-        if (proxySettings == null) {
-
-            proxySettings =
-                    new ProxySettings();
-
-            settings.setProxySettings(
-                    proxySettings);
+        if (source == null) {
+            return copy;
         }
 
-        proxySettings.setMode(
-                (ProxySettings.Mode)
-                        proxyModeComboBox
-                                .getSelectedItem());
+        copy.setMode(
+                source.getMode());
 
-        proxySettings.setHttpProxy(
-                httpProxyField.getText().trim());
+        copy.setHttpProxy(
+                source.getHttpProxy());
 
-        proxySettings.setHttpsProxy(
-                httpsProxyField.getText().trim());
+        copy.setHttpsProxy(
+                source.getHttpsProxy());
 
-        proxySettings.setNoProxy(
-                noProxyField.getText().trim());
+        copy.setNoProxy(
+                source.getNoProxy());
 
-        dispose();
+        copy.setUseAuthentication(
+                source.isUseAuthentication());
+
+        copy.setUsername(
+                source.getUsername());
+
+        copy.setPassword(
+                source.getPassword());
+
+        return copy;
     }
 
     private String valueOrEmpty(

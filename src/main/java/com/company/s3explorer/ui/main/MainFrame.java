@@ -7,13 +7,11 @@ import com.company.s3explorer.repository.RepositoryManager;
 import com.company.s3explorer.service.S3ClientFactory;
 import com.company.s3explorer.service.S3ClientManager;
 import com.company.s3explorer.transfer.TransferEngine;
-import com.company.s3explorer.transfer.event.TransferEventBus;
-import com.company.s3explorer.transfer.manager.TransferManager;
-import com.company.s3explorer.transfer.producer.ProducerExecutor;
-import com.company.s3explorer.transfer.queue.TransferQueue;
 import com.company.s3explorer.ui.explorer.ExplorerPanel;
+import com.company.s3explorer.ui.preferences.PreferencesDialog;
 import com.company.s3explorer.ui.theme.UIThemeManager;
 import com.company.s3explorer.ui.transfer.TransferPanel;
+import com.company.s3explorer.util.ProxyConfigurer;
 
 import javax.swing.*;
 import java.awt.*;
@@ -38,17 +36,7 @@ public class MainFrame extends JFrame {
 
     private void initialize() {
         loadSettings();
-/*        settings = settingsStore.load();
-        String lastSelectedTheme = settings.getLastSelectedTheme();
-        if (lastSelectedTheme != null) {
-            try {
-                UIManager.setLookAndFeel(UIThemeManager.getThemeClass(UIThemeManager.UIThemeConst.valueOf(lastSelectedTheme)));
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-            IconProvider.reloadSystemIcons();
-        }*/
-
+        ProxyConfigurer.configureSystemProxies(settings.getProxySettings());
         buildDependencies();
         buildUI();
 
@@ -232,12 +220,18 @@ public class MainFrame extends JFrame {
                 new JMenuItem("Preferences");
 
         preferencesItem.addActionListener(
-                e ->
-                        JOptionPane.showMessageDialog(
-                                this,
-                                "Preferences",
-                                "Preferences",
-                                JOptionPane.INFORMATION_MESSAGE));
+                e -> {
+
+                    PreferencesDialog dialog =
+                            new PreferencesDialog(
+                                    this,
+                                    settings);
+
+                    dialog.setVisible(true);
+
+                    settingsStore.save(
+                            settings);
+                });
 
         settingsMenu.add(
                 preferencesItem);

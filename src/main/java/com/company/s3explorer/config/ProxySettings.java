@@ -34,6 +34,12 @@ public class ProxySettings {
 
     private String noProxy;
 
+    private boolean useAuthentication;
+
+    private String username;
+
+    private String password;
+
     public Mode getMode() {
         return mode;
     }
@@ -64,5 +70,36 @@ public class ProxySettings {
 
     public void setNoProxy(String noProxy) {
         this.noProxy = noProxy;
+    }
+
+    public boolean isUseAuthentication() {
+        return useAuthentication;
+    }
+
+    public void setUseAuthentication(
+            boolean useAuthentication) {
+
+        this.useAuthentication =
+                useAuthentication;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(
+            String username) {
+
+        this.username = username;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(
+            String password) {
+
+        this.password = password;
     }
 }
