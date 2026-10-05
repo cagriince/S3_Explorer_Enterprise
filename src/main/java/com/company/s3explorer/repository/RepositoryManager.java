@@ -87,7 +87,7 @@ public class RepositoryManager {
             throw new IllegalArgumentException(
                     "Repository must not be null");
         }
-
+/*
         String newName =
                 newRepo.getName() == null
                         ? ""
@@ -96,23 +96,22 @@ public class RepositoryManager {
         if (newName.isEmpty()) {
             throw new IllegalArgumentException(
                     "Repository name must not be empty");
-        }
+        }*/
 
-        boolean nameExists =
+        boolean repositoryExists =
                 repositories.stream()
                         .anyMatch(repository ->
                                 !repository.equals(oldRepo)
-                                        && newName.equals(
-                                        repository.getName()));
+                                        && repository.equals(newRepo));
 
-        if (nameExists) {
+        if (repositoryExists) {
             throw new IllegalArgumentException(
-                    "A repository with the name \""
-                            + newName
+                    "A repository with the name and environment \""
+                            + newRepo.getId()
                             + "\" already exists.");
         }
 
-        newRepo.setName(newName);
+        //newRepo.setName(newName);
 
         int idx =
                 repositories.indexOf(oldRepo);
@@ -130,18 +129,18 @@ public class RepositoryManager {
         }
     }
     
-    public RepositoryDefinition findByName(
-            String name) {
+    public RepositoryDefinition findById(
+            String id) {
 
-        if (name == null) {
+        if (id == null) {
             return null;
         }
 
         RepositoryDefinition repository =
                 repositories.stream()
                         .filter(r ->
-                                name.equals(
-                                        r.getName()))
+                                id.equals(
+                                        r.getId()))
                         .findFirst()
                         .orElse(null);
 
@@ -168,24 +167,25 @@ public class RepositoryManager {
         String name =
                 newName.trim();
 
-        boolean nameExists =
+        boolean repositoryExists =
                 repositories.stream()
                         .anyMatch(repository ->
-                                name.equals(
-                                        repository.getName()));
+                                newName.equals(
+                                        repository.getName())
+                                        && source.getEnvironment().equals(repository.getEnvironment()));
 
-        if (nameExists) {
+        if (repositoryExists) {
             throw new IllegalArgumentException(
-                    "A repository with the name \""
-                            + name
+                    "A repository with the name and environment \""
+                            + newName
+                            + " - "
+                            + source.getEnvironment()
                             + "\" already exists.");
         }
 
         RepositoryDefinition duplicate =
-                new RepositoryDefinition();
+                new RepositoryDefinition(name, source.getEnvironment());
 
-        duplicate.setName(name);
-        duplicate.setEnvironment(source.getEnvironment());
         duplicate.setEndpoint(
                 source.getEndpoint());
         duplicate.setAccessKey(

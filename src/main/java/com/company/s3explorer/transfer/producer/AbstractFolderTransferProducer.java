@@ -18,7 +18,7 @@ public abstract class AbstractFolderTransferProducer
     protected final TransferContext context;
     protected final TransferQueue queue;
 
-    protected final String repository;
+    protected final String repositoryId;
     protected final String bucket;
     protected final String prefix;
 
@@ -44,14 +44,14 @@ public abstract class AbstractFolderTransferProducer
     protected AbstractFolderTransferProducer(
             TransferContext context,
             TransferQueue queue,
-            String repository,
+            String repositoryId,
             String bucket,
             String prefix) {
 
         this(
                 context,
                 queue,
-                repository,
+                repositoryId,
                 bucket,
                 prefix,
                 null);
@@ -63,7 +63,7 @@ public abstract class AbstractFolderTransferProducer
     protected AbstractFolderTransferProducer(
             TransferContext context,
             TransferQueue queue,
-            String repository,
+            String repositoryId,
             String bucket,
             String prefix,
             TransferGroup externalGroup) {
@@ -71,7 +71,7 @@ public abstract class AbstractFolderTransferProducer
         this.context = context;
         this.queue = queue;
 
-        this.repository = repository;
+        this.repositoryId = repositoryId;
         this.bucket = bucket;
         this.prefix = prefix;
 
@@ -98,7 +98,7 @@ public abstract class AbstractFolderTransferProducer
 
         try {
 
-            context.getService(repository)
+            context.getService(repositoryId)
                     .forEachObject(
                             bucket,
                             prefix,
@@ -243,7 +243,7 @@ public abstract class AbstractFolderTransferProducer
 
         context.publishGroupUpdated(
                 group,
-                repository,
+                repositoryId,
                 bucket,
                 prefix,
                 group.getOperation() == TransferType.MOVE || group.getOperation() == TransferType.MOVE_GROUP || group.getOperation() == TransferType.RENAME || group.getOperation() == TransferType.RENAME_GROUP);

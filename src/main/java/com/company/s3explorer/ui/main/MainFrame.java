@@ -75,7 +75,7 @@ public class MainFrame extends JFrame {
         String lastSelectedRepository = settings.getLastSelectedRepository();
         String lastSelectedBucket = settings.getLastSelectedBucket();
         SwingUtilities.invokeLater(() -> {
-                explorerPanel.selectRepository(repositoryManager.findByName(lastSelectedRepository));
+                explorerPanel.selectRepository(repositoryManager.findById(lastSelectedRepository));
                 explorerPanel.selectBucket(lastSelectedBucket);
             }
         );
@@ -101,7 +101,7 @@ public class MainFrame extends JFrame {
 
         explorerPanel.setRepositorySelectionListener(
                 repository -> {
-                    settings.setLastSelectedRepository(repository.getName());
+                    settings.setLastSelectedRepository(repository.getId());
                     settings.setLastSelectedBucket(null);
                     settingsStore.save(settings);
                     //explorerPanel.updateActionStates();
@@ -175,7 +175,7 @@ public class MainFrame extends JFrame {
         settings.setWindowX(getX());
         settings.setWindowY(getY());
 
-        settings.setLastSelectedRepository(activeRepositoryContext.getActiveRepository() != null ? activeRepositoryContext.getActiveRepository().getName() : null);
+        settings.setLastSelectedRepository(activeRepositoryContext.getActiveRepository() != null ? activeRepositoryContext.getActiveRepository().getId() : null);
 
         settingsStore.save(settings);
     }

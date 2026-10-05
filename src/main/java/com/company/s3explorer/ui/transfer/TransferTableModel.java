@@ -8,7 +8,6 @@ import com.company.s3explorer.util.DateFormatter;
 import com.company.s3explorer.util.S3Util;
 
 import javax.swing.table.AbstractTableModel;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -92,10 +91,10 @@ public class TransferTableModel
                             task.getGroup() != null
                                     ? task.getGroup().getDisplayName()
                                     : null,
-                            task.getRepositoryName(),
+                            task.getRepositoryId(),
                             task.getBucket(),
                             task.getObjectKey(),
-                            task.getTargetRepositoryName(),
+                            task.getTargetRepositoryId(),
                             task.getTargetBucket(),
                             task.getTargetObjectKey(),
                             task.getLocalPath());

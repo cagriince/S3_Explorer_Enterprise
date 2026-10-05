@@ -8,7 +8,7 @@ public class S3FileItem {
 
     public static String PARENT_FOLDER_NAME = "..";
 
-    private final String repositoryName;
+    private final String repositoryId;
     private final String bucket;
     private final String key;
     private final long size;
@@ -17,7 +17,7 @@ public class S3FileItem {
     private final boolean folder;
 
     public S3FileItem(
-            String repositoryName,
+            String repositoryId,
             String bucket,
             String key,
             long size,
@@ -25,7 +25,7 @@ public class S3FileItem {
             String storageClass,
             boolean folder) {
 
-        this.repositoryName = repositoryName;
+        this.repositoryId = repositoryId;
         this.bucket = bucket;
         this.key = key;
         this.size = size;
@@ -34,8 +34,8 @@ public class S3FileItem {
         this.folder = folder;
     }
 
-    public String getRepositoryName() {
-        return repositoryName;
+    public String getRepositoryId() {
+        return repositoryId;
     }
 
     public String getBucket() {

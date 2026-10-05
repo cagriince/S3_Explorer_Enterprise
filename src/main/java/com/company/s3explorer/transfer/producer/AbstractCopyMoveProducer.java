@@ -10,7 +10,7 @@ import software.amazon.awssdk.services.s3.model.S3Object;
 public abstract class AbstractCopyMoveProducer
         extends AbstractFolderTransferProducer {
 
-    protected final String targetRepository;
+    protected final String targetRepositoryId;
     protected final String targetBucket;
     protected final String targetPrefix;
 
@@ -24,10 +24,10 @@ public abstract class AbstractCopyMoveProducer
     protected AbstractCopyMoveProducer(
             TransferContext context,
             TransferQueue queue,
-            String repository,
+            String repositoryId,
             String bucket,
             String prefix,
-            String targetRepository,
+            String targetRepositoryId,
             String targetBucket,
             String targetPrefix,
             boolean sourceRefreshRequired) {
@@ -35,10 +35,10 @@ public abstract class AbstractCopyMoveProducer
         this(
                 context,
                 queue,
-                repository,
+                repositoryId,
                 bucket,
                 prefix,
-                targetRepository,
+                targetRepositoryId,
                 targetBucket,
                 targetPrefix,
                 null,
@@ -52,10 +52,10 @@ public abstract class AbstractCopyMoveProducer
     protected AbstractCopyMoveProducer(
             TransferContext context,
             TransferQueue queue,
-            String repository,
+            String repositoryId,
             String bucket,
             String prefix,
-            String targetRepository,
+            String targetRepositoryId,
             String targetBucket,
             String targetPrefix,
             TransferGroup externalGroup,
@@ -64,12 +64,12 @@ public abstract class AbstractCopyMoveProducer
         super(
                 context,
                 queue,
-                repository,
+                repositoryId,
                 bucket,
                 prefix,
                 externalGroup);
 
-        this.targetRepository = targetRepository;
+        this.targetRepositoryId = targetRepositoryId;
         this.targetBucket = targetBucket;
         this.targetPrefix = targetPrefix;
 

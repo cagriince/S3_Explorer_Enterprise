@@ -2,9 +2,6 @@ package com.company.s3explorer.transfer.operation;
 
 import com.company.s3explorer.transfer.TransferRuntime;
 import com.company.s3explorer.transfer.context.TransferContext;
-import com.company.s3explorer.transfer.model.TransferTask;
-
-import java.util.concurrent.CancellationException;
 
 public class UploadOperation extends AbstractTransferOperation {
 
@@ -25,7 +22,7 @@ public class UploadOperation extends AbstractTransferOperation {
                 transferContext
                         .getService(
                                 runtime.getTask()
-                                        .getTargetRepositoryName())
+                                        .getTargetRepositoryId())
                         .uploadEncryptedFile(
                                 runtime.getTask()
                                         .getTargetBucket(),
@@ -45,7 +42,7 @@ public class UploadOperation extends AbstractTransferOperation {
                 transferContext
                         .getService(
                                 runtime.getTask()
-                                        .getTargetRepositoryName())
+                                        .getTargetRepositoryId())
                         .uploadFile(
                                 runtime.getTask()
                                         .getTargetBucket(),

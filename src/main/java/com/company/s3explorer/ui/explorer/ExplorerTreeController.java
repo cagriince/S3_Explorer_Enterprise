@@ -1465,10 +1465,15 @@ public final class ExplorerTreeController {
         List<String> sortedFolders =
                 new ArrayList<>(folders);
 
-        sortedFolders.sort(
+        sortedFolders.sort((left, right) ->
+                S3Util.naturalTurkishCompare(
+                        S3Util.extractFolderName(left),
+                        S3Util.extractFolderName(right),
+                        collator));
+/*        sortedFolders.sort(
                 Comparator.comparing(
                         S3Util::extractFolderName,
-                        collator));
+                        collator));*/
 
         return sortedFolders;
     }
@@ -1507,12 +1512,16 @@ public final class ExplorerTreeController {
                 continue;
             }
 
+            if (S3Util.naturalTurkishCompare(newName, existing.toString(), collator) < 0) {
+                return i;
+            }
+/*
             if (collator.compare(
                     newName,
                     existing.toString()) < 0) {
 
                 return i;
-            }
+            }*/
         }
 
         return parentNode.getChildCount();

@@ -3,7 +3,6 @@ package com.company.s3explorer.ui.explorer;
 import com.company.s3explorer.transfer.TransferType;
 import com.company.s3explorer.transfer.manager.TransferManager;
 import com.company.s3explorer.transfer.model.TransferGroup;
-import com.company.s3explorer.transfer.model.TransferTask;
 import com.company.s3explorer.util.S3Util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -188,7 +187,7 @@ public class ExplorerDeleteController {
                 items.getFirst();
 
         String repositoryName =
-                firstItem.getRepositoryName();
+                firstItem.getRepositoryId();
 
         String bucket =
                 currentBucketSupplier.get();

@@ -14,8 +14,8 @@ public class MoveOperation extends AbstractTransferOperation {
         TransferTask task =
                 runtime.getTask();
 
-        if (task.getRepositoryName()
-                .equals(task.getTargetRepositoryName())) {
+        if (task.getRepositoryId()
+                .equals(task.getTargetRepositoryId())) {
 
             updateProgressPercent(
                     runtime,
@@ -28,7 +28,7 @@ public class MoveOperation extends AbstractTransferOperation {
 
                     transferContext
                             .getService(
-                                    task.getRepositoryName())
+                                    task.getRepositoryId())
                             .copyObjectOverwrite(
                                     task.getBucket(),
                                     task.getObjectKey(),
@@ -39,7 +39,7 @@ public class MoveOperation extends AbstractTransferOperation {
 
                     transferContext
                             .getService(
-                                    task.getRepositoryName())
+                                    task.getRepositoryId())
                             .copyObject(
                                     task.getBucket(),
                                     task.getObjectKey(),
@@ -54,7 +54,7 @@ public class MoveOperation extends AbstractTransferOperation {
 
                 transferContext
                         .getService(
-                                task.getRepositoryName())
+                                task.getRepositoryId())
                         .deleteObject(
                                 task.getBucket(),
                                 task.getObjectKey());
@@ -79,13 +79,13 @@ public class MoveOperation extends AbstractTransferOperation {
 
                 transferContext
                         .getService(
-                                task.getRepositoryName())
+                                task.getRepositoryId())
                         .copyObjectBetweenRepositories(
                                 task.getBucket(),
                                 task.getObjectKey(),
                                 transferContext
                                         .getService(
-                                                task.getTargetRepositoryName())
+                                                task.getTargetRepositoryId())
                                         .getClient(),
                                 task.getTargetBucket(),
                                 task.getTargetObjectKey(),
@@ -100,7 +100,7 @@ public class MoveOperation extends AbstractTransferOperation {
 
                 transferContext
                         .getService(
-                                task.getRepositoryName())
+                                task.getRepositoryId())
                         .deleteObject(
                                 task.getBucket(),
                                 task.getObjectKey());

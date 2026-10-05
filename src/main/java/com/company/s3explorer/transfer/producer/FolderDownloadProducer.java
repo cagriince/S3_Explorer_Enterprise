@@ -19,7 +19,7 @@ public class FolderDownloadProducer
     public FolderDownloadProducer(
             TransferContext context,
             TransferQueue queue,
-            String repository,
+            String repositoryId,
             String bucket,
             String prefix,
             Path localFolder,
@@ -28,7 +28,7 @@ public class FolderDownloadProducer
         super(
                 context,
                 queue,
-                repository,
+                repositoryId,
                 bucket,
                 prefix);
 
@@ -39,7 +39,7 @@ public class FolderDownloadProducer
     public FolderDownloadProducer(
             TransferContext context,
             TransferQueue queue,
-            String repository,
+            String repositoryId,
             String bucket,
             String prefix,
             Path localFolder,
@@ -49,7 +49,7 @@ public class FolderDownloadProducer
         super(
                 context,
                 queue,
-                repository,
+                repositoryId,
                 bucket,
                 prefix,
                 group);
@@ -74,7 +74,7 @@ public class FolderDownloadProducer
                                         .substring(prefix.length()));
 
         return TransferTask.download()
-                .repositoryName(repository)
+                .repositoryId(repositoryId)
                 .bucket(bucket)
                 .objectKey(object.key())
                 .localPath(target)

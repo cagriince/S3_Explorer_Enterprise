@@ -24,10 +24,10 @@ public class TransferContext {
     }
 
     public S3ExplorerService getService(
-            String repositoryName) {
+            String repositoryId) {
 
         return new S3ExplorerService(
-                clientManager.getClient(repositoryName));
+                clientManager.getClient(repositoryId));
     }
 
     public void publish(
@@ -103,14 +103,14 @@ public class TransferContext {
 
     public void publishGroupUpdated(
             TransferGroup group,
-            String repository,
+            String repositoryId,
             String bucket,
             String prefix,
             boolean sourceRefreshRequired) {
 
         eventBus.publishGroupUpdated(
                 group,
-                repository,
+                repositoryId,
                 bucket,
                 prefix,
                 sourceRefreshRequired);
@@ -118,14 +118,14 @@ public class TransferContext {
     
     public void publishGroupCompleted(
             TransferGroup group,
-            String repository,
+            String repositoryId,
             String bucket,
             String prefix,
             boolean sourceRefreshRequired) {
 
         eventBus.publishGroupCompleted(
                 group,
-                repository,
+                repositoryId,
                 bucket,
                 prefix,
                 sourceRefreshRequired);

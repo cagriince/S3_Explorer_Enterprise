@@ -394,7 +394,7 @@ public class ExplorerPanel extends JPanel {
 
                             return repository == null
                                     ? null
-                                    : repository.getName();
+                                    : repository.getId();
                         },
                         this::getCurrentBucket);
 
@@ -548,15 +548,17 @@ public class ExplorerPanel extends JPanel {
                     Collator turkishCollator =
                             Collator.getInstance(
                                     new Locale("tr", "TR"));
-
                     turkishCollator.setStrength(
                             Collator.PRIMARY);
 
                     repositories.sort(
                             (first, second) ->
-                                    turkishCollator.compare(
-                                            first.getName(),
-                                            second.getName()));
+                                    S3Util.naturalTurkishCompare(
+                                            first.getId(),
+                                            second.getId(),
+                                            turkishCollator
+                                    )
+                    );
 
                     repositories.forEach(
                             view.getRepositoryCombo()::addItem);
@@ -621,8 +623,8 @@ public class ExplorerPanel extends JPanel {
                  * değişiklikleri burada görülecek.
                  */
                 RepositoryDefinition repository =
-                        repositoryManager.findByName(
-                                selectedRepository.getName());
+                        repositoryManager.findById(
+                                selectedRepository.getId());
 
                 if (repository == null
                         || repository ==
@@ -630,14 +632,14 @@ public class ExplorerPanel extends JPanel {
 
                     log.warn(
                             "[BUCKET LOAD] repository not found: {}",
-                            selectedRepository.getName());
+                            selectedRepository.getId());
 
                     return;
                 }
 
                 log.debug(
                         "[BUCKET LOAD START] repository={} previousBucket={} externalBuckets={}",
-                        repository.getName(),
+                        repository.getId(),
                         previousBucket,
                         repository.getExternalBuckets());
 
@@ -721,7 +723,12 @@ public class ExplorerPanel extends JPanel {
                                 Collator.PRIMARY);
 
                         sortedBuckets.sort(
-                                turkishCollator);
+                                (first, second) ->
+                                        turkishCollator.compare(
+                                                first,
+                                                second));
+                        /*sortedBuckets.sort(
+                                turkishCollator);*/
 
                         for (String bucket :
                                 sortedBuckets) {
@@ -755,7 +762,7 @@ public class ExplorerPanel extends JPanel {
 
                         log.debug(
                                 "[BUCKET LOAD RESULT] repository={} buckets={} previous={} selected={}",
-                                repository.getName(),
+                                repository.getId(),
                                 allBuckets,
                                 previousBucket,
                                 selectedBucket);
@@ -1712,8 +1719,8 @@ public class ExplorerPanel extends JPanel {
             return;
         }
 
-        String repositoryName =
-                this.getCurrentRepository().getName();
+        String repositoryId =
+                this.getCurrentRepository().getId();
 
         String prefix =
                 getCurrentPrefix();
@@ -1740,7 +1747,7 @@ public class ExplorerPanel extends JPanel {
             try {
 
                 transferManager.submitCreateFolder(
-                        repositoryName,
+                        repositoryId,
                         bucket,
                         folderKey,
                         folderKey);
@@ -1766,8 +1773,8 @@ public class ExplorerPanel extends JPanel {
 
     private void uploadFile() {
 
-        String repositoryName =
-                this.getCurrentRepository().getName();
+        String repositoryId =
+                this.getCurrentRepository().getId();
 
         String bucket =
                 this.getCurrentBucket();
@@ -1832,7 +1839,7 @@ public class ExplorerPanel extends JPanel {
                             file.getParentFile();
 
                     transferManager.submitUpload(
-                            repositoryName,
+                            repositoryId,
                             bucket,
                             objectKey,
                             file.toPath(),
@@ -1865,7 +1872,7 @@ public class ExplorerPanel extends JPanel {
                             file;
 
                     transferManager.submitFolderUpload(
-                            repositoryName,
+                            repositoryId,
                             bucket,
                             prefix,
                             file.toPath());
@@ -1893,8 +1900,8 @@ public class ExplorerPanel extends JPanel {
 
     private void uploadFileEncrypted() {
 
-        String repositoryName =
-                this.getCurrentRepository().getName();
+        String repositoryId =
+                this.getCurrentRepository().getId();
 
         String bucket =
                 this.getCurrentBucket();
@@ -1953,7 +1960,7 @@ public class ExplorerPanel extends JPanel {
                         file.getParentFile();
 
                 transferManager.submitUploadEncrypted(
-                        repositoryName,
+                        repositoryId,
                         bucket,
                         objectKey,
                         file.toPath(),
@@ -2350,7 +2357,7 @@ public class ExplorerPanel extends JPanel {
 
                         S3FileItem item =
                                 new S3FileItem(
-                                        task.getTargetRepositoryName(),
+                                        task.getTargetRepositoryId(),
                                         targetBucket,
                                         targetKey,
                                         task.getSize(),
@@ -2693,7 +2700,7 @@ public class ExplorerPanel extends JPanel {
 
                                 S3FileItem renamedItem =
                                         new S3FileItem(
-                                                sourceItem.getRepositoryName(),
+                                                sourceItem.getRepositoryId(),
                                                 targetBucket,
                                                 targetKey,
                                                 sourceItem.getSize(),
@@ -3593,8 +3600,8 @@ public class ExplorerPanel extends JPanel {
         S3FileItem firstItem =
                 items.getFirst();
 
-        String repositoryName =
-                firstItem.getRepositoryName();
+        String repositoryId =
+                firstItem.getRepositoryId();
 
         String bucket =
                 getCurrentBucket();
@@ -3602,7 +3609,7 @@ public class ExplorerPanel extends JPanel {
         String sourcePrefix =
                 getCurrentPrefix();
 
-        if (repositoryName == null
+        if (repositoryId == null
                 || bucket == null
                 || sourcePrefix == null) {
             return;
@@ -3610,7 +3617,7 @@ public class ExplorerPanel extends JPanel {
 
         TransferGroup group =
                 transferManager.createDownloadGroup(
-                        repositoryName,
+                        repositoryId,
                         bucket,
                         sourcePrefix,
                         getOperationGroupName(items),
@@ -3718,8 +3725,8 @@ public class ExplorerPanel extends JPanel {
         S3FileItem firstItem =
                 items.getFirst();
 
-        String repositoryName =
-                firstItem.getRepositoryName();
+        String repositoryId =
+                firstItem.getRepositoryId();
 
         String bucket =
                 getCurrentBucket();
@@ -3727,7 +3734,7 @@ public class ExplorerPanel extends JPanel {
         String sourcePrefix =
                 getCurrentPrefix();
 
-        if (repositoryName == null
+        if (repositoryId == null
                 || bucket == null
                 || sourcePrefix == null) {
             return;
@@ -3735,7 +3742,7 @@ public class ExplorerPanel extends JPanel {
 
         TransferGroup group =
                 transferManager.createDownloadGroup(
-                        repositoryName,
+                        repositoryId,
                         bucket,
                         sourcePrefix,
                         getOperationGroupName(items),
@@ -3914,14 +3921,14 @@ public class ExplorerPanel extends JPanel {
             RepositoryDefinition changedRepository) {
 
         if (changedRepository == null
-                || changedRepository.getName() == null) {
+                || changedRepository.getId() == null) {
             return;
         }
 
         SwingUtilities.invokeLater(() -> {
 
-            String changedName =
-                    changedRepository.getName();
+            String changedId =
+                    changedRepository.getId();
 
             int index = -1;
 
@@ -3934,8 +3941,8 @@ public class ExplorerPanel extends JPanel {
 
                 if (item != null
                         && Objects.equals(
-                        item.getName(),
-                        changedName)) {
+                        item.getId(),
+                        changedId)) {
 
                     index = i;
                     break;
@@ -3952,8 +3959,8 @@ public class ExplorerPanel extends JPanel {
             boolean wasActive =
                     activeRepository != null
                             && Objects.equals(
-                            activeRepository.getName(),
-                            changedName);
+                            activeRepository.getId(),
+                            changedId);
 
             view.getRepositoryCombo().removeItemAt(index);
             view.getRepositoryCombo().insertItemAt(
@@ -4084,7 +4091,7 @@ public class ExplorerPanel extends JPanel {
             rows.add(
                     new S3FileItem(
                             this.getCurrentRepository()
-                                    .getName(),
+                                    .getId(),
                             bucket,
                             prefix
                                     + S3FileItem
@@ -4108,7 +4115,7 @@ public class ExplorerPanel extends JPanel {
                         .map(folder ->
                                 new S3FileItem(
                                         this.getCurrentRepository()
-                                                .getName(),
+                                                .getId(),
                                         bucket,
                                         folder,
                                         0,
@@ -4134,7 +4141,7 @@ public class ExplorerPanel extends JPanel {
                         .map(object ->
                                 new S3FileItem(
                                         this.getCurrentRepository()
-                                                .getName(),
+                                                .getId(),
                                         bucket,
                                         object.key(),
                                         object.size(),
@@ -5046,7 +5053,7 @@ public class ExplorerPanel extends JPanel {
         BulkDownloadDialog dialog =
                 new BulkDownloadDialog(
                         SwingUtilities.getWindowAncestor(this),
-                        repository.getName(),
+                        repository.getId(),
                         bucket,
                         hasEncryptionConfiguration());
 
@@ -5090,14 +5097,14 @@ public class ExplorerPanel extends JPanel {
         lastOpenedFolderToDownload =
                 destinationFolder;
 
-        String repositoryName =
-                repository.getName();
+        String repositoryId =
+                repository.getId();
 
         if (dialog.getResult()
                 == BulkDownloadDialog.Result.DOWNLOAD_DECRYPTED) {
 
             transferManager.submitBulkDownloadDecrypted(
-                    repositoryName,
+                    repositoryId,
                     bucket,
                     objectKeys,
                     destinationFolder.toPath(),
@@ -5106,7 +5113,7 @@ public class ExplorerPanel extends JPanel {
         } else {
 
             transferManager.submitBulkDownload(
-                    repositoryName,
+                    repositoryId,
                     bucket,
                     objectKeys,
                     destinationFolder.toPath());
@@ -5158,7 +5165,7 @@ public class ExplorerPanel extends JPanel {
 
         S3FileItem item =
                 new S3FileItem(
-                        repository.getName(),
+                        repository.getId(),
                         bucket,
                         folderKey,
                         0L,
@@ -5422,7 +5429,7 @@ public class ExplorerPanel extends JPanel {
 
         S3FileItem item =
                 new S3FileItem(
-                        repository.getName(),
+                        repository.getId(),
                         bucket,
                         objectKey,
                         size,
@@ -5519,7 +5526,7 @@ public class ExplorerPanel extends JPanel {
 
         S3FileItem item =
                 new S3FileItem(
-                        task.getTargetRepositoryName(),
+                        task.getTargetRepositoryId(),
                         bucket,
                         objectKey,
                         task.getSize(),

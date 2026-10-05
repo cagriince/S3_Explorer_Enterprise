@@ -9,10 +9,11 @@ import java.util.Objects;
 public class RepositoryDefinition {
 
     public static final RepositoryDefinition EMPTY_REPOSITORY =
-            new RepositoryDefinition(null, null, null, null);
+            new RepositoryDefinition(null, null);
 
     private List<String> externalBuckets = new ArrayList<>();
 
+    private String id;
     private String name;
     private RepositoryEnvironment environment;
     private String endpoint;
@@ -27,35 +28,43 @@ public class RepositoryDefinition {
 
     public RepositoryDefinition(
             String name,
-            String endpoint,
-            String accessKey,
-            String secretKey) {
+            RepositoryEnvironment environment) {
 
+        this.id = this.generateId(name, environment);
         this.name = name;
-        this.endpoint = endpoint;
-        this.accessKey = accessKey;
-        this.secretKey = secretKey;
+        this.environment = environment;
+    }
+
+    public String getId() {
+        return id;
+    }
+
+    private String generateId(String name, RepositoryEnvironment environment) {
+        String nameStr = name != null ? name : "";
+        String environmentStr = environment != null ? environment.toString() : "";
+        return nameStr + (!nameStr.isEmpty() && !environmentStr.isEmpty() ? " - " : "") +environmentStr;
     }
 
     public String getName() {
         return name;
     }
-
+/*
     public void setName(String name) {
         this.name = name;
-    }
+        this.id = this.generateId(name, environment);
+    }*/
 
     public RepositoryEnvironment getEnvironment() {
 
         return environment;
     }
-
+/*
     public void setEnvironment(
             RepositoryEnvironment environment) {
 
         this.environment =
                 environment;
-    }
+    }*/
 
     public String getEndpoint() {
         return endpoint;
@@ -144,14 +153,7 @@ public class RepositoryDefinition {
     
     @Override
     public String toString() {
-
-        if (environment == null) {
-            return name;
-        }
-
-        return name
-                + " - "
-                + environment;
+        return id;
     }
 
     @Override
@@ -166,18 +168,17 @@ public class RepositoryDefinition {
         }
 
         return Objects.equals(
-                name,
-                that.name);
+                id,
+                that.id);
     }
 
     @Override
     public int hashCode() {
-
-        return Objects.hash(name);
+        return Objects.hash(id);
     }
 
     @JsonIgnore
     public boolean isEmpty() {
-        return name == null;
+        return id == null;
     }
 }

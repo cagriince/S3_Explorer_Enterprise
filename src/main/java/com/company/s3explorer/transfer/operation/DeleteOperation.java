@@ -10,7 +10,7 @@ public class DeleteOperation extends AbstractTransferOperation {
         updateProgressPercent(runtime, transferContext, 10);
 
         try {
-            transferContext.getService(runtime.getTask().getRepositoryName()).deleteObject(
+            transferContext.getService(runtime.getTask().getRepositoryId()).deleteObject(
                     runtime.getTask().getBucket(),
                     runtime.getTask().getObjectKey());
         }

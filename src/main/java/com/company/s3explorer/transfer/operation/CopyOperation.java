@@ -9,13 +9,13 @@ public class CopyOperation extends AbstractTransferOperation {
     @Override
     protected void doExecute(TransferRuntime runtime, TransferContext transferContext) throws Exception {
         TransferTask task = runtime.getTask();
-        if (task.getRepositoryName().equals(task.getTargetRepositoryName())) {
+        if (task.getRepositoryId().equals(task.getTargetRepositoryId())) {
             updateProgressPercent(runtime, transferContext, 10);
 
             try {
                 if (task.isOverwrite()) {
                     transferContext
-                            .getService(task.getRepositoryName())
+                            .getService(task.getRepositoryId())
                             .copyObjectOverwrite(
                                     task.getBucket(),
                                     task.getObjectKey(),
@@ -24,7 +24,7 @@ public class CopyOperation extends AbstractTransferOperation {
 
                 } else {
                     transferContext
-                            .getService(task.getRepositoryName())
+                            .getService(task.getRepositoryId())
                             .copyObject(
                                     task.getBucket(),
                                     task.getObjectKey(),
@@ -41,10 +41,10 @@ public class CopyOperation extends AbstractTransferOperation {
             updateProgressPercent(runtime, transferContext, 0);
 
             try {
-                transferContext.getService(task.getRepositoryName()).copyObjectBetweenRepositories(
+                transferContext.getService(task.getRepositoryId()).copyObjectBetweenRepositories(
                         runtime.getTask().getBucket(),
                         runtime.getTask().getObjectKey(),
-                        transferContext.getService(runtime.getTask().getTargetRepositoryName()).getClient(),
+                        transferContext.getService(runtime.getTask().getTargetRepositoryId()).getClient(),
                         runtime.getTask().getTargetBucket(),
                         runtime.getTask().getTargetObjectKey(),
                         createProgressListener(runtime, transferContext));

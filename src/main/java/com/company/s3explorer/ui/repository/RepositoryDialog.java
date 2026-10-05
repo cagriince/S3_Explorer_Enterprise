@@ -509,13 +509,7 @@ public class RepositoryDialog extends JDialog {
         try {
 
             repository =
-                    new RepositoryDefinition();
-
-            repository.setName(
-                    name);
-
-            repository.setEnvironment(
-                    environment);
+                    new RepositoryDefinition(name, environment);
 
             repository.setEndpoint(
                     endpoint);

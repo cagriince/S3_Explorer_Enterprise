@@ -303,16 +303,16 @@ public class ExplorerPasteController {
                         transferManager.createOperationGroup(
                                 groupOperation,
                                 groupName,
-                                item.getRepositoryName(),
+                                item.getRepositoryId(),
                                 item.getBucket(),
                                 sourcePrefix,
-                                repository.getName(),
+                                repository.getId(),
                                 targetBucket,
                                 targetPrefix);
 
                 transferManager.configureGroupCompletion(
                         group,
-                        item.getRepositoryName(),
+                        item.getRepositoryId(),
                         item.getBucket(),
                         sourcePrefix,
                         operation ==

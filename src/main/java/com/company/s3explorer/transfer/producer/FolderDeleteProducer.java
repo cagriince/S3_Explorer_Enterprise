@@ -13,7 +13,7 @@ public class FolderDeleteProducer
     public FolderDeleteProducer(
             TransferContext context,
             TransferQueue queue,
-            String repository,
+            String repositoryId,
             String bucket,
             String prefix,
             TransferGroup group) {
@@ -21,7 +21,7 @@ public class FolderDeleteProducer
         super(
                 context,
                 queue,
-                repository,
+                repositoryId,
                 bucket,
                 prefix,
                 group);
@@ -37,7 +37,7 @@ public class FolderDeleteProducer
             S3Object object) {
 
         return TransferTask.delete()
-                .repositoryName(repository)
+                .repositoryId(repositoryId)
                 .bucket(bucket)
                 .objectKey(object.key())
                 .size(object.size())

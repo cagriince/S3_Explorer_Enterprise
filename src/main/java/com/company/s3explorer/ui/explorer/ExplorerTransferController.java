@@ -292,7 +292,7 @@ public class ExplorerTransferController {
 
             S3FileItem item =
                     new S3FileItem(
-                            task.getTargetRepositoryName(),
+                            task.getTargetRepositoryId(),
                             targetBucket,
                             targetKey,
                             task.getSize(),
@@ -482,7 +482,7 @@ public class ExplorerTransferController {
 
                             S3FileItem renamedItem =
                                     new S3FileItem(
-                                            sourceItem.getRepositoryName(),
+                                            sourceItem.getRepositoryId(),
                                             targetBucket,
                                             targetKey,
                                             sourceItem.getSize(),

@@ -21,7 +21,7 @@ public final class BulkDownloadProducer
 
     private final TransferContext context;
     private final TransferQueue queue;
-    private final String repository;
+    private final String repositoryId;
     private final String bucket;
     private final List<String> objectKeys;
     private final Path localFolder;
@@ -34,7 +34,7 @@ public final class BulkDownloadProducer
     public BulkDownloadProducer(
             TransferContext context,
             TransferQueue queue,
-            String repository,
+            String repositoryId,
             String bucket,
             List<String> objectKeys,
             Path localFolder,
@@ -44,7 +44,7 @@ public final class BulkDownloadProducer
 
         this.context = context;
         this.queue = queue;
-        this.repository = repository;
+        this.repositoryId = repositoryId;
         this.bucket = bucket;
         this.objectKeys = objectKeys;
         this.localFolder = localFolder;
@@ -128,7 +128,7 @@ public final class BulkDownloadProducer
             String objectKey) {
 
         HeadObjectResponse head =
-                context.getService(repository)
+                context.getService(repositoryId)
                         .getObject(
                                 bucket,
                                 objectKey);
@@ -165,7 +165,7 @@ public final class BulkDownloadProducer
             String prefix,
             ProducerRuntime runtime) {
 
-        context.getService(repository)
+        context.getService(repositoryId)
                 .forEachObject(
                         bucket,
                         prefix,
@@ -230,7 +230,7 @@ public final class BulkDownloadProducer
 
         TransferTask.Builder builder =
                 TransferTask.download()
-                        .repositoryName(repository)
+                        .repositoryId(repositoryId)
                         .bucket(bucket)
                         .objectKey(objectKey)
                         .localPath(target)
@@ -275,7 +275,7 @@ public final class BulkDownloadProducer
 
         context.publishGroupUpdated(
                 group,
-                repository,
+                repositoryId,
                 bucket,
                 sourcePrefix,
                 false);

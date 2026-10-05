@@ -8,6 +8,7 @@ import com.company.s3explorer.ui.theme.UIThemeManager;
 
 import java.awt.*;
 import java.nio.file.Path;
+import java.text.Collator;
 import java.time.Instant;
 import java.util.Date;
 
@@ -231,5 +232,111 @@ public class S3Util {
 
     public static String formatWithThousandSeparator(long number) {
         return String.format("%,d", number);
+    }
+
+    public static int naturalTurkishCompare(
+            String left,
+            String right,
+            Collator collator) {
+
+        int leftIndex = 0;
+        int rightIndex = 0;
+
+        while (leftIndex < left.length()
+                && rightIndex < right.length()) {
+
+            char leftChar = left.charAt(leftIndex);
+            char rightChar = right.charAt(rightIndex);
+
+            // İki tarafta da sayı başladıysa doğal/sayısal karşılaştır
+            if (Character.isDigit(leftChar)
+                    && Character.isDigit(rightChar)) {
+
+                int leftStart = leftIndex;
+                int rightStart = rightIndex;
+
+                while (leftIndex < left.length()
+                        && Character.isDigit(left.charAt(leftIndex))) {
+                    leftIndex++;
+                }
+
+                while (rightIndex < right.length()
+                        && Character.isDigit(right.charAt(rightIndex))) {
+                    rightIndex++;
+                }
+
+                String leftNumber =
+                        left.substring(leftStart, leftIndex);
+
+                String rightNumber =
+                        right.substring(rightStart, rightIndex);
+
+                String normalizedLeft =
+                        leftNumber.replaceFirst("^0+(?!$)", "");
+
+                String normalizedRight =
+                        rightNumber.replaceFirst("^0+(?!$)", "");
+
+                // Önce basamak sayısı
+                if (normalizedLeft.length()
+                        != normalizedRight.length()) {
+
+                    return Integer.compare(
+                            normalizedLeft.length(),
+                            normalizedRight.length());
+                }
+
+                // Sonra rakamların kendisi
+                int numberCompare =
+                        normalizedLeft.compareTo(normalizedRight);
+
+                if (numberCompare != 0) {
+                    return numberCompare;
+                }
+
+                // Sayılar aynı değerse devam et
+                continue;
+            }
+
+            // Normal karakter karşılaştırması
+            int charCompare =
+                    collator.compare(
+                            String.valueOf(leftChar),
+                            String.valueOf(rightChar));
+
+            if (charCompare != 0) {
+                return charCompare;
+            }
+
+            leftIndex++;
+            rightIndex++;
+        }
+
+        /*
+         * Buraya geldiysek ortak prefix tamamen eşleşmiş demektir.
+         *
+         * Örnek:
+         *
+         * ABC
+         * ABC-
+         *
+         * veya:
+         *
+         * ABC
+         * ABC2
+         *
+         * Kısa olan her zaman önce gelir.
+         */
+        if (leftIndex == left.length()
+                && rightIndex < right.length()) {
+            return -1;
+        }
+
+        if (rightIndex == right.length()
+                && leftIndex < left.length()) {
+            return 1;
+        }
+
+        return 0;
     }
 }

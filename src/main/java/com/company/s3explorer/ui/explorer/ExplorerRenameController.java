@@ -194,7 +194,7 @@ public class ExplorerRenameController {
         }
 
         String repositoryName =
-                item.getRepositoryName();
+                item.getRepositoryId();
 
         String bucket =
                 item.getBucket();

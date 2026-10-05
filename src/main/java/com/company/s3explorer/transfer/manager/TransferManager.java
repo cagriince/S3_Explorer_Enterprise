@@ -136,7 +136,7 @@ public class TransferManager {
     }
 
     public void submitUpload(
-            String repositoryName,
+            String repositoryId,
             String bucket,
             String key,
             Path localFile,
@@ -144,8 +144,8 @@ public class TransferManager {
 
         submit(
                 TransferTask.upload()
-                        .targetRepositoryName(
-                                repositoryName)
+                        .targetRepositoryId(
+                                repositoryId)
                         .targetBucket(
                                 bucket)
                         .targetObjectKey(
@@ -160,7 +160,7 @@ public class TransferManager {
     }
 
     public void submitUploadEncrypted(
-            String repositoryName,
+            String repositoryId,
             String bucket,
             String key,
             Path localFile,
@@ -174,8 +174,8 @@ public class TransferManager {
 
         submit(
                 TransferTask.upload()
-                        .targetRepositoryName(
-                                repositoryName)
+                        .targetRepositoryId(
+                                repositoryId)
                         .targetBucket(
                                 bucket)
                         .targetObjectKey(
@@ -192,7 +192,7 @@ public class TransferManager {
     }
     
     public void submitDownload(
-            String repositoryName,
+            String repositoryId,
             String bucket,
             String key,
             Path localFile,
@@ -204,8 +204,8 @@ public class TransferManager {
 
         submit(
                 TransferTask.download()
-                        .repositoryName(
-                                repositoryName)
+                        .repositoryId(
+                                repositoryId)
                         .bucket(
                                 bucket)
                         .objectKey(
@@ -220,7 +220,7 @@ public class TransferManager {
     }
 
     public void submitDownloadDecrypted(
-            String repositoryName,
+            String repositoryId,
             String bucket,
             String key,
             Path localFile,
@@ -238,8 +238,8 @@ public class TransferManager {
 
         submit(
                 TransferTask.download()
-                        .repositoryName(
-                                repositoryName)
+                        .repositoryId(
+                                repositoryId)
                         .bucket(
                                 bucket)
                         .objectKey(
@@ -256,7 +256,7 @@ public class TransferManager {
     }
 
     public void submitDownloadDecrypted(
-            String repositoryName,
+            String repositoryId,
             String bucket,
             String key,
             Path localFile,
@@ -280,8 +280,8 @@ public class TransferManager {
 
         TransferTask task =
                 TransferTask.download()
-                        .repositoryName(
-                                repositoryName)
+                        .repositoryId(
+                                repositoryId)
                         .bucket(
                                 bucket)
                         .objectKey(
@@ -302,7 +302,7 @@ public class TransferManager {
     }
     
     public void submitDownload(
-            String repositoryName,
+            String repositoryId,
             String bucket,
             String key,
             Path localFile,
@@ -320,8 +320,8 @@ public class TransferManager {
 
         TransferTask task =
                 TransferTask.download()
-                        .repositoryName(
-                                repositoryName)
+                        .repositoryId(
+                                repositoryId)
                         .bucket(
                                 bucket)
                         .objectKey(
@@ -340,7 +340,7 @@ public class TransferManager {
     }
 
     public TransferGroup createDownloadGroup(
-            String repositoryName,
+            String repositoryId,
             String bucket,
             String sourcePrefix,
             String groupName,
@@ -350,7 +350,7 @@ public class TransferManager {
                 createOperationGroup(
                         TransferType.DOWNLOAD_GROUP,
                         groupName,
-                        repositoryName,
+                        repositoryId,
                         bucket,
                         sourcePrefix,
                         null,
@@ -359,14 +359,14 @@ public class TransferManager {
 
         configureGroupCompletion(
                 group,
-                repositoryName,
+                repositoryId,
                 bucket,
                 sourcePrefix,
                 false);
 
         transferContext.publishGroupUpdated(
                 group,
-                repositoryName,
+                repositoryId,
                 bucket,
                 sourcePrefix,
                 false);
@@ -375,7 +375,7 @@ public class TransferManager {
     }
     
     public TransferGroup submitBulkDownload(
-            String repositoryName,
+            String repositoryId,
             String bucket,
             java.util.List<String> objectKeys,
             Path localFolder) {
@@ -423,7 +423,7 @@ public class TransferManager {
                 createOperationGroup(
                         TransferType.DOWNLOAD_GROUP,
                         displayName,
-                        repositoryName,
+                        repositoryId,
                         bucket,
                         firstKey,
                         null,
@@ -432,14 +432,14 @@ public class TransferManager {
 
         configureGroupCompletion(
                 group,
-                repositoryName,
+                repositoryId,
                 bucket,
                 firstKey,
                 false);
 
         transferContext.publishGroupUpdated(
                 group,
-                repositoryName,
+                repositoryId,
                 bucket,
                 firstKey,
                 false);
@@ -449,7 +449,7 @@ public class TransferManager {
                 new BulkDownloadProducer(
                         transferContext,
                         queue,
-                        repositoryName,
+                        repositoryId,
                         bucket,
                         objectKeys,
                         localFolder,
@@ -462,7 +462,7 @@ public class TransferManager {
     }
 
     public TransferGroup submitBulkDownloadDecrypted(
-            String repositoryName,
+            String repositoryId,
             String bucket,
             java.util.List<String> objectKeys,
             Path localFolder,
@@ -516,7 +516,7 @@ public class TransferManager {
                 createOperationGroup(
                         TransferType.DOWNLOAD_GROUP,
                         displayName,
-                        repositoryName,
+                        repositoryId,
                         bucket,
                         firstKey,
                         null,
@@ -525,14 +525,14 @@ public class TransferManager {
 
         configureGroupCompletion(
                 group,
-                repositoryName,
+                repositoryId,
                 bucket,
                 firstKey,
                 false);
 
         transferContext.publishGroupUpdated(
                 group,
-                repositoryName,
+                repositoryId,
                 bucket,
                 firstKey,
                 false);
@@ -542,7 +542,7 @@ public class TransferManager {
                 new BulkDownloadProducer(
                         transferContext,
                         queue,
-                        repositoryName,
+                        repositoryId,
                         bucket,
                         objectKeys,
                         localFolder,
@@ -555,15 +555,15 @@ public class TransferManager {
     }
     
     public void submitDelete(
-            String repositoryName,
+            String repositoryId,
             String bucket,
             String key,
             long size) {
 
         submit(
                 TransferTask.delete()
-                        .repositoryName(
-                                repositoryName)
+                        .repositoryId(
+                                repositoryId)
                         .bucket(
                                 bucket)
                         .objectKey(
@@ -576,7 +576,7 @@ public class TransferManager {
     }
     
     public void submitDelete(
-            String repositoryName,
+            String repositoryId,
             String bucket,
             String key,
             long size,
@@ -589,8 +589,8 @@ public class TransferManager {
 
         TransferTask task =
                 TransferTask.delete()
-                        .repositoryName(
-                                repositoryName)
+                        .repositoryId(
+                                repositoryId)
                         .bucket(
                                 bucket)
                         .objectKey(
@@ -607,10 +607,10 @@ public class TransferManager {
     }
 
     public void submitCopy(
-            String repositoryName,
+            String repositoryId,
             String bucket,
             String keySource,
-            String targetRepositoryName,
+            String targetRepositoryId,
             String targetBucket,
             String keyTarget,
             long size,
@@ -618,14 +618,14 @@ public class TransferManager {
 
         submit(
                 TransferTask.copy()
-                        .repositoryName(
-                                repositoryName)
+                        .repositoryId(
+                                repositoryId)
                         .bucket(
                                 bucket)
                         .objectKey(
                                 keySource)
-                        .targetRepositoryName(
-                                targetRepositoryName)
+                        .targetRepositoryId(
+                                repositoryId)
                         .targetBucket(
                                 targetBucket)
                         .targetObjectKey(
@@ -639,10 +639,10 @@ public class TransferManager {
     }
 
     public void submitCopy(
-            String repositoryName,
+            String repositoryId,
             String bucket,
             String keySource,
-            String targetRepositoryName,
+            String targetRepositoryId,
             String targetBucket,
             String keyTarget,
             long size,
@@ -656,14 +656,14 @@ public class TransferManager {
 
         TransferTask task =
                 TransferTask.copy()
-                        .repositoryName(
-                                repositoryName)
+                        .repositoryId(
+                                repositoryId)
                         .bucket(
                                 bucket)
                         .objectKey(
                                 keySource)
-                        .targetRepositoryName(
-                                targetRepositoryName)
+                        .targetRepositoryId(
+                                targetRepositoryId)
                         .targetBucket(
                                 targetBucket)
                         .targetObjectKey(
@@ -681,10 +681,10 @@ public class TransferManager {
     }
 
     public void submitMove(
-            String repositoryName,
+            String repositoryId,
             String bucket,
             String keySource,
-            String targetRepositoryName,
+            String targetRepositoryId,
             String targetBucket,
             String keyTarget,
             long size,
@@ -692,14 +692,14 @@ public class TransferManager {
 
         submit(
                 TransferTask.move()
-                        .repositoryName(
-                                repositoryName)
+                        .repositoryId(
+                                repositoryId)
                         .bucket(
                                 bucket)
                         .objectKey(
                                 keySource)
-                        .targetRepositoryName(
-                                targetRepositoryName)
+                        .targetRepositoryId(
+                                targetRepositoryId)
                         .targetBucket(
                                 targetBucket)
                         .targetObjectKey(
@@ -713,10 +713,10 @@ public class TransferManager {
     }
 
     public void submitMove(
-            String repositoryName,
+            String repositoryId,
             String bucket,
             String keySource,
-            String targetRepositoryName,
+            String targetRepositoryId,
             String targetBucket,
             String keyTarget,
             long size,
@@ -730,14 +730,14 @@ public class TransferManager {
 
         TransferTask task =
                 TransferTask.move()
-                        .repositoryName(
-                                repositoryName)
+                        .repositoryId(
+                                repositoryId)
                         .bucket(
                                 bucket)
                         .objectKey(
                                 keySource)
-                        .targetRepositoryName(
-                                targetRepositoryName)
+                        .targetRepositoryId(
+                                targetRepositoryId)
                         .targetBucket(
                                 targetBucket)
                         .targetObjectKey(
@@ -755,10 +755,10 @@ public class TransferManager {
     }
 
     public TransferGroup submitRename(
-            String repositoryName,
+            String repositoryId,
             String bucket,
             String keySource,
-            String targetRepositoryName,
+            String targetRepositoryId,
             String targetBucket,
             String keyTarget,
             long size,
@@ -767,30 +767,30 @@ public class TransferManager {
         TransferGroup group =
                 createObjectOperationGroup(
                         TransferType.RENAME,
-                        repositoryName,
+                        repositoryId,
                         bucket,
                         keySource,
-                        targetRepositoryName,
+                        targetRepositoryId,
                         targetBucket,
                         keyTarget);
 
         configureGroupCompletion(
                 group,
-                repositoryName,
+                repositoryId,
                 bucket,
                 keySource,
                 true);
 
         TransferTask task =
                 TransferTask.rename()
-                        .repositoryName(
-                                repositoryName)
+                        .repositoryId(
+                                repositoryId)
                         .bucket(
                                 bucket)
                         .objectKey(
                                 keySource)
-                        .targetRepositoryName(
-                                targetRepositoryName)
+                        .targetRepositoryId(
+                                targetRepositoryId)
                         .targetBucket(
                                 targetBucket)
                         .targetObjectKey(
@@ -812,15 +812,15 @@ public class TransferManager {
     }
     
     public void submitCreateFolder(
-            String repositoryName,
+            String repositoryId,
             String bucket,
             String key,
             String prefix) {
 
         submit(
                 TransferTask.createFolder()
-                        .repositoryName(
-                                repositoryName)
+                        .repositoryId(
+                                repositoryId)
                         .bucket(
                                 bucket)
                         .objectKey(
@@ -837,30 +837,30 @@ public class TransferManager {
     }
 
     public TransferGroup submitFolderDelete(
-            String repositoryName,
+            String repositoryId,
             String bucket,
             String prefix) {
 
         TransferGroup group =
                 createFolderOperationGroup(
                         TransferType.DELETE_GROUP,
-                        repositoryName,
+                        repositoryId,
                         bucket,
                         prefix,
-                        repositoryName,
+                        repositoryId,
                         bucket,
                         prefix);
 
         configureGroupCompletion(
                 group,
-                repositoryName,
+                repositoryId,
                 bucket,
                 prefix,
                 true);
 
         transferContext.publishGroupUpdated(
                 group,
-                repositoryName,
+                repositoryId,
                 bucket,
                 prefix,
                 false);
@@ -870,7 +870,7 @@ public class TransferManager {
                 new FolderDeleteProducer(
                         transferContext,
                         queue,
-                        repositoryName,
+                        repositoryId,
                         bucket,
                         prefix,
                         group)
@@ -880,7 +880,7 @@ public class TransferManager {
     }
 
     public void submitFolderDelete(
-            String repositoryName,
+            String repositoryId,
             String bucket,
             String prefix,
             TransferGroup group) {
@@ -892,7 +892,7 @@ public class TransferManager {
 
         transferContext.publishGroupUpdated(
                 group,
-                repositoryName,
+                repositoryId,
                 bucket,
                 prefix,
                 false);
@@ -902,7 +902,7 @@ public class TransferManager {
                 new FolderDeleteProducer(
                         transferContext,
                         queue,
-                        repositoryName,
+                        repositoryId,
                         bucket,
                         prefix,
                         group)
@@ -910,7 +910,7 @@ public class TransferManager {
     }
     
     public void submitFolderDownload(
-            String repositoryName,
+            String repositoryId,
             String bucket,
             String prefix,
             Path localFolder) {
@@ -921,11 +921,11 @@ public class TransferManager {
                         S3Util.extractFolderName(prefix),
                         TransferType.DOWNLOAD_GROUP,
                         buildGroupLocation(
-                                repositoryName,
+                                repositoryId,
                                 bucket,
                                 prefix),
                         localFolder.toString(),
-                        repositoryName,
+                        repositoryId,
                         bucket,
                         prefix,
                         null,
@@ -935,14 +935,14 @@ public class TransferManager {
 
         configureGroupCompletion(
                 group,
-                repositoryName,
+                repositoryId,
                 bucket,
                 prefix,
                 false);
 
         transferContext.publishGroupUpdated(
                 group,
-                repositoryName,
+                repositoryId,
                 bucket,
                 prefix,
                 false);
@@ -952,7 +952,7 @@ public class TransferManager {
                 new FolderDownloadProducer(
                         transferContext,
                         queue,
-                        repositoryName,
+                        repositoryId,
                         bucket,
                         prefix,
                         localFolder,
@@ -962,7 +962,7 @@ public class TransferManager {
     }
 
     public void submitFolderDownloadDecrypted(
-            String repositoryName,
+            String repositoryId,
             String bucket,
             String prefix,
             Path localFolder,
@@ -979,11 +979,11 @@ public class TransferManager {
                         S3Util.extractFolderName(prefix),
                         TransferType.DOWNLOAD_GROUP,
                         buildGroupLocation(
-                                repositoryName,
+                                repositoryId,
                                 bucket,
                                 prefix),
                         localFolder.toString(),
-                        repositoryName,
+                        repositoryId,
                         bucket,
                         prefix,
                         null,
@@ -993,14 +993,14 @@ public class TransferManager {
 
         configureGroupCompletion(
                 group,
-                repositoryName,
+                repositoryId,
                 bucket,
                 prefix,
                 false);
 
         transferContext.publishGroupUpdated(
                 group,
-                repositoryName,
+                repositoryId,
                 bucket,
                 prefix,
                 false);
@@ -1010,7 +1010,7 @@ public class TransferManager {
                 new FolderDownloadProducer(
                         transferContext,
                         queue,
-                        repositoryName,
+                        repositoryId,
                         bucket,
                         prefix,
                         localFolder,
@@ -1020,7 +1020,7 @@ public class TransferManager {
     }
 
     public void submitFolderUpload(
-            String repositoryName,
+            String repositoryId,
             String bucket,
             String targetPrefix,
             Path folder)
@@ -1038,27 +1038,27 @@ public class TransferManager {
                         TransferType.UPLOAD_GROUP,
                         folder.toString(),
                         buildGroupLocation(
-                                repositoryName,
+                                repositoryId,
                                 bucket,
                                 targetPrefix + displayName + "/"),
-                        repositoryName,
+                        repositoryId,
                         bucket,
                         targetPrefix,
-                        repositoryName,
+                        repositoryId,
                         bucket,
                         targetPrefix + displayName + "/",
                         true);
 
         configureGroupCompletion(
                 group,
-                repositoryName,
+                repositoryId,
                 bucket,
                 targetPrefix,
                 false);
 
         transferContext.publishGroupUpdated(
                 group,
-                repositoryName,
+                repositoryId,
                 bucket,
                 targetPrefix,
                 false);
@@ -1067,7 +1067,7 @@ public class TransferManager {
                 group,
                 new FolderUploadProducer(
                         queue,
-                        repositoryName,
+                        repositoryId,
                         bucket,
                         targetPrefix,
                         folder,
@@ -1076,28 +1076,28 @@ public class TransferManager {
     }
     
     public void submitFolderCopy(
-            String repositoryName,
+            String repositoryId,
             String sourceBucket,
             String sourcePrefix,
-            String targetRepositoryName,
+            String targetRepositoryId,
             String targetBucket,
             String targetPrefix) {
 
         TransferGroup group =
                 createFolderOperationGroup(
                         TransferType.COPY_GROUP,
-                        repositoryName,
+                        repositoryId,
                         sourceBucket,
                         sourcePrefix,
-                        targetRepositoryName,
+                        targetRepositoryId,
                         targetBucket,
                         targetPrefix);
 
         submitFolderCopy(
-                repositoryName,
+                repositoryId,
                 sourceBucket,
                 sourcePrefix,
-                targetRepositoryName,
+                targetRepositoryId,
                 targetBucket,
                 targetPrefix,
                 group);
@@ -1109,10 +1109,10 @@ public class TransferManager {
      * The caller owns the shared group lifecycle.
      */
     public void submitFolderCopy(
-            String repositoryName,
+            String repositoryId,
             String sourceBucket,
             String sourcePrefix,
-            String targetRepositoryName,
+            String targetRepositoryId,
             String targetBucket,
             String targetPrefix,
             TransferGroup group) {
@@ -1128,14 +1128,14 @@ public class TransferManager {
          */
         configureGroupCompletion(
                 group,
-                repositoryName,
+                repositoryId,
                 sourceBucket,
                 sourcePrefix,
                 false);
 
         transferContext.publishGroupUpdated(
                 group,
-                repositoryName,
+                repositoryId,
                 sourceBucket,
                 sourcePrefix,
                 false);
@@ -1145,10 +1145,10 @@ public class TransferManager {
                 new FolderCopyProducer(
                         transferContext,
                         queue,
-                        repositoryName,
+                        repositoryId,
                         sourceBucket,
                         sourcePrefix,
-                        targetRepositoryName,
+                        targetRepositoryId,
                         targetBucket,
                         targetPrefix,
                         group)
@@ -1156,28 +1156,28 @@ public class TransferManager {
     }
 
     public void submitFolderMove(
-            String repositoryName,
+            String repositoryId,
             String sourceBucket,
             String sourcePrefix,
-            String targetRepositoryName,
+            String targetRepositoryId,
             String targetBucket,
             String targetPrefix) {
 
         TransferGroup group =
                 createFolderOperationGroup(
                         TransferType.MOVE_GROUP,
-                        repositoryName,
+                        repositoryId,
                         sourceBucket,
                         sourcePrefix,
-                        targetRepositoryName,
+                        targetRepositoryId,
                         targetBucket,
                         targetPrefix);
 
         submitFolderMove(
-                repositoryName,
+                repositoryId,
                 sourceBucket,
                 sourcePrefix,
-                targetRepositoryName,
+                targetRepositoryId,
                 targetBucket,
                 targetPrefix,
                 group);
@@ -1189,10 +1189,10 @@ public class TransferManager {
      * The caller owns the shared group lifecycle.
      */
     public void submitFolderMove(
-            String repositoryName,
+            String repositoryId,
             String sourceBucket,
             String sourcePrefix,
-            String targetRepositoryName,
+            String targetRepositoryId,
             String targetBucket,
             String targetPrefix,
             TransferGroup group) {
@@ -1208,14 +1208,14 @@ public class TransferManager {
          */
         configureGroupCompletion(
                 group,
-                repositoryName,
+                repositoryId,
                 sourceBucket,
                 sourcePrefix,
                 true);
 
         transferContext.publishGroupUpdated(
                 group,
-                repositoryName,
+                repositoryId,
                 sourceBucket,
                 sourcePrefix,
                 true);
@@ -1225,10 +1225,10 @@ public class TransferManager {
                 new FolderMoveProducer(
                         transferContext,
                         queue,
-                        repositoryName,
+                        repositoryId,
                         sourceBucket,
                         sourcePrefix,
-                        targetRepositoryName,
+                        targetRepositoryId,
                         targetBucket,
                         targetPrefix,
                         group)
@@ -1236,7 +1236,7 @@ public class TransferManager {
     }
 
     public void submitFolderRename(
-            String repositoryName,
+            String repositoryId,
             String bucket,
             String prefix,
             String targetPrefix) {
@@ -1244,23 +1244,23 @@ public class TransferManager {
         TransferGroup group =
                 createFolderOperationGroup(
                         TransferType.RENAME_GROUP,
-                        repositoryName,
+                        repositoryId,
                         bucket,
                         prefix,
-                        repositoryName,
+                        repositoryId,
                         bucket,
                         targetPrefix);
 
         configureGroupCompletion(
                 group,
-                repositoryName,
+                repositoryId,
                 bucket,
                 prefix,
                 true);
 
         transferContext.publishGroupUpdated(
                 group,
-                repositoryName,
+                repositoryId,
                 bucket,
                 prefix,
                 true);
@@ -1270,7 +1270,7 @@ public class TransferManager {
                 new FolderRenameProducer(
                         transferContext,
                         queue,
-                        repositoryName,
+                        repositoryId,
                         bucket,
                         prefix,
                         targetPrefix,
@@ -1324,7 +1324,7 @@ public class TransferManager {
      */
     public void configureGroupCompletion(
             TransferGroup group,
-            String repositoryName,
+            String repositoryId,
             String bucket,
             String prefix,
             boolean sourceRefreshRequired) {
@@ -1360,7 +1360,7 @@ public class TransferManager {
 
                     transferContext.publishGroupCompleted(
                             group,
-                            repositoryName,
+                            repositoryId,
                             bucket,
                             prefix,
                             sourceRefreshRequired);
@@ -1406,10 +1406,10 @@ public class TransferManager {
     public TransferGroup createOperationGroup(
             TransferType operation,
             String displayName,
-            String sourceRepository,
+            String sourceRepositoryId,
             String sourceBucket,
             String sourcePrefix,
-            String targetRepository,
+            String targetRepositoryId,
             String targetBucket,
             String targetPrefix) {
 
@@ -1421,13 +1421,13 @@ public class TransferManager {
 
         String source =
                 buildGroupLocation(
-                        sourceRepository,
+                        sourceRepositoryId,
                         sourceBucket,
                         sourcePrefix);
 
         String target =
                 buildGroupLocation(
-                        targetRepository,
+                        targetRepositoryId,
                         targetBucket,
                         targetPrefix);
 
@@ -1437,10 +1437,10 @@ public class TransferManager {
                 operation,
                 source,
                 target,
-                sourceRepository,
+                sourceRepositoryId,
                 sourceBucket,
                 sourcePrefix,
-                targetRepository,
+                targetRepositoryId,
                 targetBucket,
                 targetPrefix);
     }
@@ -1524,17 +1524,17 @@ public class TransferManager {
     }
 
     private String buildGroupLocation(
-            String repository,
+            String repositoryId,
             String bucket,
             String prefix) {
 
         StringBuilder value =
                 new StringBuilder();
 
-        if (repository != null
-                && !repository.isBlank()) {
+        if (repositoryId != null
+                && !repositoryId.isBlank()) {
 
-            value.append(repository);
+            value.append(repositoryId);
         }
 
         if (bucket != null

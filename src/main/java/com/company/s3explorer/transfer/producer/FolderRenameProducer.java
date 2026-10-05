@@ -15,7 +15,7 @@ public class FolderRenameProducer
     public FolderRenameProducer(
             TransferContext context,
             TransferQueue queue,
-            String repository,
+            String repositoryId,
             String bucket,
             String prefix,
             String targetPrefix,
@@ -24,10 +24,10 @@ public class FolderRenameProducer
         super(
                 context,
                 queue,
-                repository,
+                repositoryId,
                 bucket,
                 prefix,
-                repository,
+                repositoryId,
                 bucket,
                 targetPrefix,
                 group,
@@ -47,10 +47,10 @@ public class FolderRenameProducer
                 buildRenameTargetKey(object);
 
         return TransferTask.rename()
-                .repositoryName(repository)
+                .repositoryId(repositoryId)
                 .bucket(bucket)
                 .objectKey(object.key())
-                .targetRepositoryName(targetRepository)
+                .targetRepositoryId(targetRepositoryId)
                 .targetBucket(targetBucket)
                 .targetObjectKey(targetKey)
                 .group(group)

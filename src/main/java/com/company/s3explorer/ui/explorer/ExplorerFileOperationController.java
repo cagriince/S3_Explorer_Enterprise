@@ -47,14 +47,14 @@ public final class ExplorerFileOperationController {
         if (item.isFolder()) {
 
             transferManager.submitFolderDelete(
-                    item.getRepositoryName(),
+                    item.getRepositoryId(),
                     bucket,
                     item.getKey());
 
         } else {
 
             transferManager.submitDelete(
-                    item.getRepositoryName(),
+                    item.getRepositoryId(),
                     bucket,
                     item.getKey(),
                     item.getSize());
@@ -82,7 +82,7 @@ public final class ExplorerFileOperationController {
             if (group == null) {
 
                 transferManager.submitFolderDelete(
-                        item.getRepositoryName(),
+                        item.getRepositoryId(),
                         bucket,
                         item.getKey());
 
@@ -98,7 +98,7 @@ public final class ExplorerFileOperationController {
             if (group == null) {
 
                 transferManager.submitDelete(
-                        item.getRepositoryName(),
+                        item.getRepositoryId(),
                         bucket,
                         item.getKey(),
                         item.getSize());
@@ -106,7 +106,7 @@ public final class ExplorerFileOperationController {
             } else {
 
                 transferManager.submitDelete(
-                        item.getRepositoryName(),
+                        item.getRepositoryId(),
                         bucket,
                         item.getKey(),
                         item.getSize(),
@@ -135,7 +135,7 @@ public final class ExplorerFileOperationController {
         if (item.isFolder()) {
 
             transferManager.submitFolderDownload(
-                    item.getRepositoryName(),
+                    item.getRepositoryId(),
                     bucket,
                     item.getKey(),
                     destination);
@@ -143,7 +143,7 @@ public final class ExplorerFileOperationController {
         } else {
 
             transferManager.submitDownload(
-                    item.getRepositoryName(),
+                    item.getRepositoryId(),
                     bucket,
                     item.getKey(),
                     destination,
@@ -174,7 +174,7 @@ public final class ExplorerFileOperationController {
             if (group == null) {
 
                 transferManager.submitFolderDownload(
-                        item.getRepositoryName(),
+                        item.getRepositoryId(),
                         bucket,
                         item.getKey(),
                         destination);
@@ -191,7 +191,7 @@ public final class ExplorerFileOperationController {
             if (group == null) {
 
                 transferManager.submitDownload(
-                        item.getRepositoryName(),
+                        item.getRepositoryId(),
                         bucket,
                         item.getKey(),
                         destination,
@@ -200,7 +200,7 @@ public final class ExplorerFileOperationController {
             } else {
 
                 transferManager.submitDownload(
-                        item.getRepositoryName(),
+                        item.getRepositoryId(),
                         bucket,
                         item.getKey(),
                         destination,
@@ -232,7 +232,7 @@ public final class ExplorerFileOperationController {
         if (item.isFolder()) {
 
             transferManager.submitFolderDownloadDecrypted(
-                    item.getRepositoryName(),
+                    item.getRepositoryId(),
                     bucket,
                     item.getKey(),
                     destination,
@@ -241,7 +241,7 @@ public final class ExplorerFileOperationController {
         } else {
 
             transferManager.submitDownloadDecrypted(
-                    item.getRepositoryName(),
+                    item.getRepositoryId(),
                     bucket,
                     item.getKey(),
                     destination,
@@ -275,7 +275,7 @@ public final class ExplorerFileOperationController {
             if (group == null) {
 
                 transferManager.submitFolderDownloadDecrypted(
-                        item.getRepositoryName(),
+                        item.getRepositoryId(),
                         bucket,
                         item.getKey(),
                         destination,
@@ -293,7 +293,7 @@ public final class ExplorerFileOperationController {
             if (group == null) {
 
                 transferManager.submitDownloadDecrypted(
-                        item.getRepositoryName(),
+                        item.getRepositoryId(),
                         bucket,
                         item.getKey(),
                         destination,
@@ -303,7 +303,7 @@ public final class ExplorerFileOperationController {
             } else {
 
                 transferManager.submitDownloadDecrypted(
-                        item.getRepositoryName(),
+                        item.getRepositoryId(),
                         bucket,
                         item.getKey(),
                         destination,
@@ -339,7 +339,7 @@ public final class ExplorerFileOperationController {
             if (group == null) {
 
                 transferManager.submitFolderCopy(
-                        item.getRepositoryName(),
+                        item.getRepositoryId(),
                         item.getBucket(),
                         item.getKey(),
                         repositoryName,
@@ -349,7 +349,7 @@ public final class ExplorerFileOperationController {
             } else {
 
                 transferManager.submitFolderCopy(
-                        item.getRepositoryName(),
+                        item.getRepositoryId(),
                         item.getBucket(),
                         item.getKey(),
                         repositoryName,
@@ -364,7 +364,7 @@ public final class ExplorerFileOperationController {
         if (group == null) {
 
             transferManager.submitCopy(
-                    item.getRepositoryName(),
+                    item.getRepositoryId(),
                     item.getBucket(),
                     item.getKey(),
                     repositoryName,
@@ -376,7 +376,7 @@ public final class ExplorerFileOperationController {
         } else {
 
             transferManager.submitCopy(
-                    item.getRepositoryName(),
+                    item.getRepositoryId(),
                     item.getBucket(),
                     item.getKey(),
                     repositoryName,
@@ -413,7 +413,7 @@ public final class ExplorerFileOperationController {
             if (group == null) {
 
                 transferManager.submitFolderMove(
-                        item.getRepositoryName(),
+                        item.getRepositoryId(),
                         item.getBucket(),
                         item.getKey(),
                         repositoryName,
@@ -423,7 +423,7 @@ public final class ExplorerFileOperationController {
             } else {
 
                 transferManager.submitFolderMove(
-                        item.getRepositoryName(),
+                        item.getRepositoryId(),
                         item.getBucket(),
                         item.getKey(),
                         repositoryName,
@@ -438,7 +438,7 @@ public final class ExplorerFileOperationController {
         if (group == null) {
 
             transferManager.submitMove(
-                    item.getRepositoryName(),
+                    item.getRepositoryId(),
                     item.getBucket(),
                     item.getKey(),
                     repositoryName,
@@ -450,7 +450,7 @@ public final class ExplorerFileOperationController {
         } else {
 
             transferManager.submitMove(
-                    item.getRepositoryName(),
+                    item.getRepositoryId(),
                     item.getBucket(),
                     item.getKey(),
                     repositoryName,

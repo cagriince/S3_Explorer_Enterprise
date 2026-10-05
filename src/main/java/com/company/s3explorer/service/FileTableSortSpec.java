@@ -1,5 +1,6 @@
 package com.company.s3explorer.service;
 
+import com.company.s3explorer.util.S3Util;
 import software.amazon.awssdk.services.s3.model.S3Object;
 
 import java.text.CollationKey;
@@ -39,11 +40,11 @@ public final class FileTableSortSpec {
 
     public Comparator<S3Object> createFileComparator(Map<String, CollationKey> collationKeyCache) {
 
-        Collator collator =
+        Collator turkishCollator =
                 Collator.getInstance(
                         new Locale("tr", "TR"));
 
-        collator.setStrength(
+        turkishCollator.setStrength(
                 Collator.PRIMARY);
 
         Comparator<S3Object> comparator;
@@ -79,13 +80,13 @@ public final class FileTableSortSpec {
                                     collationKeyCache
                                             .computeIfAbsent(
                                                     left.key(),
-                                                    collator::getCollationKey);
+                                                    turkishCollator::getCollationKey);
 
                             CollationKey rightKey =
                                     collationKeyCache
                                             .computeIfAbsent(
                                                     right.key(),
-                                                    collator::getCollationKey);
+                                                    turkishCollator::getCollationKey);
 
                             return leftKey.compareTo(
                                     rightKey);
@@ -109,7 +110,7 @@ public final class FileTableSortSpec {
             Comparator<S3Object> keyComparator =
                     Comparator.comparing(
                             S3Object::key,
-                            collator);
+                            turkishCollator);
 
             if (!ascending) {
                 keyComparator =

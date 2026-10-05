@@ -56,12 +56,12 @@ public class S3ClientManager implements AutoCloseable {
                         return;
                     }
 
-                    if (activeRepository.getName() == null) {
+                    if (activeRepository.getId() == null) {
                         return;
                     }
 
-                    if (!activeRepository.getName().equals(
-                            repository.getName())) {
+                    if (!activeRepository.getId().equals(
+                            repository.getId())) {
 
                         return;
                     }
@@ -75,9 +75,9 @@ public class S3ClientManager implements AutoCloseable {
     }
 
     public S3Client getClient(
-            String repositoryName) {
+            String repositoryId) {
 
-        if (repositoryName == null) {
+        if (repositoryId == null) {
 
             return getClient(
                     repositoryContext
@@ -86,7 +86,7 @@ public class S3ClientManager implements AutoCloseable {
 
         return getClient(
                 repositoryManager
-                        .findByName(repositoryName));
+                        .findById(repositoryId));
     }
 
     public synchronized S3Client getClient(

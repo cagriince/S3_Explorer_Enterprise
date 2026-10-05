@@ -17,7 +17,7 @@ public class FolderUploadProducer
 
     private final TransferQueue queue;
 
-    private final String repository;
+    private final String repositoryId;
     private final String bucket;
     private final String targetPrefix;
 
@@ -27,14 +27,14 @@ public class FolderUploadProducer
 
     public FolderUploadProducer(
             TransferQueue queue,
-            String repository,
+            String repositoryId,
             String bucket,
             String targetPrefix,
             Path folder,
             TransferGroup group) {
 
         this.queue = queue;
-        this.repository = repository;
+        this.repositoryId = repositoryId;
         this.bucket = bucket;
         this.targetPrefix = targetPrefix;
         this.folder = folder;
@@ -112,7 +112,7 @@ public class FolderUploadProducer
 
         TransferTask task =
                 TransferTask.upload()
-                        .targetRepositoryName(repository)
+                        .targetRepositoryId(repositoryId)
                         .targetBucket(bucket)
                         .targetObjectKey(key)
                         .localPath(file)

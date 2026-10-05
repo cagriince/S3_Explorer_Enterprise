@@ -1,6 +1,7 @@
 package com.company.s3explorer.ui.repository;
 
 import com.company.s3explorer.repository.RepositoryDefinition;
+import com.company.s3explorer.util.S3Util;
 
 import javax.swing.table.AbstractTableModel;
 import java.text.Collator;
@@ -104,12 +105,17 @@ public class RepositoryTableModel
         collator.setStrength(
                 Collator.PRIMARY);
 
-        repositories.sort(
+        repositories.sort((left, right) ->
+                S3Util.naturalTurkishCompare(
+                        left.getId(),
+                        right.getId(),
+                        collator));
+/*        repositories.sort(
                 (left, right) ->
                         collator.compare(
-                                left.getName(),
-                                right.getName()));
-
+                                left.getId(),
+                                right.getId()));
+*/
         fireTableDataChanged();
     }
 

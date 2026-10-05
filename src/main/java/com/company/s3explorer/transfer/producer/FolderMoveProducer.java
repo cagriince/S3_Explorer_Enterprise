@@ -14,10 +14,10 @@ public class FolderMoveProducer
     public FolderMoveProducer(
             TransferContext context,
             TransferQueue queue,
-            String repository,
+            String repositoryId,
             String bucket,
             String prefix,
-            String targetRepository,
+            String targetRepositoryId,
             String targetBucket,
             String targetPrefix,
             TransferGroup group) {
@@ -25,10 +25,10 @@ public class FolderMoveProducer
         super(
                 context,
                 queue,
-                repository,
+                repositoryId,
                 bucket,
                 prefix,
-                targetRepository,
+                targetRepositoryId,
                 targetBucket,
                 targetPrefix,
                 group,
@@ -45,10 +45,10 @@ public class FolderMoveProducer
             S3Object object) {
 
         return TransferTask.move()
-                .repositoryName(repository)
+                .repositoryId(repositoryId)
                 .bucket(bucket)
                 .objectKey(object.key())
-                .targetRepositoryName(targetRepository)
+                .targetRepositoryId(targetRepositoryId)
                 .targetBucket(targetBucket)
                 .targetObjectKey(
                         buildTargetKey(object))

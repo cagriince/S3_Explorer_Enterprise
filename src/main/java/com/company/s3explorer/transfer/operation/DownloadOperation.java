@@ -22,7 +22,7 @@ public class DownloadOperation extends AbstractTransferOperation {
                 transferContext
                         .getService(
                                 runtime.getTask()
-                                        .getRepositoryName())
+                                        .getRepositoryId())
                         .downloadDecryptedFile(
                                 runtime.getTask()
                                         .getBucket(),
@@ -42,7 +42,7 @@ public class DownloadOperation extends AbstractTransferOperation {
                 transferContext
                         .getService(
                                 runtime.getTask()
-                                        .getRepositoryName())
+                                        .getRepositoryId())
                         .downloadFile(
                                 runtime.getTask()
                                         .getBucket(),

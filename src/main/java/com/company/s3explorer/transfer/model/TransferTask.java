@@ -3,7 +3,6 @@ package com.company.s3explorer.transfer.model;
 import com.company.s3explorer.security.EncryptionConfig;
 import com.company.s3explorer.transfer.TransferType;
 import com.company.s3explorer.ui.explorer.RefreshTreeNode;
-import com.company.s3explorer.ui.explorer.S3TreeNode;
 
 import java.nio.file.Path;
 import java.util.HashSet;
@@ -17,11 +16,11 @@ public class TransferTask {
 
     private TransferType type;
 
-    private String repositoryName;
+    private String repositoryId;
     private String bucket;
     private String objectKey;
     private Path localPath;
-    private String targetRepositoryName;
+    private String targetRepositoryId;
     private String targetBucket;
     private String targetObjectKey;
 
@@ -49,8 +48,8 @@ public class TransferTask {
         return group;
     }
 
-    public String getRepositoryName() {
-        return repositoryName;
+    public String getRepositoryId() {
+        return repositoryId;
     }
 
     public String getBucket() {
@@ -69,8 +68,8 @@ public class TransferTask {
         return targetBucket;
     }
 
-    public String getTargetRepositoryName() {
-        return targetRepositoryName;
+    public String getTargetRepositoryId() {
+        return targetRepositoryId;
     }
 
     public String getTargetObjectKey() {
@@ -139,8 +138,8 @@ public class TransferTask {
             task.type = type;
         }
 
-        public Builder repositoryName(String repositoryName) {
-            task.repositoryName = repositoryName;
+        public Builder repositoryId(String repositoryId) {
+            task.repositoryId = repositoryId;
             return this;
         }
 
@@ -159,8 +158,8 @@ public class TransferTask {
             return this;
         }
 
-        public Builder targetRepositoryName(String targetRepositoryName) {
-            task.targetRepositoryName = targetRepositoryName;
+        public Builder targetRepositoryId(String targetRepositoryId) {
+            task.targetRepositoryId = targetRepositoryId;
             return this;
         }
 
@@ -217,34 +216,34 @@ public class TransferTask {
         private void validate() {
             switch (task.type) {
                 case UPLOAD -> {
-                    Objects.requireNonNull(task.targetRepositoryName);
+                    Objects.requireNonNull(task.targetRepositoryId);
                     Objects.requireNonNull(task.targetBucket);
                     Objects.requireNonNull(task.targetObjectKey);
                     Objects.requireNonNull(task.localPath);
                 }
                 case DOWNLOAD -> {
-                    Objects.requireNonNull(task.repositoryName);
+                    Objects.requireNonNull(task.repositoryId);
                     Objects.requireNonNull(task.bucket);
                     Objects.requireNonNull(task.objectKey);
                     Objects.requireNonNull(task.localPath);
                 }
                 case DELETE -> {
-                    Objects.requireNonNull(task.repositoryName);
+                    Objects.requireNonNull(task.repositoryId);
                     Objects.requireNonNull(task.bucket);
                     Objects.requireNonNull(task.objectKey);
                 }
                 case COPY,
                      MOVE,
                      RENAME -> {
-                    Objects.requireNonNull(task.repositoryName);
+                    Objects.requireNonNull(task.repositoryId);
                     Objects.requireNonNull(task.bucket);
                     Objects.requireNonNull(task.objectKey);
-                    Objects.requireNonNull(task.targetRepositoryName);
+                    Objects.requireNonNull(task.targetRepositoryId);
                     Objects.requireNonNull(task.targetBucket);
                     Objects.requireNonNull(task.targetObjectKey);
                 }
                 case CREATE_FOLDER -> {
-                    Objects.requireNonNull(task.repositoryName);
+                    Objects.requireNonNull(task.repositoryId);
                     Objects.requireNonNull(task.bucket);
                     Objects.requireNonNull(task.objectKey);
                 }

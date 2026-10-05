@@ -35,11 +35,11 @@ public class FileTableRowSorter
          */
         setSortsOnUpdates(true);
 
-        Collator turkceCollator =
+        Collator turkishCollator =
                 Collator.getInstance(
                         new Locale("tr", "TR"));
 
-        turkceCollator.setStrength(
+        turkishCollator.setStrength(
                 Collator.PRIMARY);
 
         this.setComparator(
@@ -49,11 +49,19 @@ public class FileTableRowSorter
 
         this.setComparator(
                 FileTableModel.COL_NAME,
-                Comparator.comparing(
+                (left, right) ->
+                        S3Util.naturalTurkishCompare(
+                                S3Util.extractFolderName(
+                                        ((S3FileItem) left).getKey()),
+                                S3Util.extractFolderName(
+                                        ((S3FileItem) right).getKey()),
+                                turkishCollator)
+        /*        Comparator.comparing(
                         item ->
                                 S3Util.extractFolderName(
                                         ((S3FileItem) item).getKey()),
-                        turkceCollator));
+                        turkishCollator)*/
+        );
 
         this.setComparator(
                 FileTableModel.COL_SIZE,
