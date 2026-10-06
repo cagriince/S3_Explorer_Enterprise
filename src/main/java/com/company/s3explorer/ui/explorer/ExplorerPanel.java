@@ -111,6 +111,7 @@ public class ExplorerPanel extends JPanel {
     private RepositoryDefinition pendingRepositorySelection;
     private String pendingBucketSelection;
     private boolean suppressBucketSelectionEvent;
+    private boolean suppressRepositorySelectionEvent;
     private boolean forceBucketReload;
 
     private final Map<UUID, List<TransferTask>> completedGroupTasks = new ConcurrentHashMap<>();
@@ -1222,6 +1223,9 @@ public class ExplorerPanel extends JPanel {
         });
 
         view.getRepositoryCombo().addActionListener(e -> {
+            if (suppressRepositorySelectionEvent) {
+                return;
+            }
 
             RepositoryDefinition repository =
                     this.getCurrentRepository();
@@ -3867,39 +3871,45 @@ public class ExplorerPanel extends JPanel {
         /*
          * Modeli güncel repository listesiyle yeniden oluştur.
          */
-        model.removeAllElements();
+        suppressRepositorySelectionEvent = true;
 
-        model.addElement(
-                RepositoryDefinition.EMPTY_REPOSITORY);
+        try {
 
-        for (RepositoryDefinition repository :
-                repositoryList) {
+            model.removeAllElements();
 
-            model.addElement(repository);
-        }
+            model.addElement(
+                    RepositoryDefinition.EMPTY_REPOSITORY);
 
-        /*
-         * Mevcut repository hâlâ varsa seçimini koru.
-         */
-        if (currentRepositoryId != null) {
+            for (RepositoryDefinition repository :
+                    repositoryList) {
 
-            for (int i = 1;
-                 i < model.getSize();
-                 i++) {
+                model.addElement(repository);
+            }
 
-                RepositoryDefinition repository =
-                        model.getElementAt(i);
+            if (currentRepositoryId != null) {
 
-                if (Objects.equals(
-                        currentRepositoryId,
-                        repository.getId())) {
+                for (int i = 1;
+                     i < model.getSize();
+                     i++) {
 
-                    model.setSelectedItem(
-                            repository);
+                    RepositoryDefinition repository =
+                            model.getElementAt(i);
 
-                    break;
+                    if (Objects.equals(
+                            currentRepositoryId,
+                            repository.getId())) {
+
+                        model.setSelectedItem(
+                                repository);
+
+                        break;
+                    }
                 }
             }
+
+        } finally {
+
+            suppressRepositorySelectionEvent = false;
         }
     }
 
