@@ -3781,6 +3781,7 @@ public class ExplorerPanel extends JPanel {
     }
 
     private void showRepositoryManager() {
+
         RepositoryPanel panel =
                 new RepositoryPanel(
                         repositoryManager,
@@ -3793,39 +3794,111 @@ public class ExplorerPanel extends JPanel {
                         true);
 
         dialog.setContentPane(panel);
-        dialog.setSize(800, 500);
+        dialog.setSize(
+                800,
+                500);
         dialog.setLocationRelativeTo(this);
 
-        panel.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "ESCAPE_KEY");
-        panel.getActionMap().put("ESCAPE_KEY", new AbstractAction() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                dialog.dispose();
-            }
-        });
+        panel.getInputMap(
+                        JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT)
+                .put(
+                        KeyStroke.getKeyStroke(
+                                KeyEvent.VK_ESCAPE,
+                                0),
+                        "ESCAPE_KEY");
+
+        panel.getActionMap()
+                .put(
+                        "ESCAPE_KEY",
+                        new AbstractAction() {
+
+                            @Override
+                            public void actionPerformed(
+                                    ActionEvent e) {
+
+                                dialog.dispose();
+                            }
+                        });
 
         dialog.setVisible(true);
 
-        // change combobox model accordingly if any change done in repository dialog
-        RepositoryDefinition currentRepository = this.getCurrentRepository();
-        List<RepositoryDefinition> repositoryList = repositoryManager.getRepositories();
-        DefaultComboBoxModel<RepositoryDefinition> model = (DefaultComboBoxModel<RepositoryDefinition>) view.getRepositoryCombo().getModel();
+        /*
+         * Repository Manager kapandıktan sonra ComboBox
+         * RepositoryManager'daki güncel liste ile yeniden
+         * oluşturuluyor.
+         *
+         * Liste aynı zamanda Explorer'daki repository
+         * sıralama kuralıyla (Türkçe natural sort)
+         * sıralanıyor.
+         */
+        List<RepositoryDefinition> repositoryList =
+                repositoryManager.getRepositories();
 
-        // delete from combo if not found in the list
-        for (int i = model.getSize() - 1; i >= 1; i--) {
-            RepositoryDefinition currentItem = model.getElementAt(i);
-            if (!repositoryList.contains(currentItem)) {
-                if (currentItem.equals(currentRepository)) {
-                    this.setSelectedRepository(RepositoryDefinition.EMPTY_REPOSITORY);
-                }
-                model.removeElementAt(i);
-            }
+        Collator turkishCollator =
+                Collator.getInstance(
+                        new Locale("tr", "TR"));
+
+        turkishCollator.setStrength(
+                Collator.PRIMARY);
+
+        repositoryList.sort(
+                (first, second) ->
+                        S3Util.naturalTurkishCompare(
+                                first.getId(),
+                                second.getId(),
+                                turkishCollator));
+
+        DefaultComboBoxModel<RepositoryDefinition> model =
+                (DefaultComboBoxModel<RepositoryDefinition>)
+                        view.getRepositoryCombo()
+                                .getModel();
+
+        /*
+         * Mevcut seçili repository'nin ID'sini sakla.
+         */
+        RepositoryDefinition currentRepository =
+                getCurrentRepository();
+
+        String currentRepositoryId =
+                currentRepository == null
+                        ? null
+                        : currentRepository.getId();
+
+        /*
+         * Modeli güncel repository listesiyle yeniden oluştur.
+         */
+        model.removeAllElements();
+
+        model.addElement(
+                RepositoryDefinition.EMPTY_REPOSITORY);
+
+        for (RepositoryDefinition repository :
+                repositoryList) {
+
+            model.addElement(repository);
         }
 
-        // add to combo if new
-        for (RepositoryDefinition def : repositoryList) {
-            if (model.getIndexOf(def) == -1) {
-                model.addElement(def);
+        /*
+         * Mevcut repository hâlâ varsa seçimini koru.
+         */
+        if (currentRepositoryId != null) {
+
+            for (int i = 1;
+                 i < model.getSize();
+                 i++) {
+
+                RepositoryDefinition repository =
+                        model.getElementAt(i);
+
+                if (Objects.equals(
+                        currentRepositoryId,
+                        repository.getId())) {
+
+                    model.setSelectedItem(
+                            repository);
+
+                    break;
+                }
             }
         }
     }
