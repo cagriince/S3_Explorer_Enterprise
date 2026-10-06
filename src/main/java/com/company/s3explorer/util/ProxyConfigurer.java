@@ -288,11 +288,17 @@ public class ProxyConfigurer {
             if (item.contains("/")) {
                 item = convertCidrToWildcard(item);
             }
-            // 2. Yalın IP adresi mi kontrol et (Örn: 127.0.0.1, 10.11.1.5) -> Olduğu gibi bırak
+            // 2. IP Yıldız Wildcard'ları (örn: "10.11.*", "10.11.*.*" -> "10.11*")
+            // Yıldızdan önceki noktayı silerek Apache'nin çift nokta koymasını engelliyoruz.
+            else if (item.matches("^[0-9.]+\\*.*$")) {
+                String baseIp = item.replaceAll("\\.\\*.*$", ""); // "10.11"
+                item = baseIp + "*";                             // "10.11*"
+            }
+            // 3. Yalın IP adresi mi kontrol et (Örn: 127.0.0.1, 10.11.1.5) -> Olduğu gibi bırak
             else if (item.matches("^[0-9.]+$")) {
                 // IP adreslerine dokunma
             }
-            // 3. Domain dönüşümü (Örn: .example.com -> *.example.com veya example.com -> *.example.com)
+            // 4. Domain dönüşümü (Örn: .example.com -> *.example.com veya example.com -> *.example.com)
             else {
                 if (item.startsWith(".")) {
                     item = "*" + item;
