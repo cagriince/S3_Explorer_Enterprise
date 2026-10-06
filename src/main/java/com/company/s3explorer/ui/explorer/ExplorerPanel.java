@@ -3,6 +3,7 @@ package com.company.s3explorer.ui.explorer;
 import com.company.s3explorer.application.ActiveRepositoryContext;
 import com.company.s3explorer.repository.RepositoryDefinition;
 import com.company.s3explorer.repository.RepositoryManager;
+import com.company.s3explorer.repository.RepositoryChangeEvent;
 import com.company.s3explorer.security.EncryptionConfig;
 import com.company.s3explorer.service.*;
 import com.company.s3explorer.transfer.TransferRuntime;
@@ -1223,6 +1224,7 @@ public class ExplorerPanel extends JPanel {
         });
 
         view.getRepositoryCombo().addActionListener(e -> {
+
             if (suppressRepositorySelectionEvent) {
                 return;
             }
@@ -1231,10 +1233,13 @@ public class ExplorerPanel extends JPanel {
                     this.getCurrentRepository();
 
             if (repository == null
-                    || repository == RepositoryDefinition.EMPTY_REPOSITORY) {
+                    || repository ==
+                    RepositoryDefinition.EMPTY_REPOSITORY) {
 
                 encryptionConfig = null;
+
                 view.updateEncryptionActionVisibility();
+
                 return;
             }
 
@@ -1259,7 +1264,8 @@ public class ExplorerPanel extends JPanel {
                         repository);
             }
 
-            setSelectedRepository(repository);
+            setSelectedRepository(
+                    repository);
         });
         
         view.getBucketCombo().addActionListener(e -> {
@@ -3825,92 +3831,6 @@ public class ExplorerPanel extends JPanel {
                         });
 
         dialog.setVisible(true);
-
-        /*
-         * Repository Manager kapandıktan sonra ComboBox
-         * RepositoryManager'daki güncel liste ile yeniden
-         * oluşturuluyor.
-         *
-         * Liste aynı zamanda Explorer'daki repository
-         * sıralama kuralıyla (Türkçe natural sort)
-         * sıralanıyor.
-         */
-        List<RepositoryDefinition> repositoryList =
-                repositoryManager.getRepositories();
-
-        Collator turkishCollator =
-                Collator.getInstance(
-                        new Locale("tr", "TR"));
-
-        turkishCollator.setStrength(
-                Collator.PRIMARY);
-
-        repositoryList.sort(
-                (first, second) ->
-                        S3Util.naturalTurkishCompare(
-                                first.getId(),
-                                second.getId(),
-                                turkishCollator));
-
-        DefaultComboBoxModel<RepositoryDefinition> model =
-                (DefaultComboBoxModel<RepositoryDefinition>)
-                        view.getRepositoryCombo()
-                                .getModel();
-
-        /*
-         * Mevcut seçili repository'nin ID'sini sakla.
-         */
-        RepositoryDefinition currentRepository =
-                getCurrentRepository();
-
-        String currentRepositoryId =
-                currentRepository == null
-                        ? null
-                        : currentRepository.getId();
-
-        /*
-         * Modeli güncel repository listesiyle yeniden oluştur.
-         */
-        suppressRepositorySelectionEvent = true;
-
-        try {
-
-            model.removeAllElements();
-
-            model.addElement(
-                    RepositoryDefinition.EMPTY_REPOSITORY);
-
-            for (RepositoryDefinition repository :
-                    repositoryList) {
-
-                model.addElement(repository);
-            }
-
-            if (currentRepositoryId != null) {
-
-                for (int i = 1;
-                     i < model.getSize();
-                     i++) {
-
-                    RepositoryDefinition repository =
-                            model.getElementAt(i);
-
-                    if (Objects.equals(
-                            currentRepositoryId,
-                            repository.getId())) {
-
-                        model.setSelectedItem(
-                                repository);
-
-                        break;
-                    }
-                }
-            }
-
-        } finally {
-
-            suppressRepositorySelectionEvent = false;
-        }
     }
 
     private void setFileTableLoading(boolean loading) {
@@ -4001,71 +3921,139 @@ public class ExplorerPanel extends JPanel {
     }
 
     private void onRepositoryChanged(
-            RepositoryDefinition changedRepository) {
+            RepositoryChangeEvent event) {
 
-        if (changedRepository == null
-                || changedRepository.getId() == null) {
+        if (event == null) {
             return;
         }
 
         SwingUtilities.invokeLater(() -> {
 
-            String changedId =
-                    changedRepository.getId();
+            RepositoryDefinition currentRepository =
+                    getCurrentRepository();
 
-            int index = -1;
+            RepositoryDefinition repositoryToSelect =
+                    currentRepository;
 
-            for (int i = 0;
-                 i < view.getRepositoryCombo().getItemCount();
-                 i++) {
+            boolean reloadBuckets =
+                    false;
 
-                RepositoryDefinition item =
-                        view.getRepositoryCombo().getItemAt(i);
+            switch (event.getType()) {
 
-                if (item != null
-                        && Objects.equals(
-                        item.getId(),
-                        changedId)) {
+                case ADD -> {
+                    /*
+                     * Yeni repository eklendi.
+                     *
+                     * Mevcut repository aynen korunur.
+                     * Bucket / tree reload edilmez.
+                     */
+                }
 
-                    index = i;
-                    break;
+                case UPDATE -> {
+
+                    RepositoryDefinition oldRepository =
+                            event.getOldRepository();
+
+                    RepositoryDefinition newRepository =
+                            event.getNewRepository();
+
+                    if (oldRepository == null
+                            || newRepository == null) {
+                        return;
+                    }
+
+                    boolean wasActive =
+                            currentRepository != null
+                                    && currentRepository != RepositoryDefinition.EMPTY_REPOSITORY
+                                    && Objects.equals(
+                                    currentRepository.getId(),
+                                    oldRepository.getId());
+
+                    if (wasActive) {
+
+                        /*
+                         * Repository rename/update edildi ve
+                         * değiştirilen repository aktif repository.
+                         *
+                         * Yeni repository'yi seç,
+                         * fakat bucket/tree reload etme.
+                         */
+                        repositoryToSelect =
+                                newRepository;
+
+                        context.setActiveRepository(
+                                newRepository);
+
+                        encryptionConfig =
+                                hasEncryptionConfiguration(
+                                        newRepository)
+                                        ? new EncryptionConfig(
+                                        newRepository.getEncryptionTransformation(),
+                                        newRepository.getEncryptionIv(),
+                                        newRepository.getEncryptionKey())
+                                        : null;
+
+                    } else {
+
+                        /*
+                         * Aktif olmayan repository değiştirildi.
+                         * Mevcut repository aynen korunur.
+                         */
+                        repositoryToSelect =
+                                currentRepository;
+                    }
+                }
+
+                case REMOVE -> {
+
+                    RepositoryDefinition removedRepository =
+                            event.getOldRepository();
+
+                    if (removedRepository == null) {
+                        return;
+                    }
+
+                    boolean wasActive =
+                            currentRepository != null
+                                    && currentRepository != RepositoryDefinition.EMPTY_REPOSITORY
+                                    && Objects.equals(
+                                    currentRepository.getId(),
+                                    removedRepository.getId());
+
+                    if (wasActive) {
+
+                        /*
+                         * Aktif repository silindi.
+                         *
+                         * Empty repository seçilecek ve
+                         * bucket/tree temizlenecek.
+                         */
+                        repositoryToSelect =
+                                RepositoryDefinition.EMPTY_REPOSITORY;
+
+                        context.setActiveRepository(
+                                RepositoryDefinition.EMPTY_REPOSITORY);
+
+                        encryptionConfig = null;
+
+                        reloadBuckets = true;
+
+                    } else {
+
+                        /*
+                         * Başka bir repository silindi.
+                         * Mevcut repository korunur.
+                         */
+                        repositoryToSelect =
+                                currentRepository;
+                    }
                 }
             }
 
-            if (index < 0) {
-                return;
-            }
+            refreshRepositoryCombo(
+                    repositoryToSelect);
 
-            RepositoryDefinition activeRepository =
-                    context.getActiveRepository();
-
-            boolean wasActive =
-                    activeRepository != null
-                            && Objects.equals(
-                            activeRepository.getId(),
-                            changedId);
-
-            view.getRepositoryCombo().removeItemAt(index);
-            view.getRepositoryCombo().insertItemAt(
-                    changedRepository,
-                    index);
-
-            if (wasActive) {
-
-                context.setActiveRepository(
-                        changedRepository);
-
-                encryptionConfig =
-                        hasEncryptionConfiguration()
-                                ? new EncryptionConfig(
-                                changedRepository.getEncryptionTransformation(),
-                                changedRepository.getEncryptionIv(),
-                                changedRepository.getEncryptionKey())
-                                : null;
-
-                view.getRepositoryCombo().setSelectedIndex(
-                        index);
-
+            if (reloadBuckets) {
                 reloadBuckets();
             }
         });
@@ -5112,12 +5100,15 @@ public class ExplorerPanel extends JPanel {
 
     private boolean hasEncryptionConfiguration() {
         RepositoryDefinition repository = getCurrentRepository();
+        return this.hasEncryptionConfiguration(repository);
+    }
 
-        if (repository == null) {
-            return false;
-        }
+    private boolean hasEncryptionConfiguration(
+            RepositoryDefinition repository) {
 
-        return repository.hasEncryptionConfiguration();
+        return repository != null
+                && repository != RepositoryDefinition.EMPTY_REPOSITORY
+                && repository.hasEncryptionConfiguration();
     }
 
     private void showBulkDownloadDialog() {
@@ -5689,5 +5680,80 @@ public class ExplorerPanel extends JPanel {
 
     public void openRepositoryManager() {
         showRepositoryManager();
+    }
+
+    private void refreshRepositoryCombo(
+            RepositoryDefinition repositoryToSelect) {
+
+        List<RepositoryDefinition> repositories =
+                repositoryManager.getRepositories();
+
+        Collator turkishCollator =
+                Collator.getInstance(
+                        new Locale("tr", "TR"));
+
+        turkishCollator.setStrength(
+                Collator.PRIMARY);
+
+        repositories.sort(
+                (first, second) ->
+                        S3Util.naturalTurkishCompare(
+                                first.getId(),
+                                second.getId(),
+                                turkishCollator));
+
+        suppressRepositorySelectionEvent = true;
+
+        try {
+
+            DefaultComboBoxModel<RepositoryDefinition> model =
+                    (DefaultComboBoxModel<RepositoryDefinition>)
+                            view.getRepositoryCombo()
+                                    .getModel();
+
+            model.removeAllElements();
+
+            model.addElement(
+                    RepositoryDefinition.EMPTY_REPOSITORY);
+
+            for (RepositoryDefinition repository :
+                    repositories) {
+
+                model.addElement(repository);
+            }
+
+            RepositoryDefinition selectedRepository =
+                    RepositoryDefinition.EMPTY_REPOSITORY;
+
+            if (repositoryToSelect != null
+                    && repositoryToSelect != RepositoryDefinition.EMPTY_REPOSITORY) {
+
+                for (int i = 1;
+                     i < model.getSize();
+                     i++) {
+
+                    RepositoryDefinition repository =
+                            model.getElementAt(i);
+
+                    if (repository != null
+                            && Objects.equals(
+                            repository.getId(),
+                            repositoryToSelect.getId())) {
+
+                        selectedRepository =
+                                repository;
+
+                        break;
+                    }
+                }
+            }
+
+            model.setSelectedItem(
+                    selectedRepository);
+
+        } finally {
+
+            suppressRepositorySelectionEvent = false;
+        }
     }
 }

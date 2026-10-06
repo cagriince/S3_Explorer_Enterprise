@@ -13,48 +13,56 @@ public class RepositoryManager {
     private final RepositoryConfigStore store =
             new RepositoryConfigStore();
 
-    private final List<Consumer<RepositoryDefinition>>
+    private final List<Consumer<RepositoryChangeEvent>>
             repositoryChangeListeners =
             new CopyOnWriteArrayList<>();
 
     public RepositoryManager() {
-        repositories.addAll(store.load());
+        repositories.addAll(
+                store.load());
     }
 
     public List<RepositoryDefinition> getRepositories() {
-        return new ArrayList<>(repositories);
+        return new ArrayList<>(
+                repositories);
     }
 
     public void addRepositoryChangeListener(
-            Consumer<RepositoryDefinition> listener) {
+            Consumer<RepositoryChangeEvent> listener) {
 
         if (listener != null) {
-            repositoryChangeListeners.add(listener);
+            repositoryChangeListeners.add(
+                    listener);
         }
     }
 
     public void removeRepositoryChangeListener(
-            Consumer<RepositoryDefinition> listener) {
+            Consumer<RepositoryChangeEvent> listener) {
 
         if (listener != null) {
-            repositoryChangeListeners.remove(listener);
+            repositoryChangeListeners.remove(
+                    listener);
         }
     }
 
     private void persist() {
-        store.save(repositories);
+        store.save(
+                repositories);
     }
 
     private void fireRepositoryChanged(
-            RepositoryDefinition repository) {
+            RepositoryChangeEvent event) {
 
-        for (Consumer<RepositoryDefinition> listener :
+        for (Consumer<RepositoryChangeEvent> listener :
                 repositoryChangeListeners) {
 
             try {
-                listener.accept(repository);
-            }
-            catch (Exception ex) {
+
+                listener.accept(
+                        event);
+
+            } catch (Exception ex) {
+
                 ex.printStackTrace();
             }
         }
@@ -63,19 +71,27 @@ public class RepositoryManager {
     public void addRepository(
             RepositoryDefinition repo) {
 
-        repositories.add(repo);
+        repositories.add(
+                repo);
+
         persist();
 
-        fireRepositoryChanged(repo);
+        fireRepositoryChanged(
+                RepositoryChangeEvent.added(
+                        repo));
     }
 
     public void removeRepository(
             RepositoryDefinition repo) {
 
-        repositories.remove(repo);
+        repositories.remove(
+                repo);
+
         persist();
 
-        fireRepositoryChanged(repo);
+        fireRepositoryChanged(
+                RepositoryChangeEvent.removed(
+                        repo));
     }
 
     public void updateRepository(
@@ -84,19 +100,10 @@ public class RepositoryManager {
 
         if (oldRepo == null
                 || newRepo == null) {
+
             throw new IllegalArgumentException(
                     "Repository must not be null");
         }
-/*
-        String newName =
-                newRepo.getName() == null
-                        ? ""
-                        : newRepo.getName().trim();
-
-        if (newName.isEmpty()) {
-            throw new IllegalArgumentException(
-                    "Repository name must not be empty");
-        }*/
 
         boolean repositoryExists =
                 repositories.stream()
@@ -105,16 +112,16 @@ public class RepositoryManager {
                                         && repository.equals(newRepo));
 
         if (repositoryExists) {
+
             throw new IllegalArgumentException(
                     "A repository with the name and environment \""
                             + newRepo.getId()
                             + "\" already exists.");
         }
 
-        //newRepo.setName(newName);
-
         int idx =
-                repositories.indexOf(oldRepo);
+                repositories.indexOf(
+                        oldRepo);
 
         if (idx >= 0) {
 
@@ -125,10 +132,12 @@ public class RepositoryManager {
             persist();
 
             fireRepositoryChanged(
-                    newRepo);
+                    RepositoryChangeEvent.updated(
+                            oldRepo,
+                            newRepo));
         }
     }
-    
+
     public RepositoryDefinition findById(
             String id) {
 
@@ -154,12 +163,14 @@ public class RepositoryManager {
             String newName) {
 
         if (source == null) {
+
             throw new IllegalArgumentException(
                     "Source repository must not be null");
         }
 
         if (newName == null
                 || newName.trim().isEmpty()) {
+
             throw new IllegalArgumentException(
                     "Repository name must not be empty");
         }
@@ -172,9 +183,11 @@ public class RepositoryManager {
                         .anyMatch(repository ->
                                 newName.equals(
                                         repository.getName())
-                                        && source.getEnvironment().equals(repository.getEnvironment()));
+                                        && source.getEnvironment()
+                                        .equals(repository.getEnvironment()));
 
         if (repositoryExists) {
+
             throw new IllegalArgumentException(
                     "A repository with the name and environment \""
                             + newName
@@ -184,29 +197,39 @@ public class RepositoryManager {
         }
 
         RepositoryDefinition duplicate =
-                new RepositoryDefinition(name, source.getEnvironment());
+                new RepositoryDefinition(
+                        name,
+                        source.getEnvironment());
 
         duplicate.setEndpoint(
                 source.getEndpoint());
+
         duplicate.setAccessKey(
                 source.getAccessKey());
+
         duplicate.setSecretKey(
                 source.getSecretKey());
+
         duplicate.setExternalBuckets(
                 source.getExternalBuckets());
+
         duplicate.setEncryptionTransformation(
                 source.getEncryptionTransformation());
+
         duplicate.setEncryptionIv(
                 source.getEncryptionIv());
+
         duplicate.setEncryptionKey(
                 source.getEncryptionKey());
-        
-        repositories.add(duplicate);
+
+        repositories.add(
+                duplicate);
 
         persist();
 
         fireRepositoryChanged(
-                duplicate);
+                RepositoryChangeEvent.added(
+                        duplicate));
 
         return duplicate;
     }
