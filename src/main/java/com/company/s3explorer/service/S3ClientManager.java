@@ -1,12 +1,15 @@
 package com.company.s3explorer.service;
 
 import com.company.s3explorer.application.ActiveRepositoryContext;
+import com.company.s3explorer.repository.RepositoryChangeEvent;
 import com.company.s3explorer.repository.RepositoryDefinition;
 import com.company.s3explorer.repository.RepositoryManager;
 import software.amazon.awssdk.services.s3.S3Client;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
+import java.util.function.Consumer;
 
 public class S3ClientManager implements AutoCloseable {
 
@@ -18,7 +21,7 @@ public class S3ClientManager implements AutoCloseable {
 
     private final ActiveRepositoryContext repositoryContext;
 
-    private final java.util.function.Consumer<RepositoryDefinition>
+    private final Consumer<RepositoryChangeEvent>
             repositoryChangeListener;
 
     public S3ClientManager(
@@ -44,30 +47,77 @@ public class S3ClientManager implements AutoCloseable {
          * kabul ediyoruz.
          */
         this.repositoryChangeListener =
-                repository -> {
+                event -> {
 
                     invalidateAllClients();
+
+                    if (event == null) {
+                        return;
+                    }
 
                     RepositoryDefinition activeRepository =
                             repositoryContext
                                     .getActiveRepository();
 
-                    if (activeRepository == null) {
+                    if (activeRepository == null
+                            || activeRepository.isEmpty()) {
                         return;
                     }
 
-                    if (activeRepository.getId() == null) {
+                    /*
+                     * Repository UPDATE edildiğinde
+                     * eski repository aktif repository ise
+                     * context'i yeni repository'ye taşı.
+                     *
+                     * Özellikle rename durumunda oldRepository
+                     * ve newRepository ID'leri farklı olacaktır.
+                     */
+                    if (event.getType()
+                            == RepositoryChangeEvent.Type.UPDATE) {
+
+                        RepositoryDefinition oldRepository =
+                                event.getOldRepository();
+
+                        RepositoryDefinition newRepository =
+                                event.getNewRepository();
+
+                        if (oldRepository == null
+                                || newRepository == null) {
+                            return;
+                        }
+
+                        if (Objects.equals(
+                                activeRepository.getId(),
+                                oldRepository.getId())) {
+
+                            repositoryContext.setActiveRepository(
+                                    newRepository);
+                        }
+
                         return;
                     }
 
-                    if (!activeRepository.getId().equals(
-                            repository.getId())) {
+                    /*
+                     * ADD:
+                     *
+                     * Yeni repository eklendiğinde mevcut
+                     * active repository değişmez.
+                     */
+                    if (event.getType()
+                            == RepositoryChangeEvent.Type.ADD) {
 
                         return;
                     }
 
-                    repositoryContext.setActiveRepository(
-                            repository);
+                    /*
+                     * REMOVE:
+                     *
+                     * Aktif repository silindiyse ExplorerPanel
+                     * zaten EMPTY_REPOSITORY'yi aktif yapacaktır.
+                     *
+                     * Aktif olmayan bir repository silindiyse
+                     * mevcut context'e dokunma.
+                     */
                 };
 
         repositoryManager.addRepositoryChangeListener(
