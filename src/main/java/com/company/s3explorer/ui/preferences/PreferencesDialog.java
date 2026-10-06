@@ -503,19 +503,34 @@ public class PreferencesDialog
                         .getText()
                         .trim());
 
+        boolean useAuthentication =
+                mode
+                        == ProxySettings.Mode
+                        .MANUAL_PROXY_CONFIGURATION
+                        && useAuthenticationCheckBox.isSelected();
+
         proxySettings.setUseAuthentication(
-                useAuthenticationCheckBox
-                        .isSelected());
+                useAuthentication);
 
-        proxySettings.setUsername(
-                usernameField
-                        .getText()
-                        .trim());
+        if (useAuthentication) {
+            proxySettings.setUsername(
+                    usernameField
+                            .getText()
+                            .trim());
 
-        proxySettings.setPassword(
-                new String(
-                        passwordField
-                                .getPassword()));
+            proxySettings.setPassword(
+                    new String(
+                            passwordField
+                                    .getPassword()));
+
+        } else {
+            /*
+             * Authentication artık kullanılmıyorsa
+             * eski kullanıcı adı ve şifreyi de temizle.
+             */
+            proxySettings.setUsername(null);
+            proxySettings.setPassword(null);
+        }
 
         /*
          * Sadece başarılı Save sonrasında

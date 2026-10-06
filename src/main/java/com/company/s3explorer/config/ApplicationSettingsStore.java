@@ -1,5 +1,6 @@
 package com.company.s3explorer.config;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.File;
@@ -10,7 +11,10 @@ public class ApplicationSettingsStore {
 
     private static final Path FILE = new File(System.getProperty("user.home"), ".s3explorer/application.json").toPath();
 
-    private final ObjectMapper mapper = new ObjectMapper();
+    private final ObjectMapper mapper =
+            new ObjectMapper()
+                    .setSerializationInclusion(
+                            JsonInclude.Include.NON_NULL);
 
     public ApplicationSettings load() {
         try {
