@@ -1,9 +1,9 @@
 package com.company.s3explorer.ui.explorer;
 
 import com.company.s3explorer.application.ActiveRepositoryContext;
+import com.company.s3explorer.repository.RepositoryChangeEvent;
 import com.company.s3explorer.repository.RepositoryDefinition;
 import com.company.s3explorer.repository.RepositoryManager;
-import com.company.s3explorer.repository.RepositoryChangeEvent;
 import com.company.s3explorer.security.EncryptionConfig;
 import com.company.s3explorer.service.*;
 import com.company.s3explorer.transfer.TransferRuntime;
@@ -1233,12 +1233,14 @@ public class ExplorerPanel extends JPanel {
                     this.getCurrentRepository();
 
             if (repository == null
-                    || repository ==
-                    RepositoryDefinition.EMPTY_REPOSITORY) {
+                    || repository == RepositoryDefinition.EMPTY_REPOSITORY) {
 
                 encryptionConfig = null;
 
                 view.updateEncryptionActionVisibility();
+
+                setSelectedRepository(
+                        RepositoryDefinition.EMPTY_REPOSITORY);
 
                 return;
             }
@@ -3935,17 +3937,14 @@ public class ExplorerPanel extends JPanel {
             RepositoryDefinition repositoryToSelect =
                     currentRepository;
 
-            boolean reloadBuckets =
-                    false;
-
             switch (event.getType()) {
 
                 case ADD -> {
                     /*
                      * Yeni repository eklendi.
                      *
-                     * Mevcut repository aynen korunur.
-                     * Bucket / tree reload edilmez.
+                     * Mevcut repository korunur.
+                     * Bucket / Tree / File Table reload edilmez.
                      */
                 }
 
@@ -3972,11 +3971,10 @@ public class ExplorerPanel extends JPanel {
                     if (wasActive) {
 
                         /*
-                         * Repository rename/update edildi ve
-                         * değiştirilen repository aktif repository.
+                         * Aktif repository rename/update edildi.
                          *
-                         * Yeni repository'yi seç,
-                         * fakat bucket/tree reload etme.
+                         * Yeni repository seçilecek fakat
+                         * bucket/tree/file table reload edilmeyecek.
                          */
                         repositoryToSelect =
                                 newRepository;
@@ -3997,7 +3995,7 @@ public class ExplorerPanel extends JPanel {
 
                         /*
                          * Aktif olmayan repository değiştirildi.
-                         * Mevcut repository aynen korunur.
+                         * Mevcut repository korunur.
                          */
                         repositoryToSelect =
                                 currentRepository;
@@ -4025,23 +4023,17 @@ public class ExplorerPanel extends JPanel {
                         /*
                          * Aktif repository silindi.
                          *
-                         * Empty repository seçilecek ve
-                         * bucket/tree temizlenecek.
+                         * Empty Repository seçilecek.
+                         * setSelectedRepository() bunun sonucunda
+                         * bucket + tree + file table'ı temizleyecek.
                          */
                         repositoryToSelect =
                                 RepositoryDefinition.EMPTY_REPOSITORY;
 
-                        context.setActiveRepository(
-                                RepositoryDefinition.EMPTY_REPOSITORY);
-
-                        encryptionConfig = null;
-
-                        reloadBuckets = true;
-
                     } else {
 
                         /*
-                         * Başka bir repository silindi.
+                         * Aktif olmayan repository silindi.
                          * Mevcut repository korunur.
                          */
                         repositoryToSelect =
@@ -4053,8 +4045,20 @@ public class ExplorerPanel extends JPanel {
             refreshRepositoryCombo(
                     repositoryToSelect);
 
-            if (reloadBuckets) {
-                reloadBuckets();
+            /*
+             * Aktif repository silindiyse bütün Explorer state'ini
+             * gerçekten temizle.
+             *
+             * Burada reloadBuckets() kullanılmıyor; çünkü o
+             * File Table'ı temizlemiyor.
+             */
+            if (event.getType()
+                    == RepositoryChangeEvent.Type.REMOVE
+                    && repositoryToSelect
+                    == RepositoryDefinition.EMPTY_REPOSITORY) {
+
+                setSelectedRepository(
+                        RepositoryDefinition.EMPTY_REPOSITORY);
             }
         });
     }
