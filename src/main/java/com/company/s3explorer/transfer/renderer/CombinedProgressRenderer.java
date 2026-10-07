@@ -8,46 +8,19 @@ import javax.swing.table.TableCellRenderer;
 import java.awt.*;
 
 public class CombinedProgressRenderer
-        extends JPanel
+        extends JProgressBar
         implements TableCellRenderer {
 
     private static final float BAR_SCALE = 0.45f;
 
-    private final TableProgressBar progressBar =
-            new TableProgressBar();
-
     public CombinedProgressRenderer() {
 
-        setLayout(
-                new GridBagLayout());
+        super(
+                0,
+                100);
 
-        setOpaque(false);
-
-        GridBagConstraints constraints =
-                new GridBagConstraints();
-
-        constraints.gridx = 0;
-        constraints.gridy = 0;
-
-        constraints.weightx = 1.0;
-        constraints.weighty = 1.0;
-
-        constraints.fill =
-                GridBagConstraints.HORIZONTAL;
-
-        constraints.anchor =
-                GridBagConstraints.CENTER;
-
-        constraints.insets =
-                new Insets(
-                        0,
-                        4,
-                        0,
-                        4);
-
-        add(
-                progressBar,
-                constraints);
+        setStringPainted(
+                true);
     }
 
     @Override
@@ -80,27 +53,14 @@ public class CombinedProgressRenderer
                                 100,
                                 percent));
 
-        progressBar.setValue(
+        setValue(
                 percent);
 
-        progressBar.setString(
+        setString(
                 percent + "%");
 
-        Color cellBackground =
-                getCellBackground(
-                        table,
-                        isSelected,
-                        row);
-
-        progressBar.setProgressBarBackground(
-                cellBackground);
-
-        progressBar.setTableBorderColor(
-                getTableBorderColor(
-                        table));
-
         Dimension preferredSize =
-                progressBar.getProgressBarPreferredSize();
+                getPreferredSize();
 
         int preferredHeight =
                 Math.max(
@@ -109,63 +69,11 @@ public class CombinedProgressRenderer
                                 table.getRowHeight(row)
                                         * BAR_SCALE));
 
-        progressBar.setPreferredSize(
+        setPreferredSize(
                 new Dimension(
                         preferredSize.width,
                         preferredHeight));
 
         return this;
-    }
-
-    private Color getCellBackground(
-            JTable table,
-            boolean isSelected,
-            int row) {
-
-        if (isSelected) {
-
-            return table.getSelectionBackground();
-        }
-
-        Color alternateRowColor =
-                UIManager.getColor(
-                        "Table.alternateRowColor");
-
-        if (alternateRowColor != null
-                && (row & 1) == 1) {
-
-            return alternateRowColor;
-        }
-
-        return table.getBackground();
-    }
-
-    private Color getTableBorderColor(
-            JTable table) {
-
-        Color color =
-                table.getGridColor();
-
-        if (color != null) {
-            return color;
-        }
-
-        color =
-                UIManager.getColor(
-                        "Table.gridColor");
-
-        if (color != null) {
-            return color;
-        }
-
-        color =
-                UIManager.getColor(
-                        "Separator.foreground");
-
-        if (color != null) {
-            return color;
-        }
-
-        return Color.GRAY;
     }
 }

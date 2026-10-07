@@ -767,10 +767,10 @@ public class TransferPanel
                 .setCellRenderer(
                         new FileSizeRenderer());
 
-        table.getColumnModel()
+/*        table.getColumnModel()
                 .getColumn(3)
                 .setCellRenderer(
-                        new ProgressBarRenderer());
+                        new ProgressBarRenderer());*/
 
         table.getColumnModel()
                 .getColumn(4)
@@ -1405,10 +1405,10 @@ public class TransferPanel
                 .setCellRenderer(
                         new CombinedFileSizeRenderer());
 
-        table.getColumnModel()
+/*        table.getColumnModel()
                 .getColumn(3)
                 .setCellRenderer(
-                        new CombinedProgressRenderer());
+                        new CombinedProgressRenderer());*/
 
         table.getColumnModel()
                 .getColumn(4)
