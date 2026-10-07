@@ -1650,7 +1650,8 @@ public class ExplorerPanel extends JPanel {
          * Her repository seçimi önceki asenkron
          * işlemleri geçersiz kılar.
          */
-        operationGeneration.incrementAndGet();
+        final long operationId =
+                operationGeneration.incrementAndGet();
 
         pendingBucketSelection = null;
 
@@ -1695,9 +1696,40 @@ public class ExplorerPanel extends JPanel {
 
         setFileTableLoading(true);
 
-        showOperationDialog(
-                OperationDialogType.CONNECTION,
-                "Connecting to S3 repository...");
+        /*
+         * Connection dialogunu doğrudan göstermiyoruz.
+         *
+         * showOperationDialog() zaten kendi içinde
+         * invokeLater() kullanıyor.
+         *
+         * Repository bu arada Empty'ye çevrilirse
+         * eski "Connecting..." isteğinin ekrana
+         * gelmesini kesin olarak engelle.
+         */
+        SwingUtilities.invokeLater(() -> {
+
+            if (operationId !=
+                    operationGeneration.get()) {
+
+                return;
+            }
+
+            RepositoryDefinition activeRepository =
+                    context.getActiveRepository();
+
+            if (activeRepository == null
+                    || activeRepository.isEmpty()
+                    || !Objects.equals(
+                    activeRepository.getId(),
+                    repository.getId())) {
+
+                return;
+            }
+
+            showOperationDialog(
+                    OperationDialogType.CONNECTION,
+                    "Connecting to S3 repository...");
+        });
 
         reloadBuckets();
     }
