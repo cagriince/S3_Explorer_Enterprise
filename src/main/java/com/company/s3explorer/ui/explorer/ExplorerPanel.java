@@ -1781,12 +1781,22 @@ public class ExplorerPanel extends JPanel {
 
     public void setSelectedRepository(
             RepositoryDefinition repository) {
-
+        log.warn(
+                "[REPOSITORY SELECTION] repository={} id={} empty={} " +
+                        "active={} activeId={}",
+                repository,
+                repository == null ? null : repository.getId(),
+                repository == null || repository.isEmpty(),
+                context.getActiveRepository(),
+                context.getActiveRepository() == null
+                        ? null
+                        : context.getActiveRepository().getId());
         /*
          * Her repository seçimi önceki asenkron
          * işlemleri geçersiz kılar.
          */
-        operationGeneration.incrementAndGet();
+        final long operationId =
+                operationGeneration.incrementAndGet();
 
         pendingBucketSelection = null;
 
@@ -1806,12 +1816,18 @@ public class ExplorerPanel extends JPanel {
 
         setFileTableLoading(false);
 
-        hideOperationDialog(
+        /*
+         * Önceki CONNECTION dialogunu SENKRON olarak
+         * geçersiz hale getir.
+         *
+         * Burada invokeLater kullanmıyoruz.
+         */
+        cancelOperationDialog(
                 OperationDialogType.CONNECTION);
 
         /*
-         * Empty Repository seçildiyse yalnızca ekranı
-         * temizlemek yeterli.
+         * Empty Repository seçildiyse S3 bağlantısı
+         * kesinlikle başlatılmayacak.
          */
         if (repository == null
                 || repository.isEmpty()) {
@@ -1831,11 +1847,81 @@ public class ExplorerPanel extends JPanel {
 
         setFileTableLoading(true);
 
-        showOperationDialog(
-                OperationDialogType.CONNECTION,
-                "Connecting to S3 repository...");
+        /*
+         * Connection dialogunu yalnızca bu repository
+         * hâlâ aktifse göster.
+         */
+        showConnectionDialog(
+                repository,
+                operationId);
 
         reloadBuckets();
+    }
+
+    private void showConnectionDialog(
+            RepositoryDefinition repository,
+            long operationId) {
+
+        if (repository == null
+                || repository.isEmpty()) {
+
+            return;
+        }
+
+        SwingUtilities.invokeLater(() -> {
+
+            /*
+             * Bu bağlantı artık geçerli değilse
+             * hiçbir şey yapma.
+             */
+            if (operationId !=
+                    operationGeneration.get()) {
+
+                return;
+            }
+
+            RepositoryDefinition activeRepository =
+                    context.getActiveRepository();
+
+            if (activeRepository == null
+                    || activeRepository.isEmpty()
+                    || !Objects.equals(
+                    activeRepository.getId(),
+                    repository.getId())) {
+
+                return;
+            }
+
+            if (connectionDialog == null) {
+
+                connectionDialog =
+                        createOperationDialog(
+                                "S3 Connection");
+            }
+
+            connectionDialog.message.setText(
+                    "Connecting to S3 repository...");
+
+            connectionDialog.dialog.pack();
+
+            if (connectionDialog.showTimer != null) {
+
+                connectionDialog.showTimer.stop();
+                connectionDialog.showTimer = null;
+            }
+
+            if (!visibleOperationDialogs.contains(
+                    connectionDialog)) {
+
+                visibleOperationDialogs.add(
+                        connectionDialog);
+            }
+
+            connectionDialog.dialog.setVisible(
+                    true);
+
+            positionOperationDialogs();
+        });
     }
 
     public void reloadRepositories() {
@@ -4991,6 +5077,48 @@ public class ExplorerPanel extends JPanel {
                     operationDialog.dialog.getHeight()
                             + gap;
         }
+    }
+
+    private void cancelOperationDialog(
+            OperationDialogType type) {
+
+        OperationDialog operationDialog;
+
+        switch (type) {
+
+            case CONNECTION:
+                operationDialog =
+                        connectionDialog;
+                break;
+
+            case BUCKET:
+                operationDialog =
+                        bucketDialog;
+                break;
+
+            case FILE_TABLE:
+                operationDialog =
+                        fileTableDialog;
+                break;
+
+            default:
+                return;
+        }
+
+        if (operationDialog == null) {
+            return;
+        }
+
+        if (operationDialog.showTimer != null) {
+
+            operationDialog.showTimer.stop();
+            operationDialog.showTimer = null;
+        }
+
+        operationDialog.dialog.setVisible(false);
+
+        visibleOperationDialogs.remove(
+                operationDialog);
     }
 
     private void hideOperationDialog(
