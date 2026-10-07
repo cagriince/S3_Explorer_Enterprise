@@ -179,6 +179,6 @@ public class RepositoryDefinition {
 
     @JsonIgnore
     public boolean isEmpty() {
-        return id == null;
+        return id == null || id.isBlank();
     }
 }
