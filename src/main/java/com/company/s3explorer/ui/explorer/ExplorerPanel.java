@@ -72,12 +72,10 @@ public class ExplorerPanel extends JPanel {
     private String currentFileBucket;
     private String currentFilePrefix;
 
-    private OperationDialog connectionDialog;
     private OperationDialog bucketDialog;
     private OperationDialog fileTableDialog;
 
     private enum OperationDialogType {
-        CONNECTION,
         BUCKET,
         FILE_TABLE
     }
@@ -761,9 +759,6 @@ public class ExplorerPanel extends JPanel {
         showOperationDialog(
                 OperationDialogType.BUCKET,
                 "Loading buckets...");
-
-        hideOperationDialog(
-                OperationDialogType.CONNECTION);
 
         /*
          * Refresh başlamadan önce gerçekten aktif olan bucket'ı
@@ -1783,8 +1778,8 @@ public class ExplorerPanel extends JPanel {
             RepositoryDefinition repository) {
 
         /*
-         * Her repository seçimi önceki asenkron
-         * işlemleri geçersiz kılar.
+         * Repository'nin bucket'larını yükle.
+         * loadBucketsAsync() kendi progress dialogunu gösterecek.
          */
         operationGeneration.incrementAndGet();
 
@@ -1805,9 +1800,6 @@ public class ExplorerPanel extends JPanel {
         treeController.initializeRoot();
 
         setFileTableLoading(false);
-
-        hideOperationDialog(
-                OperationDialogType.CONNECTION);
 
         /*
          * Empty Repository seçildiyse yalnızca ekranı
@@ -1839,72 +1831,6 @@ public class ExplorerPanel extends JPanel {
          * gösterecek.
          */
         reloadBuckets();
-    }
-
-    private void showConnectionDialog(
-            RepositoryDefinition repository,
-            long operationId) {
-
-        if (repository == null
-                || repository.isEmpty()) {
-
-            return;
-        }
-
-        SwingUtilities.invokeLater(() -> {
-
-            /*
-             * Bu bağlantı artık geçerli değilse
-             * hiçbir şey yapma.
-             */
-            if (operationId !=
-                    operationGeneration.get()) {
-
-                return;
-            }
-
-            RepositoryDefinition activeRepository =
-                    context.getActiveRepository();
-
-            if (activeRepository == null
-                    || activeRepository.isEmpty()
-                    || !Objects.equals(
-                    activeRepository.getId(),
-                    repository.getId())) {
-
-                return;
-            }
-
-            if (connectionDialog == null) {
-
-                connectionDialog =
-                        createOperationDialog(
-                                "S3 Connection");
-            }
-
-            connectionDialog.message.setText(
-                    "Connecting to S3 repository...");
-
-            connectionDialog.dialog.pack();
-
-            if (connectionDialog.showTimer != null) {
-
-                connectionDialog.showTimer.stop();
-                connectionDialog.showTimer = null;
-            }
-
-            if (!visibleOperationDialogs.contains(
-                    connectionDialog)) {
-
-                visibleOperationDialogs.add(
-                        connectionDialog);
-            }
-
-            connectionDialog.dialog.setVisible(
-                    true);
-
-            positionOperationDialogs();
-        });
     }
 
     public void reloadRepositories() {
@@ -4838,59 +4764,11 @@ public class ExplorerPanel extends JPanel {
             OperationDialogType type,
             String message) {
 
-        final long dialogOperationId =
-                operationGeneration.get();
-
         SwingUtilities.invokeLater(() -> {
-
-            /*
-             * CONNECTION dialogu için bu çağrının hâlâ
-             * geçerli olup olmadığını kontrol et.
-             *
-             * Örneğin:
-             *
-             * Repository A
-             *     -> Connecting planlandı
-             *     -> Empty seçildi
-             *
-             * durumunda A'ya ait eski dialog kesinlikle
-             * tekrar gösterilmemeli.
-             */
-            if (type == OperationDialogType.CONNECTION) {
-
-                if (dialogOperationId !=
-                        operationGeneration.get()) {
-
-                    return;
-                }
-
-                RepositoryDefinition activeRepository =
-                        context.getActiveRepository();
-
-                if (activeRepository == null
-                        || activeRepository.isEmpty()) {
-
-                    return;
-                }
-            }
 
             OperationDialog operationDialog;
 
             switch (type) {
-
-                case CONNECTION:
-
-                    if (connectionDialog == null) {
-
-                        connectionDialog =
-                                createOperationDialog(
-                                        "S3 Connection");
-                    }
-
-                    operationDialog =
-                            connectionDialog;
-
-                    break;
 
                 case BUCKET:
 
@@ -4963,46 +4841,6 @@ public class ExplorerPanel extends JPanel {
                                     return;
                                 }
 
-                                /*
-                                 * CONNECTION dialogu için
-                                 * operation generation ve
-                                 * active repository tekrar kontrol
-                                 * ediliyor.
-                                 */
-                                if (type ==
-                                        OperationDialogType.CONNECTION) {
-
-                                    if (dialogOperationId !=
-                                            operationGeneration.get()) {
-
-                                        ((Timer) e.getSource())
-                                                .stop();
-
-                                        visibleOperationDialogs.remove(
-                                                operationDialog);
-
-                                        return;
-                                    }
-
-                                    RepositoryDefinition activeRepository =
-                                            context.getActiveRepository();
-
-                                    if (activeRepository == null
-                                            || activeRepository.isEmpty()) {
-
-                                        ((Timer) e.getSource())
-                                                .stop();
-
-                                        visibleOperationDialogs.remove(
-                                                operationDialog);
-
-                                        operationDialog.dialog.setVisible(
-                                                false);
-
-                                        return;
-                                    }
-                                }
-
                                 operationDialog.dialog.setVisible(
                                         true);
 
@@ -5062,48 +4900,6 @@ public class ExplorerPanel extends JPanel {
         }
     }
 
-    private void cancelOperationDialog(
-            OperationDialogType type) {
-
-        OperationDialog operationDialog;
-
-        switch (type) {
-
-            case CONNECTION:
-                operationDialog =
-                        connectionDialog;
-                break;
-
-            case BUCKET:
-                operationDialog =
-                        bucketDialog;
-                break;
-
-            case FILE_TABLE:
-                operationDialog =
-                        fileTableDialog;
-                break;
-
-            default:
-                return;
-        }
-
-        if (operationDialog == null) {
-            return;
-        }
-
-        if (operationDialog.showTimer != null) {
-
-            operationDialog.showTimer.stop();
-            operationDialog.showTimer = null;
-        }
-
-        operationDialog.dialog.setVisible(false);
-
-        visibleOperationDialogs.remove(
-                operationDialog);
-    }
-
     private void hideOperationDialog(
             OperationDialogType type) {
 
@@ -5111,14 +4907,6 @@ public class ExplorerPanel extends JPanel {
             OperationDialog operationDialog = null;
 
             switch (type) {
-
-                case CONNECTION:
-
-                    if (connectionDialog != null) {
-                        operationDialog = connectionDialog;
-                    }
-
-                    break;
 
                 case BUCKET:
 
