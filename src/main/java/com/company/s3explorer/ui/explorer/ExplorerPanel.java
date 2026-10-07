@@ -541,40 +541,176 @@ public class ExplorerPanel extends JPanel {
     }
 
     public void loadRepositoriesAsync() {
+
         explorerPool.submit(() -> {
+
             try {
-                List<RepositoryDefinition> repositories = repositoryManager.getRepositories();
+
+                List<RepositoryDefinition> repositories =
+                        repositoryManager.getRepositories();
+
                 SwingUtilities.invokeLater(() -> {
-                    view.getRepositoryCombo().removeAllItems();
-                    view.getRepositoryCombo().addItem(RepositoryDefinition.EMPTY_REPOSITORY);
-                    Collator turkishCollator =
-                            Collator.getInstance(
-                                    new Locale("tr", "TR"));
-                    turkishCollator.setStrength(
-                            Collator.PRIMARY);
 
-                    repositories.sort(
-                            (first, second) ->
-                                    S3Util.naturalTurkishCompare(
-                                            first.getId(),
-                                            second.getId(),
-                                            turkishCollator
-                                    )
-                    );
+                    /*
+                     * Repository listesi oluşturulurken ComboBox'ın
+                     * otomatik selection event'leri Explorer'ın
+                     * repository değiştirme akışını tetiklememeli.
+                     *
+                     * Aksi halde ilk repository addItem() sırasında
+                     * otomatik olarak seçilip:
+                     *
+                     *     setSelectedRepository()
+                     *          ->
+                     *     "Connecting to S3 repository..."
+                     *
+                     * zinciri oluşuyor.
+                     */
+                    suppressRepositorySelectionEvent = true;
 
-                    repositories.forEach(
-                            view.getRepositoryCombo()::addItem);
+                    try {
 
-                    if (pendingRepositorySelection != null) {
-                        view.getRepositoryCombo().setSelectedItem(pendingRepositorySelection);
+                        view.getRepositoryCombo()
+                                .removeAllItems();
+
+                        view.getRepositoryCombo()
+                                .addItem(
+                                        RepositoryDefinition.EMPTY_REPOSITORY);
+
+                        Collator turkishCollator =
+                                Collator.getInstance(
+                                        new Locale("tr", "TR"));
+
+                        turkishCollator.setStrength(
+                                Collator.PRIMARY);
+
+                        repositories.sort(
+                                (first, second) ->
+                                        S3Util.naturalTurkishCompare(
+                                                first.getId(),
+                                                second.getId(),
+                                                turkishCollator));
+
+                        for (RepositoryDefinition repository :
+                                repositories) {
+
+                            view.getRepositoryCombo()
+                                    .addItem(repository);
+                        }
+
+                        /*
+                         * -------------------------------------------------
+                         * INITIAL SELECTION
+                         * -------------------------------------------------
+                         *
+                         * ComboBox artık tamamen dolduruldu.
+                         *
+                         * Bundan sonra hangi repository'nin seçileceğine
+                         * karar veriyoruz.
+                         */
+                        RepositoryDefinition repositoryToSelect =
+                                pendingRepositorySelection;
+
                         pendingRepositorySelection = null;
+
+                        if (repositoryToSelect == null) {
+
+                            repositoryToSelect =
+                                    RepositoryDefinition.EMPTY_REPOSITORY;
+                        }
+
+                        /*
+                         * Model içinde gerçekten mevcut olan repository
+                         * instance'ını bul.
+                         *
+                         * Özellikle RepositoryDefinition.equals()
+                         * implementasyonundan bağımsız olarak ID üzerinden
+                         * eşleştiriyoruz.
+                         */
+                        RepositoryDefinition actualRepository =
+                                RepositoryDefinition.EMPTY_REPOSITORY;
+
+                        if (repositoryToSelect != null
+                                && !repositoryToSelect.isEmpty()) {
+
+                            for (int i = 0;
+                                 i < view.getRepositoryCombo()
+                                         .getItemCount();
+                                 i++) {
+
+                                RepositoryDefinition repository =
+                                        view.getRepositoryCombo()
+                                                .getItemAt(i);
+
+                                if (repository != null
+                                        && !repository.isEmpty()
+                                        && Objects.equals(
+                                        repository.getId(),
+                                        repositoryToSelect.getId())) {
+
+                                    actualRepository =
+                                            repository;
+
+                                    break;
+                                }
+                            }
+                        }
+
+                        /*
+                         * Selection event'i hâlâ bastırılmış durumda.
+                         *
+                         * Dolayısıyla burada yalnızca ComboBox selection
+                         * yapılır; repository bağlantısı başlamaz.
+                         */
+                        view.getRepositoryCombo()
+                                .setSelectedItem(
+                                        actualRepository);
+
+                    } finally {
+
+                        suppressRepositorySelectionEvent = false;
                     }
-                    else {
-                        view.getRepositoryCombo().setSelectedItem(RepositoryDefinition.EMPTY_REPOSITORY);
+
+                    /*
+                     * -------------------------------------------------
+                     * INITIAL REPOSITORY ACTIVATION
+                     * -------------------------------------------------
+                     *
+                     * ComboBox tamamen hazırlandıktan ve suppression
+                     * kaldırılmadan önce selection belirlendi.
+                     *
+                     * Burada yalnızca gerçek bir repository seçilmişse
+                     * bağlantıyı başlatıyoruz.
+                     *
+                     * Empty repository seçildiyse:
+                     *
+                     *     setSelectedRepository(EMPTY)
+                     *
+                     * çağrılmıyor.
+                     *
+                     * Böylece uygulama ilk açılışta boş kalıyorsa
+                     * kesinlikle S3 bağlantısı denenmiyor.
+                     */
+                    RepositoryDefinition selectedRepository =
+                            (RepositoryDefinition)
+                                    view.getRepositoryCombo()
+                                            .getSelectedItem();
+
+                    if (selectedRepository == null
+                            || selectedRepository.isEmpty()) {
+
+                        return;
                     }
+
+                    setSelectedRepository(
+                            selectedRepository);
                 });
+
             } catch (Exception ex) {
-                log.error("Explorer operation failed", ex);
+
+                log.error(
+                        "Explorer operation failed",
+                        ex);
+
                 SwingUtilities.invokeLater(() ->
                         JOptionPane.showMessageDialog(
                                 this,
@@ -1650,8 +1786,7 @@ public class ExplorerPanel extends JPanel {
          * Her repository seçimi önceki asenkron
          * işlemleri geçersiz kılar.
          */
-        final long operationId =
-                operationGeneration.incrementAndGet();
+        operationGeneration.incrementAndGet();
 
         pendingBucketSelection = null;
 
@@ -1696,40 +1831,9 @@ public class ExplorerPanel extends JPanel {
 
         setFileTableLoading(true);
 
-        /*
-         * Connection dialogunu doğrudan göstermiyoruz.
-         *
-         * showOperationDialog() zaten kendi içinde
-         * invokeLater() kullanıyor.
-         *
-         * Repository bu arada Empty'ye çevrilirse
-         * eski "Connecting..." isteğinin ekrana
-         * gelmesini kesin olarak engelle.
-         */
-        SwingUtilities.invokeLater(() -> {
-
-            if (operationId !=
-                    operationGeneration.get()) {
-
-                return;
-            }
-
-            RepositoryDefinition activeRepository =
-                    context.getActiveRepository();
-
-            if (activeRepository == null
-                    || activeRepository.isEmpty()
-                    || !Objects.equals(
-                    activeRepository.getId(),
-                    repository.getId())) {
-
-                return;
-            }
-
-            showOperationDialog(
-                    OperationDialogType.CONNECTION,
-                    "Connecting to S3 repository...");
-        });
+        showOperationDialog(
+                OperationDialogType.CONNECTION,
+                "Connecting to S3 repository...");
 
         reloadBuckets();
     }
@@ -4665,7 +4769,41 @@ public class ExplorerPanel extends JPanel {
             OperationDialogType type,
             String message) {
 
+        final long dialogOperationId =
+                operationGeneration.get();
+
         SwingUtilities.invokeLater(() -> {
+
+            /*
+             * CONNECTION dialogu için bu çağrının hâlâ
+             * geçerli olup olmadığını kontrol et.
+             *
+             * Örneğin:
+             *
+             * Repository A
+             *     -> Connecting planlandı
+             *     -> Empty seçildi
+             *
+             * durumunda A'ya ait eski dialog kesinlikle
+             * tekrar gösterilmemeli.
+             */
+            if (type == OperationDialogType.CONNECTION) {
+
+                if (dialogOperationId !=
+                        operationGeneration.get()) {
+
+                    return;
+                }
+
+                RepositoryDefinition activeRepository =
+                        context.getActiveRepository();
+
+                if (activeRepository == null
+                        || activeRepository.isEmpty()) {
+
+                    return;
+                }
+            }
 
             OperationDialog operationDialog;
 
@@ -4674,6 +4812,7 @@ public class ExplorerPanel extends JPanel {
                 case CONNECTION:
 
                     if (connectionDialog == null) {
+
                         connectionDialog =
                                 createOperationDialog(
                                         "S3 Connection");
@@ -4687,6 +4826,7 @@ public class ExplorerPanel extends JPanel {
                 case BUCKET:
 
                     if (bucketDialog == null) {
+
                         bucketDialog =
                                 createOperationDialog(
                                         "Bucket Loading");
@@ -4700,6 +4840,7 @@ public class ExplorerPanel extends JPanel {
                 case FILE_TABLE:
 
                     if (fileTableDialog == null) {
+
                         fileTableDialog =
                                 createOperationDialog(
                                         "File Table");
@@ -4711,6 +4852,7 @@ public class ExplorerPanel extends JPanel {
                     break;
 
                 default:
+
                     return;
             }
 
@@ -4720,6 +4862,7 @@ public class ExplorerPanel extends JPanel {
             operationDialog.dialog.pack();
 
             if (operationDialog.showTimer != null) {
+
                 operationDialog.showTimer.stop();
             }
 
@@ -4730,29 +4873,78 @@ public class ExplorerPanel extends JPanel {
                         operationDialog);
             }
 
-            operationDialog.dialog.setVisible(false);
+            operationDialog.dialog.setVisible(
+                    false);
 
             operationDialog.showTimer =
                     new Timer(
                             OPERATION_DIALOG_DELAY_MS,
                             e -> {
 
+                                /*
+                                 * Dialog artık geçerli değilse
+                                 * gösterme.
+                                 */
                                 if (!visibleOperationDialogs.contains(
                                         operationDialog)) {
 
-                                    ((Timer) e.getSource()).stop();
+                                    ((Timer) e.getSource())
+                                            .stop();
 
                                     return;
                                 }
 
-                                operationDialog.dialog.setVisible(true);
+                                /*
+                                 * CONNECTION dialogu için
+                                 * operation generation ve
+                                 * active repository tekrar kontrol
+                                 * ediliyor.
+                                 */
+                                if (type ==
+                                        OperationDialogType.CONNECTION) {
+
+                                    if (dialogOperationId !=
+                                            operationGeneration.get()) {
+
+                                        ((Timer) e.getSource())
+                                                .stop();
+
+                                        visibleOperationDialogs.remove(
+                                                operationDialog);
+
+                                        return;
+                                    }
+
+                                    RepositoryDefinition activeRepository =
+                                            context.getActiveRepository();
+
+                                    if (activeRepository == null
+                                            || activeRepository.isEmpty()) {
+
+                                        ((Timer) e.getSource())
+                                                .stop();
+
+                                        visibleOperationDialogs.remove(
+                                                operationDialog);
+
+                                        operationDialog.dialog.setVisible(
+                                                false);
+
+                                        return;
+                                    }
+                                }
+
+                                operationDialog.dialog.setVisible(
+                                        true);
 
                                 positionOperationDialogs();
 
-                                ((Timer) e.getSource()).stop();
+                                ((Timer) e.getSource())
+                                        .stop();
                             });
 
-            operationDialog.showTimer.setRepeats(false);
+            operationDialog.showTimer.setRepeats(
+                    false);
 
             operationDialog.showTimer.start();
         });
