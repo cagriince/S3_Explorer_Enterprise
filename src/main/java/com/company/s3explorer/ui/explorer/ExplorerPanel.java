@@ -1781,22 +1781,12 @@ public class ExplorerPanel extends JPanel {
 
     public void setSelectedRepository(
             RepositoryDefinition repository) {
-        log.warn(
-                "[REPOSITORY SELECTION] repository={} id={} empty={} " +
-                        "active={} activeId={}",
-                repository,
-                repository == null ? null : repository.getId(),
-                repository == null || repository.isEmpty(),
-                context.getActiveRepository(),
-                context.getActiveRepository() == null
-                        ? null
-                        : context.getActiveRepository().getId());
+
         /*
          * Her repository seçimi önceki asenkron
          * işlemleri geçersiz kılar.
          */
-        final long operationId =
-                operationGeneration.incrementAndGet();
+        operationGeneration.incrementAndGet();
 
         pendingBucketSelection = null;
 
@@ -1816,18 +1806,12 @@ public class ExplorerPanel extends JPanel {
 
         setFileTableLoading(false);
 
-        /*
-         * Önceki CONNECTION dialogunu SENKRON olarak
-         * geçersiz hale getir.
-         *
-         * Burada invokeLater kullanmıyoruz.
-         */
-        cancelOperationDialog(
+        hideOperationDialog(
                 OperationDialogType.CONNECTION);
 
         /*
-         * Empty Repository seçildiyse S3 bağlantısı
-         * kesinlikle başlatılmayacak.
+         * Empty Repository seçildiyse yalnızca ekranı
+         * temizlemek yeterli.
          */
         if (repository == null
                 || repository.isEmpty()) {
@@ -1848,13 +1832,12 @@ public class ExplorerPanel extends JPanel {
         setFileTableLoading(true);
 
         /*
-         * Connection dialogunu yalnızca bu repository
-         * hâlâ aktifse göster.
+         * Repository'nin bucket'larını yükle.
+         *
+         * CONNECTION dialogu burada ayrıca gösterilmiyor.
+         * loadBucketsAsync() kendi BUCKET progress dialogunu
+         * gösterecek.
          */
-        showConnectionDialog(
-                repository,
-                operationId);
-
         reloadBuckets();
     }
 
