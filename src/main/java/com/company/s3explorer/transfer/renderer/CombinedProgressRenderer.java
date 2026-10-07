@@ -8,19 +8,51 @@ import javax.swing.table.TableCellRenderer;
 import java.awt.*;
 
 public class CombinedProgressRenderer
-        extends JProgressBar
+        extends JPanel
         implements TableCellRenderer {
 
     private static final float BAR_SCALE = 0.45f;
 
+    private final JProgressBar progressBar =
+            new JProgressBar(
+                    0,
+                    100);
+
     public CombinedProgressRenderer() {
 
-        super(
-                0,
-                100);
+        setLayout(
+                new GridBagLayout());
 
-        setStringPainted(
+        setOpaque(false);
+
+        progressBar.setStringPainted(
                 true);
+
+        GridBagConstraints constraints =
+                new GridBagConstraints();
+
+        constraints.gridx = 0;
+        constraints.gridy = 0;
+
+        constraints.weightx = 1.0;
+        constraints.weighty = 0.0;
+
+        constraints.fill =
+                GridBagConstraints.HORIZONTAL;
+
+        constraints.anchor =
+                GridBagConstraints.CENTER;
+
+        constraints.insets =
+                new Insets(
+                        0,
+                        4,
+                        0,
+                        4);
+
+        add(
+                progressBar,
+                constraints);
     }
 
     @Override
@@ -53,14 +85,14 @@ public class CombinedProgressRenderer
                                 100,
                                 percent));
 
-        setValue(
+        progressBar.setValue(
                 percent);
 
-        setString(
+        progressBar.setString(
                 percent + "%");
 
         Dimension preferredSize =
-                getPreferredSize();
+                progressBar.getPreferredSize();
 
         int preferredHeight =
                 Math.max(
@@ -69,7 +101,7 @@ public class CombinedProgressRenderer
                                 table.getRowHeight(row)
                                         * BAR_SCALE));
 
-        setPreferredSize(
+        progressBar.setPreferredSize(
                 new Dimension(
                         preferredSize.width,
                         preferredHeight));
