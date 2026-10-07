@@ -1351,27 +1351,19 @@ public class TransferPanel
 
                         float brightness =
                                 hsb[2];
-
+/*
                         float saturation =
                                 hsb[1];
 
                         float newBrightness;
 
                         if (brightness < 0.5f) {
-
-                            /*
-                             * Dark theme
-                             */
                             newBrightness =
                                     Math.min(
                                             1.0f,
                                             brightness + 0.08f);
 
                         } else {
-
-                            /*
-                             * Light theme
-                             */
                             newBrightness =
                                     Math.max(
                                             0.0f,
@@ -1381,7 +1373,13 @@ public class TransferPanel
                         return Color.getHSBColor(
                                 hsb[0],
                                 saturation,
-                                newBrightness);
+                                newBrightness);*/
+                        if (brightness < 0.5f) {
+                            return new Color(0, 91, 130);
+                        }
+                        else {
+                            return new Color(36, 200, 255);
+                        }
                     }
                 };
 
