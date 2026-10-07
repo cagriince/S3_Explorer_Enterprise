@@ -12,23 +12,15 @@ public class ProgressBarRenderer
 
     private static final float BAR_SCALE = 0.45f;
 
-    private final JProgressBar progressBar =
-            new JProgressBar(
-                    0,
-                    100);
+    private final TableProgressBar progressBar =
+            new TableProgressBar();
 
     public ProgressBarRenderer() {
 
         setLayout(
                 new GridBagLayout());
 
-        setOpaque(true);
-
-        progressBar.setStringPainted(
-                true);
-
-        progressBar.setBorderPainted(
-                true);
+        setOpaque(false);
 
         GridBagConstraints constraints =
                 new GridBagConstraints();
@@ -87,22 +79,21 @@ public class ProgressBarRenderer
         progressBar.setString(
                 percent + "%");
 
-        if (isSelected) {
+        Color cellBackground =
+                getCellBackground(
+                        table,
+                        isSelected,
+                        row);
 
-            setBackground(
-                    table.getSelectionBackground());
+        progressBar.setProgressBarBackground(
+                cellBackground);
 
-        } else {
-
-            setBackground(
-                    table.getBackground());
-        }
-
-        progressBar.setBackground(
-                getBackground());
+        progressBar.setTableBorderColor(
+                getTableBorderColor(
+                        table));
 
         Dimension preferredSize =
-                progressBar.getPreferredSize();
+                progressBar.getProgressBarPreferredSize();
 
         int preferredHeight =
                 Math.max(
@@ -117,5 +108,57 @@ public class ProgressBarRenderer
                         preferredHeight));
 
         return this;
+    }
+
+    private Color getCellBackground(
+            JTable table,
+            boolean isSelected,
+            int row) {
+
+        if (isSelected) {
+
+            return table.getSelectionBackground();
+        }
+
+        Color alternateRowColor =
+                UIManager.getColor(
+                        "Table.alternateRowColor");
+
+        if (alternateRowColor != null
+                && (row & 1) == 1) {
+
+            return alternateRowColor;
+        }
+
+        return table.getBackground();
+    }
+
+    private Color getTableBorderColor(
+            JTable table) {
+
+        Color color =
+                table.getGridColor();
+
+        if (color != null) {
+            return color;
+        }
+
+        color =
+                UIManager.getColor(
+                        "Table.gridColor");
+
+        if (color != null) {
+            return color;
+        }
+
+        color =
+                UIManager.getColor(
+                        "Separator.foreground");
+
+        if (color != null) {
+            return color;
+        }
+
+        return Color.GRAY;
     }
 }
