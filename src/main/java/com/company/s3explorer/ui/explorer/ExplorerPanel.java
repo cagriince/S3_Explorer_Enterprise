@@ -595,16 +595,40 @@ public class ExplorerPanel extends JPanel {
         if (selectedRepository == null
                 || selectedRepository ==
                 RepositoryDefinition.EMPTY_REPOSITORY) {
+
             log.debug(
                     "[BUCKET LOAD] no repository selected");
+
+            return;
+        }
+
+        /*
+         * Repository selection değişmişse
+         * bu işlem artık geçerli değildir.
+         */
+        RepositoryDefinition activeRepository =
+                context.getActiveRepository();
+
+        if (activeRepository == null
+                || activeRepository.isEmpty()
+                || !Objects.equals(
+                activeRepository.getId(),
+                selectedRepository.getId())) {
+
+            log.debug(
+                    "[BUCKET LOAD] repository is no longer active: {}",
+                    selectedRepository.getId());
+
             return;
         }
 
         showOperationDialog(
                 OperationDialogType.BUCKET,
                 "Loading buckets...");
+
         hideOperationDialog(
                 OperationDialogType.CONNECTION);
+
         /*
          * Refresh başlamadan önce gerçekten aktif olan bucket'ı
          * kaydet.
@@ -617,12 +641,48 @@ public class ExplorerPanel extends JPanel {
         explorerPool.submit(() -> {
 
             try {
+
+                /*
+                 * Worker thread başlamış olsa bile repository
+                 * artık değişmiş olabilir.
+                 *
+                 * Özellikle EMPTY repository seçildiyse burada
+                 * S3 bağlantısına kesinlikle girme.
+                 */
+                if (operationId !=
+                        operationGeneration.get()) {
+
+                    log.debug(
+                            "[BUCKET LOAD] cancelled before execution " +
+                                    "repository={}",
+                            selectedRepository.getId());
+
+                    return;
+                }
+
+                RepositoryDefinition currentRepository =
+                        context.getActiveRepository();
+
+                if (currentRepository == null
+                        || currentRepository.isEmpty()
+                        || !Objects.equals(
+                        currentRepository.getId(),
+                        selectedRepository.getId())) {
+
+                    log.debug(
+                            "[BUCKET LOAD] active repository changed before S3 call " +
+                                    "selected={} active={}",
+                            selectedRepository.getId(),
+                            currentRepository == null
+                                    ? null
+                                    : currentRepository.getId());
+
+                    return;
+                }
+
                 /*
                  * RepositoryManager'dan güncel repository
                  * tanımını al.
-                 *
-                 * RepositoryDialog'daki external bucket
-                 * değişiklikleri burada görülecek.
                  */
                 RepositoryDefinition repository =
                         repositoryManager.findById(
@@ -635,6 +695,38 @@ public class ExplorerPanel extends JPanel {
                     log.warn(
                             "[BUCKET LOAD] repository not found: {}",
                             selectedRepository.getId());
+
+                    return;
+                }
+
+                /*
+                 * Repository değişmiş olabilir.
+                 * findById() sonrasında tekrar doğrula.
+                 */
+                if (operationId !=
+                        operationGeneration.get()) {
+
+                    log.debug(
+                            "[BUCKET LOAD] cancelled after repository lookup " +
+                                    "repository={}",
+                            selectedRepository.getId());
+
+                    return;
+                }
+
+                currentRepository =
+                        context.getActiveRepository();
+
+                if (currentRepository == null
+                        || currentRepository.isEmpty()
+                        || !Objects.equals(
+                        currentRepository.getId(),
+                        repository.getId())) {
+
+                    log.debug(
+                            "[BUCKET LOAD] active repository changed before S3 call " +
+                                    "repository={}",
+                            repository.getId());
 
                     return;
                 }
@@ -652,14 +744,44 @@ public class ExplorerPanel extends JPanel {
 
                 try {
 
+                    /*
+                     * Son kontrol:
+                     * getService().listBuckets() çağrısından hemen önce
+                     * repository hâlâ geçerli mi?
+                     */
+                    if (operationId !=
+                            operationGeneration.get()) {
+
+                        log.debug(
+                                "[BUCKET LOAD] cancelled before listBuckets " +
+                                        "repository={}",
+                                repository.getId());
+
+                        return;
+                    }
+
                     s3Buckets =
                             getService().listBuckets();
 
-                }
-                catch (Exception ex) {
+                } catch (Exception ex) {
 
                     if (S3ErrorResolver.isAccessDenied(ex)
                             && repository.hasExternalBucket()) {
+
+                        /*
+                         * Empty repository seçimi sırasında
+                         * eski işlem burada da durdurulmalı.
+                         */
+                        if (operationId !=
+                                operationGeneration.get()) {
+
+                            log.debug(
+                                    "[BUCKET LOAD] cancelled before external bucket access " +
+                                            "repository={}",
+                                    repository.getId());
+
+                            return;
+                        }
 
                         String externalBucket =
                                 repository
@@ -677,11 +799,42 @@ public class ExplorerPanel extends JPanel {
                         s3Buckets =
                                 Collections.emptyList();
 
-                    }
-                    else {
+                    } else {
 
                         throw ex;
                     }
+                }
+
+                /*
+                 * S3 çağrısı tamamlandıktan sonra da işlem
+                 * hâlâ güncel mi kontrol et.
+                 */
+                if (operationId !=
+                        operationGeneration.get()) {
+
+                    log.debug(
+                            "[BUCKET LOAD] cancelled after S3 call " +
+                                    "repository={}",
+                            repository.getId());
+
+                    return;
+                }
+
+                RepositoryDefinition finalActiveRepository =
+                        context.getActiveRepository();
+
+                if (finalActiveRepository == null
+                        || finalActiveRepository.isEmpty()
+                        || !Objects.equals(
+                        finalActiveRepository.getId(),
+                        repository.getId())) {
+
+                    log.debug(
+                            "[BUCKET LOAD] active repository changed after S3 call " +
+                                    "repository={}",
+                            repository.getId());
+
+                    return;
                 }
 
                 /*
@@ -699,6 +852,18 @@ public class ExplorerPanel extends JPanel {
 
                     if (operationId !=
                             operationGeneration.get()) {
+
+                        return;
+                    }
+
+                    RepositoryDefinition active =
+                            context.getActiveRepository();
+
+                    if (active == null
+                            || active.isEmpty()
+                            || !Objects.equals(
+                            active.getId(),
+                            repository.getId())) {
 
                         return;
                     }
@@ -729,8 +894,6 @@ public class ExplorerPanel extends JPanel {
                                         turkishCollator.compare(
                                                 first,
                                                 second));
-                        /*sortedBuckets.sort(
-                                turkishCollator);*/
 
                         for (String bucket :
                                 sortedBuckets) {
@@ -747,20 +910,17 @@ public class ExplorerPanel extends JPanel {
 
                             view.getBucketCombo().setSelectedItem(
                                     previousBucket);
-                        }
 
-                        /*
-                         * Mevcut bucket artık yoksa
-                         * ilk bucket'ı seç.
-                         */
-                        else if (view.getBucketCombo().getItemCount() > 0) {
+                        } else if (
+                                view.getBucketCombo().getItemCount() > 0) {
 
                             view.getBucketCombo().setSelectedIndex(0);
                         }
 
                         selectedBucket =
                                 (String)
-                                        view.getBucketCombo().getSelectedItem();
+                                        view.getBucketCombo()
+                                                .getSelectedItem();
 
                         log.debug(
                                 "[BUCKET LOAD RESULT] repository={} buckets={} previous={} selected={}",
@@ -769,8 +929,7 @@ public class ExplorerPanel extends JPanel {
                                 previousBucket,
                                 selectedBucket);
 
-                    }
-                    finally {
+                    } finally {
 
                         suppressBucketSelectionEvent = false;
 
@@ -804,15 +963,6 @@ public class ExplorerPanel extends JPanel {
 
                     forceBucketReload = false;
 
-                    /*
-                     * Buraya ancak:
-                     *
-                     * - ilk bucket yükleniyorsa
-                     * - aktif bucket silinmişse
-                     * - gerçekten başka bucket seçilmişse
-                     *
-                     * geliyoruz.
-                     */
                     if (selectedBucket != null) {
 
                         log.debug(
@@ -823,12 +973,9 @@ public class ExplorerPanel extends JPanel {
                         loadRootFolders(
                                 selectedBucket);
                     }
-
-                    //hideOperationDialog();
                 });
 
-            }
-            catch (Exception ex) {
+            } catch (Exception ex) {
 
                 log.error(
                         "[BUCKET LOAD] failed: {}",
@@ -836,9 +983,25 @@ public class ExplorerPanel extends JPanel {
                         ex);
 
                 SwingUtilities.invokeLater(() -> {
-                    if (operationId != operationGeneration.get()) {
+
+                    if (operationId !=
+                            operationGeneration.get()) {
+
                         return;
                     }
+
+                    RepositoryDefinition active =
+                            context.getActiveRepository();
+
+                    if (active == null
+                            || active.isEmpty()
+                            || !Objects.equals(
+                            active.getId(),
+                            selectedRepository.getId())) {
+
+                        return;
+                    }
+
                     hideOperationDialog(
                             OperationDialogType.BUCKET);
 
