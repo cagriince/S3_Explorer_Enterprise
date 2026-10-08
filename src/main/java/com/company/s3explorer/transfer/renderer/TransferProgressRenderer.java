@@ -1,11 +1,10 @@
 package com.company.s3explorer.transfer.renderer;
 
 import com.company.s3explorer.transfer.TransferRuntime;
-import com.company.s3explorer.ui.transfer.TransferCombinedTableModel;
+import com.company.s3explorer.ui.transfer.TransferTableModel;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableCellRenderer;
-import javax.swing.table.TableCellRenderer;
 import java.awt.*;
 
 public class TransferProgressRenderer
@@ -67,7 +66,7 @@ public class TransferProgressRenderer
             Object value) {
 
         if (value instanceof
-                TransferCombinedTableModel.GroupProgress groupProgress) {
+                TransferTableModel.GroupProgress groupProgress) {
 
             return groupProgress.getPercent();
         }

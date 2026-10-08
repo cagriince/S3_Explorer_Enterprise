@@ -36,9 +36,9 @@ public class TransferPanel
     private JButton clearButton;
 
     private TransferTableModel queuedModel;
-    private TransferCombinedTableModel runningModel;
-    private TransferCombinedTableModel finishedModel;
-    private TransferCombinedTableModel allModel;
+    private TransferTableModel runningModel;
+    private TransferTableModel finishedModel;
+    private TransferTableModel allModel;
     
     private JTable queuedTable;
     private JTable runningTable;
@@ -93,15 +93,15 @@ public class TransferPanel
                         UI_VISIBLE_LIMIT);
 
         runningModel =
-                new TransferCombinedTableModel(
+                new TransferTableModel(
                         UI_VISIBLE_LIMIT);
 
         finishedModel =
-                new TransferCombinedTableModel(
+                new TransferTableModel(
                         UI_VISIBLE_LIMIT);
 
         allModel =
-                new TransferCombinedTableModel(
+                new TransferTableModel(
                         UI_VISIBLE_LIMIT);
     }
 
@@ -172,7 +172,7 @@ public class TransferPanel
          * kayıtlarını birlikte gösterir.
          */
         runningTable =
-                createCombinedTable(
+                createTable(
                         runningModel);
 
         /*
@@ -182,7 +182,7 @@ public class TransferPanel
          * kayıtlarını birlikte gösterir.
          */
         finishedTable =
-                createCombinedTable(
+                createTable(
                         finishedModel);
 
         /*
@@ -192,7 +192,7 @@ public class TransferPanel
          * kayıtlarını birlikte gösterir.
          */
         allTable =
-                createCombinedTable(
+                createTable(
                         allModel);
 
         tabs =
@@ -553,17 +553,17 @@ public class TransferPanel
         try {
 
             List<String> runningSelection =
-                    captureCombinedSelection(
+                    captureSelection(
                             runningTable,
                             runningModel);
 
             List<String> finishedSelection =
-                    captureCombinedSelection(
+                    captureSelection(
                             finishedTable,
                             finishedModel);
 
             List<String> allSelection =
-                    captureCombinedSelection(
+                    captureSelection(
                             allTable,
                             allModel);
 
@@ -586,17 +586,17 @@ public class TransferPanel
                     stateStore.snapshot(
                             TransferStateStore.View.ALL));
 
-            restoreCombinedSelection(
+            restoreSelection(
                     runningTable,
                     runningModel,
                     runningSelection);
 
-            restoreCombinedSelection(
+            restoreSelection(
                     finishedTable,
                     finishedModel,
                     finishedSelection);
 
-            restoreCombinedSelection(
+            restoreSelection(
                     allTable,
                     allModel,
                     allSelection);
@@ -610,13 +610,13 @@ public class TransferPanel
     }
 
     /*
-     * Combined JTable üzerindeki mevcut seçimleri
+     * JTable üzerindeki mevcut seçimleri
      * satırın pozisyonuna göre değil, gerçek kimliğine
      * göre saklar.
      */
-    private List<String> captureCombinedSelection(
+    private List<String> captureSelection(
             JTable table,
-            TransferCombinedTableModel model) {
+            TransferTableModel model) {
 
         List<String> selection =
                 new ArrayList<>();
@@ -678,9 +678,9 @@ public class TransferPanel
      * Snapshot yenilendikten sonra daha önce seçilmiş
      * Group / Transfer satırlarını tekrar seçer.
      */
-    private void restoreCombinedSelection(
+    private void restoreSelection(
             JTable table,
-            TransferCombinedTableModel model,
+            TransferTableModel model,
             List<String> selection) {
 
         if (table == null
@@ -751,7 +751,75 @@ public class TransferPanel
             TransferTableModel model) {
 
         JTable table =
-                new JTable(model);
+                new JTable(model) {
+
+                    @Override
+                    public Component prepareRenderer(
+                            javax.swing.table.TableCellRenderer renderer,
+                            int row,
+                            int column) {
+
+                        Component component =
+                                super.prepareRenderer(
+                                        renderer,
+                                        row,
+                                        column);
+
+                        boolean groupRow =
+                                model.isGroupRow(row);
+
+                        boolean selected =
+                                isRowSelected(row);
+
+                        if (selected) {
+                            return component;
+                        }
+
+                        if (groupRow) {
+
+                            component.setBackground(
+                                    createGroupBackground(
+                                            getBackground()));
+
+                        } else {
+
+                            component.setBackground(
+                                    getBackground());
+                        }
+
+                        return component;
+                    }
+
+                    private Color createGroupBackground(
+                            Color base) {
+
+                        if (base == null) {
+                            return null;
+                        }
+
+                        float[] hsb =
+                                Color.RGBtoHSB(
+                                        base.getRed(),
+                                        base.getGreen(),
+                                        base.getBlue(),
+                                        null);
+
+                        if (hsb[2] < 0.5f) {
+
+                            return new Color(
+                                    0,
+                                    91,
+                                    130);
+
+                        } else {
+
+                            return new Color(
+                                    36,
+                                    200,
+                                    255);
+                        }
+                    }
+                };
 
         configureTable(
                 table,
@@ -765,7 +833,7 @@ public class TransferPanel
         table.getColumnModel()
                 .getColumn(2)
                 .setCellRenderer(
-                        new FileSizeRenderer());
+                        new CombinedFileSizeRenderer());
 
         table.getColumnModel()
                 .getColumn(3)
@@ -775,7 +843,12 @@ public class TransferPanel
         table.getColumnModel()
                 .getColumn(4)
                 .setCellRenderer(
-                        new StatusRenderer());
+                        new CombinedStatusRenderer());
+
+        table.getColumnModel()
+                .getColumn(6)
+                .setCellRenderer(
+                        new LongFormatRenderer());
 
         return table;
     }
@@ -975,7 +1048,7 @@ public class TransferPanel
         /*
          * Running / Finished / All
          */
-        TransferCombinedTableModel combinedModel =
+        TransferTableModel combinedModel =
                 getCombinedModelForTable(table);
 
         if (combinedModel == null) {
@@ -1158,7 +1231,7 @@ public class TransferPanel
         /*
          * Running / Finished / All
          */
-        TransferCombinedTableModel combinedModel =
+        TransferTableModel combinedModel =
                 getCombinedModelForTable(table);
 
         if (combinedModel == null) {
@@ -1214,7 +1287,7 @@ public class TransferPanel
         return false;
     }
 
-    private TransferCombinedTableModel getCombinedModelForTable(
+    private TransferTableModel getCombinedModelForTable(
             JTable table) {
 
         if (table == runningTable) {
@@ -1242,136 +1315,6 @@ public class TransferPanel
 
         clearButton.setIcon(
                 IconProvider.ICON_DELETE);
-    }
-
-    private JTable createCombinedTable(
-            TransferCombinedTableModel model) {
-
-        JTable table =
-                new JTable(model) {
-
-                    @Override
-                    public Component prepareRenderer(
-                            javax.swing.table.TableCellRenderer renderer,
-                            int row,
-                            int column) {
-
-                        Component component =
-                                super.prepareRenderer(
-                                        renderer,
-                                        row,
-                                        column);
-
-                        boolean groupRow =
-                                model.isGroupRow(row);
-
-                        boolean selected =
-                                isRowSelected(row);
-
-                        /*
-                         * Seçili satırın görünümüne hiç müdahale etme.
-                         */
-                        if (selected) {
-                            return component;
-                        }
-
-                        if (groupRow) {
-
-                            /*
-                             * Group satırında yalnızca arka plan
-                             * rengini değiştir.
-                             *
-                             * Border/grid'e kesinlikle dokunma.
-                             */
-                            component.setBackground(
-                                    createGroupBackground(
-                                            getBackground()));
-
-                        } else {
-
-                            /*
-                             * Normal satır.
-                             */
-                            component.setBackground(
-                                    getBackground());
-                        }
-
-                        return component;
-                    }
-
-                    private Color createGroupBackground(
-                            Color base) {
-
-                        if (base == null) {
-                            return null;
-                        }
-
-                        float[] hsb =
-                                Color.RGBtoHSB(
-                                        base.getRed(),
-                                        base.getGreen(),
-                                        base.getBlue(),
-                                        null);
-
-                        float brightness =
-                                hsb[2];
-
-                        /*
-                         * Senin seçtiğin grup renkleri.
-                         */
-                        if (brightness < 0.5f) {
-
-                            return new Color(
-                                    0,
-                                    91,
-                                    130);
-
-                        } else {
-
-                            return new Color(
-                                    36,
-                                    200,
-                                    255);
-                        }
-                    }
-                };
-
-        /*
-         * Combined table kolon genişlikleri.
-         */
-        configureTable(
-                table,
-                100);
-
-        /*
-         * Combined renderer'lar.
-         */
-        table.getColumnModel()
-                .getColumn(0)
-                .setCellRenderer(
-                        new CombinedTypeRenderer());
-
-        table.getColumnModel()
-                .getColumn(2)
-                .setCellRenderer(
-                        new CombinedFileSizeRenderer());
-
-        table.getColumnModel()
-                .getColumn(3)
-                .setCellRenderer(
-                        new TransferProgressRenderer());
-
-        table.getColumnModel()
-                .getColumn(4)
-                .setCellRenderer(
-                        new CombinedStatusRenderer());
-
-        table.getColumnModel()
-                .getColumn(6)
-                .setCellRenderer(
-                        new LongFormatRenderer());
-
-        return table;
     }
 
     private void configureTable(
