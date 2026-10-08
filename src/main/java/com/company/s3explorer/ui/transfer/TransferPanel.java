@@ -770,7 +770,7 @@ public class TransferPanel
         table.getColumnModel()
                 .getColumn(3)
                 .setCellRenderer(
-                        new ProgressBarRenderer());
+                        new TransferProgressRenderer());
 
         table.getColumnModel()
                 .getColumn(4)
@@ -1359,7 +1359,7 @@ public class TransferPanel
         table.getColumnModel()
                 .getColumn(3)
                 .setCellRenderer(
-                        new CombinedProgressRenderer());
+                        new TransferProgressRenderer());
 
         table.getColumnModel()
                 .getColumn(4)
