@@ -1269,8 +1269,7 @@ public class TransferPanel
                                 isRowSelected(row);
 
                         /*
-                         * Seçili satırda Swing'in mevcut
-                         * selection görünümüne dokunma.
+                         * Seçili satırın görünümüne hiç müdahale etme.
                          */
                         if (selected) {
                             return component;
@@ -1278,60 +1277,23 @@ public class TransferPanel
 
                         if (groupRow) {
 
-                            Color groupBackground =
-                                    createGroupBackground(
-                                            getBackground());
-
-                            component.setBackground(
-                                    groupBackground);
-
                             /*
-                             * Grup satırının arka planını biz
-                             * değiştirdiğimiz için JTable'ın
-                             * grid çizgisi bazı LAF'larda
-                             * görünmeyebilir.
+                             * Group satırında yalnızca arka plan
+                             * rengini değiştir.
                              *
-                             * Önce temanın kendi grid rengini
-                             * kullanmayı deniyoruz.
-                             *
-                             * Tema grid rengi sağlamıyorsa,
-                             * grup arka planına kontrast bir
-                             * renk oluşturuyoruz.
+                             * Border/grid'e kesinlikle dokunma.
                              */
-                            if (component instanceof JComponent jc) {
-
-                                Color borderColor =
-                                        getGroupBorderColor(
-                                                groupBackground);
-
-                                jc.setBorder(
-                                        BorderFactory.createMatteBorder(
-                                                0,
-                                                0,
-                                                1,
-                                                1,
-                                                borderColor));
-                            }
+                            component.setBackground(
+                                    createGroupBackground(
+                                            getBackground()));
 
                         } else {
 
                             /*
-                             * Normal satır:
-                             *
-                             * JTable'ın normal tema görünümü.
+                             * Normal satır.
                              */
                             component.setBackground(
                                     getBackground());
-
-                            /*
-                             * Renderer daha önce grup satırında
-                             * kullanılmışsa border'ın normal satıra
-                             * taşınmasını engelle.
-                             */
-                            if (component instanceof JComponent jc) {
-
-                                jc.setBorder(null);
-                            }
                         }
 
                         return component;
@@ -1371,74 +1333,6 @@ public class TransferPanel
                                     200,
                                     255);
                         }
-                    }
-
-                    private Color getGroupBorderColor(
-                            Color groupBackground) {
-
-                        /*
-                         * 1. Önce temanın JTable grid rengini
-                         * kullanmayı dene.
-                         */
-                        Color gridColor =
-                                getGridColor();
-
-                        if (gridColor != null) {
-
-                            /*
-                             * Tamamen şeffaf bir renk ise
-                             * fallback'e geç.
-                             */
-                            if (gridColor.getAlpha() > 0) {
-
-                                return gridColor;
-                            }
-                        }
-
-                        /*
-                         * 2. Tema grid rengi vermiyorsa,
-                         * grup arka planına kontrast bir
-                         * renk üret.
-                         */
-                        if (groupBackground == null) {
-
-                            return Color.GRAY;
-                        }
-
-                        float[] hsb =
-                                Color.RGBtoHSB(
-                                        groupBackground.getRed(),
-                                        groupBackground.getGreen(),
-                                        groupBackground.getBlue(),
-                                        null);
-
-                        float brightness =
-                                hsb[2];
-
-                        /*
-                         * Koyu grup arka planında
-                         * açık çizgi.
-                         */
-                        if (brightness < 0.5f) {
-
-                            return Color.getHSBColor(
-                                    hsb[0],
-                                    hsb[1],
-                                    Math.min(
-                                            1.0f,
-                                            brightness + 0.25f));
-                        }
-
-                        /*
-                         * Açık grup arka planında
-                         * koyu çizgi.
-                         */
-                        return Color.getHSBColor(
-                                hsb[0],
-                                hsb[1],
-                                Math.max(
-                                        0.0f,
-                                        brightness - 0.25f));
                     }
                 };
 
