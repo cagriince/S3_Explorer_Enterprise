@@ -12,10 +12,10 @@ public class TransferProgressRenderer
         extends DefaultTableCellRenderer {
 
     private static final int BAR_HEIGHT = 6;
-
     private static final int HORIZONTAL_PADDING = 6;
-
     private int percent;
+    private boolean selected;
+    private Color selectionBackground;
 
     public TransferProgressRenderer() {
 
@@ -44,6 +44,11 @@ public class TransferProgressRenderer
                         Math.min(
                                 100,
                                 percent));
+
+        this.selected = isSelected;
+
+        this.selectionBackground =
+                table.getSelectionBackground();
 
         int rowHeight =
                 table.getRowHeight(row);
@@ -91,6 +96,17 @@ public class TransferProgressRenderer
             g.setRenderingHint(
                     RenderingHints.KEY_ANTIALIASING,
                     RenderingHints.VALUE_ANTIALIAS_ON);
+
+            if (selected && selectionBackground != null) {
+
+                g.setColor(selectionBackground);
+
+                g.fillRect(
+                        0,
+                        0,
+                        getWidth(),
+                        getHeight());
+            }
 
             int width =
                     getWidth();
