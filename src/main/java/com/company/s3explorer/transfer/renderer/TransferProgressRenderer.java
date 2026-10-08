@@ -4,12 +4,12 @@ import com.company.s3explorer.transfer.TransferRuntime;
 import com.company.s3explorer.ui.transfer.TransferCombinedTableModel;
 
 import javax.swing.*;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.TableCellRenderer;
 import java.awt.*;
 
 public class TransferProgressRenderer
-        extends JComponent
-        implements TableCellRenderer {
+        extends DefaultTableCellRenderer {
 
     private static final int BAR_HEIGHT = 6;
 
@@ -19,7 +19,7 @@ public class TransferProgressRenderer
 
     public TransferProgressRenderer() {
 
-        setOpaque(false);
+        //setOpaque(false);
 
         setPreferredSize(
                 new Dimension(
