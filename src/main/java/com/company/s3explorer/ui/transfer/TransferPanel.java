@@ -833,7 +833,7 @@ public class TransferPanel
         table.getColumnModel()
                 .getColumn(2)
                 .setCellRenderer(
-                        new CombinedFileSizeRenderer());
+                        new FileSizeRenderer());
 
         table.getColumnModel()
                 .getColumn(3)
