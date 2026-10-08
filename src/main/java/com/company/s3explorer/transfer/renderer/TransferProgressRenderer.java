@@ -11,7 +11,7 @@ import java.awt.*;
 public class TransferProgressRenderer
         extends DefaultTableCellRenderer {
 
-    private static final int BAR_HEIGHT = 6;
+    private static final int BAR_HEIGHT = 16;
     private static final int HORIZONTAL_PADDING = 6;
     private int percent;
     private boolean selected;
