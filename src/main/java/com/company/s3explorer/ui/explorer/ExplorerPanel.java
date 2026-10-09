@@ -5887,7 +5887,6 @@ public class ExplorerPanel extends JPanel {
         }
     }
 
-
     private void refreshGroupTargetViews(
             TransferGroup group,
             List<TransferTask> completedTasks,
@@ -5900,8 +5899,7 @@ public class ExplorerPanel extends JPanel {
             return;
         }
 
-        TransferType operation =
-                group.getOperation();
+        TransferType operation = group.getOperation();
 
         boolean isGroupCopyOrMove =
                 operation == TransferType.COPY_GROUP
@@ -5917,16 +5915,11 @@ public class ExplorerPanel extends JPanel {
             return;
         }
 
-        String targetBucket =
-                group.getTargetBucket();
-
-        String targetPrefix =
-                group.getTargetPrefix();
+        String targetBucket = group.getTargetBucket();
+        String targetPrefix = group.getTargetPrefix();
 
         if (targetBucket == null
-                || !Objects.equals(
-                currentBucket,
-                targetBucket)) {
+                || !Objects.equals(currentBucket, targetBucket)) {
             return;
         }
 
@@ -5935,15 +5928,6 @@ public class ExplorerPanel extends JPanel {
 
         if (isGroupCopyOrMove) {
 
-            /*
-             * Klasör kopyalama/taşıma:
-             *
-             * Folder producer, hedef klasörün Tree refresh
-             * isteğini task.affectedPrefixes içine ekliyor.
-             *
-             * Hedef klasör için ayrıca "/" ile biten bir
-             * targetObjectKey bulunmasını şart koşmuyoruz.
-             */
             for (TransferTask task : completedTasks) {
 
                 if (task == null
@@ -5953,62 +5937,56 @@ public class ExplorerPanel extends JPanel {
                     continue;
                 }
 
+                /*
+                 * Önce task üzerindeki ağaç yenileme isteklerini ekle.
+                 * Klasör prefix'i burada standartlaştırılır.
+                 */
                 Set<RefreshTreeNode> affectedPrefixes =
                         task.getAffectedPrefixes();
 
                 if (affectedPrefixes != null) {
 
-                    for (RefreshTreeNode refreshNode :
-                            affectedPrefixes) {
+                    for (RefreshTreeNode refreshNode : affectedPrefixes) {
 
-                        if (refreshNode == null) {
+                        if (refreshNode == null
+                                || refreshNode.operation()
+                                != RefreshTreeOperation.ADD) {
                             continue;
                         }
 
-                        if (refreshNode.operation()
-                                == RefreshTreeOperation.ADD) {
-
-                            targetTreeRefreshes.add(
-                                    refreshNode);
-                        }
+                        addFolderTreeRefresh(
+                                targetTreeRefreshes,
+                                refreshNode.prefix());
                     }
                 }
 
                 /*
-                 * Hedef klasör açık bir S3 nesnesi olarak
-                 * oluşturulmuşsa mevcut davranışı da koru.
+                 * Hedef nesne bir klasör işaretçisi ise aynı
+                 * standartlaştırma uygulanır. Set sayesinde aynı
+                 * klasör ikinci kez eklenmez.
                  */
-                String targetObjectKey =
-                        task.getTargetObjectKey();
+                String targetObjectKey = task.getTargetObjectKey();
 
                 if (targetObjectKey != null
                         && targetObjectKey.endsWith("/")) {
 
-                    targetTreeRefreshes.add(
-                            new RefreshTreeNode(
-                                    targetObjectKey,
-                                    RefreshTreeOperation.ADD));
+                    addFolderTreeRefresh(
+                            targetTreeRefreshes,
+                            targetObjectKey);
                 }
             }
 
-        } else {
+        } else if (targetPrefix != null) {
 
-            /*
-             * Tekli COPY/MOVE ve UPLOAD_GROUP için
-             * mevcut hedef prefix davranışı korunur.
-             */
-            if (targetPrefix != null) {
+            String refreshPrefix =
+                    operation == TransferType.UPLOAD_GROUP
+                            ? getParentPrefix(targetPrefix)
+                            : targetPrefix;
 
-                String refreshPrefix =
-                        operation == TransferType.UPLOAD_GROUP
-                                ? getParentPrefix(targetPrefix)
-                                : targetPrefix;
-
-                targetTreeRefreshes.add(
-                        new RefreshTreeNode(
-                                refreshPrefix,
-                                RefreshTreeOperation.ADD));
-            }
+            targetTreeRefreshes.add(
+                    new RefreshTreeNode(
+                            refreshPrefix,
+                            RefreshTreeOperation.ADD));
         }
 
         if (!targetTreeRefreshes.isEmpty()) {
@@ -6021,23 +5999,16 @@ public class ExplorerPanel extends JPanel {
                     targetTreeRefreshes);
 
             refreshScheduler.scheduleRefresh(
-                    targetTreeRefreshes);
+                    new ArrayList<>(targetTreeRefreshes));
         }
 
         /*
-         * Klasörün içeriği hedef üst klasörün bir alt
-         * seviyesinde olduğundan incremental ekleme,
-         * SIL70/ tablosuna SIL70/TEST2/ satırını
-         * ekleyemez.
-         *
-         * Hedef üst klasör açıksa File Table'ı yeniden yükle.
-         * Böylece klasör satırı S3 listelemesinden gelir.
+         * Kopyalanan klasörün üst dizini açıksa File Table'ı
+         * yenile; klasör satırı S3 listelemesinden gelsin.
          */
         if (isGroupCopyOrMove
                 && targetPrefix != null
-                && Objects.equals(
-                currentPrefix,
-                targetPrefix)) {
+                && Objects.equals(currentPrefix, targetPrefix)) {
 
             boolean hasNestedTarget =
                     completedTasks.stream()
@@ -6063,4 +6034,23 @@ public class ExplorerPanel extends JPanel {
         }
     }
 
+    private void addFolderTreeRefresh(
+            Set<RefreshTreeNode> refreshes,
+            String prefix) {
+
+        if (refreshes == null
+                || prefix == null
+                || prefix.isBlank()) {
+            return;
+        }
+
+        String normalizedPrefix = prefix.endsWith("/")
+                ? prefix
+                : prefix + "/";
+
+        refreshes.add(
+                new RefreshTreeNode(
+                        normalizedPrefix,
+                        RefreshTreeOperation.ADD));
+    }
 }
