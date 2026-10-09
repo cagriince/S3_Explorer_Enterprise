@@ -843,7 +843,7 @@ public class TransferPanel
         table.getColumnModel()
                 .getColumn(4)
                 .setCellRenderer(
-                        new CombinedStatusRenderer());
+                        new StatusRenderer());
 
         table.getColumnModel()
                 .getColumn(6)
