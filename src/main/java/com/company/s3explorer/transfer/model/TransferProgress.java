@@ -1,7 +1,5 @@
 package com.company.s3explorer.transfer.model;
 
-import java.time.Duration;
-
 public class TransferProgress {
     private long transferredBytes;
     private long totalBytes;

@@ -99,18 +99,6 @@ public class ConnectionTestResult {
                 detail);
     }
 
-    public Status getStatus() {
-        return status;
-    }
-
-    public String getMessage() {
-        return message;
-    }
-
-    public String getDetail() {
-        return detail;
-    }
-
     public boolean isSuccess() {
 
         return status == Status.SUCCESS

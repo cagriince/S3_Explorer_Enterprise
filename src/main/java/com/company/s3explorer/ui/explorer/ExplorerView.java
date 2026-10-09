@@ -592,7 +592,6 @@ public final class ExplorerView {
     public JComboBox<String> getBucketCombo() { return bucketCombo; }
     public JComboBox<UITheme> getThemeCombo() { return themeCombo; }
     public JComboBox<Integer> getFileTableRowLimitCombo() { return fileTableRowLimitCombo; }
-    public JComboBox<Integer> getThreadCountCombo() { return threadCountCombo; }
     public JPanel getBreadcrumbPanel() { return breadcrumbPanel; }
     public JLabel getFileFolderInfo() { return fileFolderInfo; }
 

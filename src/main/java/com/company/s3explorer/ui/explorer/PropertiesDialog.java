@@ -6,7 +6,6 @@ import com.company.s3explorer.ui.icons.IconProvider;
 import com.company.s3explorer.util.DateFormatter;
 
 import javax.swing.*;
-import javax.swing.border.Border;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
 

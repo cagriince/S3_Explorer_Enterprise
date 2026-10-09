@@ -31,8 +31,7 @@ public class FolderMoveProducer
                 targetRepositoryId,
                 targetBucket,
                 targetPrefix,
-                group,
-                true);
+                group);
     }
 
     @Override

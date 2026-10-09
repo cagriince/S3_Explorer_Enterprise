@@ -49,7 +49,7 @@ public class SvgColorInverter {
                     .forEach(p -> {
                         String[] fileName = printFileNameAndExtension(p.getFileName());
                         try {
-                            invertSvgColors(p, new File(p.getParent().toFile(), fileName[0] + "-reverse" + (fileName[1].equals("") ? "" : "." + fileName[1])).toPath());
+                            invertSvgColors(p, new File(p.getParent().toFile(), fileName[0] + "-reverse" + (fileName[1].isEmpty() ? "" : "." + fileName[1])).toPath());
                         } catch (IOException e) {
                             System.out.println(e.getMessage());
                             e.printStackTrace();

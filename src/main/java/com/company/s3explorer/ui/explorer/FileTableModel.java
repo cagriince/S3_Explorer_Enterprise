@@ -131,25 +131,6 @@ public class FileTableModel extends AbstractTableModel {
         fireTableDataChanged();
     }
 
-    public void addFiles(
-            List<S3FileItem> newFiles) {
-
-        if (newFiles == null
-                || newFiles.isEmpty()) {
-
-            return;
-        }
-
-        int firstRow =
-                files.size();
-
-        files.addAll(newFiles);
-
-        fireTableRowsInserted(
-                firstRow,
-                files.size() - 1);
-    }
-
     public boolean addFile(
             S3FileItem file) {
 
@@ -245,10 +226,6 @@ public class FileTableModel extends AbstractTableModel {
         return false;
     }
     
-    public void clear() {
-        files.clear();
-    }
-
     public void clearAndRepaint() {
 
         files.clear();

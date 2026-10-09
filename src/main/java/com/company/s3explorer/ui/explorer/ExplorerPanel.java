@@ -523,21 +523,6 @@ public class ExplorerPanel extends JPanel {
                 hasClipboard);
     }
 
-    private void deleteObject(S3FileItem item) {
-
-        try {
-
-            fileOperationController.delete(item);
-
-        } catch (Exception ex) {
-
-            SwingUtilities.invokeLater(() ->
-                    JOptionPane.showMessageDialog(
-                            this,
-                            ex.getMessage()));
-        }
-    }
-
     public void loadRepositoriesAsync() {
 
         explorerPool.submit(() -> {
@@ -5606,60 +5591,6 @@ public class ExplorerPanel extends JPanel {
 
                 pendingFileTableSelectionKey = null;
                 restoreFileTableFocus = false;
-            });
-        }
-    }
-
-    private void removeFolderFromCurrentFileTable(
-            String bucket,
-            String prefix) {
-
-        if (bucket == null
-                || prefix == null
-                || prefix.isBlank()) {
-
-            return;
-        }
-
-        if (!Objects.equals(
-                currentFileBucket,
-                bucket)) {
-
-            return;
-        }
-
-        String parentPrefix =
-                getParentPrefix(prefix);
-
-        if (!Objects.equals(
-                currentFilePrefix,
-                parentPrefix)) {
-
-            return;
-        }
-
-        boolean removed =
-                view.getFileTableModel()
-                        .removeFileByKey(prefix);
-
-        log.info(
-                "[FILE TABLE ROW REMOVE] key={} removed={}",
-                prefix,
-                removed);
-
-        if (removed) {
-
-            SwingUtilities.invokeLater(() -> {
-
-                log.info(
-                        "[DELETE SELECTION RESTORE TRIGGER] " +
-                                "pendingRow={} rowCount={}",
-                        pendingDeleteSelectionViewRow,
-                        view.getFileTable().getRowCount());
-
-                restoreFileTableSelectionAfterDelete();
-
-                restoreFileTableFocus();
             });
         }
     }

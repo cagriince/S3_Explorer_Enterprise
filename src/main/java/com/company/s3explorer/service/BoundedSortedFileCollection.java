@@ -128,16 +128,4 @@ public class BoundedSortedFileCollection {
     public List<S3Object> toList() {
         return new ArrayList<>(items);
     }
-
-    public boolean isEmpty() {
-        return items.isEmpty();
-    }
-
-    public int getLimit() {
-        return limit;
-    }
-
-    public void clear() {
-        items.clear();
-    }
 }

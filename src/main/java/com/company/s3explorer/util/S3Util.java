@@ -1,8 +1,6 @@
 package com.company.s3explorer.util;
 
 import com.company.s3explorer.transfer.TransferType;
-import com.company.s3explorer.transfer.model.TransferGroup;
-import com.company.s3explorer.transfer.model.TransferTask;
 import com.company.s3explorer.ui.main.MainFrame;
 import com.company.s3explorer.ui.theme.UIThemeManager;
 

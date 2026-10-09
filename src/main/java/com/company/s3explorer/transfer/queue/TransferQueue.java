@@ -109,39 +109,6 @@ public class TransferQueue {
         return runtime;
     }
 
-    public TransferRuntime take()
-            throws InterruptedException {
-
-        while (true) {
-
-            if (cancellingAll) {
-
-                Thread.sleep(50);
-
-                continue;
-            }
-
-            TransferRuntime runtime =
-                    queue.take();
-
-            /*
-             * Cancel All, take() ile aynı anda
-             * yarışmış olabilir.
-             *
-             * Gate açıldıktan sonra burada kontrol
-             * edilmesi güvenlik katmanı olarak kalıyor.
-             */
-            if (cancellingAll) {
-
-                cancelRuntime(runtime);
-
-                continue;
-            }
-
-            return runtime;
-        }
-    }
-
     public TransferRuntime poll(
             long timeoutMillis)
             throws InterruptedException {

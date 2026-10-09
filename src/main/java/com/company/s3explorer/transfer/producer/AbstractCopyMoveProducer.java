@@ -17,35 +17,6 @@ public abstract class AbstractCopyMoveProducer
     protected final String parentPrefix;
 
     /**
-     * Backward-compatible constructor.
-     *
-     * Producer kendi TransferGroup'unu oluşturur.
-     */
-    protected AbstractCopyMoveProducer(
-            TransferContext context,
-            TransferQueue queue,
-            String repositoryId,
-            String bucket,
-            String prefix,
-            String targetRepositoryId,
-            String targetBucket,
-            String targetPrefix,
-            boolean sourceRefreshRequired) {
-
-        this(
-                context,
-                queue,
-                repositoryId,
-                bucket,
-                prefix,
-                targetRepositoryId,
-                targetBucket,
-                targetPrefix,
-                null,
-                sourceRefreshRequired);
-    }
-
-    /**
      * TransferManager tarafından oluşturulan logical
      * TransferGroup'un producer tarafından kullanılması için.
      */
@@ -58,8 +29,7 @@ public abstract class AbstractCopyMoveProducer
             String targetRepositoryId,
             String targetBucket,
             String targetPrefix,
-            TransferGroup externalGroup,
-            boolean sourceRefreshRequired) {
+            TransferGroup externalGroup) {
 
         super(
                 context,

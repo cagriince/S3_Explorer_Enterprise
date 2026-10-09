@@ -1,13 +1,11 @@
 package com.company.s3explorer.service;
 
-import com.company.s3explorer.util.S3Util;
 import software.amazon.awssdk.services.s3.model.S3Object;
 
 import java.text.CollationKey;
 import java.text.Collator;
 import java.time.Instant;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 

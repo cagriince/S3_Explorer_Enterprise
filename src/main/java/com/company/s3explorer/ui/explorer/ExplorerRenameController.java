@@ -19,9 +19,6 @@ public class ExplorerRenameController {
     private final ExplorerView view;
     private final TransferManager transferManager;
 
-    private final Supplier<String>
-            currentBucketSupplier;
-
     private final Predicate<String>
             existsPredicate;
 
@@ -52,9 +49,6 @@ public class ExplorerRenameController {
 
         this.transferManager =
                 transferManager;
-
-        this.currentBucketSupplier =
-                currentBucketSupplier;
 
         this.existsPredicate =
                 existsPredicate;

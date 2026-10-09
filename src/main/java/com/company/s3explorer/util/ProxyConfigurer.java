@@ -17,9 +17,9 @@ public class ProxyConfigurer {
         }
         else if (proxySettings.getMode().equals(ProxySettings.Mode.DO_NOT_USE_PROXY)) {
             if (osName.contains("win")) {
-                configureWindowsProxies(proxySettings);
+                configureWindowsProxies();
             } else {
-                configureUnixProxies(proxySettings);
+                configureUnixProxies();
             }
         }
         else if (proxySettings.getMode().equals(ProxySettings.Mode.MANUAL_PROXY_CONFIGURATION)) {
@@ -34,7 +34,7 @@ public class ProxyConfigurer {
     /**
      * WINDOWS: Windows Registry ve sistem seviyesindeki proxy ayarlarını çeker.
      */
-    private static void configureWindowsProxies(ProxySettings proxySettings) {
+    private static void configureWindowsProxies() {
         // 1. Native Windows proxy seçim mekanizmasını aktif et
         // Neden? java.net.useSystemProxies=true satırı Java'nın tüm TCP soket
         // kontrolünü Windows 11 WinINet sürücüsüne devreder. Bu satır silindiğinde
@@ -181,7 +181,7 @@ public class ProxyConfigurer {
     /**
      * LINUX / MACOS: Ortam değişkenlerini (http_proxy, NO_PROXY) okur ve dönüştürür.
      */
-    private static void configureUnixProxies(ProxySettings proxySettings) {
+    private static void configureUnixProxies() {
         // 1. HTTP / HTTPS Proxy
         String httpProxy = getEnvValue("http_proxy", "HTTP_PROXY");
         if (httpProxy != null && !httpProxy.isBlank()) {

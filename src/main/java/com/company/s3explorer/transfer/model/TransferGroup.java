@@ -33,7 +33,6 @@ public class TransferGroup {
      */
     private final TransferType operation;
     private final String source;
-    private final String target;
 
     /*
      * Structured source metadata.
@@ -184,7 +183,6 @@ public class TransferGroup {
         this.displayName = displayName;
         this.operation = operation;
         this.source = source;
-        this.target = target;
 
         this.sourceRepository = sourceRepository;
         this.sourceBucket = sourceBucket;
@@ -255,10 +253,6 @@ public class TransferGroup {
     // ---------------------------------------------------------------------
     // PRODUCER / DISCOVERY
     // ---------------------------------------------------------------------
-
-    public void detected() {
-        detected.incrementAndGet();
-    }
 
     public void detected(long size) {
 
@@ -428,29 +422,6 @@ public class TransferGroup {
 
         fireCompletionIfNecessary();
     }
-
-
-    /**
-     * Eski çağrılar için güvenli fallback.
-     *
-     * Normal lifecycle'da kullanılmamalıdır.
-     */
-    private void cancelledFromUnknownState() {
-
-        if (queued.get() > 0) {
-
-            decrementIfPositive(queued);
-
-        } else if (running.get() > 0) {
-
-            decrementIfPositive(running);
-        }
-
-        cancelled.incrementAndGet();
-
-        fireCompletionIfNecessary();
-    }
-
 
     public void skipped() {
 

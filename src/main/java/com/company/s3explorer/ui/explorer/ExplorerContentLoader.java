@@ -56,10 +56,6 @@ public final class ExplorerContentLoader {
                 new ConcurrentHashMap<>();
     }
 
-    public Map<String, CollationKey> getCollationKeyCache() {
-        return collationKeyCache;
-    }
-
     public void clearCollationKeyCache() {
         collationKeyCache.clear();
     }
@@ -286,15 +282,6 @@ public final class ExplorerContentLoader {
         return content;
     }
 
-    public boolean isCached(
-            String bucket,
-            String prefix) {
-
-        return getCachedContent(
-                bucket,
-                prefix) != null;
-    }
-
     /**
      * Invalidates one folder's completed cache.
      */
@@ -319,24 +306,6 @@ public final class ExplorerContentLoader {
         cachedContent = null;
         cachedBucket = null;
         cachedPrefix = null;
-    }
-
-    /**
-     * Invalidates all cached/in-flight bookkeeping.
-     */
-    public void invalidateAll() {
-
-        cachedContent = null;
-        cachedBucket = null;
-        cachedPrefix = null;
-
-        inFlightLoads.clear();
-
-        collationKeyCache.clear();
-    }
-
-    public int getInFlightLoadCount() {
-        return inFlightLoads.size();
     }
 
     /**

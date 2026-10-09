@@ -30,8 +30,7 @@ public class FolderRenameProducer
                 repositoryId,
                 bucket,
                 targetPrefix,
-                group,
-                true);
+                group);
     }
     
     @Override

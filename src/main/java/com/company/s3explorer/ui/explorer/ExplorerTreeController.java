@@ -5,7 +5,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
-import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.MutableTreeNode;
 import javax.swing.tree.TreePath;
@@ -905,72 +904,6 @@ public final class ExplorerTreeController {
         }
     }
     
-    private void reindexRenamedSubtree(
-            S3TreeNode parentNode,
-            String sourcePrefix,
-            String targetPrefix) {
-
-        for (int i = 0;
-             i < parentNode.getChildCount();
-             i++) {
-
-            Object childObject =
-                    parentNode.getChildAt(i);
-
-            if (!(childObject instanceof S3TreeNode child)) {
-                continue;
-            }
-
-            /*
-             * Loading marker gerçek folder node'u değildir.
-             */
-            if (child.isLoading()) {
-                continue;
-            }
-
-            String oldChildPrefix =
-                    child.getFullPrefix();
-
-            if (oldChildPrefix == null
-                    || !oldChildPrefix.startsWith(
-                    sourcePrefix)) {
-
-                continue;
-            }
-
-            String newChildPrefix =
-                    targetPrefix
-                            + oldChildPrefix.substring(
-                            sourcePrefix.length());
-
-            /*
-             * Child node'un kendisini de koruyoruz.
-             */
-            child.rename(
-                    child.getDisplayName(),
-                    child.getBucket(),
-                    newChildPrefix);
-
-            /*
-             * Cache key'ini değiştir.
-             */
-            nodeCache.remove(
-                    oldChildPrefix);
-
-            nodeCache.put(
-                    newChildPrefix,
-                    child);
-
-            /*
-             * Daha aşağıdaki subtree'yi de güncelle.
-             */
-            reindexRenamedSubtree(
-                    child,
-                    sourcePrefix,
-                    targetPrefix);
-        }
-    }
-    
     public S3TreeNode findNodeByPrefix(
             String prefix) {
 
@@ -1553,33 +1486,6 @@ public final class ExplorerTreeController {
         return normalized.substring(
                 0,
                 slashIndex + 1);
-    }
-
-    private void collectDescendants(
-            S3TreeNode parent,
-            List<S3TreeNode> result) {
-
-        for (int i = 0;
-             i < parent.getChildCount();
-             i++) {
-
-            Object child =
-                    parent.getChildAt(i);
-
-            if (!(child instanceof S3TreeNode childNode)) {
-                continue;
-            }
-
-            if (childNode.isLoading()) {
-                continue;
-            }
-
-            result.add(childNode);
-
-            collectDescendants(
-                    childNode,
-                    result);
-        }
     }
 
     private void logExpandedSubtree(

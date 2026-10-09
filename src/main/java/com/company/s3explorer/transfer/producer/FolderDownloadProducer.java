@@ -23,26 +23,6 @@ public class FolderDownloadProducer
             String bucket,
             String prefix,
             Path localFolder,
-            EncryptionConfig encryptionConfig) {
-
-        super(
-                context,
-                queue,
-                repositoryId,
-                bucket,
-                prefix);
-
-        this.localFolder = localFolder;
-        this.encryptionConfig = encryptionConfig;
-    }
-
-    public FolderDownloadProducer(
-            TransferContext context,
-            TransferQueue queue,
-            String repositoryId,
-            String bucket,
-            String prefix,
-            Path localFolder,
             EncryptionConfig encryptionConfig,
             TransferGroup group) {
 

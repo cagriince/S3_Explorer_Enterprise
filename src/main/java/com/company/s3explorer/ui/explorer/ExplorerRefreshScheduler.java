@@ -229,15 +229,4 @@ public class ExplorerRefreshScheduler {
                             "no pending refresh");
         }
     }
-    
-    public void cancel() {
-
-        timer.stop();
-
-        pendingPrefixes.clear();
-
-        currentTableRefreshPending = false;
-
-        refreshScheduled.set(false);
-    }
 }

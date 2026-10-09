@@ -31,8 +31,7 @@ public class FolderCopyProducer
                 targetRepositoryId,
                 targetBucket,
                 targetPrefix,
-                group,
-                false);
+                group);
     }
 
     @Override

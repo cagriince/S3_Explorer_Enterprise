@@ -1,7 +1,6 @@
 package com.company.s3explorer.transfer.operation;
 
 import com.company.s3explorer.transfer.TransferRuntime;
-import com.company.s3explorer.transfer.TransferStatus;
 import com.company.s3explorer.transfer.TransferType;
 import com.company.s3explorer.transfer.context.TransferContext;
 import com.company.s3explorer.service.TransferProgressListener;
@@ -10,7 +9,6 @@ import com.company.s3explorer.transfer.model.TransferGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.time.Instant;
 import java.util.concurrent.CancellationException;
 
 public abstract class AbstractTransferOperation

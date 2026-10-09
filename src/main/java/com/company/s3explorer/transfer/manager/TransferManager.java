@@ -625,7 +625,7 @@ public class TransferManager {
                         .objectKey(
                                 keySource)
                         .targetRepositoryId(
-                                repositoryId)
+                                targetRepositoryId)
                         .targetBucket(
                                 targetBucket)
                         .targetObjectKey(

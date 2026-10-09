@@ -358,12 +358,6 @@ public class TransferTableModel
                 transferModelRow);
     }
 
-    public TransferRuntime getRuntimeAtModelRow(
-            int modelRow) {
-
-        return getRuntime(modelRow);
-    }
-
     /*
      * ---------------------------------------------------------
      * GROUP VALUES

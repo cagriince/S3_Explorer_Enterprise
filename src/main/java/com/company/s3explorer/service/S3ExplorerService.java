@@ -17,7 +17,6 @@ import java.nio.file.Path;
 import java.text.CollationKey;
 import java.util.*;
 import java.util.function.Consumer;
-import java.util.stream.Stream;
 
 public class S3ExplorerService {
     private final S3Client client;

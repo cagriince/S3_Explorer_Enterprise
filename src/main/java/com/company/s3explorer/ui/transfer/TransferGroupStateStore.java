@@ -94,20 +94,6 @@ public class TransferGroupStateStore {
 
     /**
 
-     * UUID ile kayıt getirir.
-     */
-    public synchronized GroupRecord get(
-            UUID id) {
-
-        if (id == null) {
-            return null;
-        }
-
-        return groups.get(id);
-    }
-
-    /**
-
      * Bütün kayıtların snapshot'ını döndürür.
      */
     public synchronized List<GroupRecord> snapshot() {
@@ -160,17 +146,6 @@ public class TransferGroupStateStore {
                 result);
     }
 
-    /**
-
-     * Belirli bir group var mı?
-     */
-    public synchronized boolean contains(
-            UUID id) {
-
-        return id != null
-                && groups.containsKey(id);
-    }
-
     public synchronized void removeFinished() {
 
         groups.entrySet().removeIf(
@@ -178,15 +153,6 @@ public class TransferGroupStateStore {
                         entry.getValue() != null
                                 && entry.getValue().isFinished());
 
-    }
-
-    /**
-
-     * UI state temizliği için.
-     */
-    public synchronized void clear() {
-
-        groups.clear();
     }
 
     /**

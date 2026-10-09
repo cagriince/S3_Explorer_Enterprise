@@ -49,32 +49,8 @@ public class TransferGroupUpdatedEvent {
         return sourceRefreshRequired;
     }
 
-    public boolean isPreparing() {
-
-        return !group.isProductionCompleted()
-                && group.getActiveProducers() > 0;
-    }
-
-    public boolean isRunning() {
-
-        return !group.isFinished()
-                && (
-                group.getQueued() > 0
-                        || group.getRunning() > 0
-                        || group.getCompleted() > 0
-                        || group.getFailed() > 0
-                        || group.getCancelled() > 0
-                        || group.getSkipped() > 0
-        );
-    }
-
     public boolean isFinished() {
 
         return group.isFinished();
-    }
-
-    public boolean isSuccessful() {
-
-        return group.isFullySuccessful();
     }
 }
