@@ -38,7 +38,9 @@ public class TransferGroupStateStore {
     public synchronized void upsert(
             TransferGroupUpdatedEvent event) {
 
-        if (event == null || event.getGroup() == null) {
+        if (event == null
+                || event.getGroup() == null
+                || event.getGroup().getId() == null) {
             return;
         }
 
@@ -49,6 +51,19 @@ public class TransferGroupStateStore {
                 groups.computeIfAbsent(
                         group.getId(),
                         id -> new GroupRecord());
+
+        /*
+         * Finished grup terminal durumdadır.
+         *
+         * Daha sonra ulaşan Updated event'leri,
+         * tamamlanmış grubun son bilgilerini ezmemelidir.
+         *
+         * Completion event'i complete() üzerinden
+         * ayrıca işlenmeye devam eder.
+         */
+        if (record.isFinished()) {
+            return;
+        }
 
         record.update(event);
     }
