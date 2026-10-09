@@ -401,10 +401,10 @@ public final class ExplorerFileOperationController {
             return;
         }
 
-        String repositoryName =
+        String repositoryId =
                 currentRepositorySupplier.get();
 
-        if (repositoryName == null) {
+        if (repositoryId == null) {
             return;
         }
 
@@ -416,7 +416,7 @@ public final class ExplorerFileOperationController {
                         item.getRepositoryId(),
                         item.getBucket(),
                         item.getKey(),
-                        repositoryName,
+                        repositoryId,
                         targetBucket,
                         targetKey);
 
@@ -426,7 +426,7 @@ public final class ExplorerFileOperationController {
                         item.getRepositoryId(),
                         item.getBucket(),
                         item.getKey(),
-                        repositoryName,
+                        repositoryId,
                         targetBucket,
                         targetKey,
                         group);
@@ -441,7 +441,7 @@ public final class ExplorerFileOperationController {
                     item.getRepositoryId(),
                     item.getBucket(),
                     item.getKey(),
-                    repositoryName,
+                    repositoryId,
                     targetBucket,
                     targetKey,
                     item.getSize(),
@@ -453,7 +453,7 @@ public final class ExplorerFileOperationController {
                     item.getRepositoryId(),
                     item.getBucket(),
                     item.getKey(),
-                    repositoryName,
+                    repositoryId,
                     targetBucket,
                     targetKey,
                     item.getSize(),

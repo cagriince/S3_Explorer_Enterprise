@@ -23,7 +23,7 @@ public final class BulkDownloadDialog {
     
     public BulkDownloadDialog(
             Window owner,
-            String repositoryName,
+            String repositoryId,
             String bucket,
             boolean encryptionConfigured) {
 
@@ -58,7 +58,7 @@ public final class BulkDownloadDialog {
                                 + "Enter S3 object keys, one per line. All keys must belong to the current repository and bucket."
                                 + "<br><br>"
                                 + "<table><tr><td><b>Repository:</b></td><td>"
-                                + repositoryName
+                                + repositoryId
                                 + "</td></tr><tr><td><b>Bucket:</b></td><td>"
                                 + bucket
                                 + "</td></tr></table></html>");

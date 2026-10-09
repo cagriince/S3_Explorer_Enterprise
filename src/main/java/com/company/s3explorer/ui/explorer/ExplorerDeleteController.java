@@ -186,19 +186,19 @@ public class ExplorerDeleteController {
         S3FileItem firstItem =
                 items.getFirst();
 
-        String repositoryName =
+        String repositoryId =
                 firstItem.getRepositoryId();
 
         String bucket =
                 currentBucketSupplier.get();
 
-        if (repositoryName == null
+        if (repositoryId == null
                 || bucket == null) {
 
             log.warn(
                     "[DELETE GROUP] missing context " +
                             "repository={} bucket={}",
-                    repositoryName,
+                    repositoryId,
                     bucket);
 
             return;
@@ -269,7 +269,7 @@ public class ExplorerDeleteController {
                 transferManager.createOperationGroup(
                         TransferType.DELETE_GROUP,
                         groupName,
-                        repositoryName,
+                        repositoryId,
                         bucket,
                         sourcePrefix,
                         null,
@@ -278,7 +278,7 @@ public class ExplorerDeleteController {
 
         transferManager.configureGroupCompletion(
                 group,
-                repositoryName,
+                repositoryId,
                 bucket,
                 sourcePrefix,
                 true);
@@ -303,7 +303,7 @@ public class ExplorerDeleteController {
                 if (item.isFolder()) {
 
                     transferManager.submitFolderDelete(
-                            repositoryName,
+                            repositoryId,
                             bucket,
                             item.getKey(),
                             group);

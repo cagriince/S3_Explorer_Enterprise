@@ -37,7 +37,6 @@ public class ExplorerRenameController {
     public ExplorerRenameController(
             ExplorerView view,
             TransferManager transferManager,
-            Supplier<String> currentBucketSupplier,
             Predicate<String> existsPredicate,
             Runnable updateActionStates,
             Consumer<String> pendingRenameOldKeyConsumer,
@@ -187,13 +186,13 @@ public class ExplorerRenameController {
             return;
         }
 
-        String repositoryName =
+        String repositoryId =
                 item.getRepositoryId();
 
         String bucket =
                 item.getBucket();
 
-        if (repositoryName == null
+        if (repositoryId == null
                 || bucket == null) {
 
             log.warn(
@@ -227,7 +226,7 @@ public class ExplorerRenameController {
             if (item.isFolder()) {
 
                 transferManager.submitFolderRename(
-                        repositoryName,
+                        repositoryId,
                         bucket,
                         oldKey,
                         newKey);
@@ -235,10 +234,10 @@ public class ExplorerRenameController {
             } else {
 
                 transferManager.submitRename(
-                        repositoryName,
+                        repositoryId,
                         bucket,
                         oldKey,
-                        repositoryName,
+                        repositoryId,
                         bucket,
                         newKey,
                         item.getSize(),

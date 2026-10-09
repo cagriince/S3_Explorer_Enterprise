@@ -39,25 +39,6 @@ public abstract class AbstractFolderTransferProducer
     private volatile long lastGroupUpdateTime;
 
     /**
-     * Producer kendi group'unu oluşturur.
-     */
-    protected AbstractFolderTransferProducer(
-            TransferContext context,
-            TransferQueue queue,
-            String repositoryId,
-            String bucket,
-            String prefix) {
-
-        this(
-                context,
-                queue,
-                repositoryId,
-                bucket,
-                prefix,
-                null);
-    }
-
-    /**
      * Dışarıdan group verilmişse aynı group kullanılır.
      */
     protected AbstractFolderTransferProducer(

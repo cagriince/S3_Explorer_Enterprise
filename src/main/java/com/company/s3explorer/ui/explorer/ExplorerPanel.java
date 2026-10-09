@@ -402,7 +402,6 @@ public class ExplorerPanel extends JPanel {
                 new ExplorerRenameController(
                         view,
                         transferManager,
-                        this::getCurrentBucket,
                         this::exists,
                         this::updateActionStates,
                         value ->
@@ -3156,53 +3155,72 @@ public class ExplorerPanel extends JPanel {
 
         /*
          * =========================================================
-         * DELETE GROUP - FOLDER TREE
+         * DELETE GROUP - FOLDER TREE + FILE TABLE
          * =========================================================
          */
-        if (group.getOperation()
-                == TransferType.DELETE_GROUP
+        if (group.getOperation() == TransferType.DELETE_GROUP
                 && event.isSourceRefreshRequired()) {
 
-            List<RefreshTreeNode> deleteRefreshes =
-                    new ArrayList<>();
+            String sourceBucket =
+                    group.getSourceBucket();
 
-            for (TransferTask task : completedTasks) {
+            String sourcePrefix =
+                    group.getSourcePrefix();
 
-                if (task == null
-                        || task.getType() != TransferType.DELETE) {
-                    continue;
-                }
-
-                String objectKey =
-                        task.getObjectKey();
-
-                if (objectKey == null
-                        || !objectKey.endsWith("/")) {
-                    continue;
-                }
-
-                if (!Objects.equals(
-                        currentBucket,
-                        task.getBucket())) {
-                    continue;
-                }
-
-                deleteRefreshes.add(
-                        new RefreshTreeNode(
-                                objectKey,
-                                RefreshTreeOperation.DELETE));
+            if (sourcePrefix == null || sourcePrefix.isBlank()) {
+                sourcePrefix = event.getPrefix();
             }
 
-            if (!deleteRefreshes.isEmpty()) {
+            if (sourceBucket == null) {
+                sourceBucket = event.getBucket();
+            }
+
+            if (sourcePrefix != null
+                    && !sourcePrefix.isBlank()
+                    && Objects.equals(currentBucket, sourceBucket)) {
+
+                /*
+                 * Folder Tree'den klasörün kendisini kaldır.
+                 * İçerikteki DELETE task'larının objectKey değerlerine
+                 * bağımlı değiliz.
+                 */
+                String folderPrefix =
+                        sourcePrefix.endsWith("/")
+                                ? sourcePrefix
+                                : sourcePrefix + "/";
 
                 log.info(
-                        "[EXPLORER GROUP DELETE TREE REFRESH] " +
-                                "group={} prefixes={}",
+                        "[EXPLORER GROUP DELETE TREE REFRESH] "
+                                + "group={} prefix={}",
                         group.getDisplayName(),
-                        deleteRefreshes);
+                        folderPrefix);
 
                 refreshScheduler.scheduleRefresh(
-                        deleteRefreshes);
+                        List.of(
+                                new RefreshTreeNode(
+                                        folderPrefix,
+                                        RefreshTreeOperation.DELETE)));
+
+                /*
+                 * Silinen klasörün üst dizini File Table'da açıksa
+                 * tabloyu yeniden yükle. Böylece klasör satırı da
+                 * S3 listelemesinden kaldırılır.
+                 */
+                String parentPrefix =
+                        getParentPrefix(folderPrefix);
+
+                if (Objects.equals(currentPrefix, parentPrefix)) {
+
+                    log.info(
+                            "[EXPLORER GROUP DELETE TABLE REFRESH] "
+                                    + "group={} bucket={} prefix={} deletedPrefix={}",
+                            group.getDisplayName(),
+                            currentBucket,
+                            currentPrefix,
+                            folderPrefix);
+
+                    refreshScheduler.scheduleCurrentTableRefresh();
+                }
             }
         }
 
@@ -3241,62 +3259,48 @@ public class ExplorerPanel extends JPanel {
              * MOVE GROUP - FOLDER TREE
              * -------------------------------------------------
              *
-             * Her MOVE task'ı içerisinde gerçek source object key
-             * bulunuyor.
-             *
-             * Klasör ise:
-             *
-             *     sourceKey.endsWith("/")
-             *
-             * olur.
-             *
-             * Folder Tree'den tam olarak bu node silinir.
+             * Kaynak klasörün kendisini group üzerinden bul.
+             * Tek tek task objectKey değerlerine güvenme;
+             * görevler klasörün içindeki dosyaları temsil edebilir.
              */
-            if (group.getOperation()
-                    == TransferType.MOVE_GROUP) {
+            if (group.getOperation() == TransferType.MOVE_GROUP) {
 
-                List<RefreshTreeNode> sourceTreeRefreshes =
-                        new ArrayList<>();
+                String sourceBucket = group.getSourceBucket();
+                String sourcePrefix = group.getSourcePrefix();
 
-                for (TransferTask task : completedTasks) {
-
-                    if (task == null
-                            || task.getType()
-                            != TransferType.MOVE) {
-                        continue;
-                    }
-
-                    String sourceKey =
-                            task.getObjectKey();
-
-                    if (sourceKey == null
-                            || !sourceKey.endsWith("/")) {
-                        continue;
-                    }
-
-                    if (!Objects.equals(
-                            currentBucket,
-                            task.getBucket())) {
-                        continue;
-                    }
-
-                    sourceTreeRefreshes.add(
-                            new RefreshTreeNode(
-                                    sourceKey,
-                                    RefreshTreeOperation.DELETE));
+                if (sourceBucket == null) {
+                    sourceBucket = event.getBucket();
                 }
 
-                if (!sourceTreeRefreshes.isEmpty()) {
+                if (sourcePrefix == null || sourcePrefix.isBlank()) {
+                    sourcePrefix = event.getPrefix();
+                }
+
+                if (sourcePrefix != null
+                        && !sourcePrefix.isBlank()
+                        && Objects.equals(currentBucket, sourceBucket)) {
+
+                    String folderPrefix = sourcePrefix.endsWith("/")
+                            ? sourcePrefix
+                            : sourcePrefix + "/";
+
+                    List<RefreshTreeNode> sourceTreeRefreshes =
+                            List.of(
+                                    new RefreshTreeNode(
+                                            folderPrefix,
+                                            RefreshTreeOperation.DELETE));
 
                     log.info(
                             "[EXPLORER SOURCE FOLDER TREE REFRESH] "
-                                    + "group={} operation={} prefixes={}",
+                                    + "group={} operation={} sourceBucket={} "
+                                    + "sourcePrefix={} prefixes={}",
                             group.getDisplayName(),
                             group.getOperation(),
+                            sourceBucket,
+                            folderPrefix,
                             sourceTreeRefreshes);
 
-                    refreshScheduler.scheduleRefresh(
-                            sourceTreeRefreshes);
+                    refreshScheduler.scheduleRefresh(sourceTreeRefreshes);
                 }
 
                 /*
@@ -5905,11 +5909,14 @@ public class ExplorerPanel extends JPanel {
                 operation == TransferType.COPY_GROUP
                         || operation == TransferType.MOVE_GROUP;
 
+        boolean isUploadGroup =
+                operation == TransferType.UPLOAD_GROUP;
+
         boolean isTargetOperation =
                 operation == TransferType.COPY
                         || operation == TransferType.MOVE
                         || isGroupCopyOrMove
-                        || operation == TransferType.UPLOAD_GROUP;
+                        || isUploadGroup;
 
         if (!isTargetOperation) {
             return;
@@ -5937,10 +5944,6 @@ public class ExplorerPanel extends JPanel {
                     continue;
                 }
 
-                /*
-                 * Önce task üzerindeki ağaç yenileme isteklerini ekle.
-                 * Klasör prefix'i burada standartlaştırılır.
-                 */
                 Set<RefreshTreeNode> affectedPrefixes =
                         task.getAffectedPrefixes();
 
@@ -5960,12 +5963,8 @@ public class ExplorerPanel extends JPanel {
                     }
                 }
 
-                /*
-                 * Hedef nesne bir klasör işaretçisi ise aynı
-                 * standartlaştırma uygulanır. Set sayesinde aynı
-                 * klasör ikinci kez eklenmez.
-                 */
-                String targetObjectKey = task.getTargetObjectKey();
+                String targetObjectKey =
+                        task.getTargetObjectKey();
 
                 if (targetObjectKey != null
                         && targetObjectKey.endsWith("/")) {
@@ -5978,15 +5977,30 @@ public class ExplorerPanel extends JPanel {
 
         } else if (targetPrefix != null) {
 
-            String refreshPrefix =
-                    operation == TransferType.UPLOAD_GROUP
-                            ? getParentPrefix(targetPrefix)
-                            : targetPrefix;
+            if (isUploadGroup) {
 
-            targetTreeRefreshes.add(
-                    new RefreshTreeNode(
-                            refreshPrefix,
-                            RefreshTreeOperation.ADD));
+                /*
+                 * Folder upload:
+                 *
+                 * targetPrefix = SIL71/SIL1/
+                 *
+                 * Eklenecek düğüm yüklenen klasörün kendisidir.
+                 * Üst dizini (SIL71/) tekrar ADD etmemeliyiz.
+                 */
+                addFolderTreeRefresh(
+                        targetTreeRefreshes,
+                        targetPrefix);
+
+            } else {
+
+                /*
+                 * Tekli COPY/MOVE işlemlerindeki mevcut davranış.
+                 */
+                targetTreeRefreshes.add(
+                        new RefreshTreeNode(
+                                targetPrefix,
+                                RefreshTreeOperation.ADD));
+            }
         }
 
         if (!targetTreeRefreshes.isEmpty()) {
@@ -6003,8 +6017,8 @@ public class ExplorerPanel extends JPanel {
         }
 
         /*
-         * Kopyalanan klasörün üst dizini açıksa File Table'ı
-         * yenile; klasör satırı S3 listelemesinden gelsin.
+         * COPY_GROUP / MOVE_GROUP:
+         * Hedef üst dizin açıksa File Table'ı yenile.
          */
         if (isGroupCopyOrMove
                 && targetPrefix != null
@@ -6031,6 +6045,27 @@ public class ExplorerPanel extends JPanel {
 
                 refreshScheduler.scheduleCurrentTableRefresh();
             }
+        }
+
+        /*
+         * UPLOAD_GROUP:
+         * Yüklenen klasörün üst dizini açıksa File Table'ı yenile.
+         */
+        if (isUploadGroup
+                && targetPrefix != null
+                && Objects.equals(
+                currentPrefix,
+                getParentPrefix(targetPrefix))) {
+
+            log.info(
+                    "[EXPLORER UPLOAD TARGET TABLE REFRESH] "
+                            + "group={} bucket={} prefix={} targetPrefix={}",
+                    group.getDisplayName(),
+                    currentBucket,
+                    currentPrefix,
+                    targetPrefix);
+
+            refreshScheduler.scheduleCurrentTableRefresh();
         }
     }
 
