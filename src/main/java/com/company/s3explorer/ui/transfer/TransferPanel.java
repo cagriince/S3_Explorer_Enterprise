@@ -87,22 +87,10 @@ public class TransferPanel
     }
 
     private void createModel() {
-
-        queuedModel =
-                new TransferTableModel(
-                        UI_VISIBLE_LIMIT);
-
-        runningModel =
-                new TransferTableModel(
-                        UI_VISIBLE_LIMIT);
-
-        finishedModel =
-                new TransferTableModel(
-                        UI_VISIBLE_LIMIT);
-
-        allModel =
-                new TransferTableModel(
-                        UI_VISIBLE_LIMIT);
+        queuedModel = new TransferTableModel();
+        runningModel = new TransferTableModel();
+        finishedModel = new TransferTableModel();
+        allModel = new TransferTableModel();
     }
 
     private void createComponents() {

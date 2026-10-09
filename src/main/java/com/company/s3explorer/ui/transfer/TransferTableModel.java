@@ -35,23 +35,6 @@ public class TransferTableModel
     private final List<Row> rows =
             new ArrayList<>();
 
-    private final int maxRows;
-
-    public TransferTableModel() {
-        this(1000);
-    }
-
-    public TransferTableModel(
-            int maxRows) {
-
-        if (maxRows < 1) {
-            throw new IllegalArgumentException(
-                    "maxRows must be greater than zero");
-        }
-
-        this.maxRows = maxRows;
-    }
-
     @Override
     public int getRowCount() {
         return rows.size();
