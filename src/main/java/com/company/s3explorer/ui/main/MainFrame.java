@@ -8,6 +8,7 @@ import com.company.s3explorer.service.S3ClientFactory;
 import com.company.s3explorer.service.S3ClientManager;
 import com.company.s3explorer.transfer.TransferEngine;
 import com.company.s3explorer.ui.explorer.ExplorerPanel;
+import com.company.s3explorer.ui.icons.IconProvider;
 import com.company.s3explorer.ui.preferences.PreferencesDialog;
 import com.company.s3explorer.ui.theme.UIThemeManager;
 import com.company.s3explorer.ui.transfer.TransferPanel;
@@ -286,12 +287,12 @@ public class MainFrame extends JFrame {
                 e ->
                         JOptionPane.showMessageDialog(
                                 this,
-                                "S3 Explorer",
+                                "<html><font color=red size=6><b>GİB<br/><font color=blue>S3 </font><font color=black>Explorer</font></b></font></html>",
                                 "About",
-                                JOptionPane.INFORMATION_MESSAGE));
+                                JOptionPane.INFORMATION_MESSAGE,
+                                IconProvider.ICON_LOGO_96));
 
-        helpMenu.add(
-                aboutItem);
+        helpMenu.add(aboutItem);
 
         // -------------------------------------------------
 
