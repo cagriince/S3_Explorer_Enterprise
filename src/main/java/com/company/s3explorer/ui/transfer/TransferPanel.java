@@ -461,13 +461,37 @@ public class TransferPanel
         try {
 
             List<TransferGroupUpdatedEvent> updates =
-                    new ArrayList<>(
-                            pendingGroupUpdates.values());
+                    new ArrayList<>();
 
-            pendingGroupUpdates.clear();
+            /*
+             * Bekleyen event'leri tek tek güvenli şekilde
+             * kuyruktan çıkar.
+             *
+             * Event bu sırada başka bir thread tarafından
+             * güncellenmişse remove(key, value) eski event'i
+             * silmez. Yeni event kuyrukta kalır.
+             */
+            for (UUID groupId : pendingGroupUpdates.keySet()) {
 
-            for (TransferGroupUpdatedEvent event :
-                    updates) {
+                TransferGroupUpdatedEvent event =
+                        pendingGroupUpdates.get(groupId);
+
+                if (event == null) {
+                    continue;
+                }
+
+                if (pendingGroupUpdates.remove(
+                        groupId,
+                        event)) {
+
+                    updates.add(event);
+                }
+            }
+
+            /*
+             * Kuyruktan güvenli şekilde alınan event'leri işle.
+             */
+            for (TransferGroupUpdatedEvent event : updates) {
 
                 if (event == null
                         || event.getGroup() == null) {
@@ -480,12 +504,13 @@ public class TransferPanel
             refreshVisibleTables();
             updateTabTitles();
             updateButtons();
+
         } finally {
 
             groupUpdateRefreshScheduled.set(false);
 
             /*
-             * Bu işlem sırasında yeni event geldiyse,
+             * İşlem sırasında yeni event geldiyse
              * tekrar tek bir EDT işi oluştur.
              */
             if (!pendingGroupUpdates.isEmpty()
@@ -498,7 +523,7 @@ public class TransferPanel
             }
         }
     }
-    
+
     /*
      * Sadece EDT üzerinde çalışır.
      *
