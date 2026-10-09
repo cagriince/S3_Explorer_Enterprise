@@ -41,12 +41,48 @@ public class MainFrame extends JFrame {
         buildUI();
 
         setTitle("S3 Explorer");
-        setSize(settings.getWindowWidth(), settings.getWindowHeight());
-        if (settings.getWindowX() >= 0 && settings.getWindowY() >= 0) {
-            setLocation(settings.getWindowX(), settings.getWindowY());
+
+        /*
+         * Eski ayar dosyalarıyla uyumluluk:
+         * Önceki sürüm, büyütülmüş pencereyi -1 genişlik
+         * ve -1 yükseklik olarak kaydediyordu.
+         */
+        boolean restoreMaximized =
+                settings.isWindowMaximized()
+                        || settings.getWindowWidth() <= 0
+                        || settings.getWindowHeight() <= 0;
+
+        int windowWidth = settings.getWindowWidth();
+        int windowHeight = settings.getWindowHeight();
+
+        if (windowWidth <= 0) {
+            windowWidth = 1200;
+            settings.setWindowWidth(windowWidth);
+        }
+
+        if (windowHeight <= 0) {
+            windowHeight = 800;
+            settings.setWindowHeight(windowHeight);
+        }
+
+        setSize(windowWidth, windowHeight);
+
+        if (settings.getWindowX() >= 0
+                && settings.getWindowY() >= 0) {
+
+            setLocation(
+                    settings.getWindowX(),
+                    settings.getWindowY());
+
         } else {
             setLocationRelativeTo(null);
-            setSize(1200, 800);
+        }
+
+        /*
+         * Boyut ve konum belirlendikten sonra büyütülmüş
+         * pencere durumunu geri yükle.
+         */
+        if (restoreMaximized) {
             setExtendedState(JFrame.MAXIMIZED_BOTH);
         }
 
@@ -268,20 +304,33 @@ public class MainFrame extends JFrame {
     }
 
     private void saveApplicationState() {
-        boolean isMaximized = (this.getExtendedState() & JFrame.MAXIMIZED_BOTH) == JFrame.MAXIMIZED_BOTH;
-        if (isMaximized) {
-            settings.setWindowWidth(-1);
-            settings.setWindowHeight(-1);
-        }
-        else {
+
+        boolean isMaximized =
+                (getExtendedState() & JFrame.MAXIMIZED_BOTH)
+                        == JFrame.MAXIMIZED_BOTH;
+
+        settings.setWindowMaximized(isMaximized);
+
+        /*
+         * Pencere büyütülmüş durumdaysa mevcut ekran
+         * boyutlarını normal pencere boyutlarının üzerine
+         * yazma. Önceki normal pencere geometrisini koru.
+         */
+        if (!isMaximized) {
+
             settings.setWindowWidth(getWidth());
             settings.setWindowHeight(getHeight());
+
+            settings.setWindowX(getX());
+            settings.setWindowY(getY());
         }
 
-        settings.setWindowX(getX());
-        settings.setWindowY(getY());
-
-        settings.setLastSelectedRepository(activeRepositoryContext.getActiveRepository() != null ? activeRepositoryContext.getActiveRepository().getId() : null);
+        settings.setLastSelectedRepository(
+                activeRepositoryContext.getActiveRepository() != null
+                        ? activeRepositoryContext
+                        .getActiveRepository()
+                        .getId()
+                        : null);
 
         settingsStore.save(settings);
     }

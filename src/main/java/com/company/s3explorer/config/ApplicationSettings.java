@@ -11,6 +11,7 @@ public class ApplicationSettings {
     private int windowWidth = 1200;
     private int windowHeight = 800;
 
+    private boolean windowMaximized = false;
     private int windowX = -1;
     private int windowY = -1;
 
@@ -62,6 +63,14 @@ public class ApplicationSettings {
 
     public void setWindowHeight(int windowHeight) {
         this.windowHeight = windowHeight;
+    }
+
+    public boolean isWindowMaximized() {
+        return windowMaximized;
+    }
+
+    public void setWindowMaximized(boolean windowMaximized) {
+        this.windowMaximized = windowMaximized;
     }
 
     public int getWindowX() {
