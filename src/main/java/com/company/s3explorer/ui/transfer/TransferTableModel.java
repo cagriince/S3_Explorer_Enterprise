@@ -201,15 +201,14 @@ public class TransferTableModel
      * ---------------------------------------------------------
      */
 
+
     public void setSnapshot(
             List<TransferRuntime> snapshot) {
 
-        /*
-         * Eski davranış korunuyor.
-         *
-         * Bu overload özellikle Queued tablosu
-         * için kullanılmaya devam ediyor.
-         */
+        if (isSameSnapshot(snapshot)) {
+            return;
+        }
+
         runtimes.clear();
 
         if (snapshot != null) {
@@ -220,6 +219,7 @@ public class TransferTableModel
 
         fireTableDataChanged();
     }
+
 
     /*
      * ---------------------------------------------------------
