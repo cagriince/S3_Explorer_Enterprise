@@ -20,7 +20,7 @@ import javax.swing.table.DefaultTableCellRenderer;
  
 
  */
-public class CombinedTypeRenderer
+public class TypeRenderer
         extends DefaultTableCellRenderer {
 
 

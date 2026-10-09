@@ -828,7 +828,7 @@ public class TransferPanel
         table.getColumnModel()
                 .getColumn(0)
                 .setCellRenderer(
-                        new CombinedTypeRenderer());
+                        new TypeRenderer());
 
         table.getColumnModel()
                 .getColumn(2)
