@@ -999,119 +999,76 @@ public class TransferPanel
         };
     }
 
+
     private void cancelSelectedTransfers() {
 
-        JTable table =
-                getSelectedTable();
+        JTable table = getSelectedTable();
 
         if (table == null) {
             return;
         }
 
-        int[] selectedRows =
-                table.getSelectedRows();
+        int[] selectedRows = table.getSelectedRows();
 
         if (selectedRows.length == 0) {
             return;
         }
 
-        /*
-         * Queued tablosu klasik TransferTableModel kullanıyor.
-         */
-        if (table == queuedTable) {
+        TransferTableModel model = getModelForTable(table);
 
-            for (int viewRow :
-                    selectedRows) {
-
-                int modelRow =
-                        table.convertRowIndexToModel(
-                                viewRow);
-
-                TransferRuntime runtime =
-                        queuedModel.getRuntimeAtModelRow(
-                                modelRow);
-
-                if (runtime == null) {
-                    continue;
-                }
-
-                if (runtime.getStatus().isActive()) {
-
-                    transferManager.cancel(
-                            runtime.getTask().getId());
-                }
-            }
-
+        if (model == null) {
             return;
         }
 
-        /*
-         * Running / Finished / All
-         */
-        TransferTableModel combinedModel =
-                getCombinedModelForTable(table);
+        boolean groupCancellationAllowed =
+                table == runningTable || table == allTable;
 
-        if (combinedModel == null) {
-            return;
-        }
-
-        for (int viewRow :
-                selectedRows) {
+        for (int viewRow : selectedRows) {
 
             int modelRow =
-                    table.convertRowIndexToModel(
-                            viewRow);
+                    table.convertRowIndexToModel(viewRow);
 
             /*
              * GROUP
              */
-            if (combinedModel.isGroupRow(modelRow)) {
-                /*
-                 * Finished group iptal edilemez.
-                 */
-                if (table != runningTable
-                        && table != allTable) {
+            if (model.isGroupRow(modelRow)) {
 
+                if (!groupCancellationAllowed) {
                     continue;
                 }
 
                 TransferGroupStateStore.GroupRecord group =
-                        combinedModel.getGroup(modelRow);
+                        model.getGroup(modelRow);
 
                 if (group == null
                         || group.getGroup() == null
                         || group.getGroup().getId() == null) {
-
                     continue;
                 }
 
-                TransferGroup transferGroup =
-                        group.getGroup();
+                TransferGroup transferGroup = group.getGroup();
 
                 if (transferGroup.isFinished()) {
                     continue;
                 }
 
-                transferManager.cancelGroup(
-                        transferGroup);
-
+                transferManager.cancelGroup(transferGroup);
                 continue;
             }
 
             /*
              * NORMAL TRANSFER
              */
-            TransferRuntime runtime =
-                    combinedModel.getRuntime(modelRow);
+            TransferRuntime runtime = model.getRuntime(modelRow);
 
-            if (runtime == null) {
+            if (runtime == null
+                    || runtime.getTask() == null
+                    || runtime.getTask().getId() == null) {
                 continue;
             }
 
             if (runtime.getStatus().isActive()) {
-
-                transferManager.cancel(
-                        runtime.getTask().getId());
+                transferManager.cancel(runtime.getTask().getId());
             }
         }
     }
@@ -1189,97 +1146,64 @@ public class TransferPanel
                         });
     }
 
-    private boolean hasCancelableSelection(
-            JTable table) {
+
+    private boolean hasCancelableSelection(JTable table) {
 
         if (table == null) {
             return false;
         }
 
-        int[] selectedRows =
-                table.getSelectedRows();
+        int[] selectedRows = table.getSelectedRows();
 
         if (selectedRows.length == 0) {
             return false;
         }
 
-        /*
-         * Queued
-         */
-        if (table == queuedTable) {
+        TransferTableModel model = getModelForTable(table);
 
-            for (int viewRow : selectedRows) {
-
-                int modelRow =
-                        table.convertRowIndexToModel(
-                                viewRow);
-
-                TransferRuntime runtime =
-                        queuedModel.getRuntimeAtModelRow(
-                                modelRow);
-
-                if (runtime != null
-                        && runtime.getStatus().isActive()) {
-
-                    return true;
-                }
-            }
-
+        if (model == null) {
             return false;
         }
 
-        /*
-         * Running / Finished / All
-         */
-        TransferTableModel combinedModel =
-                getCombinedModelForTable(table);
-
-        if (combinedModel == null) {
-            return false;
-        }
+        boolean groupCancellationAllowed =
+                table == runningTable || table == allTable;
 
         for (int viewRow : selectedRows) {
 
             int modelRow =
-                    table.convertRowIndexToModel(
-                            viewRow);
+                    table.convertRowIndexToModel(viewRow);
 
             /*
-             * Group satırı:
-             *
-             * Sadece Running ve All içinde
-             * cancellation yapılabilir.
+             * GROUP
              */
-            if (combinedModel.isGroupRow(modelRow)) {
+            if (model.isGroupRow(modelRow)) {
 
-                if (table == runningTable
-                        || table == allTable) {
+                if (!groupCancellationAllowed) {
+                    continue;
+                }
 
-                    TransferGroupStateStore.GroupRecord group =
-                            combinedModel.getGroup(modelRow);
+                TransferGroupStateStore.GroupRecord group =
+                        model.getGroup(modelRow);
 
-                    if (group != null
-                            && group.getGroup() != null
-                            && group.getGroup().getId() != null
-                            && !group.getGroup()
-                            .isFinished()) {
-
-                        return true;
-                    }
+                if (group != null
+                        && group.getGroup() != null
+                        && group.getGroup().getId() != null
+                        && !group.getGroup().isFinished()) {
+                    return true;
                 }
 
                 continue;
             }
 
             /*
-             * Normal transfer satırı
+             * NORMAL TRANSFER
              */
-            TransferRuntime runtime =
-                    combinedModel.getRuntime(modelRow);
+            TransferRuntime runtime = model.getRuntime(modelRow);
 
             if (runtime != null
+                    && runtime.getTask() != null
+                    && runtime.getTask().getId() != null
                     && runtime.getStatus().isActive()) {
-
                 return true;
             }
         }
@@ -1287,8 +1211,12 @@ public class TransferPanel
         return false;
     }
 
-    private TransferTableModel getCombinedModelForTable(
-            JTable table) {
+
+    private TransferTableModel getModelForTable(JTable table) {
+
+        if (table == queuedTable) {
+            return queuedModel;
+        }
 
         if (table == runningTable) {
             return runningModel;
@@ -1304,7 +1232,7 @@ public class TransferPanel
 
         return null;
     }
-   
+
     public void setButtonIcons() {
 
         cancelButton.setIcon(
