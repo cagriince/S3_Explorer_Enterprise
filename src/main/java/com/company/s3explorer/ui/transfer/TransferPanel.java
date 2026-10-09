@@ -779,27 +779,17 @@ public class TransferPanel
                                         column);
 
                         boolean groupRow =
-                                model.isGroupRow(row);
+                                model.isGroupRow(
+                                        convertRowIndexToModel(row));
 
                         boolean selected =
-                                isRowSelected(row);
+                                isCellSelected(row, column);
 
-                        if (selected) {
-                            return component;
+                        if (groupRow && column == 0) {
+                            component.setBackground(createGroupBackground(getBackground()));
+                        } else if (!selected) {
+                            component.setBackground(getBackground());
                         }
-
-                        if (groupRow) {
-
-                            component.setBackground(
-                                    createGroupBackground(
-                                            getBackground()));
-
-                        } else {
-
-                            component.setBackground(
-                                    getBackground());
-                        }
-
                         return component;
                     }
 
@@ -1261,6 +1251,8 @@ public class TransferPanel
     private void configureTable(
             JTable table,
             int progressColumnWidth) {
+
+        table.setSelectionBackground(new Color(53, 222, 163));
 
         table.setRowHeight(54);
 
