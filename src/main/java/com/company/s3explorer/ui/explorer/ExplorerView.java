@@ -667,4 +667,14 @@ public final class ExplorerView {
 
         folderTree.setRowHeight(rowHeight);
     }
+
+    public void updatePopupUI() {
+        if (filePopup == null) {
+            return;
+        }
+
+        SwingUtilities.updateComponentTreeUI(filePopup);
+        filePopup.revalidate();
+        filePopup.repaint();
+    }
 }

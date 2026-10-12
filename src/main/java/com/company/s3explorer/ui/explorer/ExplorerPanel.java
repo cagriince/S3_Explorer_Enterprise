@@ -522,6 +522,10 @@ public class ExplorerPanel extends JPanel {
                 hasClipboard);
     }
 
+    public void updatePopupUI() {
+        view.updatePopupUI();
+    }
+
     public void loadRepositoriesAsync() {
 
         explorerPool.submit(() -> {
