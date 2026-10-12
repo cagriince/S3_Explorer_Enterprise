@@ -8,7 +8,7 @@ import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.*;
 
 public class FileSizeRenderer
-        extends DefaultTableCellRenderer {
+        extends PaddedTableCellRenderer {
 
     private static final int RIGHT_PADDING = 10;
 

@@ -8,7 +8,7 @@ import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.*;
 
 public class TransferProgressRenderer
-        extends DefaultTableCellRenderer {
+        extends PaddedTableCellRenderer {
 
     private static final int BAR_HEIGHT = 16;
     private static final int HORIZONTAL_PADDING = 6;

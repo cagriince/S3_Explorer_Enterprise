@@ -6,7 +6,7 @@ import javax.swing.JLabel;
 import java.text.NumberFormat;
 import java.awt.Component;
 
-public class LongFormatRenderer extends DefaultTableCellRenderer {
+public class LongFormatRenderer extends PaddedTableCellRenderer {
 
     private final NumberFormat numberFormat;
 

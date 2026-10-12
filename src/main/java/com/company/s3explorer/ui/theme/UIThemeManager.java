@@ -81,6 +81,7 @@ public class UIThemeManager {
             explorerPanel.setFolderTreeLeafIcon();
             explorerPanel.setButtonIcons();
             transferPanel.setButtonIcons();
+            transferPanel.setTableSelectionColors(theme.dark());
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -88,11 +89,22 @@ public class UIThemeManager {
 
     private static void setTransferPanelColors(UITheme theme) {
         boolean normal = !theme.dark();
-
+/*
         if (normal) {
             TRANSFER_PANEL_COLOR_BUCKET = "green";
             TRANSFER_PANEL_COLOR_FILEFOLDER = "blue";
             TRANSFER_PANEL_COLOR_GROUP = "red";
+        }
+        else {
+            TRANSFER_PANEL_COLOR_BUCKET = "#AAFF00";
+            TRANSFER_PANEL_COLOR_FILEFOLDER = "yellow";
+            TRANSFER_PANEL_COLOR_GROUP = "orange";
+        }
+*/
+        if (normal) {
+            TRANSFER_PANEL_COLOR_BUCKET = "cyan";
+            TRANSFER_PANEL_COLOR_FILEFOLDER = "blue";
+            TRANSFER_PANEL_COLOR_GROUP = "orange";
         }
         else {
             TRANSFER_PANEL_COLOR_BUCKET = "#AAFF00";

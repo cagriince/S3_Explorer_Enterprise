@@ -5,7 +5,7 @@ import com.company.s3explorer.transfer.TransferStatus;
 import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.*;
 
-public class StatusRenderer extends DefaultTableCellRenderer {
+public class StatusRenderer extends PaddedTableCellRenderer {
 
     @Override
     protected void setValue(Object value) {

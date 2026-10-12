@@ -21,7 +21,7 @@ import javax.swing.table.DefaultTableCellRenderer;
 
  */
 public class TypeRenderer
-        extends DefaultTableCellRenderer {
+        extends PaddedTableCellRenderer {
 
 
     @Override
@@ -60,7 +60,9 @@ public class TypeRenderer
                         setIcon(IconProvider.ICON_CREATE_FOLDER);
                 }
             }
-
+            if (getText().endsWith("Group")) {
+                setText("<html><b><u><i>" + getText() + "</i></u></b></html>");
+            }
             return;
         }
 /*

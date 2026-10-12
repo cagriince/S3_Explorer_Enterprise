@@ -44,6 +44,7 @@ public class TransferPanel
     private JTable runningTable;
     private JTable finishedTable;
     private JTable allTable;
+    private List<JTable> allTables;
 
     private JTabbedPane tabs;
 
@@ -94,6 +95,7 @@ public class TransferPanel
     }
 
     private void createComponents() {
+        allTables = new ArrayList<>();
 
         cancelButton =
                 new JButton();
@@ -152,6 +154,7 @@ public class TransferPanel
         queuedTable =
                 createTable(
                         queuedModel);
+        allTables.add(queuedTable);
 
         /*
          * Running
@@ -162,6 +165,7 @@ public class TransferPanel
         runningTable =
                 createTable(
                         runningModel);
+        allTables.add(runningTable);
 
         /*
          * Finished
@@ -172,6 +176,7 @@ public class TransferPanel
         finishedTable =
                 createTable(
                         finishedModel);
+        allTables.add(finishedTable);
 
         /*
          * All
@@ -182,6 +187,7 @@ public class TransferPanel
         allTable =
                 createTable(
                         allModel);
+        allTables.add(allTable);
 
         tabs =
                 new JTabbedPane();
@@ -784,12 +790,12 @@ public class TransferPanel
 
                         boolean selected =
                                 isCellSelected(row, column);
-
+/*
                         if (groupRow && column == 0) {
                             component.setBackground(createGroupBackground(getBackground()));
                         } else if (!selected) {
                             component.setBackground(getBackground());
-                        }
+                        }*/
                         return component;
                     }
 
@@ -834,6 +840,11 @@ public class TransferPanel
                         new TypeRenderer());
 
         table.getColumnModel()
+                .getColumn(1)
+                .setCellRenderer(
+                        new PaddedTableCellRenderer());
+
+        table.getColumnModel()
                 .getColumn(2)
                 .setCellRenderer(
                         new FileSizeRenderer());
@@ -849,9 +860,19 @@ public class TransferPanel
                         new StatusRenderer());
 
         table.getColumnModel()
+                .getColumn(5)
+                .setCellRenderer(
+                        new PaddedTableCellRenderer());
+
+        table.getColumnModel()
                 .getColumn(6)
                 .setCellRenderer(
                         new LongFormatRenderer());
+
+        table.getColumnModel()
+                .getColumn(7)
+                .setCellRenderer(
+                        new PaddedTableCellRenderer());
 
         return table;
     }
@@ -1252,8 +1273,6 @@ public class TransferPanel
             JTable table,
             int progressColumnWidth) {
 
-        table.setSelectionBackground(new Color(53, 222, 163));
-
         table.setRowHeight(54);
 
         table.setAutoCreateRowSorter(false);
@@ -1283,7 +1302,7 @@ public class TransferPanel
 
         table.getColumnModel()
                 .getColumn(5)
-                .setPreferredWidth(50);
+                .setPreferredWidth(100);
 
         table.getColumnModel()
                 .getColumn(6)
@@ -1295,5 +1314,20 @@ public class TransferPanel
 
         table.getTableHeader()
                 .setReorderingAllowed(false);
+    }
+
+    public void setTableSelectionColors(boolean dark) {
+        if (dark) {
+            for (JTable table : allTables) {
+                //table.setSelectionBackground(new Color(0, 166, 100));
+                table.setSelectionBackground(new Color(57, 105, 138));
+            }
+        }
+        else {
+            for (JTable table : allTables) {
+                //table.setSelectionBackground(new Color(53, 222, 163));
+                table.setSelectionBackground(new Color(57, 105, 138));
+            }
+        }
     }
 }
