@@ -523,7 +523,9 @@ public class ExplorerPanel extends JPanel {
     }
 
     public void updatePopupUI() {
-        view.updatePopupUI();
+        if (view != null) {
+            view.updatePopupUI();
+        }
     }
 
     public void loadRepositoriesAsync() {
