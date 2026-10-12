@@ -55,6 +55,9 @@ public final class ExplorerView {
     private final Action refreshAction;
     private final Action manageRepositoryAction;
     private final Action propertiesAction;
+    private final Action backAction;
+    private final Action forwardAction;
+    private final Action folderEditAction;
     
     private final Consumer<S3TreeNode> treeExpansionListener;
     private final Runnable openSelectedFileItem;
@@ -75,6 +78,12 @@ public final class ExplorerView {
     private JComboBox<Integer> fileTableRowLimitCombo;
     private JComboBox<Integer> threadCountCombo;
     private JPanel breadcrumbPanel;
+    private JPanel breadcrumbContainer;
+    private JButton backNavigationButton;
+    private JButton forwardNavigationButton;
+    private JButton editLocationButton;
+    private JTextField locationField;
+    private boolean locationEditMode;
     private JLabel fileFolderInfo;
     private JPopupMenu filePopup;
 
@@ -103,6 +112,9 @@ public final class ExplorerView {
             Action newFolderAction,
             Action refreshAction,
             Action manageRepositoryAction,
+            Action backAction,
+            Action forwardAction,
+            Action folderEditAction,
             Consumer<S3TreeNode> treeExpansionListener,
             Runnable openSelectedFileItem,
             Runnable reloadCurrentFileTable,
@@ -126,6 +138,9 @@ public final class ExplorerView {
         this.newFolderAction = newFolderAction;
         this.refreshAction = refreshAction;
         this.manageRepositoryAction = manageRepositoryAction;
+        this.backAction = backAction;
+        this.forwardAction = forwardAction;
+        this.folderEditAction = folderEditAction;
         this.treeExpansionListener = treeExpansionListener;
         this.openSelectedFileItem = openSelectedFileItem;
         this.reloadCurrentFileTable = reloadCurrentFileTable;
@@ -280,12 +295,48 @@ public final class ExplorerView {
         JPanel topButtonPanel = new JPanel(new BorderLayout());
         topButtonPanel.add(topPanel, BorderLayout.NORTH);
 
-        breadcrumbPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        breadcrumbPanel = new JPanel(
+                new FlowLayout(FlowLayout.LEFT, 0, 0));
 
-        JPanel bottomButtonPanel = new JPanel(new BorderLayout());
-        bottomButtonPanel.setPreferredSize(new Dimension(0, 40));
-        bottomButtonPanel.setBorder(BorderFactory.createBevelBorder(BevelBorder.RAISED));
-        bottomButtonPanel.add(breadcrumbPanel, BorderLayout.CENTER);
+        breadcrumbContainer = new JPanel(new BorderLayout(4, 0));
+
+        backNavigationButton = createIconButton(backAction);
+        forwardNavigationButton = createIconButton(forwardAction);
+        editLocationButton = createIconButton(folderEditAction);
+
+        JPanel navigationButtons = new JPanel(
+                new FlowLayout(FlowLayout.LEFT));
+
+        navigationButtons.add(backNavigationButton);
+        navigationButtons.add(forwardNavigationButton);
+        navigationButtons.add(editLocationButton);
+
+        locationField = new JTextField();
+        locationField.setToolTipText(
+                "Enter folder path");
+        locationField.setVisible(false);
+
+        breadcrumbContainer.add(
+                navigationButtons,
+                BorderLayout.WEST);
+
+        breadcrumbContainer.add(
+                breadcrumbPanel,
+                BorderLayout.CENTER);
+
+        JPanel bottomButtonPanel = new JPanel(
+                new BorderLayout());
+
+        bottomButtonPanel.setPreferredSize(
+                new Dimension(0, 40));
+
+        bottomButtonPanel.setBorder(
+                BorderFactory.createBevelBorder(
+                        BevelBorder.RAISED));
+
+        bottomButtonPanel.add(
+                breadcrumbContainer,
+                BorderLayout.CENTER);
 
         fileFolderInfo = new JLabel("");
         JPanel fileFolderInfoPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
@@ -577,6 +628,9 @@ public final class ExplorerView {
         setActionIcon(copyTextAction, IconProvider.ICON_COPY_TEXT);
         setActionIcon(bulkDownloadAction, IconProvider.ICON_BULK_DOWNLOAD);
         setActionIcon(copyTextAction, IconProvider.ICON_COPY_TEXT);
+        setActionIcon(backAction, IconProvider.ICON_BACK);
+        setActionIcon(forwardAction, IconProvider.ICON_FORWARD);
+        setActionIcon(folderEditAction, IconProvider.ICON_FOLDER_EDIT);
     }
 
     private void setActionIcon(Action action, Icon icon) {
@@ -593,6 +647,59 @@ public final class ExplorerView {
     public JComboBox<UITheme> getThemeCombo() { return themeCombo; }
     public JComboBox<Integer> getFileTableRowLimitCombo() { return fileTableRowLimitCombo; }
     public JPanel getBreadcrumbPanel() { return breadcrumbPanel; }
+    public JButton getBackNavigationButton() {
+        return backNavigationButton;
+    }
+
+    public JButton getForwardNavigationButton() {
+        return forwardNavigationButton;
+    }
+
+    public JButton getEditLocationButton() {
+        return editLocationButton;
+    }
+
+    public JTextField getLocationField() {
+        return locationField;
+    }
+
+    public void setLocationEditMode(boolean editMode) {
+        locationEditMode = editMode;
+
+        if (editMode) {
+            breadcrumbContainer.remove(breadcrumbPanel);
+            breadcrumbContainer.add(
+                    locationField,
+                    BorderLayout.CENTER);
+
+            locationField.setVisible(true);
+            locationField.requestFocusInWindow();
+            locationField.selectAll();
+        } else {
+            breadcrumbContainer.remove(locationField);
+            breadcrumbContainer.add(
+                    breadcrumbPanel,
+                    BorderLayout.CENTER);
+
+            breadcrumbPanel.setVisible(true);
+        }
+
+        breadcrumbContainer.revalidate();
+        breadcrumbContainer.repaint();
+    }
+
+    public boolean isLocationEditMode() {
+        return locationEditMode;
+    }
+
+    public void setNavigationButtonStates(
+            boolean canGoBack,
+            boolean canGoForward) {
+
+        backNavigationButton.setEnabled(canGoBack);
+        forwardNavigationButton.setEnabled(canGoForward);
+    }
+
     public JLabel getFileFolderInfo() { return fileFolderInfo; }
 
     public void setFileTableRowLimitSelectionListener(Consumer<Integer> listener) {

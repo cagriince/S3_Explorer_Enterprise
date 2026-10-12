@@ -76,7 +76,17 @@ public class IconProvider {
     public static ImageIcon ICON_COPY_TEXT = null;
     public static ImageIcon ICON_COPY_TEXT_NORMAL = loadIcon("copy-text");
     public static ImageIcon ICON_COPY_TEXT_REVERSE = loadIcon("copy-text-reverse");
-    
+
+    public static ImageIcon ICON_BACK = null;
+    public static ImageIcon ICON_BACK_NORMAL = loadIcon("arrow-left");
+    public static ImageIcon ICON_BACK_REVERSE = loadIcon("arrow-left-reverse");
+    public static ImageIcon ICON_FORWARD = null;
+    public static ImageIcon ICON_FORWARD_NORMAL = loadIcon("arrow-right");
+    public static ImageIcon ICON_FORWARD_REVERSE = loadIcon("arrow-right-reverse");
+    public static ImageIcon ICON_FOLDER_EDIT = null;
+    public static ImageIcon ICON_FOLDER_EDIT_NORMAL = loadIcon("folder-edit");
+    public static ImageIcon ICON_FOLDER_EDIT_REVERSE = loadIcon("folder-edit-reverse");
+
     static {
         reloadSystemIcons(null);
     }
@@ -122,6 +132,9 @@ public class IconProvider {
         ICON_CANCEL_ALL = normal ? ICON_CANCEL_ALL_NORMAL : ICON_CANCEL_ALL_REVERSE;
         ICON_BULK_DOWNLOAD = normal ? ICON_BULK_DOWNLOAD_NORMAL : ICON_BULK_DOWNLOAD_REVERSE;
         ICON_COPY_TEXT = normal ? ICON_COPY_TEXT_NORMAL : ICON_COPY_TEXT_REVERSE;
+        ICON_BACK = normal ? ICON_BACK_NORMAL : ICON_BACK_REVERSE;
+        ICON_FORWARD= normal ? ICON_FORWARD_NORMAL : ICON_FORWARD_REVERSE;
+        ICON_FOLDER_EDIT = normal ? ICON_FOLDER_EDIT_NORMAL : ICON_FOLDER_EDIT_REVERSE;
     }
 
     public static ImageIcon loadSvgIcon(

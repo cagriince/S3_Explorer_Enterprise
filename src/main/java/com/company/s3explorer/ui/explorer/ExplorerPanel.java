@@ -113,6 +113,20 @@ public class ExplorerPanel extends JPanel {
     private boolean suppressRepositorySelectionEvent;
     private boolean forceBucketReload;
 
+    private record NavigationEntry(
+            String repositoryId,
+            String bucket,
+            String prefix) {
+    }
+    private final List<NavigationEntry> navigationHistory = new ArrayList<>();
+    private int navigationHistoryIndex = -1;
+    /*
+     * Geri/ileri veya konum alanından başlatılan geçişin
+     * tamamlanmasını bekleyen hedef.
+     */
+    private NavigationEntry pendingNavigationTarget;
+    private boolean navigationPlayback;
+
     private final Map<UUID, List<TransferTask>> completedGroupTasks = new ConcurrentHashMap<>();
     
     private final ExplorerClipboard clipboard = new ExplorerClipboard();
@@ -129,6 +143,9 @@ public class ExplorerPanel extends JPanel {
     private Action newFolderAction;
     private Action refreshAction;
     private Action manageRepositoryAction;
+    private Action backAction;
+    private Action forwardAction;
+    private Action folderEditAction;
     private Action goToParentAction;
     private Action renameAction;
     private Action propertiesAction;
@@ -186,6 +203,9 @@ public class ExplorerPanel extends JPanel {
                 newFolderAction,
                 refreshAction,
                 manageRepositoryAction,
+                backAction,
+                forwardAction,
+                folderEditAction,
                 node -> treeController.loadChildren(node),
                 this::openSelectedFileItem,
                 this::reloadCurrentFileTable,
@@ -302,6 +322,9 @@ public class ExplorerPanel extends JPanel {
         renameAction = new ExplorerAction("Rename", () -> renameController.renameSelected());
         propertiesAction = new ExplorerAction("Properties", this::showProperties);
         bulkDownloadAction = new ExplorerAction("Bulk Download", this::showBulkDownloadDialog);
+        backAction = new ExplorerAction("Back", this::goBack);
+        forwardAction = new ExplorerAction("Forward", this::goForward);
+        folderEditAction = new ExplorerAction("Folder Edit", this::changeFolderEditStatus);
     }
 
     private void defineShortCuts() {
@@ -1025,15 +1048,25 @@ public class ExplorerPanel extends JPanel {
                         /*
                          * Önce mevcut bucket'ı korumaya çalış.
                          */
-                        if (previousBucket != null
-                                && allBuckets.contains(
-                                previousBucket)) {
+                        NavigationEntry restoreTarget = pendingNavigationTarget;
 
-                            view.getBucketCombo().setSelectedItem(
-                                    previousBucket);
+                        boolean restoreThisRepository =
+                                navigationPlayback
+                                        && restoreTarget != null
+                                        && Objects.equals(
+                                        restoreTarget.repositoryId(),
+                                        repository.getId());
 
-                        } else if (
-                                view.getBucketCombo().getItemCount() > 0) {
+                        String desiredBucket = restoreThisRepository
+                                ? restoreTarget.bucket()
+                                : previousBucket;
+
+                        if (desiredBucket != null
+                                && allBuckets.contains(desiredBucket)) {
+
+                            view.getBucketCombo().setSelectedItem(desiredBucket);
+
+                        } else if (view.getBucketCombo().getItemCount() > 0) {
 
                             view.getBucketCombo().setSelectedIndex(0);
                         }
@@ -1204,9 +1237,26 @@ public class ExplorerPanel extends JPanel {
                                     prefix,
                                     content);
 
-                            updateBreadcrumb(
-                                    prefix);
+                            updateBreadcrumb(prefix);
 
+                            NavigationEntry restoreTarget = pendingNavigationTarget;
+
+                            if (navigationPlayback
+                                    && restoreTarget != null
+                                    && Objects.equals(
+                                    restoreTarget.repositoryId(),
+                                    getCurrentRepository() == null
+                                            ? null
+                                            : getCurrentRepository().getId())
+                                    && Objects.equals(restoreTarget.bucket(), bucket)) {
+
+                                restorePendingNavigationPrefix(restoreTarget);
+
+                            } else {
+                                recordNavigation();
+                            }
+
+                            updateNavigationButtonStates();
                             updateActionStates();
                         }))
                 .exceptionally(ex -> {
@@ -1736,9 +1786,26 @@ public class ExplorerPanel extends JPanel {
                         prefix,
                         true);
 
-                updateBreadcrumb(
-                        prefix);
+                updateBreadcrumb(prefix);
 
+                NavigationEntry restoreTarget = pendingNavigationTarget;
+
+                if (navigationPlayback
+                        && restoreTarget != null
+                        && Objects.equals(restoreTarget.repositoryId(),
+                        getCurrentRepository() == null
+                                ? null
+                                : getCurrentRepository().getId())
+                        && Objects.equals(restoreTarget.bucket(), bucket)
+                        && Objects.equals(restoreTarget.prefix(), prefix)) {
+
+                    pendingNavigationTarget = null;
+                    navigationPlayback = false;
+                } else {
+                    recordNavigation();
+                }
+
+                updateNavigationButtonStates();
                 updateActionStates();
             });
         });
@@ -1753,6 +1820,12 @@ public class ExplorerPanel extends JPanel {
 
                     updateActionStates();
                 });
+
+        view.getLocationField().addActionListener(e -> {
+            String enteredPath = view.getLocationField().getText();
+
+            navigateToLocationPath(enteredPath);
+        });
     }
     
     private S3ExplorerService getService() {
@@ -3578,6 +3651,7 @@ public class ExplorerPanel extends JPanel {
 
         view.getBreadcrumbPanel().revalidate();
         view.getBreadcrumbPanel().repaint();
+        updateNavigationButtonStates();
     }
 
     private void addBreadcrumbButton(String text, String prefix) {
@@ -3641,6 +3715,221 @@ public class ExplorerPanel extends JPanel {
                 prefix);
 
         treeController.selectPrefix(prefix);
+    }
+
+    private NavigationEntry getCurrentNavigationEntry() {
+        RepositoryDefinition repository = getCurrentRepository();
+        String bucket = getCurrentBucket();
+        String prefix = getCurrentPrefix();
+
+        if (repository == null
+                || repository.isEmpty()
+                || bucket == null) {
+            return null;
+        }
+
+        return new NavigationEntry(
+                repository.getId(),
+                bucket,
+                prefix == null ? S3TreeNode.ROOT_PREFIX : prefix);
+    }
+
+    private void recordNavigation() {
+        if (navigationPlayback) {
+            return;
+        }
+
+        NavigationEntry current = getCurrentNavigationEntry();
+
+        if (current == null) {
+            return;
+        }
+
+        if (navigationHistoryIndex >= 0
+                && navigationHistoryIndex < navigationHistory.size()
+                && navigationHistory.get(navigationHistoryIndex).equals(current)) {
+            updateNavigationButtonStates();
+            return;
+        }
+
+        // Geri gittikten sonra yeni bir yere gidilirse ileri geçmişi sil.
+        while (navigationHistory.size() > navigationHistoryIndex + 1) {
+            navigationHistory.remove(navigationHistory.size() - 1);
+        }
+
+        navigationHistory.add(current);
+        navigationHistoryIndex = navigationHistory.size() - 1;
+
+        updateNavigationButtonStates();
+    }
+
+    private void updateNavigationButtonStates() {
+        if (view == null) {
+            return;
+        }
+
+        view.setNavigationButtonStates(
+                navigationHistoryIndex > 0,
+                navigationHistoryIndex >= 0
+                        && navigationHistoryIndex < navigationHistory.size() - 1);
+    }
+
+    private void goBack() {
+        if (navigationHistoryIndex <= 0) {
+            return;
+        }
+
+        navigateHistoryTo(navigationHistoryIndex - 1);
+    }
+
+    private void goForward() {
+        if (navigationHistoryIndex < 0
+                || navigationHistoryIndex >= navigationHistory.size() - 1) {
+            return;
+        }
+
+        navigateHistoryTo(navigationHistoryIndex + 1);
+    }
+
+    private void navigateHistoryTo(int targetIndex) {
+        if (targetIndex < 0 || targetIndex >= navigationHistory.size()) {
+            return;
+        }
+
+        NavigationEntry target = navigationHistory.get(targetIndex);
+        NavigationEntry current = getCurrentNavigationEntry();
+
+        if (target.equals(current)) {
+            navigationHistoryIndex = targetIndex;
+            updateNavigationButtonStates();
+            return;
+        }
+
+        navigationHistoryIndex = targetIndex;
+        pendingNavigationTarget = target;
+        navigationPlayback = true;
+
+        RepositoryDefinition currentRepository = getCurrentRepository();
+
+        if (currentRepository == null
+                || currentRepository.isEmpty()
+                || !Objects.equals(currentRepository.getId(), target.repositoryId())) {
+
+            RepositoryDefinition targetRepository =
+                    repositoryManager.findById(target.repositoryId());
+
+            if (targetRepository == null || targetRepository.isEmpty()) {
+                cancelPendingNavigation(
+                        "Geçmişteki repository artık bulunamıyor: "
+                                + target.repositoryId());
+                return;
+            }
+
+            boolean foundInCombo = false;
+
+            for (int i = 0; i < view.getRepositoryCombo().getItemCount(); i++) {
+                RepositoryDefinition item = view.getRepositoryCombo().getItemAt(i);
+
+                if (item != null
+                        && Objects.equals(item.getId(), target.repositoryId())) {
+                    view.getRepositoryCombo().setSelectedItem(item);
+                    foundInCombo = true;
+                    break;
+                }
+            }
+
+            if (!foundInCombo) {
+                cancelPendingNavigation(
+                        "Geçmişteki repository seçim listesinde bulunamadı.");
+                return;
+            }
+
+            /*
+             * Repository seçim olayı setSelectedRepository() ve
+             * loadBucketsAsync() akışını başlatır.
+             */
+            setSelectedRepository(targetRepository);
+            return;
+        }
+
+        if (!Objects.equals(getCurrentBucket(), target.bucket())) {
+            selectBucketForPendingNavigation(target);
+            return;
+        }
+
+        restorePendingNavigationPrefix(target);
+    }
+
+    private void cancelPendingNavigation(String message) {
+        pendingNavigationTarget = null;
+        navigationPlayback = false;
+        updateNavigationButtonStates();
+
+        JOptionPane.showMessageDialog(
+                this,
+                message,
+                "Gezinme Geçmişi",
+                JOptionPane.ERROR_MESSAGE);
+    }
+
+    private void restorePendingNavigationPrefix(NavigationEntry target) {
+        if (target == null) {
+            return;
+        }
+
+        if (Objects.equals(
+                target.prefix(),
+                S3TreeNode.ROOT_PREFIX)) {
+
+            pendingNavigationTarget = null;
+            navigationPlayback = false;
+
+            treeController.selectPrefix(S3TreeNode.ROOT_PREFIX);
+            updateNavigationButtonStates();
+            return;
+        }
+
+        treeController.selectPrefix(target.prefix());
+    }
+
+    private void selectBucketForPendingNavigation(
+            NavigationEntry target) {
+
+        if (target == null) {
+            return;
+        }
+
+        JComboBox<String> combo = view.getBucketCombo();
+
+        for (int i = 0; i < combo.getItemCount(); i++) {
+            if (Objects.equals(combo.getItemAt(i), target.bucket())) {
+                combo.setSelectedItem(target.bucket());
+                return;
+            }
+        }
+
+        cancelPendingNavigation(
+                "Geçmişteki bucket artık bulunamıyor: " + target.bucket());
+    }
+
+    private void changeFolderEditStatus() {
+        if (view.isLocationEditMode()) {
+            view.setLocationEditMode(false);
+            updateBreadcrumb(getCurrentPrefix());
+        } else {
+            NavigationEntry current = getCurrentNavigationEntry();
+
+            if (current == null) {
+                return;
+            }
+
+            String prefix = current.prefix() == null
+                    ? ""
+                    : current.prefix();
+
+            view.getLocationField().setText(prefix);
+            view.setLocationEditMode(true);
+        }
     }
 
     private void copySelected() {
@@ -6093,5 +6382,56 @@ public class ExplorerPanel extends JPanel {
                 new RefreshTreeNode(
                         normalizedPrefix,
                         RefreshTreeOperation.ADD));
+    }
+
+    private void navigateToLocationPath(String enteredPath) {
+        String bucket = getCurrentBucket();
+
+        if (bucket == null) {
+            return;
+        }
+
+        String normalized = enteredPath == null
+                ? ""
+                : enteredPath.trim().replace('\\', '/');
+
+        while (normalized.startsWith("/")) {
+            normalized = normalized.substring(1);
+        }
+
+        if (!normalized.isEmpty() && !normalized.endsWith("/")) {
+            normalized += "/";
+        }
+
+        if (normalized.contains("../")
+                || normalized.equals("..")
+                || normalized.contains("/..")
+                || normalized.contains("//")) {
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Geçersiz klasör yolu.",
+                    "Konum",
+                    JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        if (Objects.equals(normalized, getCurrentPrefix())) {
+            view.setLocationEditMode(false);
+            updateBreadcrumb(normalized);
+            return;
+        }
+
+        /*
+         * Önceki konumun geçmişte tutulması için mevcut konumu kaydet.
+         */
+        recordNavigation();
+
+        /*
+         * selectPrefix() hedefi ağaçta bulup seçer.
+         * Bu çağrı tek başına yolun geçerli olduğunu kanıtlamaz.
+         */
+        treeController.selectPrefix(normalized);
+        view.setLocationEditMode(false);
     }
 }
