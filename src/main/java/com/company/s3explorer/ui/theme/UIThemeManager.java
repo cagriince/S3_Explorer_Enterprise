@@ -80,7 +80,7 @@ public class UIThemeManager {
             explorerPanel.updateBreadcrumb(null);
             explorerPanel.setFolderTreeLeafIcon();
             explorerPanel.setButtonIcons();
-            explorerPanel.updateActionStates();
+            explorerPanel.updatePopupUI();
             transferPanel.setButtonIcons();
             transferPanel.setTableSelectionColors(theme.dark());
         } catch (Exception e) {
