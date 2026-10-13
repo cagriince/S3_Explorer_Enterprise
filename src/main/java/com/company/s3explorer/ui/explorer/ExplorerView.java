@@ -342,7 +342,7 @@ public final class ExplorerView {
         navigationConstraints.anchor = GridBagConstraints.WEST;
         navigationConstraints.fill = GridBagConstraints.NONE;
         navigationConstraints.weighty = 1.0;
-        navigationConstraints.insets = new Insets(0, 2, 0, 2);
+        navigationConstraints.insets = new Insets(0, 3, 0, 2);
 
         navigationConstraints.gridx = 0;
         navigationButtons.add(backNavigationButton, navigationConstraints);
