@@ -15,7 +15,7 @@ public class ProxyConfigurer {
         if (proxySettings.getMode().equals(ProxySettings.Mode.DO_NOT_USE_PROXY)) {
             clearProxySettings();
         }
-        else if (proxySettings.getMode().equals(ProxySettings.Mode.DO_NOT_USE_PROXY)) {
+        else if (proxySettings.getMode().equals(ProxySettings.Mode.AUTODETECT_PROXY_CONFIGURATION)) {
             if (osName.contains("win")) {
                 configureWindowsProxies();
             } else {

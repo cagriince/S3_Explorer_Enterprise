@@ -385,11 +385,44 @@ public class RepositoryPanel extends JPanel {
     private void testRepository() {
         RepositoryDefinition repo = getSelectedRepository();
 
-        if (repo == null) {
+        if (repo == null || testRunning) {
             return;
         }
 
         testButtonState(true);
+
+        Window owner = SwingUtilities.getWindowAncestor(this);
+
+        JDialog progressDialog = new JDialog(
+                owner,
+                "Test Connection",
+                Dialog.ModalityType.APPLICATION_MODAL);
+
+        JLabel messageLabel = new JLabel(
+                "Repository bağlantısı kurulmaya çalışılıyor...");
+        messageLabel.setBorder(
+                BorderFactory.createEmptyBorder(0, 0, 8, 0));
+
+        JProgressBar progressBar = new JProgressBar();
+        progressBar.setIndeterminate(true);
+
+        JButton cancelButton = new JButton("İptal");
+
+        JPanel centerPanel = new JPanel(new BorderLayout(0, 8));
+        centerPanel.add(messageLabel, BorderLayout.NORTH);
+        centerPanel.add(progressBar, BorderLayout.CENTER);
+
+        JPanel buttonPanel = new JPanel(
+                new FlowLayout(FlowLayout.RIGHT));
+        buttonPanel.add(cancelButton);
+
+        JPanel contentPanel = new JPanel(new BorderLayout(0, 12));
+        contentPanel.setBorder(
+                BorderFactory.createEmptyBorder(16, 18, 12, 18));
+        contentPanel.add(centerPanel, BorderLayout.CENTER);
+        contentPanel.add(buttonPanel, BorderLayout.SOUTH);
+
+        final boolean[] cancelled = {false};
 
         SwingWorker<ConnectionTestResult, Void> worker =
                 new SwingWorker<>() {
@@ -400,22 +433,74 @@ public class RepositoryPanel extends JPanel {
 
                     @Override
                     protected void done() {
-                        try {
-                            ConnectionTestResult result = get();
-                            showConnectionResult(result);
-                        } catch (Exception ex) {
-                            JOptionPane.showMessageDialog(
-                                    RepositoryPanel.this,
-                                    ex.getMessage(),
-                                    "Test Connection",
-                                    JOptionPane.ERROR_MESSAGE);
-                        } finally {
-                            testButtonState(false);
+                        if (progressDialog.isDisplayable()) {
+                            progressDialog.dispose();
                         }
                     }
                 };
 
+        Runnable cancelTest = () -> {
+            if (cancelled[0]) {
+                return;
+            }
+
+            cancelled[0] = true;
+            worker.cancel(true);
+            progressDialog.dispose();
+        };
+
+        cancelButton.addActionListener(e -> cancelTest.run());
+
+        progressDialog.setDefaultCloseOperation(
+                WindowConstants.DO_NOTHING_ON_CLOSE);
+
+        progressDialog.addWindowListener(
+                new java.awt.event.WindowAdapter() {
+                    @Override
+                    public void windowClosing(
+                            java.awt.event.WindowEvent e) {
+                        cancelTest.run();
+                    }
+                });
+
+        progressDialog.setContentPane(contentPanel);
+        progressDialog.pack();
+        progressDialog.setResizable(false);
+        progressDialog.setLocationRelativeTo(this);
+
         worker.execute();
+        progressDialog.setVisible(true);
+
+        try {
+            if (cancelled[0] || worker.isCancelled()) {
+                return;
+            }
+
+            ConnectionTestResult result = worker.get();
+            showConnectionResult(result);
+
+        } catch (java.util.concurrent.CancellationException ex) {
+            // İptal edildi; bağlantı sonucu gösterilmez.
+
+        } catch (java.util.concurrent.ExecutionException ex) {
+            Throwable cause = ex.getCause() != null
+                    ? ex.getCause()
+                    : ex;
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    cause.getMessage() != null
+                            ? cause.getMessage()
+                            : "Bağlantı testi sırasında hata oluştu.",
+                    "Test Connection",
+                    JOptionPane.ERROR_MESSAGE);
+
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+
+        } finally {
+            testButtonState(false);
+        }
     }
 
     private void testButtonState(boolean running) {
