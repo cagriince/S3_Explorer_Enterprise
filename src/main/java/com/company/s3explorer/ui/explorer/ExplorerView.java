@@ -368,6 +368,7 @@ public final class ExplorerView {
         locationField.setMaximumSize(new Dimension(480, 26));
         locationField.setVisible(false);
 
+
         locationEditorPanel = new JPanel(new GridBagLayout());
         locationEditorPanel.setOpaque(false);
 
