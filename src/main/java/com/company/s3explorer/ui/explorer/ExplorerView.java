@@ -475,10 +475,33 @@ public final class ExplorerView {
         return container;
     }
 
+
     private JButton createIconButton(Action action) {
         JButton button = new JButton(action);
-        button.setToolTipText((String) action.getValue(Action.NAME));
         button.setHideActionText(true);
+
+        String actionName = String.valueOf(
+                action.getValue(Action.NAME));
+
+        String shortcut = switch (actionName) {
+            case "Back" -> "Alt + Left";
+            case "Forward" -> "Alt + Right";
+            case "Copy" -> "Ctrl + C";
+            case "Cut" -> "Ctrl + X";
+            case "Paste" -> "Ctrl + V";
+            case "Delete" -> "Delete";
+            case "Rename" -> "F2";
+            case "Properties" -> "Alt + Enter";
+            default -> null;
+        };
+
+        if (shortcut != null) {
+            button.setToolTipText(
+                    actionName + " (" + shortcut + ")");
+        } else {
+            button.setToolTipText(actionName);
+        }
+
         return button;
     }
 

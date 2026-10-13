@@ -204,97 +204,84 @@ public class MainFrame extends JFrame {
                 });
     }
 
-    private JMenuBar createMenuBar() {
 
-        JMenuBar menuBar =
-                new JMenuBar();
+    private JMenuBar createMenuBar() {
+        JMenuBar menuBar = new JMenuBar();
 
         // -------------------------------------------------
         // File
         // -------------------------------------------------
+        JMenu fileMenu = new JMenu("File");
 
-        JMenu fileMenu =
-                new JMenu("File");
-
-        JMenuItem exitItem =
-                new JMenuItem("Exit");
-
+        JMenuItem exitItem = new JMenuItem("Exit");
         exitItem.addActionListener(
-                e ->
-                        dispatchEvent(
-                                new WindowEvent(
-                                        this,
-                                        WindowEvent.WINDOW_CLOSING)));
+                e -> dispatchEvent(
+                        new WindowEvent(
+                                this,
+                                WindowEvent.WINDOW_CLOSING)));
+
         fileMenu.add(exitItem);
 
         // -------------------------------------------------
         // Repository
         // -------------------------------------------------
-
-        JMenu repositoryMenu =
-                new JMenu("Repository");
+        JMenu repositoryMenu = new JMenu("Repository");
 
         JMenuItem repositoryManagerItem =
-                new JMenuItem(
-                        "Repository Manager");
+                new JMenuItem("Repository Manager");
 
         repositoryManagerItem.addActionListener(
-                e ->
-                        explorerPanel
-                                .openRepositoryManager());
+                e -> explorerPanel.openRepositoryManager());
 
-        repositoryMenu.add(
-                repositoryManagerItem);
+        repositoryMenu.add(repositoryManagerItem);
 
         // -------------------------------------------------
         // Settings
         // -------------------------------------------------
-
-        JMenu settingsMenu =
-                new JMenu("Settings");
+        JMenu settingsMenu = new JMenu("Settings");
 
         JMenuItem preferencesItem =
                 new JMenuItem("Preferences");
 
-        preferencesItem.addActionListener(
-                e -> {
+        preferencesItem.addActionListener(e -> {
+            PreferencesDialog dialog =
+                    new PreferencesDialog(this, settings);
 
-                    PreferencesDialog dialog =
-                            new PreferencesDialog(
-                                    this,
-                                    settings);
+            dialog.setVisible(true);
 
-                    dialog.setVisible(true);
+            settingsStore.save(settings);
+        });
 
-                    settingsStore.save(
-                            settings);
-                });
-
-        settingsMenu.add(
-                preferencesItem);
+        settingsMenu.add(preferencesItem);
 
         // -------------------------------------------------
         // Help
         // -------------------------------------------------
+        JMenu helpMenu = new JMenu("Help");
 
-        JMenu helpMenu =
-                new JMenu("Help");
+        JMenuItem keyboardShortcutsItem =
+                new JMenuItem("Keyboard Shortcuts");
 
-        JMenuItem aboutItem =
-                new JMenuItem("About");
+        keyboardShortcutsItem.addActionListener(
+                e -> showKeyboardShortcutsDialog());
+
+        helpMenu.add(keyboardShortcutsItem);
+        helpMenu.addSeparator();
+
+        JMenuItem aboutItem = new JMenuItem("About");
 
         aboutItem.addActionListener(
-                e ->
-                        JOptionPane.showMessageDialog(
-                                this,
-                                "<html><font color=red size=6><b>GİB<br/><font color=blue>S3 </font><font color=black>Explorer</font></b></font></html>",
-                                "About",
-                                JOptionPane.INFORMATION_MESSAGE,
-                                IconProvider.ICON_LOGO_96));
+                e -> JOptionPane.showMessageDialog(
+                        this,
+                        "<html><font color=red size=6><b>GİB<br/>"
+                                + "<font color=blue>S3 </font>"
+                                + "<font color=black>Explorer</font>"
+                                + "</b></font></html>",
+                        "About",
+                        JOptionPane.INFORMATION_MESSAGE,
+                        IconProvider.ICON_LOGO_96));
 
         helpMenu.add(aboutItem);
-
-        // -------------------------------------------------
 
         menuBar.add(fileMenu);
         menuBar.add(repositoryMenu);
@@ -355,5 +342,57 @@ public class MainFrame extends JFrame {
         clientManager.close();
 
         super.dispose();
+    }
+
+
+    private void showKeyboardShortcutsDialog() {
+        String[] columns = {
+                "Action",
+                "Shortcut"
+        };
+
+        Object[][] rows = {
+                {"Open selected item", "Enter"},
+                {"Copy", "Ctrl + C"},
+                {"Cut", "Ctrl + X"},
+                {"Paste", "Ctrl + V"},
+                {"Go to parent folder", "Backspace"},
+                {"Delete selected items", "Delete"},
+                {"Rename selected item", "F2"},
+                {"Show properties", "Alt + Enter"},
+                {"Navigate back", "Alt + Left"},
+                {"Navigate forward", "Alt + Right"}
+        };
+
+        JTable table = new JTable(
+                new javax.swing.table.DefaultTableModel(rows, columns) {
+                    @Override
+                    public boolean isCellEditable(int row, int column) {
+                        return false;
+                    }
+                });
+
+        table.setFillsViewportHeight(true);
+        table.setRowHeight(26);
+        table.setSelectionMode(
+                ListSelectionModel.SINGLE_SELECTION);
+        table.getTableHeader().setReorderingAllowed(false);
+
+        table.getColumnModel()
+                .getColumn(0)
+                .setPreferredWidth(230);
+
+        table.getColumnModel()
+                .getColumn(1)
+                .setPreferredWidth(140);
+
+        JScrollPane scrollPane = new JScrollPane(table);
+        scrollPane.setPreferredSize(new Dimension(400, 300));
+
+        JOptionPane.showMessageDialog(
+                this,
+                scrollPane,
+                "Keyboard Shortcuts",
+                JOptionPane.PLAIN_MESSAGE);
     }
 }
