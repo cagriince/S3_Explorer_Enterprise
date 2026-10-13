@@ -306,7 +306,7 @@ public class ExplorerPanel extends JPanel {
     }
 
     private void createActions() {
-        manageRepositoryAction = new ExplorerAction("Repositories", this::showRepositoryManager);
+        manageRepositoryAction = new ExplorerAction("Repository Manager", this::showRepositoryManager);
         refreshAction = new ExplorerAction("Refresh", this::loadBucketsAsync);
         uploadAction = new ExplorerAction("Upload", this::uploadFile);
         uploadEncryptedAction = new ExplorerAction("Upload Encrypted", this::uploadFileEncrypted);

@@ -12,6 +12,7 @@ import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableColumnModel;
 import java.awt.*;
 import java.awt.event.ActionEvent;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
@@ -27,6 +28,7 @@ public class RepositoryPanel extends JPanel {
 
     private JButton editBtn;
     private JButton deleteBtn;
+    private JButton testBtn;
     private JButton moreBtn;
 
     private boolean testRunning;
@@ -127,24 +129,23 @@ public class RepositoryPanel extends JPanel {
         return new JScrollPane(table);
     }
 
-
     private JPanel createToolbar() {
         JPanel panel = new JPanel(
                 new FlowLayout(FlowLayout.CENTER, 8, 0));
 
         JButton addBtn = new JButton("Add");
         editBtn = new JButton("Edit");
-        deleteBtn = new JButton("Delete");
+        testBtn = new JButton("Test");
         moreBtn = new JButton("More >");
 
         addBtn.addActionListener(e -> addRepository());
         editBtn.addActionListener(e -> editRepository());
-        deleteBtn.addActionListener(e -> deleteRepository());
+        testBtn.addActionListener(e -> testRepository());
         moreBtn.addActionListener(e -> showMoreMenu());
 
         panel.add(addBtn);
         panel.add(editBtn);
-        panel.add(deleteBtn);
+        panel.add(testBtn);
         panel.add(moreBtn);
 
         return panel;
@@ -152,20 +153,19 @@ public class RepositoryPanel extends JPanel {
 
     private void showMoreMenu() {
         int selectedCount = table.getSelectedRowCount();
-        boolean oneSelected = selectedCount == 1;
         boolean anySelected = selectedCount > 0;
         boolean repositoriesExist =
                 !repositoryManager.getRepositories().isEmpty();
 
         JPopupMenu popup = new JPopupMenu();
 
-        JMenuItem testItem = new JMenuItem("Test");
-        testItem.setEnabled(oneSelected && !testRunning);
-        testItem.addActionListener(e -> testRepository());
-        popup.add(testItem);
+        JMenuItem deleteItem = new JMenuItem("Delete");
+        deleteItem.setEnabled(anySelected);
+        deleteItem.addActionListener(e -> deleteRepository());
+        popup.add(deleteItem);
 
         JMenuItem duplicateItem = new JMenuItem("Duplicate");
-        duplicateItem.setEnabled(oneSelected);
+        duplicateItem.setEnabled(selectedCount == 1);
         duplicateItem.addActionListener(e -> duplicateRepository());
         popup.add(duplicateItem);
 
@@ -200,21 +200,23 @@ public class RepositoryPanel extends JPanel {
         popup.show(moreBtn, 0, moreBtn.getHeight());
     }
 
-
     private void updateRepositoryActionButtons() {
         int selectedCount = table == null
                 ? 0
                 : table.getSelectedRowCount();
 
         boolean oneSelected = selectedCount == 1;
-        boolean anySelected = selectedCount > 0;
 
         if (editBtn != null) {
             editBtn.setEnabled(oneSelected);
         }
 
+        if (testBtn != null) {
+            testBtn.setEnabled(oneSelected && !testRunning);
+        }
+
         if (deleteBtn != null) {
-            deleteBtn.setEnabled(anySelected);
+            deleteBtn.setEnabled(selectedCount > 0);
         }
     }
 
@@ -399,14 +401,15 @@ public class RepositoryPanel extends JPanel {
                 Dialog.ModalityType.APPLICATION_MODAL);
 
         JLabel messageLabel = new JLabel(
-                "Repository bağlantısı kurulmaya çalışılıyor...");
+                "Attempting to establish a repository connection...");
+
         messageLabel.setBorder(
                 BorderFactory.createEmptyBorder(0, 0, 8, 0));
 
         JProgressBar progressBar = new JProgressBar();
         progressBar.setIndeterminate(true);
 
-        JButton cancelButton = new JButton("İptal");
+        JButton cancelButton = new JButton("Cancel");
 
         JPanel centerPanel = new JPanel(new BorderLayout(0, 8));
         centerPanel.add(messageLabel, BorderLayout.NORTH);
@@ -451,6 +454,12 @@ public class RepositoryPanel extends JPanel {
 
         cancelButton.addActionListener(e -> cancelTest.run());
 
+        // Pressing ESC performs the same action as clicking Cancel.
+        progressDialog.getRootPane().registerKeyboardAction(
+                e -> cancelTest.run(),
+                KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
+                JComponent.WHEN_IN_FOCUSED_WINDOW);
+
         progressDialog.setDefaultCloseOperation(
                 WindowConstants.DO_NOTHING_ON_CLOSE);
 
@@ -480,7 +489,7 @@ public class RepositoryPanel extends JPanel {
             showConnectionResult(result);
 
         } catch (java.util.concurrent.CancellationException ex) {
-            // İptal edildi; bağlantı sonucu gösterilmez.
+            // The connection test was cancelled.
 
         } catch (java.util.concurrent.ExecutionException ex) {
             Throwable cause = ex.getCause() != null
@@ -491,7 +500,7 @@ public class RepositoryPanel extends JPanel {
                     this,
                     cause.getMessage() != null
                             ? cause.getMessage()
-                            : "Bağlantı testi sırasında hata oluştu.",
+                            : "An error occurred while testing the connection.",
                     "Test Connection",
                     JOptionPane.ERROR_MESSAGE);
 
