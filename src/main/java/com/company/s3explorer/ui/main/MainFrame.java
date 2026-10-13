@@ -41,7 +41,7 @@ public class MainFrame extends JFrame {
         buildDependencies();
         buildUI();
 
-        setTitle("S3 Explorer");
+        setTitle("GİB S3 Explorer");
 
         /*
          * Eski ayar dosyalarıyla uyumluluk:
