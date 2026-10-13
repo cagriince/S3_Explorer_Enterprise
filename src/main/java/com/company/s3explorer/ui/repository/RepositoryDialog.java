@@ -139,245 +139,142 @@ public class RepositoryDialog extends JDialog {
         return repository;
     }
 
+
     private JPanel createFormPanel() {
+        JPanel panel = new JPanel(new GridBagLayout());
 
-        JPanel panel =
-                new JPanel(
-                        new GridBagLayout());
-
-        GridBagConstraints gbc =
-                new GridBagConstraints();
-
-        gbc.insets =
-                new Insets(
-                        5,
-                        5,
-                        5,
-                        5);
-
-        gbc.fill =
-                GridBagConstraints.HORIZONTAL;
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
 
         gbc.gridx = 0;
         gbc.gridy = 0;
         gbc.weightx = 0.0;
-
-        panel.add(
-                new JLabel("Name"),
-                gbc);
+        panel.add(new JLabel("Name"), gbc);
 
         gbc.gridx = 1;
-        gbc.gridy = 0;
         gbc.weightx = 1.0;
-
-        nameField =
-                new JTextField();
-
-        panel.add(
-                nameField,
-                gbc);
+        nameField = new JTextField();
+        panel.add(nameField, gbc);
 
         gbc.gridx = 0;
         gbc.gridy = 1;
         gbc.weightx = 0.0;
-
-        panel.add(
-                new JLabel("Environment"),
-                gbc);
+        panel.add(new JLabel("Environment"), gbc);
 
         gbc.gridx = 1;
-        gbc.gridy = 1;
         gbc.weightx = 1.0;
-
-        environmentComboBox =
-                new JComboBox<>(
-                        RepositoryEnvironment.values());
-
-        environmentComboBox.setSelectedItem(
-                null);
-
-        panel.add(
-                environmentComboBox,
-                gbc);
+        environmentComboBox = new JComboBox<>(RepositoryEnvironment.values());
+        environmentComboBox.setSelectedItem(null);
+        panel.add(environmentComboBox, gbc);
 
         gbc.gridx = 0;
         gbc.gridy = 2;
         gbc.weightx = 0.0;
-
-        panel.add(
-                new JLabel("Endpoint"),
-                gbc);
+        panel.add(new JLabel("Endpoint"), gbc);
 
         gbc.gridx = 1;
-        gbc.gridy = 2;
         gbc.weightx = 1.0;
-
-        endpointField =
-                new JTextField();
-
-        panel.add(
-                endpointField,
-                gbc);
+        endpointField = new JTextField();
+        panel.add(endpointField, gbc);
 
         gbc.gridx = 0;
         gbc.gridy = 3;
         gbc.weightx = 0.0;
-
-        panel.add(
-                new JLabel("Access Key"),
-                gbc);
+        panel.add(new JLabel("Access Key"), gbc);
 
         gbc.gridx = 1;
-        gbc.gridy = 3;
         gbc.weightx = 1.0;
-
-        accessKeyField =
-                new JTextField();
-
-        panel.add(
-                accessKeyField,
-                gbc);
+        accessKeyField = new JTextField();
+        panel.add(accessKeyField, gbc);
 
         gbc.gridx = 0;
         gbc.gridy = 4;
         gbc.weightx = 0.0;
-
-        panel.add(
-                new JLabel("Secret Key"),
-                gbc);
+        panel.add(new JLabel("Secret Key"), gbc);
 
         gbc.gridx = 1;
-        gbc.gridy = 4;
         gbc.weightx = 1.0;
-
-        secretKeyField =
-                new JPasswordField();
-
-        panel.add(
-                secretKeyField,
-                gbc);
+        secretKeyField = new JPasswordField();
+        panel.add(secretKeyField, gbc);
 
         gbc.gridx = 0;
         gbc.gridy = 5;
         gbc.weightx = 0.0;
         gbc.weighty = 1.0;
-        gbc.fill =
-                GridBagConstraints.BOTH;
-        gbc.anchor =
-                GridBagConstraints.NORTHWEST;
+        gbc.fill = GridBagConstraints.BOTH;
+        gbc.anchor = GridBagConstraints.NORTHWEST;
 
-        panel.add(
-                new JLabel("External Buckets"),
-                gbc);
+        JLabel externalBucketsLabel = new JLabel("External Buckets");
+        externalBucketsLabel.setVerticalAlignment(SwingConstants.TOP);
+        panel.add(externalBucketsLabel, gbc);
 
         gbc.gridx = 1;
-        gbc.gridy = 5;
         gbc.weightx = 1.0;
-        gbc.weighty = 1.0;
 
-        externalBucketsArea =
-                new JTextArea(
-                        5,
-                        30);
-
-        externalBucketsArea.setLineWrap(
-                false);
+        externalBucketsArea = new JTextArea(5, 30);
+        externalBucketsArea.setLineWrap(false);
 
         JScrollPane externalBucketsScroll =
-                new JScrollPane(
-                        externalBucketsArea);
-
-        panel.add(
-                externalBucketsScroll,
-                gbc);
+                new JScrollPane(externalBucketsArea);
+        panel.add(externalBucketsScroll, gbc);
 
         gbc.gridx = 0;
         gbc.gridy = 6;
         gbc.gridwidth = 2;
         gbc.weightx = 1.0;
         gbc.weighty = 0.0;
-        gbc.fill =
-                GridBagConstraints.HORIZONTAL;
-        gbc.anchor =
-                GridBagConstraints.WEST;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.WEST;
 
-        useEncryptionCheckBox =
-                new JCheckBox(
-                        "Use Encryption");
-
+        useEncryptionCheckBox = new JCheckBox("Use Encryption");
         useEncryptionCheckBox.addActionListener(
                 e -> updateEncryptionFieldsState());
-
-        panel.add(
-                useEncryptionCheckBox,
-                gbc);
+        panel.add(useEncryptionCheckBox, gbc);
 
         gbc.gridwidth = 1;
 
         gbc.gridx = 0;
         gbc.gridy = 7;
         gbc.weightx = 0.0;
-
-        panel.add(
-                new JLabel(
-                        "Encryption Transformation"),
-                gbc);
+        panel.add(new JLabel("Encryption Transformation"), gbc);
 
         gbc.gridx = 1;
-        gbc.gridy = 7;
         gbc.weightx = 1.0;
-
-        encryptionTransformationField =
-                new JTextField();
-
-        panel.add(
-                encryptionTransformationField,
-                gbc);
+        encryptionTransformationField = new JTextField();
+        panel.add(encryptionTransformationField, gbc);
 
         gbc.gridx = 0;
         gbc.gridy = 8;
         gbc.weightx = 0.0;
-
         panel.add(
                 new JLabel(
                         EncryptionConfigValidator.ENCRYPTION_FIELDS.ENCRYPTION_IV.toString()),
                 gbc);
 
         gbc.gridx = 1;
-        gbc.gridy = 8;
         gbc.weightx = 1.0;
-
-        encryptionIvField =
-                new JTextField();
-
-        panel.add(
-                encryptionIvField,
-                gbc);
+        encryptionIvField = new JTextField();
+        panel.add(encryptionIvField, gbc);
 
         gbc.gridx = 0;
         gbc.gridy = 9;
         gbc.weightx = 0.0;
-
         panel.add(
                 new JLabel(
                         EncryptionConfigValidator.ENCRYPTION_FIELDS.ENCRYPTION_KEY.toString()),
                 gbc);
 
         gbc.gridx = 1;
-        gbc.gridy = 9;
         gbc.weightx = 1.0;
-
-        encryptionKeyField =
-                new JTextField();
-
-        panel.add(
-                encryptionKeyField,
-                gbc);
+        encryptionKeyField = new JTextField();
+        panel.add(encryptionKeyField, gbc);
 
         updateEncryptionFieldsState();
 
         return panel;
     }
+
 
     private JPanel createButtonPanel() {
 
