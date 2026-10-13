@@ -309,6 +309,7 @@ public final class ExplorerView {
 
         navigationButtons.add(backNavigationButton);
         navigationButtons.add(forwardNavigationButton);
+        navigationButtons.add(createSeparator());
         navigationButtons.add(editLocationButton);
 
         locationField = new JTextField();
@@ -399,6 +400,7 @@ public final class ExplorerView {
     private JButton createIconButton(Action action) {
         JButton button = new JButton(action);
         button.setToolTipText((String) action.getValue(Action.NAME));
+        button.setEnabled(false);
         button.setHideActionText(true);
         return button;
     }
