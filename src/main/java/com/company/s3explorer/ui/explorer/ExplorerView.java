@@ -400,12 +400,20 @@ public final class ExplorerView {
                 breadcrumbContainer,
                 BorderLayout.CENTER);
 
+
         fileFolderInfo = new JLabel("");
 
-        JPanel fileFolderInfoPanel =
-                new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JPanel fileFolderInfoPanel = new JPanel(new GridBagLayout());
+        fileFolderInfoPanel.setOpaque(false);
 
-        fileFolderInfoPanel.add(fileFolderInfo);
+        GridBagConstraints fileFolderInfoConstraints = new GridBagConstraints();
+        fileFolderInfoConstraints.gridx = 0;
+        fileFolderInfoConstraints.gridy = 0;
+        fileFolderInfoConstraints.anchor = GridBagConstraints.CENTER;
+        fileFolderInfoConstraints.weightx = 1.0;
+        fileFolderInfoConstraints.weighty = 1.0;
+
+        fileFolderInfoPanel.add(fileFolderInfo, fileFolderInfoConstraints);
 
         bottomButtonPanel.add(
                 fileFolderInfoPanel,
