@@ -26,6 +26,9 @@ public class RepositoryPanel extends JPanel {
     private JButton duplicateBtn;
     private JButton deleteBtn;
     private JButton testBtn;
+    private JButton exportSelectedBtn;
+    private JButton exportAllBtn;
+    private JButton importBtn;
 
     private boolean testRunning;
     
@@ -174,40 +177,45 @@ public class RepositoryPanel extends JPanel {
         return new JScrollPane(table);
     }
 
+
     private JPanel createToolbar() {
 
-        JPanel panel =
-                new JPanel();
+        JPanel panel = new JPanel();
 
-        JButton addBtn =
-                new JButton("Add");
+        JButton addBtn = new JButton("Add");
 
-        editBtn =
-                new JButton("Edit");
+        editBtn = new JButton("Edit");
+        duplicateBtn = new JButton("Duplicate");
+        deleteBtn = new JButton("Delete");
+        testBtn = new JButton("Test");
 
-        duplicateBtn =
-                new JButton("Duplicate");
+        exportSelectedBtn = new JButton("Export Selected");
+        exportAllBtn = new JButton("Export All");
+        importBtn = new JButton("Import");
 
-        deleteBtn =
-                new JButton("Delete");
+        addBtn.addActionListener(e -> addRepository());
+        editBtn.addActionListener(e -> editRepository());
+        duplicateBtn.addActionListener(e -> duplicateRepository());
+        deleteBtn.addActionListener(e -> deleteRepository());
+        testBtn.addActionListener(e -> testRepository());
 
-        testBtn =
-                new JButton("Test");
+        exportSelectedBtn.addActionListener(e ->
+                RepositoryTransferDialog.exportSelected(
+                        this,
+                        getSelectedRepository()));
 
-        addBtn.addActionListener(
-                e -> addRepository());
+        exportAllBtn.addActionListener(e ->
+                RepositoryTransferDialog.exportAll(
+                        this,
+                        repositoryManager));
 
-        editBtn.addActionListener(
-                e -> editRepository());
+        importBtn.addActionListener(e -> {
+            RepositoryTransferDialog.importBackup(
+                    this,
+                    repositoryManager);
 
-        duplicateBtn.addActionListener(
-                e -> duplicateRepository());
-
-        deleteBtn.addActionListener(
-                e -> deleteRepository());
-
-        testBtn.addActionListener(
-                e -> testRepository());
+            reloadRepositories();
+        });
 
         panel.add(addBtn);
         panel.add(editBtn);
@@ -215,26 +223,11 @@ public class RepositoryPanel extends JPanel {
         panel.add(deleteBtn);
         panel.add(testBtn);
 
+        panel.add(exportSelectedBtn);
+        panel.add(exportAllBtn);
+        panel.add(importBtn);
+
         return panel;
-    }
-
-    private void updateRepositoryActionButtons() {
-
-        boolean repositorySelected =
-                getSelectedRepository() != null;
-
-        editBtn.setEnabled(
-                repositorySelected);
-
-        duplicateBtn.setEnabled(
-                repositorySelected);
-
-        deleteBtn.setEnabled(
-                repositorySelected);
-
-        testBtn.setEnabled(
-                repositorySelected
-                        && !testRunning);
     }
     
     private RepositoryDefinition getSelectedRepository() {
@@ -559,5 +552,25 @@ public class RepositoryPanel extends JPanel {
         int rowHeight = fontMetrics.getHeight() + 8;
 
         table.setRowHeight(rowHeight);
+    }
+
+    private void updateRepositoryActionButtons() {
+
+        boolean repositorySelected =
+                getSelectedRepository() != null;
+
+        boolean repositoriesExist =
+                !repositoryManager.getRepositories().isEmpty();
+
+        editBtn.setEnabled(repositorySelected);
+        duplicateBtn.setEnabled(repositorySelected);
+        deleteBtn.setEnabled(repositorySelected);
+
+        testBtn.setEnabled(
+                repositorySelected && !testRunning);
+
+        exportSelectedBtn.setEnabled(repositorySelected);
+        exportAllBtn.setEnabled(repositoriesExist);
+        importBtn.setEnabled(true);
     }
 }
