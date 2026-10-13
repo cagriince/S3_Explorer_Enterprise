@@ -339,6 +339,7 @@ public final class ExplorerView {
         navigationButtons.add(forwardNavigationButton);
         navigationButtons.add(createSeparator());
         navigationButtons.add(editLocationButton);
+        navigationButtons.add(createSeparator());
 
         // Folder path editor
         locationField = new JTextField();
@@ -715,11 +716,24 @@ public final class ExplorerView {
         return locationField;
     }
 
+
     public void setLocationEditMode(boolean editMode) {
         locationEditMode = editMode;
 
         if (editMode) {
             breadcrumbContainer.remove(breadcrumbHost);
+
+            GridBagConstraints constraints = new GridBagConstraints();
+            constraints.gridx = 0;
+            constraints.gridy = 0;
+            constraints.anchor = GridBagConstraints.WEST;
+            constraints.fill = GridBagConstraints.NONE;
+            constraints.weightx = 1.0;
+            constraints.weighty = 1.0;
+            constraints.insets = new Insets(0, 4, 0, 0);
+
+            locationEditorPanel.removeAll();
+            locationEditorPanel.add(locationField, constraints);
 
             breadcrumbContainer.add(
                     locationEditorPanel,
