@@ -790,8 +790,12 @@ public final class ExplorerView {
                     locationEditorPanel,
                     BorderLayout.CENTER);
 
-            locationField.setMinimumSize(new Dimension(0, 26));
-            locationField.setPreferredSize(new Dimension(360, 26));
+            locationField.setMinimumSize(
+                    new Dimension(0, 26));
+
+            locationField.setPreferredSize(
+                    new Dimension(360, 26));
+
             locationField.setMaximumSize(
                     new Dimension(Integer.MAX_VALUE, 26));
 
@@ -801,6 +805,9 @@ public final class ExplorerView {
 
         } else {
             breadcrumbContainer.remove(locationEditorPanel);
+
+            // Breadcrumb görünmeden önce mevcut Look & Feel'i uygula.
+            SwingUtilities.updateComponentTreeUI(breadcrumbHost);
 
             breadcrumbContainer.add(
                     breadcrumbHost,
