@@ -89,7 +89,10 @@ public final class ExplorerView {
 
     private JButton uploadEncryptedButton;
     private JButton downloadDecryptedButton;
-    
+
+    private JPanel breadcrumbHost;
+    private JPanel locationEditorPanel;
+
     private Consumer<Integer> fileTableRowLimitSelectionListener;
     private Consumer<Integer> threadCountSelectionListener;
     private boolean suppressThreadCountSelectionEvent;
@@ -150,6 +153,7 @@ public final class ExplorerView {
         this.resizeExplorerPool = resizeExplorerPool;
     }
 
+
     public JSplitPane createMainSplit() {
         S3TreeNode root = new S3TreeNode(
                 S3TreeNode.ROOT_PREFIX,
@@ -176,7 +180,7 @@ public final class ExplorerView {
         });
 
         folderTree.setCellRenderer(new FolderTreeCellRenderer());
-        folderTree.setBorder(BorderFactory.createEmptyBorder(5,5,5,5));
+        folderTree.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
         setFolderTreeLeafIcon();
 
         fileTableModel = new FileTableModel();
@@ -196,7 +200,7 @@ public final class ExplorerView {
         buttonPanel.add(createIconButton(renameAction));
         buttonPanel.add(createIconButton(propertiesAction));
         buttonPanel.add(createSeparator());
-        
+
         buttonPanel.add(createIconButton(uploadAction));
         uploadEncryptedButton = createIconButton(uploadEncryptedAction);
         downloadDecryptedButton = createIconButton(downloadDecryptedAction);
@@ -205,7 +209,7 @@ public final class ExplorerView {
         buttonPanel.add(downloadDecryptedButton);
         buttonPanel.add(createIconButton(bulkDownloadAction));
         buttonPanel.add(createSeparator());
-        
+
         buttonPanel.add(createIconButton(copyAction));
         buttonPanel.add(createIconButton(cutAction));
         buttonPanel.add(createIconButton(pasteAction));
@@ -244,6 +248,7 @@ public final class ExplorerView {
                 return label;
             }
         });
+
         fileTableRowLimitCombo.addActionListener(e -> {
             Integer selected = (Integer) fileTableRowLimitCombo.getSelectedItem();
             if (selected != null && fileTableRowLimitSelectionListener != null) {
@@ -256,17 +261,21 @@ public final class ExplorerView {
         threadCountCombo.setSelectedItem(15);
         threadCountCombo.setToolTipText("Thread Count");
         alignComboBoxRight(threadCountCombo);
+
         threadCountCombo.addActionListener(e -> {
             if (suppressThreadCountSelectionEvent) {
                 return;
             }
+
             Integer selected = (Integer) threadCountCombo.getSelectedItem();
             if (selected == null) {
                 return;
             }
+
             if (resizeExplorerPool != null) {
                 resizeExplorerPool.accept(selected);
             }
+
             if (threadCountSelectionListener != null) {
                 threadCountSelectionListener.accept(selected);
             }
@@ -283,8 +292,10 @@ public final class ExplorerView {
                 super.setSelectedIndex(index);
             }
         };
+
         themeCombo.setToolTipText("Theme");
         UIThemeManager.getThemes().forEach(themeCombo::addItem);
+
         c.insets = new Insets(10, 5, 5, 10);
         themePanel.add(themeCombo, c);
 
@@ -295,8 +306,14 @@ public final class ExplorerView {
         JPanel topButtonPanel = new JPanel(new BorderLayout());
         topButtonPanel.add(topPanel, BorderLayout.NORTH);
 
+        // Breadcrumb bileşenleri
         breadcrumbPanel = new JPanel(
                 new FlowLayout(FlowLayout.LEFT, 0, 0));
+
+        // Breadcrumb öğelerini dikey olarak ortalar.
+        breadcrumbHost = new JPanel(new GridBagLayout());
+        breadcrumbHost.setOpaque(false);
+        breadcrumbHost.add(breadcrumbPanel, new GridBagConstraints());
 
         breadcrumbContainer = new JPanel(new BorderLayout(4, 0));
 
@@ -305,45 +322,71 @@ public final class ExplorerView {
         editLocationButton = createIconButton(folderEditAction);
 
         JPanel navigationButtons = new JPanel(
-                new FlowLayout(FlowLayout.LEFT));
+                new FlowLayout(FlowLayout.LEFT, 2, 0));
+        navigationButtons.setOpaque(false);
 
         navigationButtons.add(backNavigationButton);
         navigationButtons.add(forwardNavigationButton);
         navigationButtons.add(createSeparator());
         navigationButtons.add(editLocationButton);
 
+        // Klasör yolu düzenleme alanı
         locationField = new JTextField();
-        locationField.setToolTipText(
-                "Enter folder path");
+        locationField.setToolTipText("Enter folder path");
+        locationField.setMargin(new Insets(2, 7, 2, 7));
+        locationField.setPreferredSize(new Dimension(360, 26));
+        locationField.setMinimumSize(new Dimension(180, 26));
+        locationField.setMaximumSize(new Dimension(480, 26));
         locationField.setVisible(false);
+
+        // Düzenleme alanını mevcut yüksekliğin ortasında tutar.
+        locationEditorPanel = new JPanel(new GridBagLayout());
+        locationEditorPanel.setOpaque(false);
+
+        GridBagConstraints locationConstraints = new GridBagConstraints();
+        locationConstraints.gridx = 0;
+        locationConstraints.gridy = 0;
+        locationConstraints.anchor = GridBagConstraints.WEST;
+        locationConstraints.fill = GridBagConstraints.NONE;
+        locationConstraints.weightx = 0;
+        locationConstraints.weighty = 1;
+        locationConstraints.insets = new Insets(0, 4, 0, 0);
+
+        locationEditorPanel.add(locationField, locationConstraints);
 
         breadcrumbContainer.add(
                 navigationButtons,
                 BorderLayout.WEST);
 
         breadcrumbContainer.add(
-                breadcrumbPanel,
+                breadcrumbHost,
                 BorderLayout.CENTER);
 
-        JPanel bottomButtonPanel = new JPanel(
-                new BorderLayout());
+        // Alt panel korunuyor; dosya bilgisi sağda kalmaya devam eder.
+        JPanel bottomButtonPanel = new JPanel(new BorderLayout());
 
-        bottomButtonPanel.setPreferredSize(
-                new Dimension(0, 40));
-
+        bottomButtonPanel.setPreferredSize(new Dimension(0, 40));
         bottomButtonPanel.setBorder(
-                BorderFactory.createBevelBorder(
-                        BevelBorder.RAISED));
+                BorderFactory.createBevelBorder(BevelBorder.RAISED));
 
         bottomButtonPanel.add(
                 breadcrumbContainer,
                 BorderLayout.CENTER);
 
         fileFolderInfo = new JLabel("");
-        JPanel fileFolderInfoPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+
+        JPanel fileFolderInfoPanel =
+                new JPanel(new FlowLayout(FlowLayout.RIGHT));
+
         fileFolderInfoPanel.add(fileFolderInfo);
-        bottomButtonPanel.add(fileFolderInfoPanel, BorderLayout.EAST);
-        topButtonPanel.add(bottomButtonPanel, BorderLayout.SOUTH);
+
+        bottomButtonPanel.add(
+                fileFolderInfoPanel,
+                BorderLayout.EAST);
+
+        topButtonPanel.add(
+                bottomButtonPanel,
+                BorderLayout.SOUTH);
 
         JPanel fileTablePanel = new JPanel(new BorderLayout());
         fileTablePanel.add(topButtonPanel, BorderLayout.NORTH);
@@ -400,7 +443,6 @@ public final class ExplorerView {
     private JButton createIconButton(Action action) {
         JButton button = new JButton(action);
         button.setToolTipText((String) action.getValue(Action.NAME));
-        button.setEnabled(false);
         button.setHideActionText(true);
         return button;
     }
@@ -669,21 +711,22 @@ public final class ExplorerView {
         locationEditMode = editMode;
 
         if (editMode) {
-            breadcrumbContainer.remove(breadcrumbPanel);
+            breadcrumbContainer.remove(breadcrumbHost);
+
             breadcrumbContainer.add(
-                    locationField,
+                    locationEditorPanel,
                     BorderLayout.CENTER);
 
             locationField.setVisible(true);
             locationField.requestFocusInWindow();
             locationField.selectAll();
-        } else {
-            breadcrumbContainer.remove(locationField);
-            breadcrumbContainer.add(
-                    breadcrumbPanel,
-                    BorderLayout.CENTER);
 
-            breadcrumbPanel.setVisible(true);
+        } else {
+            breadcrumbContainer.remove(locationEditorPanel);
+
+            breadcrumbContainer.add(
+                    breadcrumbHost,
+                    BorderLayout.CENTER);
         }
 
         breadcrumbContainer.revalidate();

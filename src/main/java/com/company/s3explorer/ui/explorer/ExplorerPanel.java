@@ -394,6 +394,23 @@ public class ExplorerPanel extends JPanel {
 
         panelInputMap.put(KeyStroke.getKeyStroke("BACK_SPACE"),"explorerGoParent");
         panelActionMap.put("explorerGoParent", goToParentAction);
+
+        // Alt + Left: Back
+        panelInputMap.put(KeyStroke.getKeyStroke("alt LEFT"), "explorerBack");
+        panelActionMap.put("explorerBack", backAction);
+
+        // Alt + Right: Forward
+        panelInputMap.put(KeyStroke.getKeyStroke("alt RIGHT"), "explorerForward");
+        panelActionMap.put( "explorerForward", forwardAction);
+
+        InputMap locationInputMap = view.getLocationField().getInputMap(JComponent.WHEN_FOCUSED);
+        ActionMap locationActionMap = view.getLocationField().getActionMap();
+
+        locationInputMap.put(KeyStroke.getKeyStroke("alt LEFT"), "explorerBack");
+        locationActionMap.put("explorerBack", backAction);
+
+        locationInputMap.put(KeyStroke.getKeyStroke("alt RIGHT"), "explorerForward");
+        locationActionMap.put("explorerForward", forwardAction);
     }
 
     private JSplitPane createMainSplit() {
@@ -1787,6 +1804,10 @@ public class ExplorerPanel extends JPanel {
                         true);
 
                 updateBreadcrumb(prefix);
+                if (view.isLocationEditMode()) {
+                    view.getLocationField().setText(
+                            prefix == null ? "" : prefix);
+                }
 
                 NavigationEntry restoreTarget = pendingNavigationTarget;
 
@@ -6384,10 +6405,18 @@ public class ExplorerPanel extends JPanel {
                         RefreshTreeOperation.ADD));
     }
 
+
+
     private void navigateToLocationPath(String enteredPath) {
         String bucket = getCurrentBucket();
+        RepositoryDefinition repository = getCurrentRepository();
 
-        if (bucket == null) {
+        if (bucket == null || repository == null) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Please select a repository and a bucket first.",
+                    "Location",
+                    JOptionPane.ERROR_MESSAGE);
             return;
         }
 
@@ -6395,43 +6424,123 @@ public class ExplorerPanel extends JPanel {
                 ? ""
                 : enteredPath.trim().replace('\\', '/');
 
+        // Remove leading and trailing separators.
         while (normalized.startsWith("/")) {
             normalized = normalized.substring(1);
         }
 
-        if (!normalized.isEmpty() && !normalized.endsWith("/")) {
+        while (!normalized.isEmpty() && normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+
+        // Validate each path segment.
+        if (!normalized.isEmpty()) {
+            String[] segments = normalized.split("/", -1);
+
+            for (String segment : segments) {
+                if (segment.isBlank()
+                        || ".".equals(segment)
+                        || "..".equals(segment)) {
+
+                    JOptionPane.showMessageDialog(
+                            this,
+                            "Invalid folder path.",
+                            "Location",
+                            JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+            }
+
             normalized += "/";
         }
 
-        if (normalized.contains("../")
-                || normalized.equals("..")
-                || normalized.contains("/..")
-                || normalized.contains("//")) {
+        final String targetPrefix = normalized;
+        final String targetBucket = bucket;
+        final String targetRepositoryId = repository.getId();
 
-            JOptionPane.showMessageDialog(
-                    this,
-                    "Geçersiz klasör yolu.",
-                    "Konum",
-                    JOptionPane.ERROR_MESSAGE);
+        // The bucket root does not require an S3 folder existence check.
+        if (targetPrefix.isEmpty()) {
+            if (!Objects.equals(targetPrefix, getCurrentPrefix())) {
+                recordNavigation();
+                treeController.selectPrefix(targetPrefix);
+            } else {
+                updateBreadcrumb(targetPrefix);
+            }
+
+            // Keep location edit mode enabled.
+            view.getLocationField().setText("");
             return;
         }
 
-        if (Objects.equals(normalized, getCurrentPrefix())) {
-            view.setLocationEditMode(false);
-            updateBreadcrumb(normalized);
-            return;
-        }
+        view.getLocationField().setEnabled(false);
 
-        /*
-         * Önceki konumun geçmişte tutulması için mevcut konumu kaydet.
-         */
-        recordNavigation();
+        explorerPool.submit(() -> {
+            boolean folderExists = false;
+            Exception validationFailure = null;
 
-        /*
-         * selectPrefix() hedefi ağaçta bulup seçer.
-         * Bu çağrı tek başına yolun geçerli olduğunu kanıtlamaz.
-         */
-        treeController.selectPrefix(normalized);
-        view.setLocationEditMode(false);
+            try {
+                S3ExplorerService service =
+                        new S3ExplorerService(clientManager.getClient(repository));
+
+                folderExists = service.folderExists(
+                        targetBucket,
+                        targetPrefix);
+
+            } catch (Exception ex) {
+                validationFailure = ex;
+            }
+
+            final boolean exists = folderExists;
+            final Exception failure = validationFailure;
+
+            SwingUtilities.invokeLater(() -> {
+                view.getLocationField().setEnabled(true);
+
+                // Ignore the result if the active repository or bucket changed.
+                RepositoryDefinition activeRepository = getCurrentRepository();
+
+                if (activeRepository == null
+                        || !Objects.equals(
+                        targetRepositoryId,
+                        activeRepository.getId())
+                        || !Objects.equals(
+                        targetBucket,
+                        getCurrentBucket())) {
+                    return;
+                }
+
+                if (failure != null) {
+                    JOptionPane.showMessageDialog(
+                            this,
+                            S3ErrorResolver.getUserMessage(failure),
+                            "Folder Validation Failed",
+                            JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+
+                if (!exists) {
+                    JOptionPane.showMessageDialog(
+                            this,
+                            "The specified folder does not exist:\n"
+                                    + targetPrefix,
+                            "Folder Not Found",
+                            JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+
+                // Update the field to the normalized path.
+                view.getLocationField().setText(targetPrefix);
+
+                if (!Objects.equals(targetPrefix, getCurrentPrefix())) {
+                    recordNavigation();
+                    treeController.selectPrefix(targetPrefix);
+                } else {
+                    updateBreadcrumb(targetPrefix);
+                }
+
+                // Do not exit edit mode here.
+                // The user can return to breadcrumbs by clicking Folder Edit.
+            });
+        });
     }
 }
