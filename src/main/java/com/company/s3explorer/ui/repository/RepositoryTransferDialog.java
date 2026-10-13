@@ -11,33 +11,37 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.io.File;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 public final class RepositoryTransferDialog {
 
     private static final RepositoryBackupService BACKUP_SERVICE =
             new RepositoryBackupService();
+    private static File lastUsedDirectory;
 
     private RepositoryTransferDialog() {
     }
 
     public static void exportSelected(
             Component parent,
-            RepositoryDefinition repository) {
+            List<RepositoryDefinition> repositories) {
 
-        if (repository == null) {
+        if (repositories == null || repositories.isEmpty()) {
+            showError(parent, "Select at least one repository to export.");
             return;
         }
 
-        exportRepositories(
-                parent,
-                List.of(repository),
-                "repository-" + safeFileName(repository.getName()) + ".zip");
+        String suggestedName = repositories.size() == 1
+                ? "repository-" + safeFileName(
+                repositories.get(0).getName()) + ".zip"
+                : "repositories-selected.zip";
+
+        exportRepositories(parent, repositories, suggestedName);
     }
 
     public static void exportAll(
@@ -65,6 +69,7 @@ public final class RepositoryTransferDialog {
 
         JFileChooser chooser = new JFileChooser();
         chooser.setDialogTitle("Export Repositories");
+        prepareChooser(chooser);
         chooser.setSelectedFile(new File(suggestedFileName));
         chooser.setFileFilter(
                 new FileNameExtensionFilter(
@@ -76,10 +81,12 @@ public final class RepositoryTransferDialog {
         }
 
         File selectedFile = chooser.getSelectedFile();
+        rememberDirectory(selectedFile);
         String fileName = selectedFile.getName();
 
-        if (!fileName.toLowerCase(java.util.Locale.ROOT).endsWith(".zip")) {
-            selectedFile = new File(selectedFile.getParentFile(),
+        if (!fileName.toLowerCase(Locale.ROOT).endsWith(".zip")) {
+            selectedFile = new File(
+                    selectedFile.getParentFile(),
                     fileName + ".zip");
         }
 
@@ -106,7 +113,7 @@ public final class RepositoryTransferDialog {
             }
 
             BACKUP_SERVICE.exportToZip(
-                    repositories,
+                    new ArrayList<>(repositories),
                     selectedFile.toPath(),
                     password);
 
@@ -133,6 +140,7 @@ public final class RepositoryTransferDialog {
 
         JFileChooser chooser = new JFileChooser();
         chooser.setDialogTitle("Import Repository Backup");
+        prepareChooser(chooser);
         chooser.setFileFilter(
                 new FileNameExtensionFilter(
                         "Encrypted ZIP backup (*.zip)",
@@ -141,6 +149,8 @@ public final class RepositoryTransferDialog {
         if (chooser.showOpenDialog(parent) != JFileChooser.APPROVE_OPTION) {
             return;
         }
+
+        rememberDirectory(chooser.getSelectedFile());
 
         char[] password = requestPassword(parent);
 
@@ -154,11 +164,16 @@ public final class RepositoryTransferDialog {
                             chooser.getSelectedFile().toPath(),
                             password);
 
-            if (!showPreview(parent, imported)) {
+            PreviewResult preview = showPreview(parent, imported);
+
+            if (!preview.confirmed() || preview.repositories().isEmpty()) {
                 return;
             }
 
-            applyImport(parent, repositoryManager, imported);
+            applyImport(
+                    parent,
+                    repositoryManager,
+                    preview.repositories());
 
         } catch (Exception ex) {
             showError(
@@ -177,11 +192,11 @@ public final class RepositoryTransferDialog {
 
         JPanel panel = new JPanel(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
+
         gbc.gridx = 0;
         gbc.gridy = 0;
         gbc.anchor = GridBagConstraints.WEST;
         gbc.insets = new Insets(4, 4, 4, 8);
-
         panel.add(new JLabel("Backup password:"), gbc);
 
         gbc.gridx = 1;
@@ -217,13 +232,13 @@ public final class RepositoryTransferDialog {
             char[] first = firstField.getPassword();
             char[] second = secondField.getPassword();
 
-            if (first.length < 12) {
+            if (first.length < 8) {
                 clear(first);
                 clear(second);
 
                 JOptionPane.showMessageDialog(
                         parent,
-                        "Use a password containing at least 12 characters.",
+                        "Use a password containing at least 8 characters.",
                         "Password Too Short",
                         JOptionPane.WARNING_MESSAGE);
                 continue;
@@ -265,27 +280,37 @@ public final class RepositoryTransferDialog {
 
         char[] password = passwordField.getPassword();
 
-        if (password.length < 12) {
+        if (password.length < 8) {
             clear(password);
             showError(
                     parent,
-                    "The password must contain at least 12 characters.");
+                    "The password must contain at least 8 characters.");
             return null;
         }
 
         return password;
     }
 
-    private static boolean showPreview(
+    /**
+     * Displays a preview and lets the user import selected rows or all rows.
+     */
+
+    private static PreviewResult showPreview(
             Component parent,
             List<RepositoryDefinition> repositories) {
+
+        Window owner = SwingUtilities.getWindowAncestor(parent);
+
+        JDialog dialog = new JDialog(
+                owner,
+                "Repository Import Preview",
+                Dialog.ModalityType.APPLICATION_MODAL);
 
         String[] columns = {
                 "Name",
                 "Environment",
                 "Endpoint",
-                "External Buckets",
-                "Credentials Included"
+                "Access Key"
         };
 
         DefaultTableModel model = new DefaultTableModel(columns, 0) {
@@ -300,39 +325,101 @@ public final class RepositoryTransferDialog {
                     repository.getName(),
                     repository.getEnvironment(),
                     repository.getEndpoint(),
-                    repository.getExternalBuckets().size(),
-                    "Yes"
+                    repository.getAccessKey()
             });
         }
 
         JTable table = new JTable(model);
+        table.setSelectionMode(
+                ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
         table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
         table.setRowHeight(table.getRowHeight() + 4);
+        table.setFillsViewportHeight(true);
 
-        table.getColumnModel().getColumn(0).setPreferredWidth(150);
-        table.getColumnModel().getColumn(1).setPreferredWidth(120);
+        table.getColumnModel().getColumn(0).setPreferredWidth(160);
+        table.getColumnModel().getColumn(1).setPreferredWidth(125);
         table.getColumnModel().getColumn(2).setPreferredWidth(300);
-        table.getColumnModel().getColumn(3).setPreferredWidth(120);
-        table.getColumnModel().getColumn(4).setPreferredWidth(150);
+        table.getColumnModel().getColumn(3).setPreferredWidth(200);
 
         JScrollPane scrollPane = new JScrollPane(table);
-        scrollPane.setPreferredSize(new Dimension(850, 260));
+        scrollPane.setPreferredSize(new Dimension(820, 300));
 
-        JPanel panel = new JPanel(new BorderLayout(0, 8));
-        panel.add(
-                new JLabel(
-                        repositories.size()
-                                + " repository/repositories found. "
-                                + "Review the data before importing."),
-                BorderLayout.NORTH);
-        panel.add(scrollPane, BorderLayout.CENTER);
+        JLabel description = new JLabel(
+                repositories.size()
+                        + " repository/repositories found. "
+                        + "Select rows or import all.");
 
-        return JOptionPane.showConfirmDialog(
-                parent,
-                panel,
-                "Repository Import Preview",
-                JOptionPane.OK_CANCEL_OPTION,
-                JOptionPane.PLAIN_MESSAGE) == JOptionPane.OK_OPTION;
+        JButton cancelButton = new JButton("Cancel");
+        JButton importSelectedButton = new JButton("Import Selected");
+        JButton importAllButton = new JButton("Import All");
+
+        // Cancel solda, içe aktarma işlemleri sağda.
+        JPanel buttonPanel = new JPanel(new BorderLayout(8, 0));
+        buttonPanel.add(cancelButton, BorderLayout.WEST);
+
+        JPanel importButtons = new JPanel(
+                new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        importButtons.add(importSelectedButton);
+        importButtons.add(importAllButton);
+
+        buttonPanel.add(importButtons, BorderLayout.EAST);
+
+        JPanel content = new JPanel(new BorderLayout(0, 10));
+        content.setBorder(
+                BorderFactory.createEmptyBorder(12, 12, 12, 12));
+        content.add(description, BorderLayout.NORTH);
+        content.add(scrollPane, BorderLayout.CENTER);
+        content.add(buttonPanel, BorderLayout.SOUTH);
+
+        PreviewResult[] result = {
+                new PreviewResult(false, List.of())
+        };
+
+        importSelectedButton.addActionListener(e -> {
+            int[] selectedRows = table.getSelectedRows();
+
+            if (selectedRows.length == 0) {
+                JOptionPane.showMessageDialog(
+                        dialog,
+                        "Select at least one repository.",
+                        "Nothing Selected",
+                        JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            List<RepositoryDefinition> selectedRepositories =
+                    new ArrayList<>();
+
+            for (int viewRow : selectedRows) {
+                int modelRow = table.convertRowIndexToModel(viewRow);
+                selectedRepositories.add(repositories.get(modelRow));
+            }
+
+            result[0] = new PreviewResult(
+                    true,
+                    selectedRepositories);
+
+            dialog.dispose();
+        });
+
+        importAllButton.addActionListener(e -> {
+            result[0] = new PreviewResult(
+                    true,
+                    new ArrayList<>(repositories));
+
+            dialog.dispose();
+        });
+
+        cancelButton.addActionListener(e -> dialog.dispose());
+
+        dialog.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
+        dialog.setContentPane(content);
+        dialog.pack();
+        dialog.setMinimumSize(new Dimension(700, 350));
+        dialog.setLocationRelativeTo(parent);
+        dialog.setVisible(true);
+
+        return result[0];
     }
 
     private static void applyImport(
@@ -350,17 +437,20 @@ public final class RepositoryTransferDialog {
             reservedIds.add(repository.getId());
         }
 
-        // Resolve all conflicts before changing any repository.
+        /*
+         * Resolve every conflict before applying changes.
+         * Closing/cancelling a conflict dialog aborts the import.
+         */
         for (RepositoryDefinition incoming : imported) {
-            RepositoryDefinition conflict = findConflict(
-                    existing,
-                    incoming);
+            RepositoryDefinition conflict =
+                    findConflict(existing, incoming);
 
             if (conflict == null) {
                 actions.add(new ImportAction(
                         ActionType.ADD,
                         null,
                         incoming));
+
                 reservedIds.add(incoming.getId());
                 existing.add(incoming);
                 continue;
@@ -394,11 +484,13 @@ public final class RepositoryTransferDialog {
                         ActionType.SKIP,
                         conflict,
                         incoming));
+
             } else if (choice == 1) {
                 actions.add(new ImportAction(
                         ActionType.UPDATE,
                         conflict,
                         incoming));
+
             } else if (choice == 2) {
                 RepositoryDefinition renamed =
                         copyWithUniqueName(incoming, reservedIds);
@@ -488,11 +580,9 @@ public final class RepositoryTransferDialog {
             RepositoryDefinition source,
             String name) {
 
-        RepositoryEnvironment environment =
-                source.getEnvironment();
-
-        RepositoryDefinition copy =
-                new RepositoryDefinition(name, environment);
+        RepositoryDefinition copy = new RepositoryDefinition(
+                name,
+                source.getEnvironment());
 
         copy.setEndpoint(source.getEndpoint());
         copy.setAccessKey(source.getAccessKey());
@@ -550,4 +640,32 @@ public final class RepositoryTransferDialog {
             RepositoryDefinition existing,
             RepositoryDefinition incoming) {
     }
+
+    private record PreviewResult(
+            boolean confirmed,
+            List<RepositoryDefinition> repositories) {
+    }
+
+
+    private static void prepareChooser(JFileChooser chooser) {
+        if (lastUsedDirectory != null
+                && lastUsedDirectory.isDirectory()) {
+            chooser.setCurrentDirectory(lastUsedDirectory);
+        }
+    }
+
+    private static void rememberDirectory(File selectedFile) {
+        if (selectedFile == null) {
+            return;
+        }
+
+        File directory = selectedFile.isDirectory()
+                ? selectedFile
+                : selectedFile.getAbsoluteFile().getParentFile();
+
+        if (directory != null && directory.isDirectory()) {
+            lastUsedDirectory = directory;
+        }
+    }
+
 }

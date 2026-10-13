@@ -328,9 +328,9 @@ public class RepositoryBackupService {
     }
 
     private static void validatePassword(char[] password) {
-        if (password == null || password.length < 12) {
+        if (password == null || password.length < 8) {
             throw new IllegalArgumentException(
-                    "Use a backup password containing at least 12 characters.");
+                    "Use a backup password containing at least 8 characters.");
         }
     }
 }

@@ -1,3 +1,4 @@
+
 package com.company.s3explorer.ui.repository;
 
 import com.company.s3explorer.repository.RepositoryDefinition;
@@ -13,6 +14,8 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.util.ArrayList;
+import java.util.List;
 
 public class RepositoryPanel extends JPanel {
 
@@ -23,94 +26,59 @@ public class RepositoryPanel extends JPanel {
     private RepositoryTableModel tableModel;
 
     private JButton editBtn;
-    private JButton duplicateBtn;
     private JButton deleteBtn;
-    private JButton testBtn;
-    private JButton exportSelectedBtn;
-    private JButton exportAllBtn;
-    private JButton importBtn;
+    private JButton moreBtn;
 
     private boolean testRunning;
-    
+
     public RepositoryPanel(
             RepositoryManager repositoryManager,
             S3ClientFactory clientFactory) {
 
-        this.repositoryManager =
-                repositoryManager;
-
-        this.clientFactory =
-                clientFactory;
+        this.repositoryManager = repositoryManager;
+        this.clientFactory = clientFactory;
 
         initialize();
     }
 
     private void initialize() {
+        setLayout(new BorderLayout());
+        setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
 
-        setLayout(
-                new BorderLayout());
-
-        setBorder(
-                BorderFactory.createEmptyBorder(
-                        5,
-                        5,
-                        5,
-                        5));
-
-        add(
-                createToolbar(),
-                BorderLayout.NORTH);
-
-        add(
-                createTable(),
-                BorderLayout.CENTER);
+        add(createToolbar(), BorderLayout.NORTH);
+        add(createTable(), BorderLayout.CENTER);
 
         reloadRepositories();
     }
 
     private JScrollPane createTable() {
-
-        tableModel =
-                new RepositoryTableModel();
-
+        tableModel = new RepositoryTableModel();
         table = new JTable(tableModel);
 
         table.setSelectionMode(
-                ListSelectionModel.SINGLE_SELECTION);
+                ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
 
         JComponent booleanRenderer =
-                (JComponent) table.getDefaultRenderer(
-                        Boolean.class);
-
+                (JComponent) table.getDefaultRenderer(Boolean.class);
         booleanRenderer.setOpaque(true);
 
         JTableHeader header = table.getTableHeader();
-
         TableCellRenderer defaultHeaderRenderer =
                 header.getDefaultRenderer();
 
         header.setDefaultRenderer(
-                (tableHeader,
-                 value,
-                 isSelected,
-                 hasFocus,
-                 row,
-                 column) -> {
-
+                (tableHeader, value, isSelected, hasFocus, row, column) -> {
                     Component component =
-                            defaultHeaderRenderer
-                                    .getTableCellRendererComponent(
-                                            tableHeader,
-                                            value,
-                                            isSelected,
-                                            hasFocus,
-                                            row,
-                                            column);
+                            defaultHeaderRenderer.getTableCellRendererComponent(
+                                    tableHeader,
+                                    value,
+                                    isSelected,
+                                    hasFocus,
+                                    row,
+                                    column);
 
-                    if (component instanceof JLabel) {
-                        ((JLabel) component)
-                                .setHorizontalAlignment(
-                                        SwingConstants.CENTER);
+                    if (component instanceof JLabel label) {
+                        label.setHorizontalAlignment(SwingConstants.CENTER);
                     }
 
                     return component;
@@ -123,54 +91,36 @@ public class RepositoryPanel extends JPanel {
         columns.getColumn(3).setPreferredWidth(180);
         columns.getColumn(4).setPreferredWidth(110);
         columns.getColumn(5).setPreferredWidth(110);
-        
-        table.getSelectionModel()
-                .addListSelectionListener(e -> {
 
-                    if (e.getValueIsAdjusting()) {
-                        return;
-                    }
+        table.getSelectionModel().addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                updateRepositoryActionButtons();
+            }
+        });
 
-                    updateRepositoryActionButtons();
-                });
+        table.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() == 2
+                        && table.rowAtPoint(e.getPoint()) >= 0) {
+                    editRepository();
+                }
+            }
+        });
 
-        table.addMouseListener(
-                new MouseAdapter() {
-
-                    @Override
-                    public void mouseClicked(
-                            MouseEvent e) {
-
-                        if (e.getClickCount() == 2) {
-                            editRepository();
-                        }
-                    }
-                });
         updateRepositoryTableRowHeight(table);
-        
-        InputMap inputMap =
-                table.getInputMap(
-                        JComponent
-                                .WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
 
-        ActionMap actionMap =
-                table.getActionMap();
+        InputMap inputMap = table.getInputMap(
+                JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
+        ActionMap actionMap = table.getActionMap();
 
-        inputMap.put(
-                KeyStroke.getKeyStroke("ENTER"),
-                "edit");
-
-        actionMap.put(
-                "edit",
-                new AbstractAction() {
-
-                    @Override
-                    public void actionPerformed(
-                            ActionEvent e) {
-
-                        editRepository();
-                    }
-                });
+        inputMap.put(KeyStroke.getKeyStroke("ENTER"), "edit");
+        actionMap.put("edit", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                editRepository();
+            }
+        });
 
         updateRepositoryActionButtons();
 
@@ -179,131 +129,164 @@ public class RepositoryPanel extends JPanel {
 
 
     private JPanel createToolbar() {
-
-        JPanel panel = new JPanel();
+        JPanel panel = new JPanel(
+                new FlowLayout(FlowLayout.CENTER, 8, 0));
 
         JButton addBtn = new JButton("Add");
-
         editBtn = new JButton("Edit");
-        duplicateBtn = new JButton("Duplicate");
         deleteBtn = new JButton("Delete");
-        testBtn = new JButton("Test");
-
-        exportSelectedBtn = new JButton("Export Selected");
-        exportAllBtn = new JButton("Export All");
-        importBtn = new JButton("Import");
+        moreBtn = new JButton("More");
 
         addBtn.addActionListener(e -> addRepository());
         editBtn.addActionListener(e -> editRepository());
-        duplicateBtn.addActionListener(e -> duplicateRepository());
         deleteBtn.addActionListener(e -> deleteRepository());
-        testBtn.addActionListener(e -> testRepository());
-
-        exportSelectedBtn.addActionListener(e ->
-                RepositoryTransferDialog.exportSelected(
-                        this,
-                        getSelectedRepository()));
-
-        exportAllBtn.addActionListener(e ->
-                RepositoryTransferDialog.exportAll(
-                        this,
-                        repositoryManager));
-
-        importBtn.addActionListener(e -> {
-            RepositoryTransferDialog.importBackup(
-                    this,
-                    repositoryManager);
-
-            reloadRepositories();
-        });
+        moreBtn.addActionListener(e -> showMoreMenu());
 
         panel.add(addBtn);
         panel.add(editBtn);
-        panel.add(duplicateBtn);
         panel.add(deleteBtn);
-        panel.add(testBtn);
-
-        panel.add(exportSelectedBtn);
-        panel.add(exportAllBtn);
-        panel.add(importBtn);
+        panel.add(moreBtn);
 
         return panel;
     }
-    
-    private RepositoryDefinition getSelectedRepository() {
 
-        int row =
-                table.getSelectedRow();
+    private void showMoreMenu() {
+        int selectedCount = table.getSelectedRowCount();
+        boolean oneSelected = selectedCount == 1;
+        boolean anySelected = selectedCount > 0;
+        boolean repositoriesExist =
+                !repositoryManager.getRepositories().isEmpty();
 
-        if (row < 0) {
-            return null;
+        JPopupMenu popup = new JPopupMenu();
+
+        JMenuItem testItem = new JMenuItem("Test");
+        testItem.setEnabled(oneSelected && !testRunning);
+        testItem.addActionListener(e -> testRepository());
+        popup.add(testItem);
+
+        JMenuItem duplicateItem = new JMenuItem("Duplicate");
+        duplicateItem.setEnabled(oneSelected);
+        duplicateItem.addActionListener(e -> duplicateRepository());
+        popup.add(duplicateItem);
+
+        popup.addSeparator();
+
+        JMenuItem exportSelectedItem =
+                new JMenuItem("Export Selected");
+        exportSelectedItem.setEnabled(anySelected);
+        exportSelectedItem.addActionListener(e ->
+                RepositoryTransferDialog.exportSelected(
+                        this,
+                        getSelectedRepositories()));
+        popup.add(exportSelectedItem);
+
+        JMenuItem exportAllItem = new JMenuItem("Export All");
+        exportAllItem.setEnabled(repositoriesExist);
+        exportAllItem.addActionListener(e ->
+                RepositoryTransferDialog.exportAll(
+                        this,
+                        repositoryManager));
+        popup.add(exportAllItem);
+
+        JMenuItem importItem = new JMenuItem("Import");
+        importItem.addActionListener(e -> {
+            RepositoryTransferDialog.importBackup(
+                    this,
+                    repositoryManager);
+            reloadRepositories();
+        });
+        popup.add(importItem);
+
+        popup.show(moreBtn, 0, moreBtn.getHeight());
+    }
+
+
+    private void updateRepositoryActionButtons() {
+        int selectedCount = table == null
+                ? 0
+                : table.getSelectedRowCount();
+
+        boolean oneSelected = selectedCount == 1;
+        boolean anySelected = selectedCount > 0;
+
+        if (editBtn != null) {
+            editBtn.setEnabled(oneSelected);
         }
 
-        row =
-                table.convertRowIndexToModel(row);
+        if (deleteBtn != null) {
+            deleteBtn.setEnabled(anySelected);
+        }
+    }
 
-        return tableModel.getRepository(row);
+    private List<RepositoryDefinition> getSelectedRepositories() {
+        List<RepositoryDefinition> selected = new ArrayList<>();
+
+        if (table == null || tableModel == null) {
+            return selected;
+        }
+
+        int[] selectedRows = table.getSelectedRows();
+
+        for (int viewRow : selectedRows) {
+            int modelRow = table.convertRowIndexToModel(viewRow);
+            selected.add(tableModel.getRepository(modelRow));
+        }
+
+        return selected;
+    }
+
+    /**
+     * Returns a repository only when exactly one row is selected.
+     * Edit, Delete, Test and Duplicate require a single selection.
+     */
+    private RepositoryDefinition getSelectedRepository() {
+        List<RepositoryDefinition> selected =
+                getSelectedRepositories();
+
+        return selected.size() == 1 ? selected.get(0) : null;
     }
 
     private void addRepository() {
-
-        RepositoryDialog dialog =
-                new RepositoryDialog(
-                        SwingUtilities
-                                .getWindowAncestor(this));
+        RepositoryDialog dialog = new RepositoryDialog(
+                SwingUtilities.getWindowAncestor(this));
 
         dialog.setVisible(true);
 
-        RepositoryDefinition repo =
-                dialog.getRepository();
+        RepositoryDefinition repo = dialog.getRepository();
 
         if (repo == null) {
             return;
         }
 
-        repositoryManager.addRepository(
-                repo);
-
+        repositoryManager.addRepository(repo);
         reloadRepositories();
+        selectRepository(repo);
     }
 
     private void editRepository() {
-
-        RepositoryDefinition selected =
-                getSelectedRepository();
+        RepositoryDefinition selected = getSelectedRepository();
 
         if (selected == null) {
             return;
         }
 
-        RepositoryDialog dialog =
-                new RepositoryDialog(
-                        SwingUtilities
-                                .getWindowAncestor(this),
-                        selected);
+        RepositoryDialog dialog = new RepositoryDialog(
+                SwingUtilities.getWindowAncestor(this),
+                selected);
 
         dialog.setVisible(true);
 
-        RepositoryDefinition updated =
-                dialog.getRepository();
+        RepositoryDefinition updated = dialog.getRepository();
 
         if (updated == null) {
             return;
         }
 
         try {
-
-            repositoryManager.updateRepository(
-                    selected,
-                    updated);
-
+            repositoryManager.updateRepository(selected, updated);
             reloadRepositories();
-
-            selectRepository(
-                    updated);
-
+            selectRepository(updated);
         } catch (IllegalArgumentException ex) {
-
             JOptionPane.showMessageDialog(
                     this,
                     ex.getMessage(),
@@ -313,9 +296,7 @@ public class RepositoryPanel extends JPanel {
     }
 
     private void duplicateRepository() {
-
-        RepositoryDefinition selected =
-                getSelectedRepository();
+        RepositoryDefinition selected = getSelectedRepository();
 
         if (selected == null) {
             return;
@@ -328,9 +309,8 @@ public class RepositoryPanel extends JPanel {
                 JOptionPane.QUESTION_MESSAGE,
                 null,
                 null,
-                selected.getName()
-        );
-        
+                selected.getName());
+
         if (newName == null) {
             return;
         }
@@ -338,31 +318,23 @@ public class RepositoryPanel extends JPanel {
         newName = newName.trim();
 
         if (newName.isEmpty()) {
-
             JOptionPane.showMessageDialog(
                     this,
                     "Repository name must not be empty.",
                     "Duplicate Repository",
                     JOptionPane.ERROR_MESSAGE);
-
             return;
         }
 
         try {
-
             RepositoryDefinition duplicate =
-                    repositoryManager
-                            .duplicateRepository(
-                                    selected,
-                                    newName);
+                    repositoryManager.duplicateRepository(
+                            selected,
+                            newName);
 
             reloadRepositories();
-
-            selectRepository(
-                    duplicate);
-
+            selectRepository(duplicate);
         } catch (IllegalArgumentException ex) {
-
             JOptionPane.showMessageDialog(
                     this,
                     ex.getMessage(),
@@ -370,91 +342,74 @@ public class RepositoryPanel extends JPanel {
                     JOptionPane.ERROR_MESSAGE);
         }
     }
-    
+
+
     public void deleteRepository() {
+        List<RepositoryDefinition> selected =
+                getSelectedRepositories();
 
-        RepositoryDefinition selected =
-                getSelectedRepository();
-
-        if (selected == null) {
+        if (selected.isEmpty()) {
             return;
         }
 
-        int result =
-                JOptionPane.showConfirmDialog(
-                        this,
-                        "Delete repository "
-                                + selected.getName()
-                                + "?",
-                        "Confirm",
-                        JOptionPane.YES_NO_OPTION);
+        String message;
+
+        if (selected.size() == 1) {
+            message = "Delete repository \""
+                    + selected.get(0).getName()
+                    + "\"?";
+        } else {
+            message = "Delete the "
+                    + selected.size()
+                    + " selected repositories?";
+        }
+
+        int result = JOptionPane.showConfirmDialog(
+                this,
+                message,
+                "Confirm Delete",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE);
 
         if (result != JOptionPane.YES_OPTION) {
             return;
         }
 
-        /*
-         * RepositoryManager'daki gerçek metod
-         * removeRepository().
-         */
-        repositoryManager.removeRepository(
-                selected);
+        for (RepositoryDefinition repository : selected) {
+            repositoryManager.removeRepository(repository);
+        }
 
         reloadRepositories();
     }
 
     private void testRepository() {
-
-        RepositoryDefinition repo =
-                getSelectedRepository();
+        RepositoryDefinition repo = getSelectedRepository();
 
         if (repo == null) {
             return;
         }
 
-        /*
-         * Bağlantı testi başladı.
-         * Test tamamlanana kadar Test butonu pasif.
-         */
         testButtonState(true);
 
         SwingWorker<ConnectionTestResult, Void> worker =
                 new SwingWorker<>() {
-
                     @Override
-                    protected ConnectionTestResult
-                    doInBackground() {
-
-                        return clientFactory
-                                .testConnection(repo);
+                    protected ConnectionTestResult doInBackground() {
+                        return clientFactory.testConnection(repo);
                     }
 
                     @Override
                     protected void done() {
-
                         try {
-
-                            ConnectionTestResult result =
-                                    get();
-
-                            showConnectionResult(
-                                    result);
-
+                            ConnectionTestResult result = get();
+                            showConnectionResult(result);
                         } catch (Exception ex) {
-
                             JOptionPane.showMessageDialog(
                                     RepositoryPanel.this,
                                     ex.getMessage(),
                                     "Test Connection",
                                     JOptionPane.ERROR_MESSAGE);
-
                         } finally {
-
-                            /*
-                             * Test bitti.
-                             * Repository hâlâ seçiliyse Test tekrar aktif,
-                             * seçim kaldırılmışsa pasif kalır.
-                             */
                             testButtonState(false);
                         }
                     }
@@ -463,32 +418,24 @@ public class RepositoryPanel extends JPanel {
         worker.execute();
     }
 
-    private void testButtonState(
-            boolean running) {
-
+    private void testButtonState(boolean running) {
         testRunning = running;
-
         updateRepositoryActionButtons();
     }
 
-    private void showConnectionResult(
-            ConnectionTestResult result) {
-
+    private void showConnectionResult(ConnectionTestResult result) {
         if (result == null) {
-
             JOptionPane.showMessageDialog(
                     this,
                     "Connection test returned no result.",
                     "Test Connection",
                     JOptionPane.ERROR_MESSAGE);
-
             return;
         }
 
-        int messageType =
-                result.isSuccess()
-                        ? JOptionPane.INFORMATION_MESSAGE
-                        : JOptionPane.ERROR_MESSAGE;
+        int messageType = result.isSuccess()
+                ? JOptionPane.INFORMATION_MESSAGE
+                : JOptionPane.ERROR_MESSAGE;
 
         JOptionPane.showMessageDialog(
                 this,
@@ -498,44 +445,27 @@ public class RepositoryPanel extends JPanel {
     }
 
     private void reloadRepositories() {
-
-        tableModel.setRepositories(
-                repositoryManager
-                        .getRepositories());
-
+        tableModel.setRepositories(repositoryManager.getRepositories());
         updateRepositoryActionButtons();
     }
 
-    private void selectRepository(
-            RepositoryDefinition repository) {
-
+    private void selectRepository(RepositoryDefinition repository) {
         if (repository == null) {
             return;
         }
 
-        for (int row = 0;
-             row < tableModel.getRowCount();
-             row++) {
+        table.clearSelection();
 
-            RepositoryDefinition current =
-                    tableModel.getRepository(row);
+        for (int row = 0; row < tableModel.getRowCount(); row++) {
+            RepositoryDefinition current = tableModel.getRepository(row);
 
             if (repository.equals(current)) {
-
-                int viewRow =
-                        table.convertRowIndexToView(row);
+                int viewRow = table.convertRowIndexToView(row);
 
                 if (viewRow >= 0) {
-
-                    table.setRowSelectionInterval(
-                            viewRow,
-                            viewRow);
-
+                    table.setRowSelectionInterval(viewRow, viewRow);
                     table.scrollRectToVisible(
-                            table.getCellRect(
-                                    viewRow,
-                                    0,
-                                    true));
+                            table.getCellRect(viewRow, 0, true));
                 }
 
                 return;
@@ -549,28 +479,6 @@ public class RepositoryPanel extends JPanel {
         }
 
         FontMetrics fontMetrics = table.getFontMetrics(table.getFont());
-        int rowHeight = fontMetrics.getHeight() + 8;
-
-        table.setRowHeight(rowHeight);
-    }
-
-    private void updateRepositoryActionButtons() {
-
-        boolean repositorySelected =
-                getSelectedRepository() != null;
-
-        boolean repositoriesExist =
-                !repositoryManager.getRepositories().isEmpty();
-
-        editBtn.setEnabled(repositorySelected);
-        duplicateBtn.setEnabled(repositorySelected);
-        deleteBtn.setEnabled(repositorySelected);
-
-        testBtn.setEnabled(
-                repositorySelected && !testRunning);
-
-        exportSelectedBtn.setEnabled(repositorySelected);
-        exportAllBtn.setEnabled(repositoriesExist);
-        importBtn.setEnabled(true);
+        table.setRowHeight(fontMetrics.getHeight() + 8);
     }
 }
