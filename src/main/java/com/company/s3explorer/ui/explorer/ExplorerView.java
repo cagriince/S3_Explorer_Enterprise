@@ -154,6 +154,7 @@ public final class ExplorerView {
     }
 
 
+
     public JSplitPane createMainSplit() {
         S3TreeNode root = new S3TreeNode(
                 S3TreeNode.ROOT_PREFIX,
@@ -306,14 +307,23 @@ public final class ExplorerView {
         JPanel topButtonPanel = new JPanel(new BorderLayout());
         topButtonPanel.add(topPanel, BorderLayout.NORTH);
 
-        // Breadcrumb bileşenleri
+        // Breadcrumb components
         breadcrumbPanel = new JPanel(
                 new FlowLayout(FlowLayout.LEFT, 0, 0));
 
-        // Breadcrumb öğelerini dikey olarak ortalar.
+        // Keep the breadcrumb vertically centered and horizontally left-aligned.
         breadcrumbHost = new JPanel(new GridBagLayout());
         breadcrumbHost.setOpaque(false);
-        breadcrumbHost.add(breadcrumbPanel, new GridBagConstraints());
+
+        GridBagConstraints breadcrumbConstraints = new GridBagConstraints();
+        breadcrumbConstraints.gridx = 0;
+        breadcrumbConstraints.gridy = 0;
+        breadcrumbConstraints.anchor = GridBagConstraints.WEST;
+        breadcrumbConstraints.weightx = 1.0;
+        breadcrumbConstraints.weighty = 1.0;
+        breadcrumbConstraints.fill = GridBagConstraints.NONE;
+
+        breadcrumbHost.add(breadcrumbPanel, breadcrumbConstraints);
 
         breadcrumbContainer = new JPanel(new BorderLayout(4, 0));
 
@@ -330,7 +340,7 @@ public final class ExplorerView {
         navigationButtons.add(createSeparator());
         navigationButtons.add(editLocationButton);
 
-        // Klasör yolu düzenleme alanı
+        // Folder path editor
         locationField = new JTextField();
         locationField.setToolTipText("Enter folder path");
         locationField.setMargin(new Insets(2, 7, 2, 7));
@@ -339,7 +349,6 @@ public final class ExplorerView {
         locationField.setMaximumSize(new Dimension(480, 26));
         locationField.setVisible(false);
 
-        // Düzenleme alanını mevcut yüksekliğin ortasında tutar.
         locationEditorPanel = new JPanel(new GridBagLayout());
         locationEditorPanel.setOpaque(false);
 
@@ -362,9 +371,8 @@ public final class ExplorerView {
                 breadcrumbHost,
                 BorderLayout.CENTER);
 
-        // Alt panel korunuyor; dosya bilgisi sağda kalmaya devam eder.
+        // Preserve the bottom panel and file information label.
         JPanel bottomButtonPanel = new JPanel(new BorderLayout());
-
         bottomButtonPanel.setPreferredSize(new Dimension(0, 40));
         bottomButtonPanel.setBorder(
                 BorderFactory.createBevelBorder(BevelBorder.RAISED));
