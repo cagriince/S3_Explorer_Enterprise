@@ -155,6 +155,8 @@ public final class ExplorerView {
 
 
 
+
+
     public JSplitPane createMainSplit() {
         S3TreeNode root = new S3TreeNode(
                 S3TreeNode.ROOT_PREFIX,
@@ -311,7 +313,7 @@ public final class ExplorerView {
         breadcrumbPanel = new JPanel(
                 new FlowLayout(FlowLayout.LEFT, 0, 0));
 
-        // Keep the breadcrumb vertically centered and horizontally left-aligned.
+        // Vertically center breadcrumb items while keeping them left-aligned.
         breadcrumbHost = new JPanel(new GridBagLayout());
         breadcrumbHost.setOpaque(false);
 
@@ -331,15 +333,31 @@ public final class ExplorerView {
         forwardNavigationButton = createIconButton(forwardAction);
         editLocationButton = createIconButton(folderEditAction);
 
-        JPanel navigationButtons = new JPanel(
-                new FlowLayout(FlowLayout.LEFT, 2, 0));
+        // Vertically center the navigation buttons without changing their sizes.
+        JPanel navigationButtons = new JPanel(new GridBagLayout());
         navigationButtons.setOpaque(false);
 
-        navigationButtons.add(backNavigationButton);
-        navigationButtons.add(forwardNavigationButton);
-        navigationButtons.add(createSeparator());
-        navigationButtons.add(editLocationButton);
-        navigationButtons.add(createSeparator());
+        GridBagConstraints navigationConstraints = new GridBagConstraints();
+        navigationConstraints.gridy = 0;
+        navigationConstraints.anchor = GridBagConstraints.WEST;
+        navigationConstraints.fill = GridBagConstraints.NONE;
+        navigationConstraints.weighty = 1.0;
+        navigationConstraints.insets = new Insets(0, 2, 0, 2);
+
+        navigationConstraints.gridx = 0;
+        navigationButtons.add(backNavigationButton, navigationConstraints);
+
+        navigationConstraints.gridx = 1;
+        navigationButtons.add(forwardNavigationButton, navigationConstraints);
+
+        navigationConstraints.gridx = 2;
+        navigationButtons.add(createSeparator(), navigationConstraints);
+
+        navigationConstraints.gridx = 3;
+        navigationButtons.add(editLocationButton, navigationConstraints);
+
+        navigationConstraints.gridx = 4;
+        navigationButtons.add(createSeparator(), navigationConstraints);
 
         // Folder path editor
         locationField = new JTextField();
@@ -717,6 +735,7 @@ public final class ExplorerView {
     }
 
 
+
     public void setLocationEditMode(boolean editMode) {
         locationEditMode = editMode;
 
@@ -727,10 +746,10 @@ public final class ExplorerView {
             constraints.gridx = 0;
             constraints.gridy = 0;
             constraints.anchor = GridBagConstraints.WEST;
-            constraints.fill = GridBagConstraints.NONE;
+            constraints.fill = GridBagConstraints.HORIZONTAL;
             constraints.weightx = 1.0;
             constraints.weighty = 1.0;
-            constraints.insets = new Insets(0, 4, 0, 0);
+            constraints.insets = new Insets(0, 4, 0, 4);
 
             locationEditorPanel.removeAll();
             locationEditorPanel.add(locationField, constraints);
@@ -738,6 +757,11 @@ public final class ExplorerView {
             breadcrumbContainer.add(
                     locationEditorPanel,
                     BorderLayout.CENTER);
+
+            locationField.setMinimumSize(new Dimension(0, 26));
+            locationField.setPreferredSize(new Dimension(360, 26));
+            locationField.setMaximumSize(
+                    new Dimension(Integer.MAX_VALUE, 26));
 
             locationField.setVisible(true);
             locationField.requestFocusInWindow();
