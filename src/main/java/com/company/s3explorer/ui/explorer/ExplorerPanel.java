@@ -4310,7 +4310,7 @@ public class ExplorerPanel extends JPanel {
         JDialog dialog =
                 new JDialog(
                         S3Util.getMainFrameAncestor(this),
-                        "Repositories",
+                        "Repository Manager",
                         true);
 
         dialog.setContentPane(panel);

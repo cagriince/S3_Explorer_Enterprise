@@ -37,9 +37,9 @@ public final class RepositoryTransferDialog {
         }
 
         String suggestedName = repositories.size() == 1
-                ? "repository-" + safeFileName(
+                ? "s3-explorer-export-repository-" + safeFileName(
                 repositories.get(0).getName()) + ".zip"
-                : "repositories-selected.zip";
+                : "s3-explorer-export-repositories-selected.zip";
 
         exportRepositories(parent, repositories, suggestedName);
     }
@@ -59,7 +59,7 @@ public final class RepositoryTransferDialog {
         exportRepositories(
                 parent,
                 repositories,
-                "repositories-backup.zip");
+                "s3-explorer-export-repositories-all.zip");
     }
 
     private static void exportRepositories(

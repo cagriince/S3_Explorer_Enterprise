@@ -135,7 +135,7 @@ public class RepositoryPanel extends JPanel {
         JButton addBtn = new JButton("Add");
         editBtn = new JButton("Edit");
         deleteBtn = new JButton("Delete");
-        moreBtn = new JButton("More");
+        moreBtn = new JButton("More >");
 
         addBtn.addActionListener(e -> addRepository());
         editBtn.addActionListener(e -> editRepository());
