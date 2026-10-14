@@ -1,5 +1,6 @@
 package com.company.s3explorer.transfer.model;
 
+import com.company.s3explorer.security.CrossRepositoryEncryptionOptions;
 import com.company.s3explorer.transfer.TransferType;
 
 import java.util.List;
@@ -22,6 +23,9 @@ public class TransferGroup {
     private final UUID id;
     private final String displayName;
 
+    private volatile CrossRepositoryEncryptionOptions
+            crossRepositoryEncryptionOptions =
+            CrossRepositoryEncryptionOptions.none();
     /*
      * Logical operation metadata.
      *
@@ -601,5 +605,20 @@ public class TransferGroup {
                 current > 0
                         ? current - 1
                         : 0);
+    }
+
+    public CrossRepositoryEncryptionOptions
+    getCrossRepositoryEncryptionOptions() {
+
+        return crossRepositoryEncryptionOptions;
+    }
+
+    public void setCrossRepositoryEncryptionOptions(
+            CrossRepositoryEncryptionOptions options) {
+
+        this.crossRepositoryEncryptionOptions =
+                options == null
+                        ? CrossRepositoryEncryptionOptions.none()
+                        : options;
     }
 }
