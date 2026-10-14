@@ -1,6 +1,7 @@
 package com.company.s3explorer.ui.explorer;
 
 import com.company.s3explorer.repository.RepositoryDefinition;
+import com.company.s3explorer.security.CrossRepositoryEncryptionOptions;
 import com.company.s3explorer.transfer.TransferType;
 import com.company.s3explorer.transfer.manager.TransferManager;
 import com.company.s3explorer.transfer.model.TransferGroup;
@@ -11,10 +12,7 @@ import org.slf4j.LoggerFactory;
 import javax.swing.*;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.BiPredicate;
-import java.util.function.Consumer;
-import java.util.function.Predicate;
-import java.util.function.Supplier;
+import java.util.function.*;
 
 public class ExplorerPasteController {
 
@@ -56,6 +54,9 @@ public class ExplorerPasteController {
     private final Runnable
             updateActionStates;
 
+    private final Function<String, RepositoryDefinition>
+            repositoryLookup;
+
     public ExplorerPasteController(
             ExplorerClipboard clipboard,
             TransferManager transferManager,
@@ -69,7 +70,8 @@ public class ExplorerPasteController {
             Consumer<List<String>> pendingSelectionConsumer,
             Consumer<Boolean> restoreFocusConsumer,
             Consumer<Boolean> forceFocusConsumer,
-            Runnable updateActionStates) {
+            Runnable updateActionStates,
+            Function<String, RepositoryDefinition> repositoryLookup) {
 
         this.clipboard =
                 clipboard;
@@ -109,7 +111,11 @@ public class ExplorerPasteController {
 
         this.updateActionStates =
                 updateActionStates;
+
+        this.repositoryLookup =
+                repositoryLookup;
     }
+
 
     public void paste() {
 
@@ -123,31 +129,86 @@ public class ExplorerPasteController {
         String targetPrefix =
                 currentPrefixSupplier.get();
 
-        if (targetBucket == null
-                || targetPrefix == null) {
+        RepositoryDefinition targetRepository =
+                currentRepositorySupplier.get();
 
+        if (targetBucket == null
+                || targetPrefix == null
+                || targetRepository == null
+                || targetRepository.isEmpty()) {
             return;
         }
 
         List<S3FileItem> items =
-                new ArrayList<>(
-                        clipboard.getItems());
+                new ArrayList<>(clipboard.getItems());
 
         ExplorerClipboard.Operation operation =
                 clipboard.getOperation();
+
+        if (items.isEmpty() || operation == null) {
+            return;
+        }
+
+        CrossRepositoryEncryptionOptions encryptionOptions =
+                CrossRepositoryEncryptionOptions.none();
+
+        S3FileItem firstItem = items.stream()
+                .filter(item -> item != null && !item.isParentFolder())
+                .findFirst()
+                .orElse(null);
+
+        if (firstItem != null
+                && !targetRepository.getId().equals(
+                firstItem.getRepositoryId())) {
+
+            RepositoryDefinition sourceRepository =
+                    repositoryLookup.apply(
+                            firstItem.getRepositoryId());
+
+            if (sourceRepository == null
+                    || sourceRepository.isEmpty()) {
+
+                JOptionPane.showMessageDialog(
+                        null,
+                        "The source repository could not be found.",
+                        "Copy / Move",
+                        JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            boolean encryptionApplies =
+                    sourceRepository.hasEncryptionConfiguration()
+                            || targetRepository.hasEncryptionConfiguration();
+
+            if (encryptionApplies) {
+
+                encryptionOptions =
+                        CrossRepositoryEncryptionDialog.showDialog(
+                                null,
+                                sourceRepository,
+                                targetRepository);
+
+                // Cancel: no transfer tasks should be submitted.
+                if (encryptionOptions == null) {
+                    return;
+                }
+            }
+        }
 
         executePaste(
                 targetBucket,
                 targetPrefix,
                 items,
-                operation);
+                operation,
+                encryptionOptions);
     }
 
     private void executePaste(
             String targetBucket,
             String targetPrefix,
             List<S3FileItem> items,
-            ExplorerClipboard.Operation operation) {
+            ExplorerClipboard.Operation operation,
+            CrossRepositoryEncryptionOptions encryptionOptions) {
 
         if (targetBucket == null
                 || targetPrefix == null
@@ -309,6 +370,9 @@ public class ExplorerPasteController {
                                 repository.getId(),
                                 targetBucket,
                                 targetPrefix);
+
+                group.setCrossRepositoryEncryptionOptions(
+                        encryptionOptions);
 
                 transferManager.configureGroupCompletion(
                         group,

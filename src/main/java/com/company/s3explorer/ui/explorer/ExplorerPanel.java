@@ -239,7 +239,8 @@ public class ExplorerPanel extends JPanel {
                                 restoreFileTableFocus = value,
                         value ->
                                 forceFileTableFocusAfterRefresh = value,
-                        this::updateActionStates);
+                        this::updateActionStates,
+                        repositoryManager::findById);
 
         /*
          * createMainSplit() içinde

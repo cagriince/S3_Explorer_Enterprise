@@ -38,28 +38,24 @@ public final class CrossRepositoryEncryptionDialog {
         }
 
         JCheckBox decryptCheckBox =
-                new JCheckBox("Decrypt", sourceEncrypted);
+                new JCheckBox("Decrypt the source using its repository encryption settings", sourceEncrypted);
 
         JCheckBox encryptCheckBox =
-                new JCheckBox("Encrypt", targetEncrypted);
+                new JCheckBox("Encrypt the destination using its repository encryption settings", targetEncrypted);
 
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
 
         panel.add(new JLabel(
-                "Choose how encryption should be handled during transfer."));
+                "Choose how encryption should be handled during transfer:"));
         panel.add(Box.createVerticalStrut(12));
 
         if (sourceEncrypted) {
-            decryptCheckBox.setToolTipText(
-                    "Decrypt the source using its repository encryption settings.");
             panel.add(decryptCheckBox);
         }
 
         if (targetEncrypted) {
-            encryptCheckBox.setToolTipText(
-                    "Encrypt the destination using its repository encryption settings.");
             panel.add(encryptCheckBox);
         }
 

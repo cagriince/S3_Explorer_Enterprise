@@ -1,7 +1,9 @@
 package com.company.s3explorer.transfer.operation;
 
+import com.company.s3explorer.security.CrossRepositoryEncryptionOptions;
 import com.company.s3explorer.transfer.TransferRuntime;
 import com.company.s3explorer.transfer.context.TransferContext;
+import com.company.s3explorer.transfer.model.TransferGroup;
 import com.company.s3explorer.transfer.model.TransferTask;
 
 public class MoveOperation extends AbstractTransferOperation {
@@ -77,21 +79,29 @@ public class MoveOperation extends AbstractTransferOperation {
 
             try {
 
+                TransferGroup group =
+                        task.getGroup();
+
+                CrossRepositoryEncryptionOptions options =
+                        group == null
+                                ? CrossRepositoryEncryptionOptions.none()
+                                : group.getCrossRepositoryEncryptionOptions();
+
                 transferContext
-                        .getService(
-                                task.getRepositoryId())
+                        .getService(task.getRepositoryId())
                         .copyObjectBetweenRepositories(
                                 task.getBucket(),
                                 task.getObjectKey(),
                                 transferContext
-                                        .getService(
-                                                task.getTargetRepositoryId())
+                                        .getService(task.getTargetRepositoryId())
                                         .getClient(),
                                 task.getTargetBucket(),
                                 task.getTargetObjectKey(),
                                 createProgressListener(
                                         runtime,
-                                        transferContext));
+                                        transferContext),
+                                task.isOverwrite(),
+                                options);
 
                 updateProgressPercent(
                         runtime,

@@ -1,5 +1,6 @@
 package com.company.s3explorer.service;
 
+import com.company.s3explorer.security.CrossRepositoryEncryptionOptions;
 import com.company.s3explorer.security.EncryptionConfig;
 import com.company.s3explorer.util.S3Util;
 import software.amazon.awssdk.core.sync.RequestBody;
@@ -300,24 +301,243 @@ public class S3ExplorerService {
         client.copyObject(request);
     }
 
-    public void copyObjectBetweenRepositories(String sourceBucket, String sourceKey, S3Client targetRepositoryClient, String targetBucket, String targetKey, TransferProgressListener listener) throws IOException {
-        if (objectExists(targetRepositoryClient, targetBucket, targetKey)) {
-            throw new RuntimeException("Already exists: " + targetBucket + "/" + targetKey);
+
+    public void copyObjectBetweenRepositories(
+            String sourceBucket,
+            String sourceKey,
+            S3Client targetRepositoryClient,
+            String targetBucket,
+            String targetKey,
+            TransferProgressListener listener) throws Exception {
+
+        copyObjectBetweenRepositories(
+                sourceBucket,
+                sourceKey,
+                targetRepositoryClient,
+                targetBucket,
+                targetKey,
+                listener,
+                false,
+                CrossRepositoryEncryptionOptions.none());
+    }
+
+    public void copyObjectBetweenRepositories(
+            String sourceBucket,
+            String sourceKey,
+            S3Client targetRepositoryClient,
+            String targetBucket,
+            String targetKey,
+            TransferProgressListener listener,
+            boolean overwrite,
+            CrossRepositoryEncryptionOptions options) throws Exception {
+
+        if (options == null) {
+            options = CrossRepositoryEncryptionOptions.none();
         }
 
-        HeadObjectResponse head = getObject(sourceBucket, sourceKey);
-        long totalBytes = head.contentLength();
+        if (!overwrite
+                && objectExists(
+                targetRepositoryClient,
+                targetBucket,
+                targetKey)) {
+
+            throw new RuntimeException(
+                    "Already exists: " + targetBucket + "/" + targetKey);
+        }
+
+        HeadObjectResponse head =
+                getObject(sourceBucket, sourceKey);
+
+        long sourceSize = head.contentLength();
 
         try (InputStream raw = client.getObject(
                 GetObjectRequest.builder()
                         .bucket(sourceBucket)
                         .key(sourceKey)
-                        .build());
-            InputStream progressStream = new ProgressInputStream(raw, totalBytes, listener)) {
-                targetRepositoryClient.putObject(PutObjectRequest.builder()
-                        .bucket(targetBucket)
-                        .key(targetKey)
-                        .build(), RequestBody.fromInputStream(progressStream, totalBytes));
+                        .build())) {
+
+            InputStream source =
+                    new ProgressInputStream(
+                            raw,
+                            sourceSize,
+                            listener);
+
+            /*
+             * Dönüşümler sıralı uygulanır:
+             *
+             * S3 source -> optional decrypt -> optional encrypt -> target
+             *
+             * CipherInputStream akışı zincirler; ara plaintext dosyası
+             * oluşturulmaz.
+             */
+            if (options.isDecryptSource()) {
+                source = new CipherInputStream(
+                        source,
+                        options.getSourceEncryptionConfig()
+                                .createCipher(Cipher.DECRYPT_MODE));
+            }
+
+            if (options.isEncryptTarget()) {
+                source = new CipherInputStream(
+                        source,
+                        options.getTargetEncryptionConfig()
+                                .createCipher(Cipher.ENCRYPT_MODE));
+            }
+
+            if (!options.isDecryptSource()
+                    && !options.isEncryptTarget()) {
+
+                targetRepositoryClient.putObject(
+                        PutObjectRequest.builder()
+                                .bucket(targetBucket)
+                                .key(targetKey)
+                                .build(),
+                        RequestBody.fromInputStream(
+                                source,
+                                sourceSize));
+
+                return;
+            }
+
+            uploadTransformedStream(
+                    targetRepositoryClient,
+                    targetBucket,
+                    targetKey,
+                    source);
+        }
+    }
+
+    private void uploadTransformedStream(
+            S3Client targetClient,
+            String bucket,
+            String key,
+            InputStream transformedStream) throws IOException {
+
+        final int partSize = 8 * 1024 * 1024;
+
+        CreateMultipartUploadResponse initiated =
+                targetClient.createMultipartUpload(
+                        CreateMultipartUploadRequest.builder()
+                                .bucket(bucket)
+                                .key(key)
+                                .build());
+
+        String uploadId = initiated.uploadId();
+
+        List<CompletedPart> completedParts =
+                new ArrayList<>();
+
+        boolean completed = false;
+
+        try (InputStream input = transformedStream) {
+
+            int partNumber = 1;
+
+            while (true) {
+
+                byte[] buffer = new byte[partSize];
+                int count = 0;
+
+                while (count < buffer.length) {
+
+                    int read = input.read(
+                            buffer,
+                            count,
+                            buffer.length - count);
+
+                    if (read < 0) {
+                        break;
+                    }
+
+                    if (read == 0) {
+                        continue;
+                    }
+
+                    count += read;
+                }
+
+                if (count == 0) {
+                    break;
+                }
+
+                if (partNumber > 10000) {
+                    throw new IOException(
+                            "The object exceeds the supported multipart upload part count.");
+                }
+
+                byte[] partBytes =
+                        count == buffer.length
+                                ? buffer
+                                : Arrays.copyOf(buffer, count);
+
+                UploadPartResponse uploaded =
+                        targetClient.uploadPart(
+                                UploadPartRequest.builder()
+                                        .bucket(bucket)
+                                        .key(key)
+                                        .uploadId(uploadId)
+                                        .partNumber(partNumber)
+                                        .contentLength((long) count)
+                                        .build(),
+                                RequestBody.fromBytes(partBytes));
+
+                completedParts.add(
+                        CompletedPart.builder()
+                                .partNumber(partNumber)
+                                .eTag(uploaded.eTag())
+                                .build());
+
+                partNumber++;
+            }
+
+            if (completedParts.isEmpty()) {
+
+                targetClient.abortMultipartUpload(
+                        AbortMultipartUploadRequest.builder()
+                                .bucket(bucket)
+                                .key(key)
+                                .uploadId(uploadId)
+                                .build());
+
+                completed = true;
+
+                targetClient.putObject(
+                        PutObjectRequest.builder()
+                                .bucket(bucket)
+                                .key(key)
+                                .build(),
+                        RequestBody.empty());
+
+                return;
+            }
+
+            targetClient.completeMultipartUpload(
+                    CompleteMultipartUploadRequest.builder()
+                            .bucket(bucket)
+                            .key(key)
+                            .uploadId(uploadId)
+                            .multipartUpload(
+                                    CompletedMultipartUpload.builder()
+                                            .parts(completedParts)
+                                            .build())
+                            .build());
+
+            completed = true;
+
+        } finally {
+
+            if (!completed) {
+                try {
+                    targetClient.abortMultipartUpload(
+                            AbortMultipartUploadRequest.builder()
+                                    .bucket(bucket)
+                                    .key(key)
+                                    .uploadId(uploadId)
+                                    .build());
+                } catch (Exception abortException) {
+                    // Preserve the original upload exception.
+                }
+            }
         }
     }
 

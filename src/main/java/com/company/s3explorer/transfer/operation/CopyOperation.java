@@ -1,7 +1,9 @@
 package com.company.s3explorer.transfer.operation;
 
+import com.company.s3explorer.security.CrossRepositoryEncryptionOptions;
 import com.company.s3explorer.transfer.TransferRuntime;
 import com.company.s3explorer.transfer.context.TransferContext;
+import com.company.s3explorer.transfer.model.TransferGroup;
 import com.company.s3explorer.transfer.model.TransferTask;
 
 public class CopyOperation extends AbstractTransferOperation {
@@ -41,13 +43,29 @@ public class CopyOperation extends AbstractTransferOperation {
             updateProgressPercent(runtime, transferContext, 0);
 
             try {
-                transferContext.getService(task.getRepositoryId()).copyObjectBetweenRepositories(
-                        runtime.getTask().getBucket(),
-                        runtime.getTask().getObjectKey(),
-                        transferContext.getService(runtime.getTask().getTargetRepositoryId()).getClient(),
-                        runtime.getTask().getTargetBucket(),
-                        runtime.getTask().getTargetObjectKey(),
-                        createProgressListener(runtime, transferContext));
+                TransferGroup group =
+                        task.getGroup();
+
+                CrossRepositoryEncryptionOptions options =
+                        group == null
+                                ? CrossRepositoryEncryptionOptions.none()
+                                : group.getCrossRepositoryEncryptionOptions();
+
+                transferContext
+                        .getService(task.getRepositoryId())
+                        .copyObjectBetweenRepositories(
+                                task.getBucket(),
+                                task.getObjectKey(),
+                                transferContext
+                                        .getService(task.getTargetRepositoryId())
+                                        .getClient(),
+                                task.getTargetBucket(),
+                                task.getTargetObjectKey(),
+                                createProgressListener(
+                                        runtime,
+                                        transferContext),
+                                task.isOverwrite(),
+                                options);
             }
             finally {
                 updateProgressCompleted(runtime, transferContext);
