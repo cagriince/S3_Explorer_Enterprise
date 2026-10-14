@@ -1,5 +1,6 @@
 package com.company.s3explorer.transfer.manager;
 
+import com.company.s3explorer.security.CrossRepositoryEncryptionOptions;
 import com.company.s3explorer.security.EncryptionConfig;
 import com.company.s3explorer.service.S3ClientManager;
 import com.company.s3explorer.transfer.TransferType;
@@ -680,6 +681,35 @@ public class TransferManager {
                 group);
     }
 
+    public void submitCopy(
+            String repositoryId,
+            String bucket,
+            String keySource,
+            String targetRepositoryId,
+            String targetBucket,
+            String keyTarget,
+            long size,
+            boolean overwrite,
+            CrossRepositoryEncryptionOptions options) {
+
+        TransferTask task =
+                TransferTask.copy()
+                        .repositoryId(repositoryId)
+                        .bucket(bucket)
+                        .objectKey(keySource)
+                        .targetRepositoryId(targetRepositoryId)
+                        .targetBucket(targetBucket)
+                        .targetObjectKey(keyTarget)
+                        .size(size)
+                        .overwrite(overwrite)
+                        .affectsObjectList(true)
+                        .affectsFolderTree(false)
+                        .crossRepositoryEncryptionOptions(options)
+                        .build();
+
+        submit(task);
+    }
+
     public void submitMove(
             String repositoryId,
             String bucket,
@@ -752,6 +782,35 @@ public class TransferManager {
         submitGroupedTask(
                 task,
                 group);
+    }
+
+    public void submitMove(
+            String repositoryId,
+            String bucket,
+            String keySource,
+            String targetRepositoryId,
+            String targetBucket,
+            String keyTarget,
+            long size,
+            boolean overwrite,
+            CrossRepositoryEncryptionOptions options) {
+
+        TransferTask task =
+                TransferTask.move()
+                        .repositoryId(repositoryId)
+                        .bucket(bucket)
+                        .objectKey(keySource)
+                        .targetRepositoryId(targetRepositoryId)
+                        .targetBucket(targetBucket)
+                        .targetObjectKey(keyTarget)
+                        .size(size)
+                        .overwrite(overwrite)
+                        .affectsObjectList(true)
+                        .affectsFolderTree(true)
+                        .crossRepositoryEncryptionOptions(options)
+                        .build();
+
+        submit(task);
     }
 
     public TransferGroup submitRename(

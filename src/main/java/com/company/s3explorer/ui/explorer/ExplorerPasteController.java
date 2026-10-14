@@ -203,6 +203,7 @@ public class ExplorerPasteController {
                 encryptionOptions);
     }
 
+
     private void executePaste(
             String targetBucket,
             String targetPrefix,
@@ -215,27 +216,28 @@ public class ExplorerPasteController {
                 || items == null
                 || items.isEmpty()
                 || operation == null) {
-
             return;
         }
 
         pasteSelectionProgressConsumer.accept(true);
 
-        List<String> selectionKeys =
-                new ArrayList<>();
+        List<String> selectionKeys = new ArrayList<>();
 
-        TransferGroup group =
-                null;
+        TransferGroup group = null;
+        int skippedCount = 0;
+        boolean folderProducerSubmitted = false;
 
-        int skippedCount =
-                0;
+        long validItemCount = items.stream()
+                .filter(item -> item != null && !item.isParentFolder())
+                .count();
 
-        boolean folderProducerSubmitted =
-                false;
+        boolean requiresGroup =
+                validItemCount > 1
+                        || items.stream().anyMatch(
+                        item -> item != null && item.isFolder());
 
         for (S3FileItem item : items) {
-
-            if (item == null) {
+            if (item == null || item.isParentFolder()) {
                 continue;
             }
 
@@ -243,61 +245,39 @@ public class ExplorerPasteController {
             String targetSelectionKey;
 
             if (item.isFolder()) {
-
-                targetSubmissionKey =
-                        targetPrefix;
+                targetSubmissionKey = targetPrefix;
 
                 targetSelectionKey =
-                        S3Util.combineKey(
-                                targetPrefix,
-                                item.getName());
+                        S3Util.combineKey(targetPrefix, item.getName());
 
                 if (!targetSelectionKey.endsWith("/")) {
                     targetSelectionKey += "/";
                 }
-
             } else {
-
                 targetSubmissionKey =
-                        S3Util.combineKey(
-                                targetPrefix,
-                                item.getName());
+                        S3Util.combineKey(targetPrefix, item.getName());
 
-                targetSelectionKey =
-                        targetSubmissionKey;
+                targetSelectionKey = targetSubmissionKey;
             }
 
-            /*
-             * Do not paste an item onto itself.
-             */
+            // Do not paste an item onto itself.
             if (item.getBucket().equals(targetBucket)
-                    && item.getKey().equals(
-                    targetSelectionKey)) {
+                    && item.getKey().equals(targetSelectionKey)) {
 
                 log.info(
                         "[PASTE] skipped self-target source={} target={}",
                         item.getKey(),
                         targetSelectionKey);
-
                 continue;
             }
 
-            /*
-             * Folder Copy/Move silently merges.
-             *
-             * File Copy/Move requires conflict confirmation.
-             */
-            boolean overwrite =
-                    false;
+            boolean overwrite = false;
 
+            // Folder operations merge; file operations ask before overwrite.
             if (!item.isFolder()
-                    && existsPredicate.test(
-                    targetSubmissionKey)) {
+                    && existsPredicate.test(targetSubmissionKey)) {
 
-                if (!conflictConfirmation.test(
-                        item,
-                        targetSubmissionKey)) {
-
+                if (!conflictConfirmation.test(item, targetSubmissionKey)) {
                     if (group != null) {
                         group.skipped();
                     } else {
@@ -305,8 +285,7 @@ public class ExplorerPasteController {
                     }
 
                     log.info(
-                            operation ==
-                                    ExplorerClipboard.Operation.COPY
+                            operation == ExplorerClipboard.Operation.COPY
                                     ? "[COPY] skipped by user source={} target={}"
                                     : "[MOVE] skipped by user source={} target={}",
                             item.getKey(),
@@ -316,7 +295,6 @@ public class ExplorerPasteController {
                             "[PASTE SELECTION] not selected key={} item={}",
                             targetSelectionKey,
                             item.getName());
-
                     continue;
                 }
 
@@ -324,31 +302,18 @@ public class ExplorerPasteController {
             }
 
             /*
-             * Create the shared group only after
-             * the item has actually been accepted.
+             * Yalnızca birden fazla öğe veya klasör işlemi için grup oluştur.
+             * Tek dosyalı Copy/Move grupsuz devam eder.
              */
-            if (group == null) {
+            if (group == null && requiresGroup) {
+                String groupName = getOperationGroupName(items);
 
-                String groupName =
-                        getOperationGroupName(items);
-
-                String sourcePrefix;
-
-                if (item.isFolder()) {
-
-                    sourcePrefix =
-                            item.getKey();
-
-                } else {
-
-                    sourcePrefix =
-                            S3Util.extractParentPrefix(
-                                    item.getKey());
-                }
+                String sourcePrefix = item.isFolder()
+                        ? item.getKey()
+                        : S3Util.extractParentPrefix(item.getKey());
 
                 TransferType groupOperation =
-                        operation ==
-                                ExplorerClipboard.Operation.COPY
+                        operation == ExplorerClipboard.Operation.COPY
                                 ? TransferType.COPY_GROUP
                                 : TransferType.MOVE_GROUP;
 
@@ -360,87 +325,62 @@ public class ExplorerPasteController {
                     return;
                 }
 
-                group =
-                        transferManager.createOperationGroup(
-                                groupOperation,
-                                groupName,
-                                item.getRepositoryId(),
-                                item.getBucket(),
-                                sourcePrefix,
-                                repository.getId(),
-                                targetBucket,
-                                targetPrefix);
+                group = transferManager.createOperationGroup(
+                        groupOperation,
+                        groupName,
+                        item.getRepositoryId(),
+                        item.getBucket(),
+                        sourcePrefix,
+                        repository.getId(),
+                        targetBucket,
+                        targetPrefix);
 
-                group.setCrossRepositoryEncryptionOptions(
-                        encryptionOptions);
+                group.setCrossRepositoryEncryptionOptions(encryptionOptions);
 
                 transferManager.configureGroupCompletion(
                         group,
                         item.getRepositoryId(),
                         item.getBucket(),
                         sourcePrefix,
-                        operation ==
-                                ExplorerClipboard.Operation.MOVE);
+                        operation == ExplorerClipboard.Operation.MOVE);
 
                 log.info(
-                        "[PASTE GROUP] created operation={} " +
-                                "group={} sourcePrefix={} " +
-                                "targetPrefix={} " +
-                                "sourceRefreshRequired={}",
+                        "[PASTE GROUP] created operation={} group={} sourcePrefix={} targetPrefix={}",
                         groupOperation,
                         group.getDisplayName(),
                         sourcePrefix,
-                        targetPrefix,
-                        operation ==
-                                ExplorerClipboard.Operation.MOVE);
+                        targetPrefix);
 
                 if (skippedCount > 0) {
-
-                    for (int i = 0;
-                         i < skippedCount;
-                         i++) {
-
+                    for (int i = 0; i < skippedCount; i++) {
                         group.skipped();
                     }
-
-                    log.info(
-                            "[PASTE GROUP] transferred skipped " +
-                                    "decisions count={} group={}",
-                            skippedCount,
-                            group.getDisplayName());
-
                     skippedCount = 0;
                 }
             }
 
             boolean submitted;
 
-            if (operation ==
-                    ExplorerClipboard.Operation.COPY) {
-
-                submitted =
-                        submitCopy(
-                                item,
-                                targetBucket,
-                                targetSubmissionKey,
-                                overwrite,
-                                group);
-
+            if (operation == ExplorerClipboard.Operation.COPY) {
+                submitted = submitCopy(
+                        item,
+                        targetBucket,
+                        targetSubmissionKey,
+                        overwrite,
+                        group,
+                        encryptionOptions);
             } else {
-
-                submitted =
-                        submitMove(
-                                item,
-                                targetBucket,
-                                targetSubmissionKey,
-                                overwrite,
-                                group);
+                submitted = submitMove(
+                        item,
+                        targetBucket,
+                        targetSubmissionKey,
+                        overwrite,
+                        group,
+                        encryptionOptions);
             }
 
             if (submitted) {
-
-                selectionKeys.add(
-                        targetSelectionKey);
+                selectionKeys.add(targetSelectionKey);
 
                 log.info(
                         "[PASTE SELECTION] accepted key={} item={}",
@@ -450,9 +390,7 @@ public class ExplorerPasteController {
                 if (item.isFolder()) {
                     folderProducerSubmitted = true;
                 }
-
             } else {
-
                 log.info(
                         "[PASTE SELECTION] not selected key={} item={}",
                         targetSelectionKey,
@@ -462,172 +400,112 @@ public class ExplorerPasteController {
 
         pasteSelectionProgressConsumer.accept(false);
 
-        /*
-         * For folder operations the folder producer owns
-         * the production lifecycle.
-         *
-         * File-only operations complete production here.
-         */
-        if (group != null
-                && !folderProducerSubmitted) {
-
+        // File-only grouped operations finish production here.
+        // Folder producers own their group's production lifecycle.
+        if (group != null && !folderProducerSubmitted) {
             group.markProductionCompleted();
-
-            log.info(
-                    "[PASTE GROUP] production completed immediately " +
-                            "group={} queued={} running={} completed={} " +
-                            "failed={} cancelled={}",
-                    group.getDisplayName(),
-                    group.getQueued(),
-                    group.getRunning(),
-                    group.getCompleted(),
-                    group.getFailed(),
-                    group.getCancelled());
-
-        } else if (group != null) {
-
-            log.info(
-                    "[PASTE GROUP] production remains owned by folder " +
-                            "producer group={} queued={} running={} " +
-                            "completed={} failed={} cancelled={}",
-                    group.getDisplayName(),
-                    group.getQueued(),
-                    group.getRunning(),
-                    group.getCompleted(),
-                    group.getFailed(),
-                    group.getCancelled());
         }
 
         if (!selectionKeys.isEmpty()) {
-
-            pendingSelectionConsumer.accept(
-                    new ArrayList<>(selectionKeys));
-
+            pendingSelectionConsumer.accept(new ArrayList<>(selectionKeys));
             restoreFocusConsumer.accept(true);
-
             forceFocusConsumer.accept(true);
-
-            log.info(
-                    "[PASTE SELECTION] final pending keys={} " +
-                            "restoreFocus=true forceFocus=true",
-                    selectionKeys);
-
         } else {
-
-            pendingSelectionConsumer.accept(
-                    null);
-
-            log.info(
-                    "[PASTE SELECTION] no items accepted");
+            pendingSelectionConsumer.accept(null);
         }
 
-        /*
-         * MOVE clears clipboard.
-         * COPY keeps clipboard available.
-         */
-        if (operation ==
-                ExplorerClipboard.Operation.MOVE) {
-
+        // MOVE clears clipboard; COPY keeps it available.
+        if (operation == ExplorerClipboard.Operation.MOVE) {
             clipboard.clear();
         }
 
         updateActionStates.run();
     }
 
+
     private boolean submitCopy(
             S3FileItem item,
             String targetBucket,
             String targetKey,
             boolean overwrite,
-            TransferGroup group) {
+            TransferGroup group,
+            CrossRepositoryEncryptionOptions options) {
 
-        if (item == null
-                || group == null) {
-
+        if (item == null) {
             return false;
         }
 
         try {
-
             fileOperationController.copy(
                     item,
                     targetBucket,
                     targetKey,
                     overwrite,
-                    group);
+                    group,
+                    options);
 
             log.info(
-                    "[COPY] submitted source={} target={} " +
-                            "overwrite={} group={}",
+                    "[COPY] submitted source={} target={} overwrite={} group={}",
                     item.getKey(),
                     targetKey,
                     overwrite,
-                    group.getDisplayName());
+                    group == null ? null : group.getDisplayName());
 
             return true;
 
         } catch (Exception ex) {
-
             log.error(
                     "[COPY] failed source={} target={} group={}",
                     item.getKey(),
                     targetKey,
-                    group.getDisplayName(),
+                    group == null ? null : group.getDisplayName(),
                     ex);
 
-            showError(
-                    ex,
-                    "Copy Failed");
-
+            showError(ex, "Copy Failed");
             return false;
         }
     }
+
 
     private boolean submitMove(
             S3FileItem item,
             String targetBucket,
             String targetKey,
             boolean overwrite,
-            TransferGroup group) {
+            TransferGroup group,
+            CrossRepositoryEncryptionOptions options) {
 
-        if (item == null
-                || group == null) {
-
+        if (item == null) {
             return false;
         }
 
         try {
-
             fileOperationController.move(
                     item,
                     targetBucket,
                     targetKey,
                     overwrite,
-                    group);
+                    group,
+                    options);
 
             log.info(
-                    "[MOVE] submitted source={} target={} " +
-                            "overwrite={} group={}",
+                    "[MOVE] submitted source={} target={} overwrite={} group={}",
                     item.getKey(),
                     targetKey,
                     overwrite,
-                    group.getDisplayName());
+                    group == null ? null : group.getDisplayName());
 
             return true;
 
         } catch (Exception ex) {
-
             log.error(
                     "[MOVE] failed source={} target={} group={}",
                     item.getKey(),
                     targetKey,
-                    group.getDisplayName(),
+                    group == null ? null : group.getDisplayName(),
                     ex);
 
-            showError(
-                    ex,
-                    "Move Failed");
-
+            showError(ex, "Move Failed");
             return false;
         }
     }

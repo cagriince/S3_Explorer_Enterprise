@@ -1,5 +1,6 @@
 package com.company.s3explorer.transfer.model;
 
+import com.company.s3explorer.security.CrossRepositoryEncryptionOptions;
 import com.company.s3explorer.security.EncryptionConfig;
 import com.company.s3explorer.transfer.TransferType;
 import com.company.s3explorer.ui.explorer.RefreshTreeNode;
@@ -30,7 +31,10 @@ public class TransferTask {
     private boolean overwrite;
 
     private EncryptionConfig encryptionConfig;
-    
+
+    private CrossRepositoryEncryptionOptions crossRepositoryEncryptionOptions =
+            CrossRepositoryEncryptionOptions.none();
+
     private long size;
 
     public TransferTask() {
@@ -94,6 +98,11 @@ public class TransferTask {
 
     public EncryptionConfig getEncryptionConfig() {
         return encryptionConfig;
+    }
+
+    public CrossRepositoryEncryptionOptions
+    getCrossRepositoryEncryptionOptions() {
+        return crossRepositoryEncryptionOptions;
     }
 
     public long getSize() {
@@ -195,6 +204,15 @@ public class TransferTask {
 
         public Builder encryptionConfig(EncryptionConfig encryptionConfig) {
             task.encryptionConfig = encryptionConfig;
+            return this;
+        }
+
+        public Builder crossRepositoryEncryptionOptions(
+                CrossRepositoryEncryptionOptions options) {
+            task.crossRepositoryEncryptionOptions =
+                    options == null
+                            ? CrossRepositoryEncryptionOptions.none()
+                            : options;
             return this;
         }
         

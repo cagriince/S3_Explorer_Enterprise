@@ -48,7 +48,7 @@ public class CopyOperation extends AbstractTransferOperation {
 
                 CrossRepositoryEncryptionOptions options =
                         group == null
-                                ? CrossRepositoryEncryptionOptions.none()
+                                ? task.getCrossRepositoryEncryptionOptions()
                                 : group.getCrossRepositoryEncryptionOptions();
 
                 transferContext

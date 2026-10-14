@@ -1859,13 +1859,10 @@ public class ExplorerPanel extends JPanel {
         return new S3ExplorerService(clientManager.getClient(context.getActiveRepository()));
     }
 
+
     public void setSelectedRepository(
             RepositoryDefinition repository) {
 
-        /*
-         * Repository'nin bucket'larını yükle.
-         * loadBucketsAsync() kendi progress dialogunu gösterecek.
-         */
         operationGeneration.incrementAndGet();
 
         pendingBucketSelection = null;
@@ -1882,41 +1879,31 @@ public class ExplorerPanel extends JPanel {
 
         view.getBucketCombo().removeAllItems();
 
+        // Repository değiştiğinde Folder Edit durumunu sıfırla.
+        view.setLocationEditMode(false);
+        view.getLocationField().setText("");
+
+        updateBreadcrumb(S3TreeNode.ROOT_PREFIX);
+
         treeController.initializeRoot();
 
         setFileTableLoading(false);
 
-        /*
-         * Empty Repository seçildiyse yalnızca ekranı
-         * temizlemek yeterli.
-         */
-        if (repository == null
-                || repository.isEmpty()) {
-
+        if (repository == null || repository.isEmpty()) {
             context.setActiveRepository(
                     RepositoryDefinition.EMPTY_REPOSITORY);
 
             updateActionStates();
-
             return;
         }
 
-        /*
-         * Gerçek repository artık aktif.
-         */
         context.setActiveRepository(repository);
 
         setFileTableLoading(true);
 
-        /*
-         * Repository'nin bucket'larını yükle.
-         *
-         * CONNECTION dialogu burada ayrıca gösterilmiyor.
-         * loadBucketsAsync() kendi BUCKET progress dialogunu
-         * gösterecek.
-         */
         reloadBuckets();
     }
+
 
     public void reloadRepositories() {
         view.getRepositoryCombo().removeAllItems();

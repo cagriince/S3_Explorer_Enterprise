@@ -1,5 +1,6 @@
 package com.company.s3explorer.ui.explorer;
 
+import com.company.s3explorer.security.CrossRepositoryEncryptionOptions;
 import com.company.s3explorer.transfer.manager.TransferManager;
 import com.company.s3explorer.transfer.model.TransferGroup;
 import com.company.s3explorer.security.EncryptionConfig;
@@ -319,25 +320,21 @@ public final class ExplorerFileOperationController {
             String targetBucket,
             String targetKey,
             boolean overwrite,
-            TransferGroup group) {
+            TransferGroup group,
+            CrossRepositoryEncryptionOptions options) {
 
-        if (item == null
-                || targetBucket == null
-                || targetKey == null) {
+        if (item == null || targetBucket == null || targetKey == null) {
             return;
         }
 
-        String repositoryId =
-                currentRepositorySupplier.get();
+        String repositoryId = currentRepositorySupplier.get();
 
         if (repositoryId == null) {
             return;
         }
 
         if (item.isFolder()) {
-
             if (group == null) {
-
                 transferManager.submitFolderCopy(
                         item.getRepositoryId(),
                         item.getBucket(),
@@ -345,9 +342,7 @@ public final class ExplorerFileOperationController {
                         repositoryId,
                         targetBucket,
                         targetKey);
-
             } else {
-
                 transferManager.submitFolderCopy(
                         item.getRepositoryId(),
                         item.getBucket(),
@@ -357,12 +352,10 @@ public final class ExplorerFileOperationController {
                         targetKey,
                         group);
             }
-
             return;
         }
 
         if (group == null) {
-
             transferManager.submitCopy(
                     item.getRepositoryId(),
                     item.getBucket(),
@@ -371,10 +364,9 @@ public final class ExplorerFileOperationController {
                     targetBucket,
                     targetKey,
                     item.getSize(),
-                    overwrite);
-
+                    overwrite,
+                    options);
         } else {
-
             transferManager.submitCopy(
                     item.getRepositoryId(),
                     item.getBucket(),
@@ -393,7 +385,8 @@ public final class ExplorerFileOperationController {
             String targetBucket,
             String targetKey,
             boolean overwrite,
-            TransferGroup group) {
+            TransferGroup group,
+            CrossRepositoryEncryptionOptions options) {
 
         if (item == null
                 || targetBucket == null
@@ -445,7 +438,8 @@ public final class ExplorerFileOperationController {
                     targetBucket,
                     targetKey,
                     item.getSize(),
-                    overwrite);
+                    overwrite,
+                    options);
 
         } else {
 
