@@ -1628,25 +1628,29 @@ public class ExplorerPanel extends JPanel {
                 return;
             }
 
-            String bucket =
-                    this.getCurrentBucket();
+            String bucket = this.getCurrentBucket();
 
             if (bucket == null) {
                 return;
             }
 
-            if (bucketSelectionListener != null) {
+            // Bucket değiştiğinde Folder Edit açıksa
+            // yeni bucket'ın kök konumunu göster.
+            // Edit modu açık kalmaya devam eder.
+            if (view.isLocationEditMode()) {
+                view.getLocationField().setText("");
+            }
 
-                bucketSelectionListener.accept(
-                        bucket);
+            if (bucketSelectionListener != null) {
+                bucketSelectionListener.accept(bucket);
             }
 
             /*
              * Bucket değiştiğinde:
              *
-             *     Tree root
-             *     +
-             *     File Table root
+             * Tree root
+             * +
+             * File Table root
              *
              * aynı S3 listing sonucundan yüklenir.
              */
