@@ -410,6 +410,10 @@ public class ExplorerPanel extends JPanel {
         panelInputMap.put(KeyStroke.getKeyStroke("alt RIGHT"), "explorerForward");
         panelActionMap.put( "explorerForward", forwardAction);
 
+        // F5: Reload Folder
+        panelInputMap.put(KeyStroke.getKeyStroke("F5"), "reloadFolder");
+        panelActionMap.put("reloadFolder", reloadFolderAction);
+
         InputMap locationInputMap = view.getLocationField().getInputMap(JComponent.WHEN_FOCUSED);
         ActionMap locationActionMap = view.getLocationField().getActionMap();
 
