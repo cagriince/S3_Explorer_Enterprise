@@ -315,6 +315,22 @@ public class ExplorerPanel extends JPanel {
 
     public void setButtonIcons() {
         view.setButtonIcons();
+
+        selectAllAction.putValue(
+                Action.SMALL_ICON,
+                IconProvider.ICON_CHECK_ALL);
+
+        goToParentAction.putValue(
+                Action.SMALL_ICON,
+                IconProvider.ICON_PARENT_FOLDER);
+
+        homeAction.putValue(
+                Action.SMALL_ICON,
+                IconProvider.ICON_HOME);
+
+        clearHistoryAction.putValue(
+                Action.SMALL_ICON,
+                IconProvider.ICON_CLEAR_HISTORY);
     }
 
     private void createActions() {

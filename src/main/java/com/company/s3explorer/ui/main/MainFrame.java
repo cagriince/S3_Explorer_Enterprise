@@ -30,7 +30,11 @@ public class MainFrame extends JFrame {
     private ApplicationSettings settings;
     private TransferPanel transferPanel;
     private JSplitPane split;
-    
+
+    private JMenuItem exitMenuItem;
+    private JMenuItem preferencesMenuItem;
+    private JMenuItem aboutMenuItem;
+
     public MainFrame() {
         initialize();
     }
@@ -119,11 +123,13 @@ public class MainFrame extends JFrame {
                     transferEngine.setThreadCount(
                             threadCount);
                 });
-        
+
         explorerPanel.setThemeSelectionListener(
                 theme -> {
                     settings.setLastSelectedTheme(theme.name());
                     settingsStore.save(settings);
+
+                    updateMenuIcons();
                 });
 
         explorerPanel.setRepositorySelectionListener(
@@ -220,28 +226,30 @@ public class MainFrame extends JFrame {
         explorerPanel.populateFileMenu(fileMenu);
 
         // Exit, File menüsünün en altında.
-        JMenuItem exitItem = new JMenuItem("Exit");
-        exitItem.addActionListener(
+        exitMenuItem = new JMenuItem("Exit");
+        exitMenuItem.setIcon(IconProvider.ICON_EXIT);
+        exitMenuItem.addActionListener(
                 e -> dispatchEvent(
                         new WindowEvent(
                                 this,
                                 WindowEvent.WINDOW_CLOSING)));
 
-        fileMenu.add(exitItem);
+        fileMenu.add(exitMenuItem);
 
         JMenu editMenu = new JMenu("Edit");
         explorerPanel.populateEditMenu(editMenu);
         editMenu.addSeparator();
 
-        JMenuItem preferencesItem = new JMenuItem("Preferences");
-        preferencesItem.addActionListener(e -> {
+        preferencesMenuItem = new JMenuItem("Preferences");
+        preferencesMenuItem.setIcon(IconProvider.ICON_SETTINGS);
+        preferencesMenuItem.addActionListener(e -> {
             PreferencesDialog dialog =
                     new PreferencesDialog(this, settings);
 
             dialog.setVisible(true);
             settingsStore.save(settings);
         });
-        editMenu.add(preferencesItem);
+        editMenu.add(preferencesMenuItem);
 
         JMenu viewMenu = new JMenu("View");
         explorerPanel.populateViewMenu(viewMenu);
@@ -251,8 +259,9 @@ public class MainFrame extends JFrame {
 
         JMenu helpMenu = new JMenu("Help");
 
-        JMenuItem aboutItem = new JMenuItem("About");
-        aboutItem.addActionListener(
+        aboutMenuItem = new JMenuItem("About");
+        aboutMenuItem.setIcon(IconProvider.ICON_ABOUT);
+        aboutMenuItem.addActionListener(
                 e -> JOptionPane.showMessageDialog(
                         this,
                         "<html><font color=red size=6><b>GİB<br/>"
@@ -263,7 +272,7 @@ public class MainFrame extends JFrame {
                         JOptionPane.INFORMATION_MESSAGE,
                         IconProvider.ICON_LOGO_96));
 
-        helpMenu.add(aboutItem);
+        helpMenu.add(aboutMenuItem);
 
         menuBar.add(fileMenu);
         menuBar.add(editMenu);
@@ -379,5 +388,19 @@ public class MainFrame extends JFrame {
                 scrollPane,
                 "Keyboard Shortcuts",
                 JOptionPane.PLAIN_MESSAGE);
+    }
+
+    private void updateMenuIcons() {
+        if (exitMenuItem != null) {
+            exitMenuItem.setIcon(IconProvider.ICON_EXIT);
+        }
+
+        if (preferencesMenuItem != null) {
+            preferencesMenuItem.setIcon(IconProvider.ICON_SETTINGS);
+        }
+
+        if (aboutMenuItem != null) {
+            aboutMenuItem.setIcon(IconProvider.ICON_ABOUT);
+        }
     }
 }
