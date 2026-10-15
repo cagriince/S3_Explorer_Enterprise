@@ -1806,36 +1806,10 @@ public class ExplorerPanel extends JPanel {
                     return;
                 }
 
-                loadFiles(
+                validateAndLoadTreeSelection(
                         bucket,
                         prefix,
-                        true);
-
-                updateBreadcrumb(prefix);
-                if (view.isLocationEditMode()) {
-                    view.getLocationField().setText(
-                            prefix == null ? "" : prefix);
-                }
-
-                NavigationEntry restoreTarget = pendingNavigationTarget;
-
-                if (navigationPlayback
-                        && restoreTarget != null
-                        && Objects.equals(restoreTarget.repositoryId(),
-                        getCurrentRepository() == null
-                                ? null
-                                : getCurrentRepository().getId())
-                        && Objects.equals(restoreTarget.bucket(), bucket)
-                        && Objects.equals(restoreTarget.prefix(), prefix)) {
-
-                    pendingNavigationTarget = null;
-                    navigationPlayback = false;
-                } else {
-                    recordNavigation();
-                }
-
-                updateNavigationButtonStates();
-                updateActionStates();
+                        selectedPath);
             });
         });
 
@@ -6792,5 +6766,187 @@ public class ExplorerPanel extends JPanel {
         if (!enabled) {
             updateBreadcrumb(prefix);
         }
+    }
+
+
+    private void validateAndLoadTreeSelection(
+            String bucket,
+            String prefix,
+            TreePath selectedPath) {
+
+        /*
+         * Root her zaman geçerlidir.
+         */
+        if (prefix == null
+                || prefix.isBlank()
+                || Objects.equals(
+                prefix,
+                S3TreeNode.ROOT_PREFIX)) {
+
+            completeTreeSelection(bucket, prefix);
+            return;
+        }
+
+        RepositoryDefinition repository =
+                getCurrentRepository();
+
+        if (repository == null || repository.isEmpty()) {
+            return;
+        }
+
+        String repositoryId = repository.getId();
+
+        CompletableFuture.supplyAsync(
+                () -> new S3ExplorerService(
+                        clientManager.getClient(repository))
+                        .folderExists(bucket, prefix),
+                explorerPool
+        ).whenComplete((exists, exception) ->
+                SwingUtilities.invokeLater(() -> {
+
+                    RepositoryDefinition activeRepository =
+                            getCurrentRepository();
+
+                    /*
+                     * Kontrol sürerken repository, bucket veya
+                     * ağaç seçimi değiştiyse eski sonucu kullanma.
+                     */
+                    if (activeRepository == null
+                            || !Objects.equals(
+                            repositoryId,
+                            activeRepository.getId())
+                            || !Objects.equals(
+                            bucket,
+                            getCurrentBucket())) {
+                        return;
+                    }
+
+                    TreePath actualPath =
+                            view.getFolderTree().getSelectionPath();
+
+                    if (actualPath == null
+                            || !actualPath.equals(selectedPath)) {
+                        return;
+                    }
+
+                    /*
+                     * Bağlantı veya yetki hatası, silinmiş klasör
+                     * olarak değerlendirilmemeli.
+                     */
+                    if (exception != null) {
+                        log.error(
+                                "[TREE SELECTION VALIDATION] failed "
+                                        + "bucket={} prefix={}",
+                                bucket,
+                                prefix,
+                                exception);
+
+                        JOptionPane.showMessageDialog(
+                                this,
+                                S3ErrorResolver.getUserMessage(exception),
+                                "Folder Validation Failed",
+                                JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+
+                    if (!Boolean.TRUE.equals(exists)) {
+
+                        log.info(
+                                "[STALE TREE NODE] removing "
+                                        + "bucket={} prefix={}",
+                                bucket,
+                                prefix);
+
+                        /*
+                         * Eski Tree kaydını ve alt node cache'lerini
+                         * kaldır.
+                         */
+                        treeController.removePrefix(prefix);
+
+                        /*
+                         * Önceki File Table konumunu korumaya çalış.
+                         * O konum geçersizse üst klasöre dön.
+                         */
+                        String fallbackPrefix =
+                                Objects.equals(
+                                        currentFileBucket,
+                                        bucket)
+                                        ? currentFilePrefix
+                                        : null;
+
+                        if (fallbackPrefix == null
+                                || Objects.equals(
+                                fallbackPrefix,
+                                prefix)) {
+
+                            fallbackPrefix =
+                                    getParentPrefix(prefix);
+                        }
+
+                        if (fallbackPrefix != null
+                                && !Objects.equals(
+                                fallbackPrefix,
+                                prefix)) {
+
+                            treeController.selectPrefix(
+                                    fallbackPrefix);
+                        }
+
+                        JOptionPane.showMessageDialog(
+                                this,
+                                "The folder no longer exists:\n" + prefix,
+                                "Folder Not Found",
+                                JOptionPane.ERROR_MESSAGE);
+
+                        return;
+                    }
+
+                    completeTreeSelection(bucket, prefix);
+                }));
+    }
+
+    private void completeTreeSelection(
+            String bucket,
+            String prefix) {
+
+        loadFiles(
+                bucket,
+                prefix,
+                true);
+
+        updateBreadcrumb(prefix);
+
+        if (view.isLocationEditMode()) {
+            view.getLocationField().setText(
+                    prefix == null ? "" : prefix);
+        }
+
+        NavigationEntry restoreTarget =
+                pendingNavigationTarget;
+
+        if (navigationPlayback
+                && restoreTarget != null
+                && Objects.equals(
+                restoreTarget.repositoryId(),
+                getCurrentRepository() == null
+                        ? null
+                        : getCurrentRepository().getId())
+                && Objects.equals(
+                restoreTarget.bucket(),
+                bucket)
+                && Objects.equals(
+                restoreTarget.prefix(),
+                prefix)) {
+
+            pendingNavigationTarget = null;
+            pendingNavigationPreviousIndex = -1;
+            navigationPlayback = false;
+
+        } else {
+            recordNavigation();
+        }
+
+        updateNavigationButtonStates();
+        updateActionStates();
     }
 }
