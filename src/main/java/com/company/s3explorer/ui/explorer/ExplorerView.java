@@ -653,9 +653,6 @@ public final class ExplorerView {
 
     private void createPopupMenu() {
         filePopup = new JPopupMenu();
-        JMenuItem createFolderMenu = new JMenuItem(newFolderAction);
-        JMenuItem uploadMenu = new JMenuItem(uploadAction);
-        JMenuItem uploadEncryptedMenu = new JMenuItem(uploadEncryptedAction);
         JMenuItem downloadMenu = new JMenuItem(downloadAction);
         JMenuItem downloadDecryptedMenu = new JMenuItem(downloadDecryptedAction);
         JMenuItem deleteMenu = new JMenuItem(deleteAction);
@@ -666,14 +663,13 @@ public final class ExplorerView {
         JMenuItem pasteMenu = new JMenuItem(pasteAction);
         JMenuItem copyTextMenu = new JMenuItem(copyTextAction);
 
-        filePopup.add(createFolderMenu);
-        filePopup.add(deleteMenu);
-        filePopup.add(renameMenu);
         filePopup.add(propertiesMenu);
         filePopup.addSeparator();
 
-        filePopup.add(uploadMenu);
-        filePopup.add(uploadEncryptedMenu);
+        filePopup.add(deleteMenu);
+        filePopup.add(renameMenu);
+        filePopup.addSeparator();
+
         filePopup.add(downloadMenu);
         filePopup.add(downloadDecryptedMenu);
         filePopup.addSeparator();
@@ -688,9 +684,6 @@ public final class ExplorerView {
         filePopup.addPopupMenuListener(new PopupMenuListener() {
             @Override
             public void popupMenuWillBecomeVisible(PopupMenuEvent e) {
-                uploadEncryptedMenu.setVisible(
-                        isEncryptionConfigured());
-
                 downloadDecryptedMenu.setVisible(
                         isEncryptionConfigured());
                 

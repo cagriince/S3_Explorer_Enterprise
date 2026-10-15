@@ -369,7 +369,8 @@ public class MainFrame extends JFrame {
                 {"Rename selected item", "F2"},
                 {"Show properties", "Alt + Enter"},
                 {"Navigate back", "Alt + Left"},
-                {"Navigate forward", "Alt + Right"}
+                {"Navigate forward", "Alt + Right"},
+                {"Reload folder", "F5"}
         };
 
         JTable table = new JTable(
@@ -395,7 +396,7 @@ public class MainFrame extends JFrame {
                 .setPreferredWidth(140);
 
         JScrollPane scrollPane = new JScrollPane(table);
-        scrollPane.setPreferredSize(new Dimension(400, 300));
+        scrollPane.setPreferredSize(new Dimension(400, 400));
 
         JOptionPane.showMessageDialog(
                 this,
