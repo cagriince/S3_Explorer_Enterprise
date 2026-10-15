@@ -7,6 +7,7 @@ import com.company.s3explorer.transfer.renderer.PaddedTableCellRenderer;
 import com.company.s3explorer.ui.icons.IconProvider;
 import com.company.s3explorer.ui.theme.UITheme;
 import com.company.s3explorer.ui.theme.UIThemeManager;
+import com.company.s3explorer.util.S3Util;
 
 import javax.swing.*;
 import javax.swing.border.BevelBorder;
@@ -714,31 +715,26 @@ public final class ExplorerView {
     public void setButtonIcons() {
         repositoryLabel.setIcon(IconProvider.ICON_REPOSITORY);
         bucketLabel.setIcon(IconProvider.ICON_BUCKET);
-        setActionIcon(manageRepositoryAction, IconProvider.ICON_SETTINGS);
-        setActionIcon(refreshAction, IconProvider.ICON_REFRESH);
-        setActionIcon(uploadAction, IconProvider.ICON_UPLOAD);
-        setActionIcon(uploadEncryptedAction, IconProvider.ICON_UPLOAD_ENCRYPTED);
-        setActionIcon(newFolderAction, IconProvider.ICON_CREATE_FOLDER);
-        setActionIcon(downloadAction, IconProvider.ICON_DOWNLOAD);
-        setActionIcon(downloadDecryptedAction, IconProvider.ICON_DOWNLOAD_DECRYPTED);
-        setActionIcon(deleteAction, IconProvider.ICON_DELETE);
-        setActionIcon(renameAction, IconProvider.ICON_RENAME);
-        setActionIcon(propertiesAction, IconProvider.ICON_PROPERTIES);
-        setActionIcon(copyAction, IconProvider.ICON_COPY);
-        setActionIcon(cutAction, IconProvider.ICON_CUT);
-        setActionIcon(pasteAction, IconProvider.ICON_PASTE);
-        setActionIcon(copyTextAction, IconProvider.ICON_COPY_TEXT);
-        setActionIcon(bulkDownloadAction, IconProvider.ICON_BULK_DOWNLOAD);
-        setActionIcon(copyTextAction, IconProvider.ICON_COPY_TEXT);
-        setActionIcon(backAction, IconProvider.ICON_BACK);
-        setActionIcon(forwardAction, IconProvider.ICON_FORWARD);
-        setActionIcon(reloadFolderAction, IconProvider.ICON_FOLDER_REFRESH);
-        setActionIcon(folderEditAction, IconProvider.ICON_FOLDER_EDIT);
-    }
-
-    private void setActionIcon(Action action, Icon icon) {
-        action.putValue(Action.SMALL_ICON, icon);
-        action.putValue(Action.LARGE_ICON_KEY, icon);
+        S3Util.setActionIcon(manageRepositoryAction, IconProvider.ICON_SETTINGS);
+        S3Util.setActionIcon(refreshAction, IconProvider.ICON_REFRESH);
+        S3Util.setActionIcon(uploadAction, IconProvider.ICON_UPLOAD);
+        S3Util.setActionIcon(uploadEncryptedAction, IconProvider.ICON_UPLOAD_ENCRYPTED);
+        S3Util.setActionIcon(newFolderAction, IconProvider.ICON_CREATE_FOLDER);
+        S3Util.setActionIcon(downloadAction, IconProvider.ICON_DOWNLOAD);
+        S3Util.setActionIcon(downloadDecryptedAction, IconProvider.ICON_DOWNLOAD_DECRYPTED);
+        S3Util.setActionIcon(deleteAction, IconProvider.ICON_DELETE);
+        S3Util.setActionIcon(renameAction, IconProvider.ICON_RENAME);
+        S3Util.setActionIcon(propertiesAction, IconProvider.ICON_PROPERTIES);
+        S3Util.setActionIcon(copyAction, IconProvider.ICON_COPY);
+        S3Util.setActionIcon(cutAction, IconProvider.ICON_CUT);
+        S3Util.setActionIcon(pasteAction, IconProvider.ICON_PASTE);
+        S3Util.setActionIcon(copyTextAction, IconProvider.ICON_COPY_TEXT);
+        S3Util.setActionIcon(bulkDownloadAction, IconProvider.ICON_BULK_DOWNLOAD);
+        S3Util.setActionIcon(copyTextAction, IconProvider.ICON_COPY_TEXT);
+        S3Util.setActionIcon(backAction, IconProvider.ICON_BACK);
+        S3Util.setActionIcon(forwardAction, IconProvider.ICON_FORWARD);
+        S3Util.setActionIcon(reloadFolderAction, IconProvider.ICON_FOLDER_REFRESH);
+        S3Util.setActionIcon(folderEditAction, IconProvider.ICON_FOLDER_EDIT);
     }
 
     public JTree getFolderTree() { return folderTree; }

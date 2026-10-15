@@ -24,7 +24,10 @@ public class IconProvider {
     public static ImageIcon ICON_BUCKET = null;
     public static ImageIcon ICON_BUCKET_NORMAL = loadIcon("hdd", 24);//24
     public static ImageIcon ICON_BUCKET_REVERSE = loadIcon("hdd-reverse", 24);//24
-    
+
+    public static ImageIcon ICON_CHECK_ALL = null;
+    public static ImageIcon ICON_CHECK_ALL_NORMAL = loadIcon("check-all");
+    public static ImageIcon ICON_CHECK_ALL_REVERSE = loadIcon("check-all-reverse");
     public static ImageIcon ICON_UPLOAD = null;
     public static ImageIcon ICON_UPLOAD_NORMAL = loadIcon("upload");
     public static ImageIcon ICON_UPLOAD_REVERSE = loadIcon("upload-reverse");
@@ -77,18 +80,33 @@ public class IconProvider {
     public static ImageIcon ICON_COPY_TEXT_NORMAL = loadIcon("copy-text");
     public static ImageIcon ICON_COPY_TEXT_REVERSE = loadIcon("copy-text-reverse");
 
+    public static ImageIcon ICON_PARENT_FOLDER = null;
+    public static ImageIcon ICON_PARENT_FOLDER_NORMAL = loadIcon("arrow-up");
+    public static ImageIcon ICON_PARENT_FOLDER_REVERSE = loadIcon("arrow-up-reverse");
     public static ImageIcon ICON_BACK = null;
     public static ImageIcon ICON_BACK_NORMAL = loadIcon("arrow-left");
     public static ImageIcon ICON_BACK_REVERSE = loadIcon("arrow-left-reverse");
     public static ImageIcon ICON_FORWARD = null;
     public static ImageIcon ICON_FORWARD_NORMAL = loadIcon("arrow-right");
     public static ImageIcon ICON_FORWARD_REVERSE = loadIcon("arrow-right-reverse");
+    public static ImageIcon ICON_HOME = null;
+    public static ImageIcon ICON_HOME_NORMAL = loadIcon("home");
+    public static ImageIcon ICON_HOME_REVERSE = loadIcon("home-reverse");
+    public static ImageIcon ICON_CLEAR_HISTORY = null;
+    public static ImageIcon ICON_CLEAR_HISTORY_NORMAL = loadIcon("clear-history");
+    public static ImageIcon ICON_CLEAR_HISTORY_REVERSE = loadIcon("clear-history-reverse");
     public static ImageIcon ICON_FOLDER_EDIT = null;
     public static ImageIcon ICON_FOLDER_EDIT_NORMAL = loadIcon("folder-edit");
     public static ImageIcon ICON_FOLDER_EDIT_REVERSE = loadIcon("folder-edit-reverse");
     public static ImageIcon ICON_FOLDER_REFRESH = null;
     public static ImageIcon ICON_FOLDER_REFRESH_NORMAL = loadIcon("folder-refresh");
     public static ImageIcon ICON_FOLDER_REFRESH_REVERSE = loadIcon("folder-refresh-reverse");
+    public static ImageIcon ICON_ABOUT = null;
+    public static ImageIcon ICON_ABOUT_NORMAL = loadIcon("about");
+    public static ImageIcon ICON_ABOUT_REVERSE = loadIcon("about-reverse");
+    public static ImageIcon ICON_EXIT = null;
+    public static ImageIcon ICON_EXIT_NORMAL = loadIcon("exit");
+    public static ImageIcon ICON_EXIT_REVERSE = loadIcon("exit-reverse");
 
     static {
         reloadSystemIcons(null);
@@ -122,6 +140,7 @@ public class IconProvider {
         ICON_RENAME = normal ? ICON_RENAME_NORMAL : ICON_RENAME_REVERSE;
         ICON_PROPERTIES = normal ? ICON_PROPERTIES_NORMAL : ICON_PROPERTIES_REVERSE;
         ICON_REFRESH = normal ? ICON_REFRESH_NORMAL : ICON_REFRESH_REVERSE;
+        ICON_CHECK_ALL = normal ? ICON_CHECK_ALL_NORMAL : ICON_CHECK_ALL_REVERSE;
         ICON_CUT = normal ? ICON_CUT_NORMAL : ICON_CUT_REVERSE;
         ICON_PASTE = normal ? ICON_PASTE_NORMAL : ICON_PASTE_REVERSE;
         ICON_COPY = normal ? ICON_COPY_NORMAL : ICON_COPY_REVERSE;
@@ -135,10 +154,15 @@ public class IconProvider {
         ICON_CANCEL_ALL = normal ? ICON_CANCEL_ALL_NORMAL : ICON_CANCEL_ALL_REVERSE;
         ICON_BULK_DOWNLOAD = normal ? ICON_BULK_DOWNLOAD_NORMAL : ICON_BULK_DOWNLOAD_REVERSE;
         ICON_COPY_TEXT = normal ? ICON_COPY_TEXT_NORMAL : ICON_COPY_TEXT_REVERSE;
+        ICON_PARENT_FOLDER  = normal ? ICON_PARENT_FOLDER_NORMAL : ICON_PARENT_FOLDER_REVERSE;
         ICON_BACK = normal ? ICON_BACK_NORMAL : ICON_BACK_REVERSE;
         ICON_FORWARD= normal ? ICON_FORWARD_NORMAL : ICON_FORWARD_REVERSE;
+        ICON_HOME  = normal ? ICON_HOME_NORMAL : ICON_HOME_REVERSE;
+        ICON_CLEAR_HISTORY  = normal ? ICON_CLEAR_HISTORY_NORMAL : ICON_CLEAR_HISTORY_REVERSE;
         ICON_FOLDER_EDIT = normal ? ICON_FOLDER_EDIT_NORMAL : ICON_FOLDER_EDIT_REVERSE;
         ICON_FOLDER_REFRESH = normal ? ICON_FOLDER_REFRESH_NORMAL : ICON_FOLDER_REFRESH_REVERSE;
+        ICON_ABOUT = normal ? ICON_ABOUT_NORMAL : ICON_ABOUT_REVERSE;
+        ICON_EXIT = normal ? ICON_EXIT_NORMAL : ICON_EXIT_REVERSE;
     }
 
     public static ImageIcon loadSvgIcon(

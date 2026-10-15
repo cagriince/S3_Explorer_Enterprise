@@ -154,6 +154,12 @@ public class ExplorerPanel extends JPanel {
     private Action renameAction;
     private Action propertiesAction;
     private Action bulkDownloadAction;
+    private Action selectAllAction;
+    private Action homeAction;
+    private Action clearHistoryAction;
+
+    private JMenuItem uploadEncryptedMenuItem;
+    private JMenuItem downloadDecryptedMenuItem;
 
     public ExplorerPanel(
             ActiveRepositoryContext context,
@@ -324,7 +330,10 @@ public class ExplorerPanel extends JPanel {
         cutAction = new ExplorerAction("Cut", this::moveSelected);
         pasteAction = new ExplorerAction("Paste", this::pasteClipboard);
         copyTextAction = new ExplorerAction("Copy Text", this::copyText);
-        goToParentAction = new ExplorerAction("GoToParent", this::goToParentFolder);
+        goToParentAction = new ExplorerAction("Up", this::goToParentFolder);
+        selectAllAction = new ExplorerAction("Select All", this::selectAllFiles);
+        homeAction = new ExplorerAction("Home", this::goHome);
+        clearHistoryAction = new ExplorerAction("Clear History", this::clearNavigationHistory);
         renameAction = new ExplorerAction("Rename", () -> renameController.renameSelected());
         propertiesAction = new ExplorerAction("Properties", this::showProperties);
         bulkDownloadAction = new ExplorerAction("Bulk Download", this::showBulkDownloadDialog);
@@ -422,6 +431,9 @@ public class ExplorerPanel extends JPanel {
 
         locationInputMap.put(KeyStroke.getKeyStroke("alt RIGHT"), "explorerForward");
         locationActionMap.put("explorerForward", forwardAction);
+
+        inputMap.put(KeyStroke.getKeyStroke("control A"),"selectAllFiles");
+        actionMap.put("selectAllFiles", selectAllAction);
     }
 
     private JSplitPane createMainSplit() {
@@ -567,6 +579,32 @@ public class ExplorerPanel extends JPanel {
 
         reloadFolderAction.setEnabled(
                 folderSelected);
+
+        bulkDownloadAction.setEnabled(hasSelection);
+
+        selectAllAction.setEnabled(
+                folderSelected && table.getRowCount() > 0);
+
+        boolean atRoot =
+                currentFilePrefix == null
+                        || currentFilePrefix.isBlank()
+                        || S3TreeNode.ROOT_PREFIX.equals(currentFilePrefix);
+
+        goToParentAction.setEnabled(
+                folderSelected && !atRoot);
+
+        homeAction.setEnabled(
+                folderSelected && !atRoot);
+
+        refreshAction.setEnabled(
+                getCurrentRepository() != null
+                        && !getCurrentRepository().isEmpty());
+
+        clearHistoryAction.setEnabled(
+                !navigationHistory.isEmpty()
+                        && pendingNavigationTarget == null);
+
+        updateEncryptionMenuVisibility();
 
         log.debug(
                 "[ACTION STATES] folderSelected={} selectedRows={} hasSelection={} hasClipboard={}",
@@ -3767,10 +3805,23 @@ public class ExplorerPanel extends JPanel {
             return;
         }
 
-        view.setNavigationButtonStates(
-                navigationHistoryIndex > 0,
+        boolean canGoBack = navigationHistoryIndex > 0;
+
+        boolean canGoForward =
                 navigationHistoryIndex >= 0
-                        && navigationHistoryIndex < navigationHistory.size() - 1);
+                        && navigationHistoryIndex
+                        < navigationHistory.size() - 1;
+
+        view.setNavigationButtonStates(
+                canGoBack,
+                canGoForward);
+
+        backAction.setEnabled(canGoBack);
+        forwardAction.setEnabled(canGoForward);
+
+        clearHistoryAction.setEnabled(
+                !navigationHistory.isEmpty()
+                        && pendingNavigationTarget == null);
     }
 
     private void goBack() {
@@ -7321,5 +7372,94 @@ public class ExplorerPanel extends JPanel {
                             "Folder Reload",
                             JOptionPane.WARNING_MESSAGE);
                 }));
+    }
+
+    private void selectAllFiles() {
+        JTable table = view.getFileTable();
+
+        if (table == null || table.getRowCount() == 0) {
+            return;
+        }
+
+        table.selectAll();
+        updateActionStates();
+    }
+
+    private void goHome() {
+        if (getCurrentBucket() == null || treeController == null) {
+            return;
+        }
+
+        treeController.selectPrefix(S3TreeNode.ROOT_PREFIX);
+    }
+
+    private void clearNavigationHistory() {
+        navigationHistory.clear();
+        navigationHistoryIndex = -1;
+
+        updateNavigationButtonStates();
+    }
+
+    public void populateFileMenu(JMenu menu) {
+        menu.add(new JMenuItem(propertiesAction));
+        menu.addSeparator();
+
+        menu.add(new JMenuItem(newFolderAction));
+        menu.addSeparator();
+
+        menu.add(new JMenuItem(uploadAction));
+
+        uploadEncryptedMenuItem =
+                new JMenuItem(uploadEncryptedAction);
+        menu.add(uploadEncryptedMenuItem);
+
+        menu.add(new JMenuItem(downloadAction));
+
+        downloadDecryptedMenuItem =
+                new JMenuItem(downloadDecryptedAction);
+        menu.add(downloadDecryptedMenuItem);
+
+        menu.add(new JMenuItem(bulkDownloadAction));
+        menu.addSeparator();
+
+        updateEncryptionMenuVisibility();
+    }
+
+    public void populateEditMenu(JMenu menu) {
+        menu.add(new JMenuItem(cutAction));
+        menu.add(new JMenuItem(copyAction));
+        menu.add(new JMenuItem(pasteAction));
+        menu.add(new JMenuItem(selectAllAction));
+        menu.addSeparator();
+
+        menu.add(new JMenuItem(deleteAction));
+        menu.add(new JMenuItem(renameAction));
+    }
+
+    public void populateViewMenu(JMenu menu) {
+        menu.add(new JMenuItem(refreshAction));
+        menu.add(new JMenuItem(reloadFolderAction));
+    }
+
+    public void populateGoMenu(JMenu menu) {
+        menu.add(new JMenuItem(goToParentAction));
+        menu.add(new JMenuItem(backAction));
+        menu.add(new JMenuItem(forwardAction));
+        menu.add(new JMenuItem(homeAction));
+        menu.addSeparator();
+
+        menu.add(new JMenuItem(clearHistoryAction));
+    }
+
+    private void updateEncryptionMenuVisibility() {
+        boolean configured = hasEncryptionConfiguration();
+
+        if (uploadEncryptedMenuItem != null) {
+            uploadEncryptedMenuItem.setVisible(configured);
+        }
+
+        if (downloadDecryptedMenuItem != null) {
+            downloadDecryptedMenuItem.setVisible(configured);
+        }
     }
 }

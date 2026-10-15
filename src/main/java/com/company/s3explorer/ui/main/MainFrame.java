@@ -216,11 +216,10 @@ public class MainFrame extends JFrame {
     private JMenuBar createMenuBar() {
         JMenuBar menuBar = new JMenuBar();
 
-        // -------------------------------------------------
-        // File
-        // -------------------------------------------------
         JMenu fileMenu = new JMenu("File");
+        explorerPanel.populateFileMenu(fileMenu);
 
+        // Exit, File menüsünün en altında.
         JMenuItem exitItem = new JMenuItem("Exit");
         exitItem.addActionListener(
                 e -> dispatchEvent(
@@ -230,54 +229,29 @@ public class MainFrame extends JFrame {
 
         fileMenu.add(exitItem);
 
-        // -------------------------------------------------
-        // Repository
-        // -------------------------------------------------
-        JMenu repositoryMenu = new JMenu("Repository");
+        JMenu editMenu = new JMenu("Edit");
+        explorerPanel.populateEditMenu(editMenu);
+        editMenu.addSeparator();
 
-        JMenuItem repositoryManagerItem =
-                new JMenuItem("Repository Manager");
-
-        repositoryManagerItem.addActionListener(
-                e -> explorerPanel.openRepositoryManager());
-
-        repositoryMenu.add(repositoryManagerItem);
-
-        // -------------------------------------------------
-        // Settings
-        // -------------------------------------------------
-        JMenu settingsMenu = new JMenu("Settings");
-
-        JMenuItem preferencesItem =
-                new JMenuItem("Preferences");
-
+        JMenuItem preferencesItem = new JMenuItem("Preferences");
         preferencesItem.addActionListener(e -> {
             PreferencesDialog dialog =
                     new PreferencesDialog(this, settings);
 
             dialog.setVisible(true);
-
             settingsStore.save(settings);
         });
+        editMenu.add(preferencesItem);
 
-        settingsMenu.add(preferencesItem);
+        JMenu viewMenu = new JMenu("View");
+        explorerPanel.populateViewMenu(viewMenu);
 
-        // -------------------------------------------------
-        // Help
-        // -------------------------------------------------
+        JMenu goMenu = new JMenu("Go");
+        explorerPanel.populateGoMenu(goMenu);
+
         JMenu helpMenu = new JMenu("Help");
 
-        JMenuItem keyboardShortcutsItem =
-                new JMenuItem("Keyboard Shortcuts");
-
-        keyboardShortcutsItem.addActionListener(
-                e -> showKeyboardShortcutsDialog());
-
-        helpMenu.add(keyboardShortcutsItem);
-        helpMenu.addSeparator();
-
         JMenuItem aboutItem = new JMenuItem("About");
-
         aboutItem.addActionListener(
                 e -> JOptionPane.showMessageDialog(
                         this,
@@ -292,8 +266,9 @@ public class MainFrame extends JFrame {
         helpMenu.add(aboutItem);
 
         menuBar.add(fileMenu);
-        menuBar.add(repositoryMenu);
-        menuBar.add(settingsMenu);
+        menuBar.add(editMenu);
+        menuBar.add(viewMenu);
+        menuBar.add(goMenu);
         menuBar.add(helpMenu);
 
         return menuBar;
@@ -361,6 +336,7 @@ public class MainFrame extends JFrame {
 
         Object[][] rows = {
                 {"Open selected item", "Enter"},
+                {"Select all items", "Ctrl + A"},
                 {"Copy", "Ctrl + C"},
                 {"Cut", "Ctrl + X"},
                 {"Paste", "Ctrl + V"},

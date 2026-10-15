@@ -4,6 +4,7 @@ import com.company.s3explorer.transfer.TransferType;
 import com.company.s3explorer.ui.main.MainFrame;
 import com.company.s3explorer.ui.theme.UIThemeManager;
 
+import javax.swing.*;
 import java.awt.*;
 import java.nio.file.Path;
 import java.text.Collator;
@@ -336,5 +337,10 @@ public class S3Util {
         }
 
         return 0;
+    }
+
+    public static void setActionIcon(Action action, Icon icon) {
+        action.putValue(Action.SMALL_ICON, icon);
+        action.putValue(Action.LARGE_ICON_KEY, icon);
     }
 }
