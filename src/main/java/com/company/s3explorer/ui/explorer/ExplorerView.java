@@ -57,6 +57,7 @@ public final class ExplorerView {
     private final Action propertiesAction;
     private final Action backAction;
     private final Action forwardAction;
+    private final Action reloadFolderAction;
     private final Action folderEditAction;
     
     private final Consumer<S3TreeNode> treeExpansionListener;
@@ -117,6 +118,7 @@ public final class ExplorerView {
             Action manageRepositoryAction,
             Action backAction,
             Action forwardAction,
+            Action reloadFolderAction,
             Action folderEditAction,
             Consumer<S3TreeNode> treeExpansionListener,
             Runnable openSelectedFileItem,
@@ -143,6 +145,7 @@ public final class ExplorerView {
         this.manageRepositoryAction = manageRepositoryAction;
         this.backAction = backAction;
         this.forwardAction = forwardAction;
+        this.reloadFolderAction = reloadFolderAction;
         this.folderEditAction = folderEditAction;
         this.treeExpansionListener = treeExpansionListener;
         this.openSelectedFileItem = openSelectedFileItem;
@@ -351,12 +354,15 @@ public final class ExplorerView {
         navigationButtons.add(forwardNavigationButton, navigationConstraints);
 
         navigationConstraints.gridx = 2;
-        navigationButtons.add(createSeparator(), navigationConstraints);
+        navigationButtons.add(createIconButton(reloadFolderAction), navigationConstraints);
 
         navigationConstraints.gridx = 3;
-        navigationButtons.add(editLocationButton, navigationConstraints);
+        navigationButtons.add(createSeparator(), navigationConstraints);
 
         navigationConstraints.gridx = 4;
+        navigationButtons.add(editLocationButton, navigationConstraints);
+
+        navigationConstraints.gridx = 5;
         navigationButtons.add(createSeparator(), navigationConstraints);
 
         // Folder path editor
@@ -733,6 +739,7 @@ public final class ExplorerView {
         setActionIcon(copyTextAction, IconProvider.ICON_COPY_TEXT);
         setActionIcon(backAction, IconProvider.ICON_BACK);
         setActionIcon(forwardAction, IconProvider.ICON_FORWARD);
+        setActionIcon(reloadFolderAction, IconProvider.ICON_FOLDER_REFRESH);
         setActionIcon(folderEditAction, IconProvider.ICON_FOLDER_EDIT);
     }
 

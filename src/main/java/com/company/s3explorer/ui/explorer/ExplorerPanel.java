@@ -148,6 +148,7 @@ public class ExplorerPanel extends JPanel {
     private Action manageRepositoryAction;
     private Action backAction;
     private Action forwardAction;
+    private Action reloadFolderAction;
     private Action folderEditAction;
     private Action goToParentAction;
     private Action renameAction;
@@ -208,6 +209,7 @@ public class ExplorerPanel extends JPanel {
                 manageRepositoryAction,
                 backAction,
                 forwardAction,
+                reloadFolderAction,
                 folderEditAction,
                 node -> treeController.loadChildren(node),
                 this::openSelectedFileItem,
@@ -311,7 +313,7 @@ public class ExplorerPanel extends JPanel {
 
     private void createActions() {
         manageRepositoryAction = new ExplorerAction("Repository Manager", this::showRepositoryManager);
-        refreshAction = new ExplorerAction("Refresh", this::loadBucketsAsync);
+        refreshAction = new ExplorerAction("Reload", this::loadBucketsAsync);
         uploadAction = new ExplorerAction("Upload", this::uploadFile);
         uploadEncryptedAction = new ExplorerAction("Upload Encrypted", this::uploadFileEncrypted);
         newFolderAction = new ExplorerAction("New Folder", this::createFolder);
@@ -329,6 +331,7 @@ public class ExplorerPanel extends JPanel {
         backAction = new ExplorerAction("Back", this::goBack);
         forwardAction = new ExplorerAction("Forward", this::goForward);
         folderEditAction = new ExplorerAction("Folder Edit", this::changeFolderEditStatus);
+        reloadFolderAction = new ExplorerAction("Reload Folder", this::reloadCurrentFolder);
     }
 
     private void defineShortCuts() {
@@ -557,7 +560,10 @@ public class ExplorerPanel extends JPanel {
 
         copyTextAction.setEnabled(
                 hasSelection);
-        
+
+        reloadFolderAction.setEnabled(
+                folderSelected);
+
         log.debug(
                 "[ACTION STATES] folderSelected={} selectedRows={} hasSelection={} hasClipboard={}",
                 folderSelected,
@@ -4894,6 +4900,60 @@ public class ExplorerPanel extends JPanel {
         loadFiles(
                 bucket,
                 prefix);
+    }
+
+    private void reloadCurrentFolder() {
+
+        String bucket =
+                currentFileBucket != null
+                        ? currentFileBucket
+                        : getCurrentBucket();
+
+        String filePrefix =
+                currentFilePrefix != null
+                        ? currentFilePrefix
+                        : getCurrentPrefix();
+
+        String treePrefix =
+                getCurrentPrefix();
+
+        if (bucket == null || bucket.isBlank()) {
+            return;
+        }
+
+        /*
+         * File Table ve Folder Tree önbelleklerini
+         * ayrı ayrı geçersiz kıl.
+         */
+        if (filePrefix != null) {
+            contentLoader.invalidate(
+                    bucket,
+                    filePrefix);
+        }
+
+        if (treePrefix != null
+                && !Objects.equals(treePrefix, filePrefix)) {
+
+            contentLoader.invalidate(
+                    bucket,
+                    treePrefix);
+        }
+
+        /*
+         * Seçili klasörün alt klasörlerini
+         * S3 üzerinden yeniden yükle.
+         */
+        if (treePrefix != null) {
+            treeController.refreshNode(
+                    new RefreshTreeNode(
+                            treePrefix,
+                            RefreshTreeOperation.REFRESH));
+        }
+
+        /*
+         * File Table'ı yeniden yükle.
+         */
+        reloadCurrentFileTable();
     }
 
     private void applyLimitedFolderContent(
