@@ -7416,8 +7416,18 @@ public class ExplorerPanel extends JPanel {
         updateNavigationButtonStates();
     }
 
+    private JMenuItem createMenuItem(Action action, String shortcut) {
+        JMenuItem menuItem = new JMenuItem(action);
+
+        if (shortcut != null) {
+            menuItem.setAccelerator(KeyStroke.getKeyStroke(shortcut));
+        }
+
+        return menuItem;
+    }
+
     public void populateFileMenu(JMenu menu) {
-        menu.add(new JMenuItem(propertiesAction));
+        menu.add(createMenuItem(propertiesAction, "alt ENTER"));
         menu.addSeparator();
 
         menu.add(new JMenuItem(newFolderAction));
@@ -7425,14 +7435,12 @@ public class ExplorerPanel extends JPanel {
 
         menu.add(new JMenuItem(uploadAction));
 
-        uploadEncryptedMenuItem =
-                new JMenuItem(uploadEncryptedAction);
+        uploadEncryptedMenuItem = new JMenuItem(uploadEncryptedAction);
         menu.add(uploadEncryptedMenuItem);
 
         menu.add(new JMenuItem(downloadAction));
 
-        downloadDecryptedMenuItem =
-                new JMenuItem(downloadDecryptedAction);
+        downloadDecryptedMenuItem = new JMenuItem(downloadDecryptedAction);
         menu.add(downloadDecryptedMenuItem);
 
         menu.add(new JMenuItem(bulkDownloadAction));
@@ -7442,25 +7450,25 @@ public class ExplorerPanel extends JPanel {
     }
 
     public void populateEditMenu(JMenu menu) {
-        menu.add(new JMenuItem(cutAction));
-        menu.add(new JMenuItem(copyAction));
-        menu.add(new JMenuItem(pasteAction));
-        menu.add(new JMenuItem(selectAllAction));
+        menu.add(createMenuItem(cutAction, "control X"));
+        menu.add(createMenuItem(copyAction, "control C"));
+        menu.add(createMenuItem(pasteAction, "control V"));
+        menu.add(createMenuItem(selectAllAction, "control A"));
         menu.addSeparator();
 
-        menu.add(new JMenuItem(deleteAction));
-        menu.add(new JMenuItem(renameAction));
+        menu.add(createMenuItem(deleteAction, "DELETE"));
+        menu.add(createMenuItem(renameAction, "F2"));
     }
 
     public void populateViewMenu(JMenu menu) {
         menu.add(new JMenuItem(refreshAction));
-        menu.add(new JMenuItem(reloadFolderAction));
+        menu.add(createMenuItem(reloadFolderAction, "F5"));
     }
 
     public void populateGoMenu(JMenu menu) {
-        menu.add(new JMenuItem(goToParentAction));
-        menu.add(new JMenuItem(backAction));
-        menu.add(new JMenuItem(forwardAction));
+        menu.add(createMenuItem(goToParentAction, "BACK_SPACE"));
+        menu.add(createMenuItem(backAction, "alt LEFT"));
+        menu.add(createMenuItem(forwardAction, "alt RIGHT"));
         menu.add(new JMenuItem(homeAction));
         menu.addSeparator();
 
