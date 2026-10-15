@@ -7135,6 +7135,40 @@ public class ExplorerPanel extends JPanel {
 
                     treeController.selectPrefix(fallbackPrefix);
 
+
+                    String message;
+
+                    if (Objects.equals(
+                            invalidPrefix,
+                            target.prefix())) {
+
+                        message =
+                                "The folder in navigation history no longer exists:\n"
+                                        + target.prefix()
+                                        + "\n\nNavigated to: "
+                                        + (fallbackPrefix.isBlank()
+                                        ? "/"
+                                        : fallbackPrefix);
+
+                    } else {
+
+                        message =
+                                "The folder in navigation history no longer exists:\n"
+                                        + target.prefix()
+                                        + "\n\nIts parent folder also no longer exists:\n"
+                                        + invalidPrefix
+                                        + "\n\nNavigated to: "
+                                        + (fallbackPrefix.isBlank()
+                                        ? "/"
+                                        : fallbackPrefix);
+                    }
+
+                    JOptionPane.showMessageDialog(
+                            this,
+                            message,
+                            "Navigation History",
+                            JOptionPane.WARNING_MESSAGE);
+
                     updateNavigationButtonStates();
                 }));
     }
