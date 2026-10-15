@@ -166,6 +166,7 @@ public class IconProvider {
         ICON_FOLDER_REFRESH = normal ? ICON_FOLDER_REFRESH_NORMAL : ICON_FOLDER_REFRESH_REVERSE;
         ICON_ABOUT = normal ? ICON_ABOUT_NORMAL : ICON_ABOUT_REVERSE;
         ICON_EXIT = normal ? ICON_EXIT_NORMAL : ICON_EXIT_REVERSE;
+        ICON_KEYBOARD = normal ? ICON_KEYBOARD_NORMAL : ICON_KEYBOARD_REVERSE;
     }
 
     public static ImageIcon loadSvgIcon(
