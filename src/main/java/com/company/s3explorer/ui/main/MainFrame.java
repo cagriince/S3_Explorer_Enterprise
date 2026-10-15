@@ -87,6 +87,8 @@ public class MainFrame extends JFrame {
             setExtendedState(JFrame.MAXIMIZED_BOTH);
         }
 
+        explorerPanel.setFolderEditModePreference(settings.isFolderEditMode());
+
         int savedThreadCount = settings.getTransferThreadCount();
         explorerPanel.selectThreadCount( savedThreadCount);
         
@@ -137,6 +139,12 @@ public class MainFrame extends JFrame {
                     settings.setLastSelectedBucket(bucket);
                     settingsStore.save(settings);
                     //explorerPanel.updateActionStates();
+                });
+
+        explorerPanel.setFolderEditModeSelectionListener(
+                enabled -> {
+                    settings.setFolderEditMode(enabled);
+                    settingsStore.save(settings);
                 });
 
         setDefaultCloseOperation(EXIT_ON_CLOSE);

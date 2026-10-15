@@ -4,6 +4,7 @@ public class ApplicationSettings {
     private ProxySettings proxySettings = new ProxySettings();
     private String lastSelectedRepository;
     private String lastSelectedBucket;
+    private boolean folderEditMode = false;
     private String lastSelectedTheme;
 
     private int transferThreadCount = 15;
@@ -39,6 +40,14 @@ public class ApplicationSettings {
 
     public void setLastSelectedBucket(String lastSelectedBucket) {
         this.lastSelectedBucket = lastSelectedBucket;
+    }
+
+    public boolean isFolderEditMode() {
+        return folderEditMode;
+    }
+
+    public void setFolderEditMode(boolean folderEditMode) {
+        this.folderEditMode = folderEditMode;
     }
 
     public String getLastSelectedTheme() {

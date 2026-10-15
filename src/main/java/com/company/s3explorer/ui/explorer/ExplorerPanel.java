@@ -107,6 +107,7 @@ public class ExplorerPanel extends JPanel {
     private Consumer<UITheme> themeSelectionListener;
     private Consumer<RepositoryDefinition> repositorySelectionListener;
     private Consumer<String> bucketSelectionListener;
+    private Consumer<Boolean> folderEditModeSelectionListener;
     private RepositoryDefinition pendingRepositorySelection;
     private String pendingBucketSelection;
     private boolean suppressBucketSelectionEvent;
@@ -1884,7 +1885,6 @@ public class ExplorerPanel extends JPanel {
         view.getBucketCombo().removeAllItems();
 
         // Repository değiştiğinde Folder Edit durumunu sıfırla.
-        view.setLocationEditMode(false);
         view.getLocationField().setText("");
 
         updateBreadcrumb(S3TreeNode.ROOT_PREFIX);
@@ -3833,7 +3833,7 @@ public class ExplorerPanel extends JPanel {
 
             if (targetRepository == null || targetRepository.isEmpty()) {
                 cancelPendingNavigation(
-                        "Geçmişteki repository artık bulunamıyor: "
+                        "Previous repository does not exists anymore: "
                                 + target.repositoryId());
                 return;
             }
@@ -3853,7 +3853,7 @@ public class ExplorerPanel extends JPanel {
 
             if (!foundInCombo) {
                 cancelPendingNavigation(
-                        "Geçmişteki repository seçim listesinde bulunamadı.");
+                        "Previous repository could not be found in the selection liste.");
                 return;
             }
 
@@ -3881,7 +3881,7 @@ public class ExplorerPanel extends JPanel {
         JOptionPane.showMessageDialog(
                 this,
                 message,
-                "Gezinme Geçmişi",
+                "Navigation History",
                 JOptionPane.ERROR_MESSAGE);
     }
 
@@ -3922,26 +3922,31 @@ public class ExplorerPanel extends JPanel {
         }
 
         cancelPendingNavigation(
-                "Geçmişteki bucket artık bulunamıyor: " + target.bucket());
+                "Previous bucket does not exists anymore: " + target.bucket());
     }
 
     private void changeFolderEditStatus() {
-        if (view.isLocationEditMode()) {
-            view.setLocationEditMode(false);
-            updateBreadcrumb(getCurrentPrefix());
-        } else {
+        boolean editMode = !view.isLocationEditMode();
+
+        if (editMode) {
             NavigationEntry current = getCurrentNavigationEntry();
 
-            if (current == null) {
-                return;
-            }
-
-            String prefix = current.prefix() == null
+            String prefix = current == null || current.prefix() == null
                     ? ""
                     : current.prefix();
 
             view.getLocationField().setText(prefix);
-            view.setLocationEditMode(true);
+        }
+
+        view.setLocationEditMode(editMode);
+
+        if (!editMode) {
+            updateBreadcrumb(getCurrentPrefix());
+        }
+
+        // Kullanıcının tercihini kalıcı ayarlara bildir.
+        if (folderEditModeSelectionListener != null) {
+            folderEditModeSelectionListener.accept(editMode);
         }
     }
 
@@ -6534,5 +6539,23 @@ public class ExplorerPanel extends JPanel {
                 // The user can return to breadcrumbs by clicking Folder Edit.
             });
         });
+    }
+
+    public void setFolderEditModeSelectionListener(
+            Consumer<Boolean> listener) {
+        this.folderEditModeSelectionListener = listener;
+    }
+
+    public void setFolderEditModePreference(boolean enabled) {
+        String prefix = getCurrentPrefix();
+
+        view.getLocationField().setText(
+                prefix == null ? "" : prefix);
+
+        view.setLocationEditMode(enabled);
+
+        if (!enabled) {
+            updateBreadcrumb(prefix);
+        }
     }
 }
