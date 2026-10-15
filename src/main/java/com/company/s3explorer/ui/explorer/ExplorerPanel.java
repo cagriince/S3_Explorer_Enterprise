@@ -6849,47 +6849,48 @@ public class ExplorerPanel extends JPanel {
                         return;
                     }
 
+
                     if (!Boolean.TRUE.equals(exists)) {
 
                         log.info(
-                                "[STALE TREE NODE] removing "
-                                        + "bucket={} prefix={}",
+                                "[STALE TREE NODE] removing bucket={} prefix={}",
                                 bucket,
                                 prefix);
 
-                        /*
-                         * Eski Tree kaydını ve alt node cache'lerini
-                         * kaldır.
-                         */
                         treeController.removePrefix(prefix);
 
-                        /*
-                         * Önceki File Table konumunu korumaya çalış.
-                         * O konum geçersizse üst klasöre dön.
-                         */
+                        // Silinen klasör, mevcut File Table'da listeleniyorsa
+                        // tabloyu önbellekten değil S3'ten yeniden yükle.
+                        String tableBucket = currentFileBucket;
+                        String tablePrefix = currentFilePrefix;
+
+                        boolean deletedFolderIsInCurrentTable =
+                                Objects.equals(tableBucket, bucket)
+                                        && Objects.equals(
+                                        tablePrefix,
+                                        getParentPrefix(prefix));
+
+                        if (deletedFolderIsInCurrentTable) {
+                            contentLoader.invalidate(
+                                    tableBucket,
+                                    tablePrefix);
+
+                            reloadCurrentFileTable();
+                        }
+
                         String fallbackPrefix =
-                                Objects.equals(
-                                        currentFileBucket,
-                                        bucket)
+                                Objects.equals(currentFileBucket, bucket)
                                         ? currentFilePrefix
                                         : null;
 
                         if (fallbackPrefix == null
-                                || Objects.equals(
-                                fallbackPrefix,
-                                prefix)) {
-
-                            fallbackPrefix =
-                                    getParentPrefix(prefix);
+                                || Objects.equals(fallbackPrefix, prefix)) {
+                            fallbackPrefix = getParentPrefix(prefix);
                         }
 
                         if (fallbackPrefix != null
-                                && !Objects.equals(
-                                fallbackPrefix,
-                                prefix)) {
-
-                            treeController.selectPrefix(
-                                    fallbackPrefix);
+                                && !Objects.equals(fallbackPrefix, prefix)) {
+                            treeController.selectPrefix(fallbackPrefix);
                         }
 
                         JOptionPane.showMessageDialog(

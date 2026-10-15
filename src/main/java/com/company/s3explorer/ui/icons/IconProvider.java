@@ -86,6 +86,9 @@ public class IconProvider {
     public static ImageIcon ICON_FOLDER_EDIT = null;
     public static ImageIcon ICON_FOLDER_EDIT_NORMAL = loadIcon("folder-edit");
     public static ImageIcon ICON_FOLDER_EDIT_REVERSE = loadIcon("folder-edit-reverse");
+    public static ImageIcon ICON_FOLDER_REFRESH = null;
+    public static ImageIcon ICON_FOLDER_REFRESH_NORMAL = loadIcon("folder-refresh");
+    public static ImageIcon ICON_FOLDER_REFRESH_REVERSE = loadIcon("folder-refresh-reverse");
 
     static {
         reloadSystemIcons(null);
@@ -135,6 +138,7 @@ public class IconProvider {
         ICON_BACK = normal ? ICON_BACK_NORMAL : ICON_BACK_REVERSE;
         ICON_FORWARD= normal ? ICON_FORWARD_NORMAL : ICON_FORWARD_REVERSE;
         ICON_FOLDER_EDIT = normal ? ICON_FOLDER_EDIT_NORMAL : ICON_FOLDER_EDIT_REVERSE;
+        ICON_FOLDER_REFRESH = normal ? ICON_FOLDER_REFRESH_NORMAL : ICON_FOLDER_REFRESH_REVERSE;
     }
 
     public static ImageIcon loadSvgIcon(
