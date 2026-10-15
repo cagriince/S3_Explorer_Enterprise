@@ -354,7 +354,8 @@ public class MainFrame extends JFrame {
                 {"Show properties", "Alt + Enter"},
                 {"Navigate back", "Alt + Left"},
                 {"Navigate forward", "Alt + Right"},
-                {"Reload folder", "F5"}
+                {"Reload folder", "F5"},
+                {"Exit", "Ctrl + Q"},
         };
 
         JTable table = new JTable(
