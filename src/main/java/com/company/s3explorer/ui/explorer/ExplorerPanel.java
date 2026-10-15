@@ -42,10 +42,7 @@ import java.text.Collator;
 import java.time.Instant;
 import java.util.*;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
@@ -3962,6 +3959,7 @@ public class ExplorerPanel extends JPanel {
     }
 
 
+
     private void restorePendingNavigationPrefix(
             NavigationEntry target) {
 
@@ -3984,17 +3982,66 @@ public class ExplorerPanel extends JPanel {
             return;
         }
 
-        treeController.selectPrefix(
-                target.prefix(),
-                success -> {
+        /*
+         * Önce S3 üzerinde klasörün gerçekten var olduğunu doğrula.
+         * Bu kontrol, ağaç önbelleğindeki eski kayıtlara güvenmez.
+         */
+        CompletableFuture.supplyAsync(
+                () -> getService().folderExists(
+                        target.bucket(),
+                        target.prefix()),
+                explorerPool
+        ).whenComplete((exists, exception) ->
+                SwingUtilities.invokeLater(() -> {
 
+                    /*
+                     * Kontrol sürerken başka bir navigasyon
+                     * başlatılmışsa eski sonucu uygulama.
+                     */
                     if (!Objects.equals(
                             pendingNavigationTarget,
                             target)) {
                         return;
                     }
 
-                    if (!success) {
+                    /*
+                     * S3 bağlantı/yetki hatasını klasör silinmiş
+                     * gibi değerlendirme. Geçmiş kaydı korunur.
+                     */
+                    if (exception != null) {
+                        navigationHistoryIndex =
+                                pendingNavigationPreviousIndex;
+
+                        pendingNavigationTarget = null;
+                        pendingNavigationPreviousIndex = -1;
+                        navigationPlayback = false;
+
+                        updateNavigationButtonStates();
+
+                        log.error(
+                                "[HISTORY VALIDATION] failed bucket={} prefix={}",
+                                target.bucket(),
+                                target.prefix(),
+                                exception);
+
+                        JOptionPane.showMessageDialog(
+                                this,
+                                "The folder could not be verified because "
+                                        + "an S3 operation failed.\n"
+                                        + "Please check the connection and permissions.",
+                                "Navigation History",
+                                JOptionPane.ERROR_MESSAGE);
+
+                        return;
+                    }
+
+                    /*
+                     * Klasör başka bir uygulama tarafından silinmiş.
+                     */
+                    if (!Boolean.TRUE.equals(exists)) {
+                        treeController.removePrefix(
+                                target.prefix());
+
                         cancelPendingNavigation(
                                 "The folder in navigation history no longer exists: "
                                         + target.prefix());
@@ -4002,30 +4049,49 @@ public class ExplorerPanel extends JPanel {
                     }
 
                     /*
-                     * Ağaç seçiminin UI olaylarının tamamlanmasına
-                     * fırsat ver. Seçim dinleyicisi normalde
-                     * pendingNavigationTarget alanını temizler.
+                     * S3 üzerinde mevcut. Şimdi ağaçta seç.
                      */
-                    SwingUtilities.invokeLater(() -> {
+                    treeController.selectPrefix(
+                            target.prefix(),
+                            success -> {
 
-                        if (Objects.equals(
-                                pendingNavigationTarget,
-                                target)
-                                && Objects.equals(
-                                getCurrentPrefix(),
-                                target.prefix())
-                                && Objects.equals(
-                                getCurrentBucket(),
-                                target.bucket())) {
+                                if (!Objects.equals(
+                                        pendingNavigationTarget,
+                                        target)) {
+                                    return;
+                                }
 
-                            pendingNavigationTarget = null;
-                            pendingNavigationPreviousIndex = -1;
-                            navigationPlayback = false;
-                        }
+                                if (!success) {
+                                    treeController.removePrefix(
+                                            target.prefix());
 
-                        updateNavigationButtonStates();
-                    });
-                });
+                                    cancelPendingNavigation(
+                                            "The folder could not be selected: "
+                                                    + target.prefix());
+                                    return;
+                                }
+
+                                SwingUtilities.invokeLater(() -> {
+
+                                    if (Objects.equals(
+                                            pendingNavigationTarget,
+                                            target)
+                                            && Objects.equals(
+                                            getCurrentPrefix(),
+                                            target.prefix())
+                                            && Objects.equals(
+                                            getCurrentBucket(),
+                                            target.bucket())) {
+
+                                        pendingNavigationTarget = null;
+                                        pendingNavigationPreviousIndex = -1;
+                                        navigationPlayback = false;
+                                    }
+
+                                    updateNavigationButtonStates();
+                                });
+                            });
+                }));
     }
 
     private void selectBucketForPendingNavigation(

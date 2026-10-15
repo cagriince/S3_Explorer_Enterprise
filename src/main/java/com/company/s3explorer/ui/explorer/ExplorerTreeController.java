@@ -904,7 +904,56 @@ public final class ExplorerTreeController {
                     result);
         }
     }
-    
+
+
+    public void removePrefix(String prefix) {
+        if (prefix == null
+                || prefix.isBlank()
+                || Objects.equals(
+                prefix,
+                S3TreeNode.ROOT_PREFIX)) {
+            return;
+        }
+
+        S3TreeNode node = findNodeByPrefix(prefix);
+
+        if (node == null) {
+            return;
+        }
+
+        if (!(node.getParent() instanceof S3TreeNode parent)) {
+            return;
+        }
+
+        int index = parent.getIndex(node);
+
+        if (index < 0) {
+            return;
+        }
+
+        /*
+         * Alt klasörlerin cache kayıtlarını da temizle.
+         */
+        List<S3TreeNode> subtree = new ArrayList<>();
+
+        collectSubtreeNodes(node, subtree);
+
+        for (S3TreeNode child : subtree) {
+            nodeCache.remove(child.getFullPrefix());
+        }
+
+        parent.remove(index);
+
+        treeModel.nodesWereRemoved(
+                parent,
+                new int[]{index},
+                new Object[]{node});
+
+        log.info(
+                "[TREE NODE REMOVED] prefix={}",
+                prefix);
+    }
+
     public S3TreeNode findNodeByPrefix(
             String prefix) {
 
