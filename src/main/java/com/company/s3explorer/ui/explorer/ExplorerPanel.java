@@ -4098,80 +4098,8 @@ public class ExplorerPanel extends JPanel {
                      * Klasör başka bir uygulama tarafından silinmiş.
                      */
 
-
                     if (!Boolean.TRUE.equals(exists)) {
-
-                        // Önce mevcut konumu kaydet; ağaç düğümünü kaldırmak
-                        // Tree Selection bilgisini değiştirebilir.
-                        String currentBucket = currentFileBucket;
-                        String currentPrefix = currentFilePrefix;
-
-                        String normalizedDeletedPrefix =
-                                target.prefix().endsWith("/")
-                                        ? target.prefix()
-                                        : target.prefix() + "/";
-
-                        boolean currentIsInsideDeletedSubtree =
-                                Objects.equals(
-                                        currentBucket,
-                                        target.bucket())
-                                        && currentPrefix != null
-                                        && (Objects.equals(
-                                        currentPrefix,
-                                        normalizedDeletedPrefix)
-                                        || currentPrefix.startsWith(
-                                        normalizedDeletedPrefix));
-
-                        String fallbackPrefix =
-                                getParentPrefix(target.prefix());
-
-                        log.info(
-                                "[HISTORY FALLBACK] bucket={} currentPrefix={} "
-                                        + "deletedPrefix={} insideDeletedSubtree={} "
-                                        + "fallbackPrefix={}",
-                                currentBucket,
-                                currentPrefix,
-                                normalizedDeletedPrefix,
-                                currentIsInsideDeletedSubtree,
-                                fallbackPrefix);
-
-                        // Silinen klasörü ve alt düğümlerini ağaçtan kaldır.
-                        treeController.removePrefix(target.prefix());
-
-                        // Geçmişte silinen klasörün altındaki kayıtları temizle.
-                        removeInvalidPendingNavigation(target);
-
-                        if (currentIsInsideDeletedSubtree) {
-                            // Üst klasörün içeriğini önbellekten kullanma.
-                            contentLoader.invalidate(
-                                    target.bucket(),
-                                    fallbackPrefix);
-
-                            // Geçerli üst klasöre geç; Tree, File Table ve
-                            // Folder Edit alanı aynı konuma gelsin.
-                            treeController.selectPrefix(fallbackPrefix);
-                        } else if (Objects.equals(
-                                currentBucket,
-                                target.bucket())
-                                && Objects.equals(
-                                currentPrefix,
-                                fallbackPrefix)) {
-
-                            // Silinen klasör doğrudan mevcut tabloda listeleniyorsa yenile.
-                            contentLoader.invalidate(
-                                    currentBucket,
-                                    currentPrefix);
-
-                            reloadCurrentFileTable();
-                        }
-
-                        JOptionPane.showMessageDialog(
-                                this,
-                                "The folder in navigation history no longer exists:\n"
-                                        + target.prefix(),
-                                "Navigation History",
-                                JOptionPane.ERROR_MESSAGE);
-
+                        recoverMissingHistoryTarget(target);
                         return;
                     }
 
@@ -7060,5 +6988,154 @@ public class ExplorerPanel extends JPanel {
 
         updateNavigationButtonStates();
         updateActionStates();
+    }
+
+
+    private void recoverMissingHistoryTarget(
+            NavigationEntry target) {
+
+        // Bu servis, hedef repository'nin S3 bağlantısını kullanmalı.
+        S3ExplorerService service = getService();
+
+        CompletableFuture.supplyAsync(() -> {
+
+            /*
+             * Başlangıçta doğrulanamayan hedef klasör silinmiş
+             * kabul edilir. Üst klasörleri kontrol ederek silinen
+             * en üst seviyeyi ve mevcut en yakın üst klasörü bul.
+             */
+            String invalidPrefix = target.prefix();
+            String candidate = getParentPrefix(target.prefix());
+
+            while (candidate != null && !candidate.isBlank()) {
+
+                boolean parentExists = Boolean.TRUE.equals(
+                        service.folderExists(
+                                target.bucket(),
+                                candidate));
+
+                if (parentExists) {
+                    break;
+                }
+
+                invalidPrefix = candidate;
+                candidate = getParentPrefix(candidate);
+            }
+
+            String fallbackPrefix =
+                    candidate == null
+                            ? S3TreeNode.ROOT_PREFIX
+                            : candidate;
+
+            return new String[]{
+                    invalidPrefix,
+                    fallbackPrefix
+            };
+
+        }, explorerPool).whenComplete((recovery, exception) ->
+                SwingUtilities.invokeLater(() -> {
+
+                    // Bu sırada kullanıcı başka bir konuma geçtiyse
+                    // eski doğrulamanın sonucunu uygulama.
+                    if (!Objects.equals(
+                            pendingNavigationTarget,
+                            target)) {
+                        return;
+                    }
+
+                    if (exception != null) {
+
+                        navigationHistoryIndex =
+                                pendingNavigationPreviousIndex;
+
+                        pendingNavigationTarget = null;
+                        pendingNavigationPreviousIndex = -1;
+                        navigationPlayback = false;
+
+                        updateNavigationButtonStates();
+
+                        log.error(
+                                "[HISTORY RECOVERY] failed bucket={} prefix={}",
+                                target.bucket(),
+                                target.prefix(),
+                                exception);
+
+                        JOptionPane.showMessageDialog(
+                                this,
+                                "The folder hierarchy could not be verified.",
+                                "Navigation History",
+                                JOptionPane.ERROR_MESSAGE);
+
+                        return;
+                    }
+
+                    String invalidPrefix = recovery[0];
+                    String fallbackPrefix = recovery[1];
+
+                    log.info(
+                            "[HISTORY RECOVERY] target={} invalidPrefix={} "
+                                    + "fallbackPrefix={}",
+                            target.prefix(),
+                            invalidPrefix,
+                            fallbackPrefix);
+
+                    // Eksik klasörün tamamını ağaçtan kaldır.
+                    treeController.removePrefix(invalidPrefix);
+
+                    // Aynı klasör ve altındaki geçmiş kayıtlarını kaldır.
+                    removeHistoryEntriesForPrefix(
+                            target.repositoryId(),
+                            target.bucket(),
+                            invalidPrefix);
+
+                    NavigationEntry fallbackEntry =
+                            new NavigationEntry(
+                                    target.repositoryId(),
+                                    target.bucket(),
+                                    fallbackPrefix);
+
+                    int fallbackIndex =
+                            navigationHistory.indexOf(fallbackEntry);
+
+                    if (fallbackIndex < 0) {
+
+                        /*
+                         * Normal akışta fallback kaydı geçmişte bulunur.
+                         * Bulunamazsa mevcut konumu zorla değiştirmeden
+                         * bekleyen navigasyonu sonlandır.
+                         */
+                        pendingNavigationTarget = null;
+                        pendingNavigationPreviousIndex = -1;
+                        navigationPlayback = false;
+
+                        updateNavigationButtonStates();
+
+                        JOptionPane.showMessageDialog(
+                                this,
+                                "The nearest existing folder was not found "
+                                        + "in navigation history.",
+                                "Navigation History",
+                                JOptionPane.ERROR_MESSAGE);
+
+                        return;
+                    }
+
+                    /*
+                     * İleri geçmişini silmeden indeksi mevcut üst klasöre
+                     * taşı. Repository 2 kaydı geçmişte korunur.
+                     */
+                    navigationHistoryIndex = fallbackIndex;
+                    pendingNavigationPreviousIndex = -1;
+                    pendingNavigationTarget = fallbackEntry;
+                    navigationPlayback = true;
+
+                    contentLoader.invalidate(
+                            target.bucket(),
+                            fallbackPrefix);
+
+                    treeController.selectPrefix(fallbackPrefix);
+
+                    updateNavigationButtonStates();
+                }));
     }
 }
