@@ -4038,13 +4038,59 @@ public class ExplorerPanel extends JPanel {
                     /*
                      * Klasör başka bir uygulama tarafından silinmiş.
                      */
+
                     if (!Boolean.TRUE.equals(exists)) {
+
+                        /*
+                         * 1. Folder Tree'deki eski klasör kaydını kaldır.
+                         * Alt klasörlerin cache kayıtları da temizlenir.
+                         */
                         treeController.removePrefix(
                                 target.prefix());
 
+                        /*
+                         * 2. Silinen klasör şu anda görüntülenen klasörün
+                         * doğrudan altındaysa File Table'ı yenile.
+                         */
+                        String currentBucket = getCurrentBucket();
+                        String currentPrefix = getCurrentPrefix();
+
+                        boolean isDirectChildOfCurrentFolder =
+                                Objects.equals(
+                                        currentBucket,
+                                        target.bucket())
+                                        && Objects.equals(
+                                        currentPrefix,
+                                        getParentPrefix(target.prefix()));
+
+                        if (isDirectChildOfCurrentFolder) {
+
+                            log.info(
+                                    "[STALE FOLDER] refreshing current File Table "
+                                            + "bucket={} prefix={} deletedPrefix={}",
+                                    currentBucket,
+                                    currentPrefix,
+                                    target.prefix());
+
+                            /*
+                             * Eski listeyi cache'den kullanma.
+                             * File Table'ı S3'ten yeniden yükle.
+                             */
+                            contentLoader.invalidate(
+                                    currentBucket,
+                                    currentPrefix);
+
+                            reloadCurrentFileTable();
+                        }
+
+                        /*
+                         * 3. Navigation History'den kaydı kaldır,
+                         * mevcut konumu koru ve hata mesajını göster.
+                         */
                         cancelPendingNavigation(
                                 "The folder in navigation history no longer exists: "
                                         + target.prefix());
+
                         return;
                     }
 
