@@ -4908,56 +4908,73 @@ public class ExplorerPanel extends JPanel {
 
     private void reloadCurrentFolder() {
 
-        String bucket =
-                currentFileBucket != null
-                        ? currentFileBucket
-                        : getCurrentBucket();
+        String bucket = currentFileBucket != null
+                ? currentFileBucket
+                : getCurrentBucket();
 
-        String filePrefix =
-                currentFilePrefix != null
-                        ? currentFilePrefix
-                        : getCurrentPrefix();
+        String prefix = getCurrentPrefix();
 
-        String treePrefix =
-                getCurrentPrefix();
+        RepositoryDefinition repository = getCurrentRepository();
 
-        if (bucket == null || bucket.isBlank()) {
+        if (bucket == null || bucket.isBlank()
+                || repository == null
+                || repository.isEmpty()
+                || prefix == null) {
             return;
         }
 
-        /*
-         * File Table ve Folder Tree önbelleklerini
-         * ayrı ayrı geçersiz kıl.
-         */
-        if (filePrefix != null) {
-            contentLoader.invalidate(
-                    bucket,
-                    filePrefix);
-        }
+        String repositoryId = repository.getId();
+        S3ExplorerService service = getService();
 
-        if (treePrefix != null
-                && !Objects.equals(treePrefix, filePrefix)) {
+        CompletableFuture.supplyAsync(
+                () -> prefix.isBlank()
+                        || Boolean.TRUE.equals(
+                        service.folderExists(bucket, prefix)),
+                explorerPool
+        ).whenComplete((exists, exception) ->
+                SwingUtilities.invokeLater(() -> {
 
-            contentLoader.invalidate(
-                    bucket,
-                    treePrefix);
-        }
+                    // Kontrol sürerken konum değiştiyse eski sonucu uygulama.
+                    RepositoryDefinition active = getCurrentRepository();
 
-        /*
-         * Seçili klasörün alt klasörlerini
-         * S3 üzerinden yeniden yükle.
-         */
-        if (treePrefix != null) {
-            treeController.refreshNode(
-                    new RefreshTreeNode(
-                            treePrefix,
-                            RefreshTreeOperation.REFRESH));
-        }
+                    if (active == null
+                            || !Objects.equals(active.getId(), repositoryId)
+                            || !Objects.equals(getCurrentBucket(), bucket)
+                            || !Objects.equals(getCurrentPrefix(), prefix)) {
+                        return;
+                    }
 
-        /*
-         * File Table'ı yeniden yükle.
-         */
-        reloadCurrentFileTable();
+                    if (exception != null) {
+                        log.error(
+                                "[RELOAD FOLDER] validation failed bucket={} prefix={}",
+                                bucket, prefix, exception);
+
+                        JOptionPane.showMessageDialog(
+                                this,
+                                S3ErrorResolver.getUserMessage(exception),
+                                "Folder Reload Failed",
+                                JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+
+                    if (!Boolean.TRUE.equals(exists)) {
+                        recoverMissingReloadFolder(
+                                service,
+                                repositoryId,
+                                bucket,
+                                prefix);
+                        return;
+                    }
+
+                    contentLoader.invalidate(bucket, prefix);
+
+                    treeController.refreshNode(
+                            new RefreshTreeNode(
+                                    prefix,
+                                    RefreshTreeOperation.REFRESH));
+
+                    reloadCurrentFileTable();
+                }));
     }
 
     private void applyLimitedFolderContent(
@@ -7215,6 +7232,94 @@ public class ExplorerPanel extends JPanel {
                             JOptionPane.WARNING_MESSAGE);
 
                     updateNavigationButtonStates();
+                }));
+    }
+
+    private void recoverMissingReloadFolder(
+            S3ExplorerService service,
+            String repositoryId,
+            String bucket,
+            String missingPrefix) {
+
+        CompletableFuture.supplyAsync(() -> {
+
+            String invalidPrefix = missingPrefix;
+            String candidate = getParentPrefix(missingPrefix);
+
+            while (candidate != null && !candidate.isBlank()) {
+
+                if (service.folderExists(bucket, candidate)) {
+                    break;
+                }
+
+                invalidPrefix = candidate;
+                candidate = getParentPrefix(candidate);
+            }
+
+            String fallbackPrefix = candidate == null
+                    ? S3TreeNode.ROOT_PREFIX
+                    : candidate;
+
+            return new String[]{invalidPrefix, fallbackPrefix};
+
+        }, explorerPool).whenComplete((result, exception) ->
+                SwingUtilities.invokeLater(() -> {
+
+                    RepositoryDefinition active = getCurrentRepository();
+
+                    if (active == null
+                            || !Objects.equals(active.getId(), repositoryId)
+                            || !Objects.equals(getCurrentBucket(), bucket)
+                            || !Objects.equals(getCurrentPrefix(), missingPrefix)) {
+                        return;
+                    }
+
+                    if (exception != null) {
+                        log.error(
+                                "[RELOAD FOLDER] recovery failed bucket={} prefix={}",
+                                bucket, missingPrefix, exception);
+
+                        JOptionPane.showMessageDialog(
+                                this,
+                                S3ErrorResolver.getUserMessage(exception),
+                                "Folder Reload Failed",
+                                JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+
+                    String invalidPrefix = result[0];
+                    String fallbackPrefix = result[1];
+
+                    log.info(
+                            "[RELOAD FOLDER] missingPrefix={} invalidPrefix={} fallbackPrefix={}",
+                            missingPrefix, invalidPrefix, fallbackPrefix);
+
+                    treeController.removePrefix(invalidPrefix);
+
+                    removeHistoryEntriesForPrefix(
+                            repositoryId,
+                            bucket,
+                            invalidPrefix);
+
+                    contentLoader.invalidate(bucket, fallbackPrefix);
+
+                    treeController.refreshNode(
+                            new RefreshTreeNode(
+                                    fallbackPrefix,
+                                    RefreshTreeOperation.REFRESH));
+
+                    treeController.selectPrefix(fallbackPrefix);
+
+                    JOptionPane.showMessageDialog(
+                            this,
+                            "The current folder no longer exists:\n"
+                                    + missingPrefix
+                                    + "\n\nNavigated to the nearest existing folder:\n"
+                                    + (fallbackPrefix.isBlank()
+                                    ? "/"
+                                    : fallbackPrefix),
+                            "Folder Reload",
+                            JOptionPane.WARNING_MESSAGE);
                 }));
     }
 }
