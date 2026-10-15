@@ -16,6 +16,8 @@ import com.company.s3explorer.util.ProxyConfigurer;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 
@@ -34,6 +36,7 @@ public class MainFrame extends JFrame {
     private JMenuItem exitMenuItem;
     private JMenuItem preferencesMenuItem;
     private JMenuItem aboutMenuItem;
+    private JMenuItem shortcutsMenuItem;
 
     public MainFrame() {
         initialize();
@@ -218,24 +221,43 @@ public class MainFrame extends JFrame {
     }
 
 
+
     private JMenuBar createMenuBar() {
         JMenuBar menuBar = new JMenuBar();
 
         JMenu fileMenu = new JMenu("File");
+        fileMenu.setMnemonic(KeyEvent.VK_F);
         explorerPanel.populateFileMenu(fileMenu);
 
-        // Exit, File menüsünün en altında.
+        // Exit
         exitMenuItem = new JMenuItem("Exit");
         exitMenuItem.setIcon(IconProvider.ICON_EXIT);
-        exitMenuItem.addActionListener(
-                e -> dispatchEvent(
+        exitMenuItem.setAccelerator(
+                KeyStroke.getKeyStroke(
+                        KeyEvent.VK_Q,
+                        InputEvent.CTRL_DOWN_MASK));
+
+        exitMenuItem.addActionListener(e -> {
+            int result = JOptionPane.showConfirmDialog(
+                    this,
+                    "Do you really want to exit the application?",
+                    "Confirm Exit",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.QUESTION_MESSAGE);
+
+            if (result == JOptionPane.YES_OPTION) {
+                dispatchEvent(
                         new WindowEvent(
                                 this,
-                                WindowEvent.WINDOW_CLOSING)));
+                                WindowEvent.WINDOW_CLOSING));
+            }
+        });
 
         fileMenu.add(exitMenuItem);
 
+        // Edit
         JMenu editMenu = new JMenu("Edit");
+        editMenu.setMnemonic(KeyEvent.VK_E);
         explorerPanel.populateEditMenu(editMenu);
         editMenu.addSeparator();
 
@@ -248,16 +270,33 @@ public class MainFrame extends JFrame {
             dialog.setVisible(true);
             settingsStore.save(settings);
         });
+
         editMenu.add(preferencesMenuItem);
 
+        // View
         JMenu viewMenu = new JMenu("View");
+        viewMenu.setMnemonic(KeyEvent.VK_V);
         explorerPanel.populateViewMenu(viewMenu);
 
+        // Go
         JMenu goMenu = new JMenu("Go");
+        goMenu.setMnemonic(KeyEvent.VK_G);
         explorerPanel.populateGoMenu(goMenu);
 
+        // Help
         JMenu helpMenu = new JMenu("Help");
+        helpMenu.setMnemonic(KeyEvent.VK_H);
 
+        // Shortcuts: Help menüsündeki ilk öğe
+        shortcutsMenuItem = new JMenuItem("Shortcuts");
+        shortcutsMenuItem.setIcon(IconProvider.ICON_KEYBOARD);
+        shortcutsMenuItem.addActionListener(
+                e -> showKeyboardShortcutsDialog());
+
+        helpMenu.add(shortcutsMenuItem);
+        helpMenu.addSeparator();
+
+        // About
         aboutMenuItem = new JMenuItem("About");
         aboutMenuItem.setIcon(IconProvider.ICON_ABOUT);
         aboutMenuItem.addActionListener(
@@ -390,6 +429,7 @@ public class MainFrame extends JFrame {
                 JOptionPane.PLAIN_MESSAGE);
     }
 
+
     private void updateMenuIcons() {
         if (exitMenuItem != null) {
             exitMenuItem.setIcon(IconProvider.ICON_EXIT);
@@ -397,6 +437,10 @@ public class MainFrame extends JFrame {
 
         if (preferencesMenuItem != null) {
             preferencesMenuItem.setIcon(IconProvider.ICON_SETTINGS);
+        }
+
+        if (shortcutsMenuItem != null) {
+            shortcutsMenuItem.setIcon(IconProvider.ICON_KEYBOARD);
         }
 
         if (aboutMenuItem != null) {
