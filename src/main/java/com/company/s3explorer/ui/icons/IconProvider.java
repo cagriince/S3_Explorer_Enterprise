@@ -107,6 +107,9 @@ public class IconProvider {
     public static ImageIcon ICON_EXIT = null;
     public static ImageIcon ICON_EXIT_NORMAL = loadIcon("exit");
     public static ImageIcon ICON_EXIT_REVERSE = loadIcon("exit-reverse");
+    public static ImageIcon ICON_KEYBOARD = null;
+    public static ImageIcon ICON_KEYBOARD_NORMAL = loadIcon("keyboard");
+    public static ImageIcon ICON_KEYBOARD_REVERSE = loadIcon("keyboard-reverse");
 
     static {
         reloadSystemIcons(null);

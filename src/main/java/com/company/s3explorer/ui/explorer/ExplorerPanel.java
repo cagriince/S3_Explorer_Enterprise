@@ -7478,4 +7478,8 @@ public class ExplorerPanel extends JPanel {
             downloadDecryptedMenuItem.setVisible(configured);
         }
     }
+
+    public void setMenuIconUpdater(Runnable updater) {
+        themeManager.setMenuIconUpdater(updater);
+    }
 }

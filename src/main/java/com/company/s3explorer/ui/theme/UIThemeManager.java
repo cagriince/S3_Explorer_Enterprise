@@ -49,6 +49,8 @@ public class UIThemeManager {
 
     public static UITheme DEFAULT_THEME = UIThemeManager.getThemeFromClassName(UIManager.getSystemLookAndFeelClassName());
 
+    private Runnable menuIconUpdater = () -> {};
+
     public UIThemeManager(ExplorerPanel explorerPanel, TransferPanel transferPanel) {
         this.explorerPanel = explorerPanel;
         this.transferPanel = transferPanel;
@@ -72,15 +74,22 @@ public class UIThemeManager {
     public void changeTheme(UITheme theme) {
         try {
             UIManager.setLookAndFeel(theme.className());
+
             IconProvider.reloadSystemIcons(theme);
+
+            // Menü ikonlarını da yeni temaya göre yenile.
+            menuIconUpdater.run();
+
             setTransferPanelColors(theme);
             com.formdev.flatlaf.FlatLaf.updateUI();
+
             explorerPanel.updateFolderTreeRowHeight();
             explorerPanel.updateFileTableRowHeight();
             explorerPanel.updateBreadcrumb(null);
             explorerPanel.setFolderTreeLeafIcon();
             explorerPanel.setButtonIcons();
             explorerPanel.updatePopupUI();
+
             transferPanel.setButtonIcons();
             transferPanel.setTableSelectionColors(theme.dark());
         } catch (Exception e) {
@@ -112,5 +121,10 @@ public class UIThemeManager {
             TRANSFER_PANEL_COLOR_FILEFOLDER = "yellow";
             TRANSFER_PANEL_COLOR_GROUP = "orange";
         }
+    }
+
+    public void setMenuIconUpdater(Runnable menuIconUpdater) {
+        this.menuIconUpdater =
+                menuIconUpdater != null ? menuIconUpdater : () -> {};
     }
 }

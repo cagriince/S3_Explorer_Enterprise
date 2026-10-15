@@ -39,11 +39,15 @@ public class MainFrame extends JFrame {
         initialize();
     }
 
+
     private void initialize() {
         loadSettings();
         ProxyConfigurer.configureSystemProxies(settings.getProxySettings());
         buildDependencies();
         buildUI();
+
+        // Tema değiştiğinde MainFrame menü ikonlarını yenile.
+        explorerPanel.setMenuIconUpdater(this::updateMenuIcons);
 
         setTitle("GİB S3 Explorer");
 
@@ -94,41 +98,36 @@ public class MainFrame extends JFrame {
         explorerPanel.setFolderEditModePreference(settings.isFolderEditMode());
 
         int savedThreadCount = settings.getTransferThreadCount();
-        explorerPanel.selectThreadCount( savedThreadCount);
-        
+        explorerPanel.selectThreadCount(savedThreadCount);
+
         String lastSelectedTheme = settings.getLastSelectedTheme();
+
         if (lastSelectedTheme != null) {
             explorerPanel.selectTheme(lastSelectedTheme);
-        }
-        else {
+        } else {
             explorerPanel.selectTheme(UIThemeManager.DEFAULT_THEME.name());
         }
+
         String lastSelectedRepository = settings.getLastSelectedRepository();
         String lastSelectedBucket = settings.getLastSelectedBucket();
+
         SwingUtilities.invokeLater(() -> {
-                explorerPanel.selectRepository(repositoryManager.findById(lastSelectedRepository));
-                explorerPanel.selectBucket(lastSelectedBucket);
-            }
-        );
+            explorerPanel.selectRepository(
+                    repositoryManager.findById(lastSelectedRepository));
+            explorerPanel.selectBucket(lastSelectedBucket);
+        });
 
         explorerPanel.setThreadCountSelectionListener(
                 threadCount -> {
-
-                    settings.setTransferThreadCount(
-                            threadCount);
-
-                    settingsStore.save(
-                            settings);
-
-                    transferEngine.setThreadCount(
-                            threadCount);
+                    settings.setTransferThreadCount(threadCount);
+                    settingsStore.save(settings);
+                    transferEngine.setThreadCount(threadCount);
                 });
 
         explorerPanel.setThemeSelectionListener(
                 theme -> {
                     settings.setLastSelectedTheme(theme.name());
                     settingsStore.save(settings);
-
                     updateMenuIcons();
                 });
 
