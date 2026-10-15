@@ -127,6 +127,11 @@ public class ExplorerPanel extends JPanel {
      */
     private NavigationEntry pendingNavigationTarget;
     private boolean navigationPlayback;
+    /*
+     * Geçmiş navigasyonu başarısız olursa
+     * kullanıcının bulunduğu eski konumu geri yüklemek için.
+     */
+    private int pendingNavigationPreviousIndex = -1;
 
     private final Map<UUID, List<TransferTask>> completedGroupTasks = new ConcurrentHashMap<>();
     
@@ -3804,13 +3809,18 @@ public class ExplorerPanel extends JPanel {
         navigateHistoryTo(navigationHistoryIndex + 1);
     }
 
+
     private void navigateHistoryTo(int targetIndex) {
-        if (targetIndex < 0 || targetIndex >= navigationHistory.size()) {
+        if (targetIndex < 0
+                || targetIndex >= navigationHistory.size()) {
             return;
         }
 
-        NavigationEntry target = navigationHistory.get(targetIndex);
-        NavigationEntry current = getCurrentNavigationEntry();
+        NavigationEntry target =
+                navigationHistory.get(targetIndex);
+
+        NavigationEntry current =
+                getCurrentNavigationEntry();
 
         if (target.equals(current)) {
             navigationHistoryIndex = targetIndex;
@@ -3818,34 +3828,50 @@ public class ExplorerPanel extends JPanel {
             return;
         }
 
+        pendingNavigationPreviousIndex = navigationHistoryIndex;
         navigationHistoryIndex = targetIndex;
         pendingNavigationTarget = target;
         navigationPlayback = true;
 
-        RepositoryDefinition currentRepository = getCurrentRepository();
+        RepositoryDefinition currentRepository =
+                getCurrentRepository();
 
         if (currentRepository == null
                 || currentRepository.isEmpty()
-                || !Objects.equals(currentRepository.getId(), target.repositoryId())) {
+                || !Objects.equals(
+                currentRepository.getId(),
+                target.repositoryId())) {
 
             RepositoryDefinition targetRepository =
-                    repositoryManager.findById(target.repositoryId());
+                    repositoryManager.findById(
+                            target.repositoryId());
 
-            if (targetRepository == null || targetRepository.isEmpty()) {
+            if (targetRepository == null
+                    || targetRepository.isEmpty()) {
+
                 cancelPendingNavigation(
-                        "Previous repository does not exists anymore: "
+                        "The repository in navigation history no longer exists: "
                                 + target.repositoryId());
                 return;
             }
 
             boolean foundInCombo = false;
 
-            for (int i = 0; i < view.getRepositoryCombo().getItemCount(); i++) {
-                RepositoryDefinition item = view.getRepositoryCombo().getItemAt(i);
+            for (int i = 0;
+                 i < view.getRepositoryCombo().getItemCount();
+                 i++) {
+
+                RepositoryDefinition item =
+                        view.getRepositoryCombo().getItemAt(i);
 
                 if (item != null
-                        && Objects.equals(item.getId(), target.repositoryId())) {
-                    view.getRepositoryCombo().setSelectedItem(item);
+                        && Objects.equals(
+                        item.getId(),
+                        target.repositoryId())) {
+
+                    view.getRepositoryCombo()
+                            .setSelectedItem(item);
+
                     foundInCombo = true;
                     break;
                 }
@@ -3853,19 +3879,22 @@ public class ExplorerPanel extends JPanel {
 
             if (!foundInCombo) {
                 cancelPendingNavigation(
-                        "Previous repository could not be found in the selection liste.");
+                        "The repository in navigation history could not be found: "
+                                + target.repositoryId());
                 return;
             }
 
             /*
-             * Repository seçim olayı setSelectedRepository() ve
-             * loadBucketsAsync() akışını başlatır.
+             * Repository seçimi bucket yükleme akışını başlatır.
              */
             setSelectedRepository(targetRepository);
             return;
         }
 
-        if (!Objects.equals(getCurrentBucket(), target.bucket())) {
+        if (!Objects.equals(
+                getCurrentBucket(),
+                target.bucket())) {
+
             selectBucketForPendingNavigation(target);
             return;
         }
@@ -3873,10 +3902,57 @@ public class ExplorerPanel extends JPanel {
         restorePendingNavigationPrefix(target);
     }
 
-    private void cancelPendingNavigation(String message) {
+    private void removeInvalidPendingNavigation(
+            NavigationEntry target) {
+
+        int previousIndex =
+                pendingNavigationPreviousIndex;
+
+        int invalidIndex =
+                navigationHistory.indexOf(target);
+
+        if (invalidIndex >= 0) {
+            navigationHistory.remove(invalidIndex);
+
+            /*
+             * Silinen kayıt mevcut konumdan önceyse,
+             * mevcut konumun indeksi bir azalır.
+             */
+            if (previousIndex >= 0
+                    && invalidIndex <= previousIndex) {
+                previousIndex--;
+            }
+        }
+
+        if (navigationHistory.isEmpty()) {
+            navigationHistoryIndex = -1;
+        } else if (previousIndex >= 0) {
+            navigationHistoryIndex = Math.min(
+                    previousIndex,
+                    navigationHistory.size() - 1);
+        } else {
+            navigationHistoryIndex = -1;
+        }
+
         pendingNavigationTarget = null;
+        pendingNavigationPreviousIndex = -1;
         navigationPlayback = false;
+
         updateNavigationButtonStates();
+    }
+
+
+    private void cancelPendingNavigation(String message) {
+        NavigationEntry invalidTarget =
+                pendingNavigationTarget;
+
+        if (invalidTarget != null) {
+            removeInvalidPendingNavigation(invalidTarget);
+        } else {
+            pendingNavigationPreviousIndex = -1;
+            navigationPlayback = false;
+            updateNavigationButtonStates();
+        }
 
         JOptionPane.showMessageDialog(
                 this,
@@ -3885,7 +3961,10 @@ public class ExplorerPanel extends JPanel {
                 JOptionPane.ERROR_MESSAGE);
     }
 
-    private void restorePendingNavigationPrefix(NavigationEntry target) {
+
+    private void restorePendingNavigationPrefix(
+            NavigationEntry target) {
+
         if (target == null) {
             return;
         }
@@ -3895,14 +3974,58 @@ public class ExplorerPanel extends JPanel {
                 S3TreeNode.ROOT_PREFIX)) {
 
             pendingNavigationTarget = null;
+            pendingNavigationPreviousIndex = -1;
             navigationPlayback = false;
 
-            treeController.selectPrefix(S3TreeNode.ROOT_PREFIX);
+            treeController.selectPrefix(
+                    S3TreeNode.ROOT_PREFIX);
+
             updateNavigationButtonStates();
             return;
         }
 
-        treeController.selectPrefix(target.prefix());
+        treeController.selectPrefix(
+                target.prefix(),
+                success -> {
+
+                    if (!Objects.equals(
+                            pendingNavigationTarget,
+                            target)) {
+                        return;
+                    }
+
+                    if (!success) {
+                        cancelPendingNavigation(
+                                "The folder in navigation history no longer exists: "
+                                        + target.prefix());
+                        return;
+                    }
+
+                    /*
+                     * Ağaç seçiminin UI olaylarının tamamlanmasına
+                     * fırsat ver. Seçim dinleyicisi normalde
+                     * pendingNavigationTarget alanını temizler.
+                     */
+                    SwingUtilities.invokeLater(() -> {
+
+                        if (Objects.equals(
+                                pendingNavigationTarget,
+                                target)
+                                && Objects.equals(
+                                getCurrentPrefix(),
+                                target.prefix())
+                                && Objects.equals(
+                                getCurrentBucket(),
+                                target.bucket())) {
+
+                            pendingNavigationTarget = null;
+                            pendingNavigationPreviousIndex = -1;
+                            navigationPlayback = false;
+                        }
+
+                        updateNavigationButtonStates();
+                    });
+                });
     }
 
     private void selectBucketForPendingNavigation(

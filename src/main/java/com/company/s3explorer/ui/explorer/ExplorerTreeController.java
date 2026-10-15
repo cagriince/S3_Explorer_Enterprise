@@ -12,6 +12,7 @@ import java.text.Collator;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 public final class ExplorerTreeController {
@@ -1300,10 +1301,20 @@ public final class ExplorerTreeController {
 
         return best;
     }
-    
+
+
     public void selectPrefix(String prefix) {
+        selectPrefix(prefix, null);
+    }
+
+    public void selectPrefix(
+            String prefix,
+            Consumer<Boolean> completion) {
 
         if (prefix == null) {
+            if (completion != null) {
+                completion.accept(false);
+            }
             return;
         }
 
@@ -1311,52 +1322,65 @@ public final class ExplorerTreeController {
                 "[TREE NAVIGATION] selectPrefix target={}",
                 prefix);
 
-        S3TreeNode existing =
-                findNodeByPrefix(prefix);
+        S3TreeNode existing = findNodeByPrefix(prefix);
 
         if (existing != null) {
-
             log.info(
                     "[TREE NAVIGATION] target already exists prefix={}",
                     prefix);
 
             selectNode(existing);
 
+            if (completion != null) {
+                completion.accept(true);
+            }
+
             return;
         }
 
         ensurePrefixLoaded(prefix)
-                .thenAccept(node -> {
-
-                    if (node == null) {
-
-                        log.warn(
-                                "[TREE NAVIGATION] target not found after loading prefix={}",
-                                prefix);
-
-                        return;
-                    }
+                .whenComplete((node, exception) -> {
 
                     SwingUtilities.invokeLater(() -> {
+
+                        if (exception != null) {
+                            log.error(
+                                    "[TREE NAVIGATION] failed target={}",
+                                    prefix,
+                                    exception);
+
+                            if (completion != null) {
+                                completion.accept(false);
+                            }
+
+                            return;
+                        }
+
+                        if (node == null) {
+                            log.warn(
+                                    "[TREE NAVIGATION] target not found after loading prefix={}",
+                                    prefix);
+
+                            if (completion != null) {
+                                completion.accept(false);
+                            }
+
+                            return;
+                        }
 
                         log.info(
                                 "[TREE NAVIGATION] selecting prefix={}",
                                 node.getFullPrefix());
 
                         selectNode(node);
+
+                        if (completion != null) {
+                            completion.accept(true);
+                        }
                     });
-                })
-                .exceptionally(ex -> {
-
-                    log.error(
-                            "[TREE NAVIGATION] failed target={}",
-                            prefix,
-                            ex);
-
-                    return null;
                 });
     }
-    
+
     /*
      * ---------------------------------------------------------
      * STATE
