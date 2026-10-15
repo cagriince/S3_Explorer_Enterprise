@@ -3793,8 +3793,26 @@ public class ExplorerPanel extends JPanel {
         NavigationEntry current =
                 getCurrentNavigationEntry();
 
+
         if (target.equals(current)) {
-            navigationHistoryIndex = targetIndex;
+
+            boolean currentIndexMatches =
+                    navigationHistoryIndex >= 0
+                            && navigationHistoryIndex
+                            < navigationHistory.size()
+                            && navigationHistory.get(
+                                    navigationHistoryIndex)
+                            .equals(current);
+
+            if (!currentIndexMatches) {
+                int actualIndex =
+                        navigationHistory.lastIndexOf(current);
+
+                if (actualIndex >= 0) {
+                    navigationHistoryIndex = actualIndex;
+                }
+            }
+
             updateNavigationButtonStates();
             return;
         }
@@ -3873,36 +3891,15 @@ public class ExplorerPanel extends JPanel {
         restorePendingNavigationPrefix(target);
     }
 
+
     private void removeInvalidPendingNavigation(
             NavigationEntry target) {
 
-        int previousIndex =
-                pendingNavigationPreviousIndex;
-
-        int invalidIndex =
-                navigationHistory.indexOf(target);
-
-        if (invalidIndex >= 0) {
-            navigationHistory.remove(invalidIndex);
-
-            /*
-             * Silinen kayıt mevcut konumdan önceyse,
-             * mevcut konumun indeksi bir azalır.
-             */
-            if (previousIndex >= 0
-                    && invalidIndex <= previousIndex) {
-                previousIndex--;
-            }
-        }
-
-        if (navigationHistory.isEmpty()) {
-            navigationHistoryIndex = -1;
-        } else if (previousIndex >= 0) {
-            navigationHistoryIndex = Math.min(
-                    previousIndex,
-                    navigationHistory.size() - 1);
-        } else {
-            navigationHistoryIndex = -1;
+        if (target != null) {
+            removeHistoryEntriesForPrefix(
+                    target.repositoryId(),
+                    target.bucket(),
+                    target.prefix());
         }
 
         pendingNavigationTarget = null;
@@ -3912,6 +3909,94 @@ public class ExplorerPanel extends JPanel {
         updateNavigationButtonStates();
     }
 
+    private void removeHistoryEntriesForPrefix(
+            String repositoryId,
+            String bucket,
+            String deletedPrefix) {
+
+        if (repositoryId == null
+                || bucket == null
+                || deletedPrefix == null
+                || deletedPrefix.isBlank()
+                || Objects.equals(
+                deletedPrefix,
+                S3TreeNode.ROOT_PREFIX)) {
+            return;
+        }
+
+        String normalizedPrefix =
+                deletedPrefix.endsWith("/")
+                        ? deletedPrefix
+                        : deletedPrefix + "/";
+
+        NavigationEntry currentEntry =
+                getCurrentNavigationEntry();
+
+        int oldIndex = navigationHistoryIndex;
+        int removedAtOrBeforeIndex = 0;
+
+        for (int i = navigationHistory.size() - 1;
+             i >= 0;
+             i--) {
+
+            NavigationEntry entry =
+                    navigationHistory.get(i);
+
+            boolean sameRepositoryAndBucket =
+                    Objects.equals(
+                            entry.repositoryId(),
+                            repositoryId)
+                            && Objects.equals(
+                            entry.bucket(),
+                            bucket);
+
+            boolean belongsToDeletedSubtree =
+                    Objects.equals(
+                            entry.prefix(),
+                            normalizedPrefix)
+                            || (entry.prefix() != null
+                            && entry.prefix().startsWith(
+                            normalizedPrefix));
+
+            if (sameRepositoryAndBucket
+                    && belongsToDeletedSubtree) {
+
+                if (i <= oldIndex) {
+                    removedAtOrBeforeIndex++;
+                }
+
+                navigationHistory.remove(i);
+            }
+        }
+
+        if (navigationHistory.isEmpty()) {
+            navigationHistoryIndex = -1;
+        } else if (currentEntry != null
+                && navigationHistory.contains(currentEntry)) {
+
+            // Gerçekte görüntülenen konumu geçmişte koru.
+            navigationHistoryIndex =
+                    navigationHistory.lastIndexOf(currentEntry);
+
+        } else {
+            navigationHistoryIndex = Math.max(
+                    0,
+                    Math.min(
+                            oldIndex - removedAtOrBeforeIndex,
+                            navigationHistory.size() - 1));
+        }
+
+        log.info(
+                "[HISTORY CLEANUP] repository={} bucket={} "
+                        + "deletedPrefix={} historySize={} index={}",
+                repositoryId,
+                bucket,
+                normalizedPrefix,
+                navigationHistory.size(),
+                navigationHistoryIndex);
+
+        updateNavigationButtonStates();
+    }
 
     private void cancelPendingNavigation(String message) {
         NavigationEntry invalidTarget =
@@ -6858,6 +6943,10 @@ public class ExplorerPanel extends JPanel {
                                 prefix);
 
                         treeController.removePrefix(prefix);
+                        removeHistoryEntriesForPrefix(
+                                repositoryId,
+                                bucket,
+                                prefix);
 
                         // Silinen klasör, mevcut File Table'da listeleniyorsa
                         // tabloyu önbellekten değil S3'ten yeniden yükle.
