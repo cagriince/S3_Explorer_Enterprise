@@ -4098,43 +4098,66 @@ public class ExplorerPanel extends JPanel {
                      * Klasör başka bir uygulama tarafından silinmiş.
                      */
 
+
                     if (!Boolean.TRUE.equals(exists)) {
 
-                        /*
-                         * 1. Folder Tree'deki eski klasör kaydını kaldır.
-                         * Alt klasörlerin cache kayıtları da temizlenir.
-                         */
-                        treeController.removePrefix(
-                                target.prefix());
+                        // Önce mevcut konumu kaydet; ağaç düğümünü kaldırmak
+                        // Tree Selection bilgisini değiştirebilir.
+                        String currentBucket = currentFileBucket;
+                        String currentPrefix = currentFilePrefix;
 
-                        /*
-                         * 2. Silinen klasör şu anda görüntülenen klasörün
-                         * doğrudan altındaysa File Table'ı yenile.
-                         */
-                        String currentBucket = getCurrentBucket();
-                        String currentPrefix = getCurrentPrefix();
+                        String normalizedDeletedPrefix =
+                                target.prefix().endsWith("/")
+                                        ? target.prefix()
+                                        : target.prefix() + "/";
 
-                        boolean isDirectChildOfCurrentFolder =
+                        boolean currentIsInsideDeletedSubtree =
                                 Objects.equals(
                                         currentBucket,
                                         target.bucket())
-                                        && Objects.equals(
+                                        && currentPrefix != null
+                                        && (Objects.equals(
                                         currentPrefix,
-                                        getParentPrefix(target.prefix()));
+                                        normalizedDeletedPrefix)
+                                        || currentPrefix.startsWith(
+                                        normalizedDeletedPrefix));
 
-                        if (isDirectChildOfCurrentFolder) {
+                        String fallbackPrefix =
+                                getParentPrefix(target.prefix());
 
-                            log.info(
-                                    "[STALE FOLDER] refreshing current File Table "
-                                            + "bucket={} prefix={} deletedPrefix={}",
-                                    currentBucket,
-                                    currentPrefix,
-                                    target.prefix());
+                        log.info(
+                                "[HISTORY FALLBACK] bucket={} currentPrefix={} "
+                                        + "deletedPrefix={} insideDeletedSubtree={} "
+                                        + "fallbackPrefix={}",
+                                currentBucket,
+                                currentPrefix,
+                                normalizedDeletedPrefix,
+                                currentIsInsideDeletedSubtree,
+                                fallbackPrefix);
 
-                            /*
-                             * Eski listeyi cache'den kullanma.
-                             * File Table'ı S3'ten yeniden yükle.
-                             */
+                        // Silinen klasörü ve alt düğümlerini ağaçtan kaldır.
+                        treeController.removePrefix(target.prefix());
+
+                        // Geçmişte silinen klasörün altındaki kayıtları temizle.
+                        removeInvalidPendingNavigation(target);
+
+                        if (currentIsInsideDeletedSubtree) {
+                            // Üst klasörün içeriğini önbellekten kullanma.
+                            contentLoader.invalidate(
+                                    target.bucket(),
+                                    fallbackPrefix);
+
+                            // Geçerli üst klasöre geç; Tree, File Table ve
+                            // Folder Edit alanı aynı konuma gelsin.
+                            treeController.selectPrefix(fallbackPrefix);
+                        } else if (Objects.equals(
+                                currentBucket,
+                                target.bucket())
+                                && Objects.equals(
+                                currentPrefix,
+                                fallbackPrefix)) {
+
+                            // Silinen klasör doğrudan mevcut tabloda listeleniyorsa yenile.
                             contentLoader.invalidate(
                                     currentBucket,
                                     currentPrefix);
@@ -4142,13 +4165,12 @@ public class ExplorerPanel extends JPanel {
                             reloadCurrentFileTable();
                         }
 
-                        /*
-                         * 3. Navigation History'den kaydı kaldır,
-                         * mevcut konumu koru ve hata mesajını göster.
-                         */
-                        cancelPendingNavigation(
-                                "The folder in navigation history no longer exists: "
-                                        + target.prefix());
+                        JOptionPane.showMessageDialog(
+                                this,
+                                "The folder in navigation history no longer exists:\n"
+                                        + target.prefix(),
+                                "Navigation History",
+                                JOptionPane.ERROR_MESSAGE);
 
                         return;
                     }
