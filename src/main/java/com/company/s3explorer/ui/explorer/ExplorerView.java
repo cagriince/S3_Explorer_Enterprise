@@ -444,46 +444,55 @@ public final class ExplorerView {
                 fileTablePanel);
     }
 
+
     private JPanel createTopBar() {
         JPanel container = new JPanel(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.insets = new Insets(5, 10, 5, 10);
 
+        // Repository label
         gbc.gridx = 0;
         gbc.gridy = 0;
         gbc.weightx = 0.2;
+
         repositoryLabel = new JLabel("Repository", SwingConstants.LEFT);
         repositoryLabel.setIconTextGap(14);
         container.add(repositoryLabel, gbc);
 
+        // Repository ComboBox - use the space previously occupied
+        // by the Repository Manager gear button.
         repositoryCombo = new JComboBox<>();
+
         gbc.gridx = 1;
-        gbc.weightx = 0.6;
+        gbc.gridwidth = 2;
+        gbc.weightx = 0.8;
         container.add(repositoryCombo, gbc);
 
-        gbc.gridx = 2;
-        gbc.weightx = 0.2;
-        container.add(createIconButton(manageRepositoryAction), gbc);
-
+        // Bucket label
         gbc.gridx = 0;
         gbc.gridy = 1;
+        gbc.gridwidth = 1;
+        gbc.weightx = 0.2;
+
         bucketLabel = new JLabel("Bucket", SwingConstants.LEFT);
         bucketLabel.setIconTextGap(10);
         container.add(bucketLabel, gbc);
 
+        // Bucket ComboBox
         bucketCombo = new JComboBox<>();
+
         gbc.gridx = 1;
         gbc.weightx = 0.6;
         container.add(bucketCombo, gbc);
 
+        // Refresh button - keep it unchanged
         gbc.gridx = 2;
         gbc.weightx = 0.2;
         container.add(createIconButton(refreshAction), gbc);
 
         return container;
     }
-
 
     private JButton createIconButton(Action action) {
         JButton button = new JButton(action);
@@ -716,7 +725,6 @@ public final class ExplorerView {
     public void setButtonIcons() {
         repositoryLabel.setIcon(IconProvider.ICON_REPOSITORY);
         bucketLabel.setIcon(IconProvider.ICON_BUCKET);
-        S3Util.setActionIcon(manageRepositoryAction, IconProvider.ICON_SETTINGS);
         S3Util.setActionIcon(refreshAction, IconProvider.ICON_REFRESH);
         S3Util.setActionIcon(uploadAction, IconProvider.ICON_UPLOAD);
         S3Util.setActionIcon(uploadEncryptedAction, IconProvider.ICON_UPLOAD_ENCRYPTED);
