@@ -445,23 +445,25 @@ public final class ExplorerView {
     }
 
 
+
     private JPanel createTopBar() {
         JPanel container = new JPanel(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
+
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.insets = new Insets(5, 10, 5, 10);
 
         // Repository label
         gbc.gridx = 0;
         gbc.gridy = 0;
+        gbc.gridwidth = 1;
         gbc.weightx = 0.2;
 
         repositoryLabel = new JLabel("Repository", SwingConstants.LEFT);
         repositoryLabel.setIconTextGap(14);
         container.add(repositoryLabel, gbc);
 
-        // Repository ComboBox - use the space previously occupied
-        // by the Repository Manager gear button.
+        // Repository ComboBox
         repositoryCombo = new JComboBox<>();
 
         gbc.gridx = 1;
@@ -479,17 +481,13 @@ public final class ExplorerView {
         bucketLabel.setIconTextGap(10);
         container.add(bucketLabel, gbc);
 
-        // Bucket ComboBox
+        // Bucket ComboBox - no refresh button
         bucketCombo = new JComboBox<>();
 
         gbc.gridx = 1;
-        gbc.weightx = 0.6;
+        gbc.gridwidth = 2;
+        gbc.weightx = 0.8;
         container.add(bucketCombo, gbc);
-
-        // Refresh button - keep it unchanged
-        gbc.gridx = 2;
-        gbc.weightx = 0.2;
-        container.add(createIconButton(refreshAction), gbc);
 
         return container;
     }
