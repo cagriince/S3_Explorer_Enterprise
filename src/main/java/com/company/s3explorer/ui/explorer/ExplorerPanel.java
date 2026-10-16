@@ -364,7 +364,8 @@ public class ExplorerPanel extends JPanel {
         // File Table
         // -------------------------------------------------
 
-        InputMap inputMap = view.getFileTable().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
+        InputMap inputMap = view.getFileTable().getInputMap(
+                JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
         ActionMap actionMap = view.getFileTable().getActionMap();
 
         inputMap.put(
@@ -385,71 +386,136 @@ public class ExplorerPanel extends JPanel {
         inputMap.put(KeyStroke.getKeyStroke("control X"), "move");
         actionMap.put("move", cutAction);
 
-        inputMap.put(KeyStroke.getKeyStroke("control V"),"paste");
+        inputMap.put(KeyStroke.getKeyStroke("control V"), "paste");
         actionMap.put("paste", pasteAction);
 
         // Backspace
-        inputMap.put(KeyStroke.getKeyStroke("BACK_SPACE"),"explorerGoParent");
+        inputMap.put(
+                KeyStroke.getKeyStroke("BACK_SPACE"),
+                "explorerGoParent");
         actionMap.put("explorerGoParent", goToParentAction);
 
         // Delete
-        inputMap.put(KeyStroke.getKeyStroke("DELETE"), "deleteSelected");
+        inputMap.put(
+                KeyStroke.getKeyStroke("DELETE"),
+                "deleteSelected");
         actionMap.put("deleteSelected", deleteAction);
 
         // Rename
-        inputMap.put(KeyStroke.getKeyStroke("F2"),"renameSelected");
+        inputMap.put(
+                KeyStroke.getKeyStroke("F2"),
+                "renameSelected");
         actionMap.put("renameSelected", renameAction);
 
         // Properties
-        inputMap.put(KeyStroke.getKeyStroke("alt ENTER"), "showProperties");
+        inputMap.put(
+                KeyStroke.getKeyStroke("alt ENTER"),
+                "showProperties");
         actionMap.put("showProperties", propertiesAction);
-        
+
+        // Select all files when the file table has focus.
+        inputMap.put(
+                KeyStroke.getKeyStroke("control A"),
+                "selectAllFiles");
+        actionMap.put("selectAllFiles", selectAllAction);
+
         // -------------------------------------------------
         // Tree
         // -------------------------------------------------
 
-        InputMap treeInputMap = view.getFolderTree().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
+        InputMap treeInputMap = view.getFolderTree().getInputMap(
+                JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
         ActionMap treeActionMap = view.getFolderTree().getActionMap();
-        treeInputMap.put(KeyStroke.getKeyStroke("BACK_SPACE"), "explorerGoParent");
+
+        treeInputMap.put(
+                KeyStroke.getKeyStroke("BACK_SPACE"),
+                "explorerGoParent");
         treeActionMap.put("explorerGoParent", goToParentAction);
 
         // -------------------------------------------------
         // ExplorerPanel
         // -------------------------------------------------
 
-        InputMap panelInputMap = getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+        InputMap panelInputMap =
+                getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
         ActionMap panelActionMap = getActionMap();
 
         // Ctrl+V
-        panelInputMap.put(KeyStroke.getKeyStroke("control V"),"explorerPaste");
-        panelActionMap.put("explorerPaste",pasteAction);
+        panelInputMap.put(
+                KeyStroke.getKeyStroke("control V"),
+                "explorerPaste");
+        panelActionMap.put("explorerPaste", pasteAction);
 
-        panelInputMap.put(KeyStroke.getKeyStroke("BACK_SPACE"),"explorerGoParent");
+        // Backspace
+        panelInputMap.put(
+                KeyStroke.getKeyStroke("BACK_SPACE"),
+                "explorerGoParent");
         panelActionMap.put("explorerGoParent", goToParentAction);
 
         // Alt + Left: Back
-        panelInputMap.put(KeyStroke.getKeyStroke("alt LEFT"), "explorerBack");
+        panelInputMap.put(
+                KeyStroke.getKeyStroke("alt LEFT"),
+                "explorerBack");
         panelActionMap.put("explorerBack", backAction);
 
         // Alt + Right: Forward
-        panelInputMap.put(KeyStroke.getKeyStroke("alt RIGHT"), "explorerForward");
-        panelActionMap.put( "explorerForward", forwardAction);
+        panelInputMap.put(
+                KeyStroke.getKeyStroke("alt RIGHT"),
+                "explorerForward");
+        panelActionMap.put("explorerForward", forwardAction);
 
         // F5: Reload Folder
-        panelInputMap.put(KeyStroke.getKeyStroke("F5"), "reloadFolder");
+        panelInputMap.put(
+                KeyStroke.getKeyStroke("F5"),
+                "reloadFolder");
         panelActionMap.put("reloadFolder", reloadFolderAction);
 
-        InputMap locationInputMap = view.getLocationField().getInputMap(JComponent.WHEN_FOCUSED);
-        ActionMap locationActionMap = view.getLocationField().getActionMap();
+        // Ctrl+A when the blank area of the file table viewport
+        // has focus. Do not interfere with text-field selection.
+        panelInputMap.put(
+                KeyStroke.getKeyStroke("control A"),
+                "explorerSelectAllFiles");
 
-        locationInputMap.put(KeyStroke.getKeyStroke("alt LEFT"), "explorerBack");
+        panelActionMap.put(
+                "explorerSelectAllFiles",
+                new AbstractAction() {
+                    @Override
+                    public void actionPerformed(ActionEvent e) {
+                        Component focusOwner =
+                                KeyboardFocusManager
+                                        .getCurrentKeyboardFocusManager()
+                                        .getFocusOwner();
+
+                        boolean fileTableFocused =
+                                focusOwner == view.getFileTable();
+
+                        boolean fileTableViewportFocused =
+                                focusOwner instanceof JViewport viewport
+                                        && viewport.getView()
+                                        == view.getFileTable();
+
+                        if (fileTableFocused || fileTableViewportFocused) {
+                            selectAllFiles();
+                        }
+                    }
+                });
+
+        // Location field shortcuts
+        InputMap locationInputMap =
+                view.getLocationField().getInputMap(
+                        JComponent.WHEN_FOCUSED);
+        ActionMap locationActionMap =
+                view.getLocationField().getActionMap();
+
+        locationInputMap.put(
+                KeyStroke.getKeyStroke("alt LEFT"),
+                "explorerBack");
         locationActionMap.put("explorerBack", backAction);
 
-        locationInputMap.put(KeyStroke.getKeyStroke("alt RIGHT"), "explorerForward");
+        locationInputMap.put(
+                KeyStroke.getKeyStroke("alt RIGHT"),
+                "explorerForward");
         locationActionMap.put("explorerForward", forwardAction);
-
-        inputMap.put(KeyStroke.getKeyStroke("control A"),"selectAllFiles");
-        actionMap.put("selectAllFiles", selectAllAction);
     }
 
     private JSplitPane createMainSplit() {

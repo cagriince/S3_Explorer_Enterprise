@@ -200,7 +200,8 @@ public final class ExplorerView {
         JScrollPane tableScrollPane = new JScrollPane(fileTable);
         installPopup(tableScrollPane.getViewport());
         installPopup(fileTable);
-
+        installFileTableBlankAreaFocus(tableScrollPane);
+/*
         tableScrollPane.getViewport().addMouseListener(
                 new MouseAdapter() {
                     @Override
@@ -214,7 +215,7 @@ public final class ExplorerView {
                             fileTable.requestFocusInWindow();
                         }
                     }
-                });
+                });*/
 
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         buttonPanel.add(createIconButton(newFolderAction));
@@ -924,5 +925,25 @@ public final class ExplorerView {
         SwingUtilities.updateComponentTreeUI(filePopup);
         filePopup.revalidate();
         filePopup.repaint();
+    }
+
+    private void installFileTableBlankAreaFocus(JScrollPane tableScrollPane) {
+        JViewport tableViewport = tableScrollPane.getViewport();
+        tableViewport.setFocusable(true);
+
+        tableViewport.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                Point point = SwingUtilities.convertPoint(
+                        tableViewport,
+                        e.getPoint(),
+                        fileTable);
+
+                if (fileTable.rowAtPoint(point) < 0) {
+                    SwingUtilities.invokeLater(
+                            tableViewport::requestFocusInWindow);
+                }
+            }
+        });
     }
 }
