@@ -3332,27 +3332,6 @@ public class ExplorerPanel extends JPanel {
                                 new RefreshTreeNode(
                                         folderPrefix,
                                         RefreshTreeOperation.DELETE)));
-
-                /*
-                 * Silinen klasörün üst dizini File Table'da açıksa
-                 * tabloyu yeniden yükle. Böylece klasör satırı da
-                 * S3 listelemesinden kaldırılır.
-                 */
-                String parentPrefix =
-                        getParentPrefix(folderPrefix);
-
-                if (Objects.equals(currentPrefix, parentPrefix)) {
-
-                    log.info(
-                            "[EXPLORER GROUP DELETE TABLE REFRESH] "
-                                    + "group={} bucket={} prefix={} deletedPrefix={}",
-                            group.getDisplayName(),
-                            currentBucket,
-                            currentPrefix,
-                            folderPrefix);
-
-                    refreshScheduler.scheduleCurrentTableRefresh();
-                }
             }
         }
 

@@ -201,6 +201,21 @@ public final class ExplorerView {
         installPopup(tableScrollPane.getViewport());
         installPopup(fileTable);
 
+        tableScrollPane.getViewport().addMouseListener(
+                new MouseAdapter() {
+                    @Override
+                    public void mousePressed(MouseEvent e) {
+                        Point point = SwingUtilities.convertPoint(
+                                tableScrollPane.getViewport(),
+                                e.getPoint(),
+                                fileTable);
+
+                        if (fileTable.rowAtPoint(point) < 0) {
+                            fileTable.requestFocusInWindow();
+                        }
+                    }
+                });
+
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         buttonPanel.add(createIconButton(newFolderAction));
         buttonPanel.add(createIconButton(deleteAction));
