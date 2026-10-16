@@ -33,6 +33,7 @@ public class MainFrame extends JFrame {
     private TransferPanel transferPanel;
     private JSplitPane split;
 
+    private JMenuItem repositoryManagerMenuItem;
     private JMenuItem exitMenuItem;
     private JMenuItem preferencesMenuItem;
     private JMenuItem aboutMenuItem;
@@ -220,11 +221,19 @@ public class MainFrame extends JFrame {
                 });
     }
 
-
-
     private JMenuBar createMenuBar() {
         JMenuBar menuBar = new JMenuBar();
 
+        // Repository Manager - top-level item without a submenu
+        repositoryManagerMenuItem = new JMenuItem("Repository Manager");
+        repositoryManagerMenuItem.setIcon(IconProvider.ICON_REPOSITORY);
+        repositoryManagerMenuItem.setMnemonic(KeyEvent.VK_R);
+        repositoryManagerMenuItem.addActionListener(
+                e -> explorerPanel.openRepositoryManager());
+
+        menuBar.add(repositoryManagerMenuItem);
+
+        // File
         JMenu fileMenu = new JMenu("File");
         fileMenu.setMnemonic(KeyEvent.VK_F);
         explorerPanel.populateFileMenu(fileMenu);
@@ -287,7 +296,6 @@ public class MainFrame extends JFrame {
         JMenu helpMenu = new JMenu("Help");
         helpMenu.setMnemonic(KeyEvent.VK_H);
 
-        // Shortcuts: Help menüsündeki ilk öğe
         shortcutsMenuItem = new JMenuItem("Shortcuts");
         shortcutsMenuItem.setIcon(IconProvider.ICON_KEYBOARD);
         shortcutsMenuItem.addActionListener(
@@ -312,6 +320,7 @@ public class MainFrame extends JFrame {
 
         helpMenu.add(aboutMenuItem);
 
+        // Top-level menu order
         menuBar.add(fileMenu);
         menuBar.add(editMenu);
         menuBar.add(viewMenu);
@@ -430,7 +439,12 @@ public class MainFrame extends JFrame {
     }
 
 
+
     private void updateMenuIcons() {
+        if (repositoryManagerMenuItem != null) {
+            repositoryManagerMenuItem.setIcon(IconProvider.ICON_REPOSITORY);
+        }
+
         if (exitMenuItem != null) {
             exitMenuItem.setIcon(IconProvider.ICON_EXIT);
         }
