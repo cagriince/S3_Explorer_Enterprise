@@ -7476,6 +7476,8 @@ public class ExplorerPanel extends JPanel {
         menu.addSeparator();
 
         menu.add(new JMenuItem(newFolderAction));
+        menu.add(createMenuItem(deleteAction, "DELETE"));
+        menu.add(createMenuItem(renameAction, "F2"));
         menu.addSeparator();
 
         menu.add(new JMenuItem(uploadAction));
@@ -7499,10 +7501,6 @@ public class ExplorerPanel extends JPanel {
         menu.add(createMenuItem(copyAction, "control C"));
         menu.add(createMenuItem(pasteAction, "control V"));
         menu.add(createMenuItem(selectAllAction, "control A"));
-        menu.addSeparator();
-
-        menu.add(createMenuItem(deleteAction, "DELETE"));
-        menu.add(createMenuItem(renameAction, "F2"));
     }
 
     public void populateViewMenu(JMenu menu) {
