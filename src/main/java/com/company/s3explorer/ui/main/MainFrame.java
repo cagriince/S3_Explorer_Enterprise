@@ -221,6 +221,7 @@ public class MainFrame extends JFrame {
                 });
     }
 
+
     private JMenuBar createMenuBar() {
         JMenuBar menuBar = new JMenuBar();
 
@@ -228,6 +229,11 @@ public class MainFrame extends JFrame {
         repositoryManagerMenuItem = new JMenuItem("Repository Manager");
         repositoryManagerMenuItem.setIcon(IconProvider.ICON_REPOSITORY);
         repositoryManagerMenuItem.setMnemonic(KeyEvent.VK_R);
+
+        // Prevent the item from stretching across the menu bar.
+        repositoryManagerMenuItem.setMaximumSize(
+                repositoryManagerMenuItem.getPreferredSize());
+
         repositoryManagerMenuItem.addActionListener(
                 e -> explorerPanel.openRepositoryManager());
 
