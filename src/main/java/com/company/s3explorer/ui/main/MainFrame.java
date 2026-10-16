@@ -222,22 +222,23 @@ public class MainFrame extends JFrame {
     }
 
 
+
     private JMenuBar createMenuBar() {
         JMenuBar menuBar = new JMenuBar();
 
-        // Repository Manager - top-level item without a submenu
-        repositoryManagerMenuItem = new JMenuItem("Repository Manager");
-        repositoryManagerMenuItem.setIcon(IconProvider.ICON_REPOSITORY);
-        repositoryManagerMenuItem.setMnemonic(KeyEvent.VK_R);
+        // Repository
+        JMenu repositoryMenu = new JMenu("Repository");
+        repositoryMenu.setMnemonic(KeyEvent.VK_R);
 
-        // Prevent the item from stretching across the menu bar.
-        repositoryManagerMenuItem.setMaximumSize(
-                repositoryManagerMenuItem.getPreferredSize());
+        repositoryManagerMenuItem =
+                new JMenuItem("Repository Manager");
+        repositoryManagerMenuItem.setIcon(
+                IconProvider.ICON_REPOSITORY);
 
         repositoryManagerMenuItem.addActionListener(
                 e -> explorerPanel.openRepositoryManager());
 
-        menuBar.add(repositoryManagerMenuItem);
+        repositoryMenu.add(repositoryManagerMenuItem);
 
         // File
         JMenu fileMenu = new JMenu("File");
@@ -327,6 +328,7 @@ public class MainFrame extends JFrame {
         helpMenu.add(aboutMenuItem);
 
         // Top-level menu order
+        menuBar.add(repositoryMenu);
         menuBar.add(fileMenu);
         menuBar.add(editMenu);
         menuBar.add(viewMenu);
