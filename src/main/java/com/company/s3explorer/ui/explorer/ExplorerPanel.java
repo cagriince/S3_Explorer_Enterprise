@@ -22,6 +22,7 @@ import com.company.s3explorer.ui.theme.UITheme;
 import com.company.s3explorer.ui.theme.UIThemeManager;
 import com.company.s3explorer.ui.transfer.TransferPanel;
 import com.company.s3explorer.util.S3Util;
+import com.company.s3explorer.util.SizeFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -587,6 +588,7 @@ public class ExplorerPanel extends JPanel {
     }
 
     public void updateActionStates() {
+        updateSelectedFileInfo();
 
         boolean folderSelected =
                 currentFileBucket != null
@@ -5377,6 +5379,51 @@ public class ExplorerPanel extends JPanel {
                 S3Util.formatWithThousandSeparator(folderCount)
                         + " folder(s) and "
                         + fileText);
+    }
+
+    private void updateSelectedFileInfo() {
+
+        JTable table = view.getFileTable();
+        FileTableModel model = view.getFileTableModel();
+
+        int folderCount = 0;
+        int fileCount = 0;
+        long totalSize = 0;
+
+        for (int viewRow : table.getSelectedRows()) {
+
+            int modelRow = table.convertRowIndexToModel(viewRow);
+            S3FileItem item = model.getItem(modelRow);
+
+            if (item == null || item.isParentFolder()) {
+                continue;
+            }
+
+            if (item.isFolder()) {
+                folderCount++;
+            } else {
+                fileCount++;
+                totalSize += item.getSize();
+            }
+        }
+
+        JLabel selectionInfo = view.getFileSelectionInfo();
+
+        if (folderCount == 0 && fileCount == 0) {
+            selectionInfo.setText("");
+            selectionInfo.setVisible(false);
+            return;
+        }
+
+        selectionInfo.setText(
+                S3Util.formatWithThousandSeparator(folderCount)
+                        + " folder(s) and "
+                        + S3Util.formatWithThousandSeparator(fileCount)
+                        + " file(s) ("
+                        + SizeFormatter.format(totalSize)
+                        + ") selected");
+
+        selectionInfo.setVisible(true);
     }
 
     private void updateFileDiscoveryProgress(

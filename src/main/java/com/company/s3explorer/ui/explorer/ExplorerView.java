@@ -89,6 +89,7 @@ public final class ExplorerView {
     private JTextField locationField;
     private boolean locationEditMode;
     private JLabel fileFolderInfo;
+    private JLabel fileSelectionInfo;
     private JPopupMenu filePopup;
 
     private JButton uploadEncryptedButton;
@@ -419,18 +420,16 @@ public final class ExplorerView {
 
 
         fileFolderInfo = new JLabel("");
+        fileSelectionInfo = new JLabel("");
+        fileSelectionInfo.setVisible(false);
 
-        JPanel fileFolderInfoPanel = new JPanel(new GridBagLayout());
+        JPanel fileFolderInfoPanel =
+                new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 0));
+
         fileFolderInfoPanel.setOpaque(false);
 
-        GridBagConstraints fileFolderInfoConstraints = new GridBagConstraints();
-        fileFolderInfoConstraints.gridx = 0;
-        fileFolderInfoConstraints.gridy = 0;
-        fileFolderInfoConstraints.anchor = GridBagConstraints.CENTER;
-        fileFolderInfoConstraints.weightx = 1.0;
-        fileFolderInfoConstraints.weighty = 1.0;
-
-        fileFolderInfoPanel.add(fileFolderInfo, fileFolderInfoConstraints);
+        fileFolderInfoPanel.add(fileFolderInfo);
+        fileFolderInfoPanel.add(fileSelectionInfo);
 
         bottomButtonPanel.add(
                 fileFolderInfoPanel,
@@ -853,6 +852,10 @@ public final class ExplorerView {
     }
 
     public JLabel getFileFolderInfo() { return fileFolderInfo; }
+
+    public JLabel getFileSelectionInfo() {
+        return fileSelectionInfo;
+    }
 
     public void setFileTableRowLimitSelectionListener(Consumer<Integer> listener) {
         this.fileTableRowLimitSelectionListener = listener;
