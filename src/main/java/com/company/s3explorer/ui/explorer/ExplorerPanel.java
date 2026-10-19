@@ -1501,19 +1501,17 @@ public class ExplorerPanel extends JPanel {
                         prefix,
                         fileLimit,
                         sortSpec,
-                (fileCount, folderCount) -> {
-
-                    if (generation ==
-                            fileLoadGeneration.get()) {
-
-                        updateFileDiscoveryProgress(
-                                generation,
-                                bucket,
-                                prefix,
-                                fileCount,
-                                folderCount);
-                    }
-                })
+                        (fileCount, folderCount) -> {
+                            if (generation == fileLoadGeneration.get()) {
+                                updateFileDiscoveryProgress(
+                                        generation,
+                                        bucket,
+                                        prefix,
+                                        fileCount,
+                                        folderCount);
+                            }
+                        },
+                        flatBrowsingEnabled)
                 .thenAccept(content ->
                         SwingUtilities.invokeLater(() -> {
 
@@ -5135,16 +5133,20 @@ public class ExplorerPanel extends JPanel {
                         .stream()
                         .map(folder ->
                                 new S3FileItem(
-                                        this.getCurrentRepository()
-                                                .getId(),
+                                        this.getCurrentRepository().getId(),
                                         bucket,
                                         folder,
                                         0,
                                         null,
                                         null,
-                                        true))
+                                        true,
+                                        flatBrowsingEnabled
+                                                ? getFlatDisplayName(
+                                                folder,
+                                                prefix,
+                                                true)
+                                                : null))
                         .toList());
-
         /*
          * -------------------------------------------------
          * SINIRLI DOSYALAR
@@ -5157,12 +5159,10 @@ public class ExplorerPanel extends JPanel {
                 content.files()
                         .stream()
                         .filter(object ->
-                                !object.key()
-                                        .endsWith("/"))
+                                !object.key().endsWith("/"))
                         .map(object ->
                                 new S3FileItem(
-                                        this.getCurrentRepository()
-                                                .getId(),
+                                        this.getCurrentRepository().getId(),
                                         bucket,
                                         object.key(),
                                         object.size(),
@@ -5170,7 +5170,13 @@ public class ExplorerPanel extends JPanel {
                                         object.storageClass() == null
                                                 ? null
                                                 : object.storageClass().toString(),
-                                        false))
+                                        false,
+                                        flatBrowsingEnabled
+                                                ? getFlatDisplayName(
+                                                object.key(),
+                                                prefix,
+                                                false)
+                                                : null))
                         .toList());
 
         /*
@@ -7545,5 +7551,28 @@ public class ExplorerPanel extends JPanel {
         }
 
         reloadCurrentFileTable();
+    }
+
+    private String getFlatDisplayName(
+            String key,
+            String prefix,
+            boolean folder) {
+
+        String effectivePrefix =
+                prefix == null ? "" : prefix;
+
+        String displayName =
+                key.startsWith(effectivePrefix)
+                        ? key.substring(effectivePrefix.length())
+                        : key;
+
+        if (folder && displayName.endsWith("/")) {
+            displayName =
+                    displayName.substring(
+                            0,
+                            displayName.length() - 1);
+        }
+
+        return displayName;
     }
 }

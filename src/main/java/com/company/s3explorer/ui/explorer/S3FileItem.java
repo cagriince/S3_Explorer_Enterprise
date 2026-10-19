@@ -15,6 +15,7 @@ public class S3FileItem {
     private final Instant lastModified;
     private final String storageClass;
     private final boolean folder;
+    private final String displayName;
 
     public S3FileItem(
             String repositoryId,
@@ -24,7 +25,26 @@ public class S3FileItem {
             Instant lastModified,
             String storageClass,
             boolean folder) {
+        this(
+                repositoryId,
+                bucket,
+                key,
+                size,
+                lastModified,
+                storageClass,
+                folder,
+                null);
+    }
 
+    public S3FileItem(
+            String repositoryId,
+            String bucket,
+            String key,
+            long size,
+            Instant lastModified,
+            String storageClass,
+            boolean folder,
+            String displayName) {
         this.repositoryId = repositoryId;
         this.bucket = bucket;
         this.key = key;
@@ -32,6 +52,7 @@ public class S3FileItem {
         this.lastModified = lastModified;
         this.storageClass = storageClass;
         this.folder = folder;
+        this.displayName = displayName;
     }
 
     public String getRepositoryId() {
@@ -60,6 +81,12 @@ public class S3FileItem {
 
     public boolean isFolder() {
         return folder;
+    }
+
+    public String getDisplayName() {
+        return displayName != null
+                ? displayName
+                : getName();
     }
 
     public boolean isFolderButNotParent() {

@@ -27,7 +27,7 @@ public class FileTableCellRenderer extends PaddedTableCellRenderer {
                                 column);
 
         if (value instanceof S3FileItem item) {
-            label.setText(S3Util.extractFolderName(item.getKey()));
+            label.setText(item.getDisplayName());
             if (item.isFolder()) {
                 setIcon(
                         IconProvider
