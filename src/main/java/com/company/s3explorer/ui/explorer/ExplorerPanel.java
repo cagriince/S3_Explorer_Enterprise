@@ -36,10 +36,13 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.Collator;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.*;
@@ -51,7 +54,7 @@ public class ExplorerPanel extends JPanel {
     private static final Logger log = LoggerFactory.getLogger(ExplorerPanel.class);
 
     private static final int OPERATION_DIALOG_DELAY_MS = 250;
-
+    private static final DateTimeFormatter EXPORT_DATETIME_FORMATTER = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss");
     private ExplorerView view;
 
     private EncryptionConfig encryptionConfig;
@@ -80,6 +83,7 @@ public class ExplorerPanel extends JPanel {
 
     private File lastOpenedFolderToUpload;
     private File lastOpenedFolderToDownload;
+    private File lastOpenedFolderToExport;
 
     private int pendingDeleteSelectionViewRow = -1;
     private final Set<String> pendingFolderDeleteKeys = ConcurrentHashMap.newKeySet();
@@ -159,6 +163,7 @@ public class ExplorerPanel extends JPanel {
     private Action selectAllAction;
     private Action homeAction;
     private Action clearHistoryAction;
+    private Action exportFileListAction;
 
     private JMenuItem uploadEncryptedMenuItem;
     private JMenuItem downloadDecryptedMenuItem;
@@ -334,6 +339,10 @@ public class ExplorerPanel extends JPanel {
         clearHistoryAction.putValue(
                 Action.SMALL_ICON,
                 IconProvider.ICON_CLEAR_HISTORY);
+
+        exportFileListAction.putValue(
+                Action.SMALL_ICON,
+                IconProvider.ICON_TABLE_EXPORT);
     }
 
     private void createActions() {
@@ -361,6 +370,7 @@ public class ExplorerPanel extends JPanel {
         flatBrowsingAction = new ExplorerAction("Flat Browsing", this::toggleFlatBrowsing);
         folderEditAction = new ExplorerAction("Folder Edit", this::changeFolderEditStatus);
         reloadFolderAction = new ExplorerAction("Reload Folder", this::reloadCurrentFolder);
+        exportFileListAction = new ExplorerAction("Export File List", this::exportFileList);
     }
 
     private void defineShortCuts() {
@@ -7613,6 +7623,9 @@ public class ExplorerPanel extends JPanel {
 
         menu.add(new JMenuItem(bulkDownloadAction));
 
+        menu.addSeparator();
+        menu.add(new JMenuItem(exportFileListAction));
+
         updateEncryptionMenuVisibility();
     }
 
@@ -7685,5 +7698,150 @@ public class ExplorerPanel extends JPanel {
         }
 
         return displayName;
+    }
+
+
+    private void exportFileList() {
+        JFileChooser chooser = new JFileChooser();
+        chooser.setDialogTitle("Export File List");
+        chooser.setSelectedFile(new File("file-list.csv"));
+
+        if (lastOpenedFolderToExport != null
+                && lastOpenedFolderToExport.isDirectory()) {
+            chooser.setCurrentDirectory(lastOpenedFolderToExport);
+        }
+
+        int result = chooser.showSaveDialog(this);
+
+        if (result != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+
+        File selectedFile = chooser.getSelectedFile();
+
+        if (!selectedFile.getName()
+                .toLowerCase(Locale.ROOT)
+                .endsWith(".csv")) {
+            selectedFile = new File(
+                    selectedFile.getParentFile(),
+                    selectedFile.getName() + ".csv");
+        }
+
+        Path exportPath = selectedFile.toPath();
+
+        if (Files.exists(exportPath)) {
+            int overwrite = JOptionPane.showConfirmDialog(
+                    SwingUtilities.getWindowAncestor(this),
+                    "The selected file already exists. Overwrite it?",
+                    "Confirm Export",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.WARNING_MESSAGE);
+
+            if (overwrite != JOptionPane.YES_OPTION) {
+                return;
+            }
+        }
+
+        File parentFolder = selectedFile.getAbsoluteFile().getParentFile();
+        if (parentFolder != null) {
+            lastOpenedFolderToExport = parentFolder;
+        }
+
+        FileTableModel model = view.getFileTableModel();
+
+        try (java.io.BufferedWriter writer =
+                     Files.newBufferedWriter(
+                             exportPath,
+                             java.nio.charset.StandardCharsets.UTF_8)) {
+
+            // UTF-8 BOM helps Excel recognize UTF-8 CSV files.
+            writer.write('\uFEFF');
+
+            writeCsvRow(
+                    writer,
+                    "Name",
+                    "Type",
+                    "Size",
+                    "Last Modified",
+                    "Storage Class");
+            writer.newLine();
+
+            // Export all model rows, not just visible table rows.
+            for (int row = 0; row < model.getRowCount(); row++) {
+                S3FileItem item = model.getItem(row);
+
+                // Exclude the synthetic parent-navigation row.
+                if (item.isParentFolder()) {
+                    continue;
+                }
+
+                // Name contains the real S3 key, including its full path.
+                writeCsvRow(
+                        writer,
+                        item.getKey(),
+                        model.getValueAt(row, FileTableModel.COL_TYPE),
+                        model.getValueAt(row, FileTableModel.COL_SIZE),
+                        item.getLastModified() == null
+                                ? ""
+                                : EXPORT_DATETIME_FORMATTER.format(
+                                item.getLastModified()
+                                        .atZone(ZoneId.systemDefault())),
+                        //model.getValueAt(row, FileTableModel.COL_LAST_MODIFIED),
+                        model.getValueAt(row, FileTableModel.COL_STORAGE_CLASS));
+            }
+
+            JOptionPane.showMessageDialog(
+                    SwingUtilities.getWindowAncestor(this),
+                    "File list exported successfully.",
+                    "Export File List",
+                    JOptionPane.INFORMATION_MESSAGE);
+
+        } catch (IOException e) {
+            log.error("Failed to export file list to {}", exportPath, e);
+
+            JOptionPane.showMessageDialog(
+                    SwingUtilities.getWindowAncestor(this),
+                    "Failed to export file list:\n" + e.getMessage(),
+                    "Export Error",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void writeCsvField(
+            java.io.BufferedWriter writer,
+            Object value) throws IOException {
+
+        // Write a comma before every field except the first one.
+        // A new CSV row starts with an empty field count.
+        writer.write('"');
+
+        if (value != null) {
+            writer.write(
+                    String.valueOf(value).replace("\"", "\"\""));
+        }
+
+        writer.write('"');
+    }
+
+    private void writeCsvRow(
+            java.io.BufferedWriter writer,
+            Object... values) throws IOException {
+
+        for (int i = 0; i < values.length; i++) {
+            if (i > 0) {
+                writer.write(',');
+            }
+
+            writer.write('"');
+
+            if (values[i] != null) {
+                writer.write(
+                        String.valueOf(values[i]).replace("\"", "\"\""));
+            }
+
+            writer.write('"');
+        }
+
+        writer.newLine();
     }
 }
