@@ -95,6 +95,9 @@ public class IconProvider {
     public static ImageIcon ICON_CLEAR_HISTORY = null;
     public static ImageIcon ICON_CLEAR_HISTORY_NORMAL = loadIcon("clear-history");
     public static ImageIcon ICON_CLEAR_HISTORY_REVERSE = loadIcon("clear-history-reverse");
+    public static ImageIcon ICON_FLAT_BROWSING = null;
+    public static ImageIcon ICON_FLAT_BROWSING_NORMAL = loadIcon("flat-browsing");
+    public static ImageIcon ICON_FLAT_BROWSING_REVERSE = loadIcon("flat-browsing-reverse");
     public static ImageIcon ICON_FOLDER_EDIT = null;
     public static ImageIcon ICON_FOLDER_EDIT_NORMAL = loadIcon("folder-edit");
     public static ImageIcon ICON_FOLDER_EDIT_REVERSE = loadIcon("folder-edit-reverse");
@@ -162,6 +165,7 @@ public class IconProvider {
         ICON_FORWARD= normal ? ICON_FORWARD_NORMAL : ICON_FORWARD_REVERSE;
         ICON_HOME  = normal ? ICON_HOME_NORMAL : ICON_HOME_REVERSE;
         ICON_CLEAR_HISTORY  = normal ? ICON_CLEAR_HISTORY_NORMAL : ICON_CLEAR_HISTORY_REVERSE;
+        ICON_FLAT_BROWSING = normal ? ICON_FLAT_BROWSING_NORMAL : ICON_FLAT_BROWSING_REVERSE;
         ICON_FOLDER_EDIT = normal ? ICON_FOLDER_EDIT_NORMAL : ICON_FOLDER_EDIT_REVERSE;
         ICON_FOLDER_REFRESH = normal ? ICON_FOLDER_REFRESH_NORMAL : ICON_FOLDER_REFRESH_REVERSE;
         ICON_ABOUT = normal ? ICON_ABOUT_NORMAL : ICON_ABOUT_REVERSE;
