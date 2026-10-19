@@ -44,6 +44,8 @@ public final class ExplorerContentLoader {
 
     private volatile String cachedPrefix;
 
+    private volatile boolean cachedFlatBrowsing;
+
     public ExplorerContentLoader(
             Supplier<S3ExplorerService> serviceSupplier) {
 
@@ -60,100 +62,6 @@ public final class ExplorerContentLoader {
         collationKeyCache.clear();
     }
     
-    /**
-     * Loads both folders and files.
-     *
-     * <p>
-     * The ExecutorService is supplied by ExplorerPanel because
-     * that pool can be resized at runtime.
-     * </p>
-     */
-    public CompletableFuture<LimitedFolderContent> loadFolder(
-            ExecutorService executor,
-            String bucket,
-            String prefix,
-            int fileLimit,
-            FileTableSortSpec sortSpec,
-            FolderDiscoveryListener discoveryListener) {
-
-        Objects.requireNonNull(
-                executor,
-                "executor");
-
-        Objects.requireNonNull(
-                bucket,
-                "bucket");
-
-        Objects.requireNonNull(
-                prefix,
-                "prefix");
-
-        Objects.requireNonNull(
-                sortSpec,
-                "sortSpec");
-
-        if (fileLimit <= 0) {
-            throw new IllegalArgumentException(
-                    "fileLimit must be greater than zero");
-        }
-
-        LimitedFolderContent cached =
-                getCachedContent(
-                        bucket,
-                        prefix);
-
-        if (cached != null) {
-
-            return CompletableFuture.completedFuture(
-                    createDisplayContent(
-                            cached,
-                            fileLimit,
-                            sortSpec));
-        }
-
-        String loadKey =
-                createLoadKey(
-                        bucket,
-                        prefix,
-                        fileLimit,
-                        sortSpec);
-
-        CompletableFuture<LimitedFolderContent> existing =
-                inFlightLoads.get(loadKey);
-
-        if (existing != null) {
-            return existing;
-        }
-
-        CompletableFuture<LimitedFolderContent> created =
-                CompletableFuture.supplyAsync(
-                        () ->
-                                loadFromS3(
-                                        bucket,
-                                        prefix,
-                                        fileLimit,
-                                        sortSpec,
-                                        discoveryListener),
-                        executor);
-
-        CompletableFuture<LimitedFolderContent> actual =
-                inFlightLoads.putIfAbsent(
-                        loadKey,
-                        created);
-
-        if (actual != null) {
-            return actual;
-        }
-
-        created.whenComplete(
-                (result, throwable) ->
-                        inFlightLoads.remove(
-                                loadKey,
-                                created));
-
-        return created;
-    }
-
     /**
      * Loads without a progress listener.
      */
@@ -241,7 +149,97 @@ public final class ExplorerContentLoader {
 
         return created;
     }
-    
+
+
+    public CompletableFuture<LimitedFolderContent> loadFolder(
+            ExecutorService executor,
+            String bucket,
+            String prefix,
+            int fileLimit,
+            FileTableSortSpec sortSpec,
+            FolderDiscoveryListener discoveryListener) {
+
+        return loadFolder(
+                executor,
+                bucket,
+                prefix,
+                fileLimit,
+                sortSpec,
+                discoveryListener,
+                false);
+    }
+
+    /**
+     * Loads both folders and files.
+     *
+     * <p>
+     * The ExecutorService is supplied by ExplorerPanel because
+     * that pool can be resized at runtime.
+     * </p>
+     */
+    public CompletableFuture<LimitedFolderContent> loadFolder(
+            ExecutorService executor,
+            String bucket,
+            String prefix,
+            int fileLimit,
+            FileTableSortSpec sortSpec,
+            FolderDiscoveryListener discoveryListener,
+            boolean flatBrowsing) {
+
+        Objects.requireNonNull(executor, "executor");
+        Objects.requireNonNull(bucket, "bucket");
+        Objects.requireNonNull(prefix, "prefix");
+        Objects.requireNonNull(sortSpec, "sortSpec");
+
+        if (fileLimit <= 0) {
+            throw new IllegalArgumentException(
+                    "fileLimit must be greater than zero");
+        }
+
+        LimitedFolderContent cached =
+                getCachedContent(bucket, prefix, flatBrowsing);
+
+        if (cached != null) {
+            return CompletableFuture.completedFuture(
+                    createDisplayContent(cached, fileLimit, sortSpec));
+        }
+
+        String loadKey =
+                createLoadKey(bucket, prefix, fileLimit, sortSpec)
+                        + "\u0000" + flatBrowsing;
+
+        CompletableFuture<LimitedFolderContent> existing =
+                inFlightLoads.get(loadKey);
+
+        if (existing != null) {
+            return existing;
+        }
+
+        CompletableFuture<LimitedFolderContent> created =
+                CompletableFuture.supplyAsync(
+                        () -> loadFromS3(
+                                bucket,
+                                prefix,
+                                fileLimit,
+                                sortSpec,
+                                discoveryListener,
+                                flatBrowsing),
+                        executor);
+
+        CompletableFuture<LimitedFolderContent> actual =
+                inFlightLoads.putIfAbsent(loadKey, created);
+
+        if (actual != null) {
+            return actual;
+        }
+
+        created.whenComplete(
+                (result, throwable) ->
+                        inFlightLoads.remove(loadKey, created));
+
+        return created;
+    }
+
     /**
      * Returns a complete cached result.
      *
@@ -254,28 +252,21 @@ public final class ExplorerContentLoader {
             String bucket,
             String prefix) {
 
-        LimitedFolderContent content =
-                cachedContent;
+        return getCachedContent(bucket, prefix, false);
+    }
 
-        if (content == null) {
-            return null;
-        }
+    public LimitedFolderContent getCachedContent(
+            String bucket,
+            String prefix,
+            boolean flatBrowsing) {
 
-        if (!Objects.equals(
-                cachedBucket,
-                bucket)) {
+        LimitedFolderContent content = cachedContent;
 
-            return null;
-        }
-
-        if (!Objects.equals(
-                cachedPrefix,
-                prefix)) {
-
-            return null;
-        }
-
-        if (content.fileLimitReached()) {
+        if (content == null
+                || !Objects.equals(cachedBucket, bucket)
+                || !Objects.equals(cachedPrefix, prefix)
+                || cachedFlatBrowsing != flatBrowsing
+                || content.fileLimitReached()) {
             return null;
         }
 
@@ -322,7 +313,8 @@ public final class ExplorerContentLoader {
             String prefix,
             int fileLimit,
             FileTableSortSpec sortSpec,
-            FolderDiscoveryListener discoveryListener) {
+            FolderDiscoveryListener discoveryListener,
+            boolean flatBrowsing) {
 
         S3ExplorerService service =
                 Objects.requireNonNull(
@@ -336,22 +328,15 @@ public final class ExplorerContentLoader {
                         fileLimit,
                         sortSpec,
                         collationKeyCache,
-                        discoveryListener);
+                        discoveryListener,
+                        FolderContentMode.FOLDERS_AND_FILES,
+                        flatBrowsing);
 
-        /*
-         * Only a complete scan may become
-         * the reusable full cache.
-         */
         if (!content.fileLimitReached()) {
-
-            cachedContent =
-                    content;
-
-            cachedBucket =
-                    bucket;
-
-            cachedPrefix =
-                    prefix;
+            cachedContent = content;
+            cachedBucket = bucket;
+            cachedPrefix = prefix;
+            cachedFlatBrowsing = flatBrowsing;
         }
 
         return content;

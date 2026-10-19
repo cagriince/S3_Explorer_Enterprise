@@ -38,23 +38,6 @@ public class S3ExplorerService {
                 .toList();
     }
 
-    public LimitedFolderContent listFolderWithLimit(
-            String bucket,
-            String prefix,
-            int fileLimit,
-            FileTableSortSpec sortSpec,
-            Map<String, CollationKey> collationKeyCache,
-            FolderDiscoveryListener discoveryListener) {
-
-        return listFolderWithLimit(
-                bucket,
-                prefix,
-                fileLimit,
-                sortSpec,
-                collationKeyCache,
-                discoveryListener,
-                FolderContentMode.FOLDERS_AND_FILES);
-    }
 
     public LimitedFolderContent listFolderWithLimit(
             String bucket,
@@ -65,23 +48,43 @@ public class S3ExplorerService {
             FolderDiscoveryListener discoveryListener,
             FolderContentMode contentMode) {
 
+        return listFolderWithLimit(
+                bucket,
+                prefix,
+                fileLimit,
+                sortSpec,
+                collationKeyCache,
+                discoveryListener,
+                contentMode,
+                false);
+    }
+
+    public LimitedFolderContent listFolderWithLimit(
+            String bucket,
+            String prefix,
+            int fileLimit,
+            FileTableSortSpec sortSpec,
+            Map<String, CollationKey> collationKeyCache,
+            FolderDiscoveryListener discoveryListener,
+            FolderContentMode contentMode,
+            boolean flatBrowsing) {
+
         if (fileLimit <= 0) {
             throw new IllegalArgumentException(
                     "fileLimit must be greater than zero");
         }
 
         if (sortSpec == null) {
-            sortSpec =
-                    FileTableSortSpec.defaultSpec();
+            sortSpec = FileTableSortSpec.defaultSpec();
         }
 
         if (contentMode == null) {
-            contentMode =
-                    FolderContentMode.FOLDERS_AND_FILES;
+            contentMode = FolderContentMode.FOLDERS_AND_FILES;
         }
 
-        Set<String> folders =
-                new LinkedHashSet<>();
+        String effectivePrefix = prefix == null ? "" : prefix;
+
+        Set<String> folders = new LinkedHashSet<>();
 
         BoundedSortedFileCollection files =
                 contentMode == FolderContentMode.FOLDERS_AND_FILES
@@ -92,91 +95,83 @@ public class S3ExplorerService {
                         : null;
 
         String continuationToken = null;
-
         long scannedFileCount = 0;
 
         do {
-
             ListObjectsV2Request.Builder builder =
                     ListObjectsV2Request.builder()
                             .bucket(bucket)
-                            .prefix(
-                                    prefix == null
-                                            ? ""
-                                            : prefix)
-                            .delimiter("/")
+                            .prefix(effectivePrefix)
                             .maxKeys(500);
+
+            // Normal görünüm doğrudan alt klasörleri listeler.
+            // Flat Browsing ise bütün alt nesneleri tarar.
+            if (!flatBrowsing) {
+                builder.delimiter("/");
+            }
 
             if (continuationToken != null
                     && !continuationToken.isBlank()) {
-
-                builder.continuationToken(
-                        continuationToken);
+                builder.continuationToken(continuationToken);
             }
 
             ListObjectsV2Response response =
-                    client.listObjectsV2(
-                            builder.build());
+                    client.listObjectsV2(builder.build());
 
-            /*
-             * Folders are always collected,
-             * regardless of the file limit.
-             */
-            for (CommonPrefix commonPrefix :
-                    response.commonPrefixes()) {
-
-                folders.add(
-                        commonPrefix.prefix());
+            if (!flatBrowsing) {
+                for (CommonPrefix commonPrefix : response.commonPrefixes()) {
+                    folders.add(commonPrefix.prefix());
+                }
             }
 
-            /*
-             * In FOLDERS_ONLY mode we deliberately
-             * do not inspect file objects.
-             */
-            if (contentMode
-                    == FolderContentMode.FOLDERS_AND_FILES) {
+            if (contentMode == FolderContentMode.FOLDERS_AND_FILES) {
+                for (S3Object object : response.contents()) {
+                    String key = object.key();
 
-                for (S3Object object :
-                        response.contents()) {
-
-                    if (object.key().equals(prefix)) {
+                    if (key.equals(effectivePrefix)) {
                         continue;
                     }
 
-                    if (object.key().endsWith("/")) {
+                    if (flatBrowsing) {
+                        // Her nesnenin ara yol bileşenlerini klasör olarak ekle.
+                        int slash = key.indexOf('/', effectivePrefix.length());
+
+                        while (slash >= 0) {
+                            folders.add(key.substring(0, slash + 1));
+                            slash = key.indexOf('/', slash + 1);
+                        }
+
+                        // Klasör işaretçisi nesneleri dosya olarak gösterme.
+                        if (key.endsWith("/")) {
+                            folders.add(key);
+                            continue;
+                        }
+                    } else if (key.endsWith("/")) {
                         continue;
                     }
 
                     scannedFileCount++;
-
                     files.add(object);
                 }
             }
 
             if (discoveryListener != null) {
-
                 discoveryListener.onDiscovery(
                         scannedFileCount,
                         folders.size());
             }
 
-            continuationToken =
-                    response.nextContinuationToken();
+            continuationToken = response.nextContinuationToken();
 
         } while (continuationToken != null
                 && !continuationToken.isBlank());
 
-        /*
-         * FOLDERS_ONLY never reaches a file limit.
-         */
         boolean fileLimitReached =
-                contentMode
-                        == FolderContentMode.FOLDERS_AND_FILES
+                contentMode == FolderContentMode.FOLDERS_AND_FILES
                         && scannedFileCount > files.size();
 
         List<S3Object> fileList =
-                contentMode
-                        == FolderContentMode.FOLDERS_AND_FILES
+                contentMode == FolderContentMode.FOLDERS_AND_FILES
                         ? files.toList()
                         : List.of();
 
@@ -186,7 +181,7 @@ public class S3ExplorerService {
                 fileLimitReached,
                 scannedFileCount);
     }
-    
+
     public HeadObjectResponse getObject(String bucket, String key) {
         try {
             HeadObjectRequest request =
