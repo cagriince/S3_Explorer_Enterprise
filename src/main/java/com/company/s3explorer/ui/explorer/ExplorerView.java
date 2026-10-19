@@ -59,8 +59,9 @@ public final class ExplorerView {
     private final Action backAction;
     private final Action forwardAction;
     private final Action reloadFolderAction;
+    private final Action flatBrowsingAction;
     private final Action folderEditAction;
-    
+
     private final Consumer<S3TreeNode> treeExpansionListener;
     private final Runnable openSelectedFileItem;
     private final Runnable reloadCurrentFileTable;
@@ -83,6 +84,7 @@ public final class ExplorerView {
     private JPanel breadcrumbContainer;
     private JButton backNavigationButton;
     private JButton forwardNavigationButton;
+    private JToggleButton flatBrowsingButton;
     private JButton editLocationButton;
     private JTextField locationField;
     private boolean locationEditMode;
@@ -120,6 +122,7 @@ public final class ExplorerView {
             Action backAction,
             Action forwardAction,
             Action reloadFolderAction,
+            Action flatBrowsingAction,
             Action folderEditAction,
             Consumer<S3TreeNode> treeExpansionListener,
             Runnable openSelectedFileItem,
@@ -147,6 +150,7 @@ public final class ExplorerView {
         this.backAction = backAction;
         this.forwardAction = forwardAction;
         this.reloadFolderAction = reloadFolderAction;
+        this.flatBrowsingAction = flatBrowsingAction;
         this.folderEditAction = folderEditAction;
         this.treeExpansionListener = treeExpansionListener;
         this.openSelectedFileItem = openSelectedFileItem;
@@ -336,6 +340,7 @@ public final class ExplorerView {
 
         backNavigationButton = createIconButton(backAction);
         forwardNavigationButton = createIconButton(forwardAction);
+        flatBrowsingButton = createToggleIconButton(flatBrowsingAction);
         editLocationButton = createIconButton(folderEditAction);
 
         // Vertically center the navigation buttons without changing their sizes.
@@ -362,9 +367,12 @@ public final class ExplorerView {
         navigationButtons.add(createSeparator(), navigationConstraints);
 
         navigationConstraints.gridx = 4;
-        navigationButtons.add(editLocationButton, navigationConstraints);
+        navigationButtons.add(flatBrowsingButton, navigationConstraints);
 
         navigationConstraints.gridx = 5;
+        navigationButtons.add(editLocationButton, navigationConstraints);
+
+        navigationConstraints.gridx = 6;
         navigationButtons.add(createSeparator(), navigationConstraints);
 
         // Folder path editor
@@ -493,7 +501,15 @@ public final class ExplorerView {
     }
 
     private JButton createIconButton(Action action) {
-        JButton button = new JButton(action);
+        return (JButton) createIconButton(action, false);
+    }
+
+    private JToggleButton createToggleIconButton(Action action) {
+        return (JToggleButton) createIconButton(action, true);
+    }
+
+    private AbstractButton createIconButton(Action action, boolean toogle) {
+        AbstractButton button = toogle ? new JToggleButton(action): new JButton(action);
         button.setHideActionText(true);
 
         String actionName = String.valueOf(
@@ -739,6 +755,7 @@ public final class ExplorerView {
         S3Util.setActionIcon(backAction, IconProvider.ICON_BACK);
         S3Util.setActionIcon(forwardAction, IconProvider.ICON_FORWARD);
         S3Util.setActionIcon(reloadFolderAction, IconProvider.ICON_FOLDER_REFRESH);
+        S3Util.setActionIcon(flatBrowsingAction, IconProvider.ICON_FLAT_BROWSING);
         S3Util.setActionIcon(folderEditAction, IconProvider.ICON_FOLDER_EDIT);
     }
 
@@ -934,5 +951,17 @@ public final class ExplorerView {
                 }
             }
         });
+    }
+
+    public void setFlatBrowsingEnabled(boolean enabled) {
+        if (flatBrowsingButton == null) {
+            return;
+        }
+
+        flatBrowsingButton.setSelected(enabled);
+        flatBrowsingButton.setToolTipText(
+                enabled
+                        ? "Flat Browsing (On)"
+                        : "Flat Browsing (Off)");
     }
 }

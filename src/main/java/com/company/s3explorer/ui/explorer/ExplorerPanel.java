@@ -149,6 +149,8 @@ public class ExplorerPanel extends JPanel {
     private Action backAction;
     private Action forwardAction;
     private Action reloadFolderAction;
+    private Action flatBrowsingAction;
+    private boolean flatBrowsingEnabled;
     private Action folderEditAction;
     private Action goToParentAction;
     private Action renameAction;
@@ -216,6 +218,7 @@ public class ExplorerPanel extends JPanel {
                 backAction,
                 forwardAction,
                 reloadFolderAction,
+                flatBrowsingAction,
                 folderEditAction,
                 node -> treeController.loadChildren(node),
                 this::openSelectedFileItem,
@@ -355,6 +358,7 @@ public class ExplorerPanel extends JPanel {
         bulkDownloadAction = new ExplorerAction("Bulk Download", this::showBulkDownloadDialog);
         backAction = new ExplorerAction("Back", this::goBack);
         forwardAction = new ExplorerAction("Forward", this::goForward);
+        flatBrowsingAction = new ExplorerAction("Flat Browsing", this::toggleFlatBrowsing);
         folderEditAction = new ExplorerAction("Folder Edit", this::changeFolderEditStatus);
         reloadFolderAction = new ExplorerAction("Reload Folder", this::reloadCurrentFolder);
     }
@@ -7531,5 +7535,15 @@ public class ExplorerPanel extends JPanel {
 
     public void setMenuIconUpdater(Runnable updater) {
         themeManager.setMenuIconUpdater(updater);
+    }
+
+    private void toggleFlatBrowsing() {
+        flatBrowsingEnabled = !flatBrowsingEnabled;
+
+        if (view != null) {
+            view.setFlatBrowsingEnabled(flatBrowsingEnabled);
+        }
+
+        reloadCurrentFileTable();
     }
 }
