@@ -312,13 +312,13 @@ public class MainFrame extends JFrame {
         helpMenu.addSeparator();
 
         // About
-        aboutMenuItem = new JMenuItem("About");
+        aboutMenuItem = new JMenuItem("About Me");
         aboutMenuItem.setIcon(IconProvider.ICON_ABOUT);
         aboutMenuItem.addActionListener(
                 e -> JOptionPane.showMessageDialog(
                         this,
                         "<html><font color=red size=6><b>GİB<br/>"
-                                + "<font color=blue>S3 </font>"
+                                + "<font color=#0000B3>S3 </font>"
                                 + "<font color=black>Explorer</font>"
                                 + "</b></font></html>",
                         "About",

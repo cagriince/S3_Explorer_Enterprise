@@ -85,7 +85,7 @@ public final class ExplorerView {
     private JButton backNavigationButton;
     private JButton forwardNavigationButton;
     private JToggleButton flatBrowsingButton;
-    private JButton editLocationButton;
+    private JToggleButton editLocationButton;
     private JTextField locationField;
     private boolean locationEditMode;
     private JLabel fileFolderInfo;
@@ -341,7 +341,7 @@ public final class ExplorerView {
         backNavigationButton = createIconButton(backAction);
         forwardNavigationButton = createIconButton(forwardAction);
         flatBrowsingButton = createToggleIconButton(flatBrowsingAction);
-        editLocationButton = createIconButton(folderEditAction);
+        editLocationButton = createToggleIconButton(folderEditAction);
 
         // Vertically center the navigation buttons without changing their sizes.
         JPanel navigationButtons = new JPanel(new GridBagLayout());
@@ -776,7 +776,7 @@ public final class ExplorerView {
         return forwardNavigationButton;
     }
 
-    public JButton getEditLocationButton() {
+    public JToggleButton getEditLocationButton() {
         return editLocationButton;
     }
 
@@ -788,6 +788,10 @@ public final class ExplorerView {
 
     public void setLocationEditMode(boolean editMode) {
         locationEditMode = editMode;
+
+        if (editLocationButton != null) {
+            editLocationButton.setSelected(editMode);
+        }
 
         if (editMode) {
             breadcrumbContainer.remove(breadcrumbHost);
