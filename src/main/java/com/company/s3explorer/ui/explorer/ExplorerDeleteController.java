@@ -167,7 +167,7 @@ public class ExplorerDeleteController {
 
         int result =
                 JOptionPane.showConfirmDialog(
-                        view.getFileTable(),
+                        SwingUtilities.getWindowAncestor(view.getFileTable()),
                         message,
                         "Confirm",
                         JOptionPane.YES_NO_OPTION);

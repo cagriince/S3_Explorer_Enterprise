@@ -5987,7 +5987,7 @@ public class ExplorerPanel extends JPanel {
 
         int result =
                 JOptionPane.showConfirmDialog(
-                        this,
+                        SwingUtilities.getWindowAncestor(this),
                         item.getName() + " already exists.\n"
                                 + "Do you want to overwrite it?",
                         "File Conflict",
