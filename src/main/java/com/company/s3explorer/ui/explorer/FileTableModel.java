@@ -194,6 +194,41 @@ public class FileTableModel extends AbstractTableModel {
         return false;
     }
 
+    public int removeFilesByKeyPrefix(
+            String prefix,
+            boolean includeDescendants) {
+
+        if (prefix == null || prefix.isBlank()) {
+            return 0;
+        }
+
+        String normalizedPrefix =
+                prefix.endsWith("/") ? prefix : prefix + "/";
+
+        int removedCount = 0;
+
+        for (int i = files.size() - 1; i >= 0; i--) {
+            S3FileItem item = files.get(i);
+            String key = item.getKey();
+
+            boolean matches =
+                    includeDescendants
+                            ? Objects.equals(key, prefix)
+                            || Objects.equals(key, normalizedPrefix)
+                            || key.startsWith(normalizedPrefix)
+                            : Objects.equals(key, prefix)
+                            || Objects.equals(key, normalizedPrefix);
+
+            if (matches) {
+                files.remove(i);
+                fireTableRowsDeleted(i, i);
+                removedCount++;
+            }
+        }
+
+        return removedCount;
+    }
+
     public boolean replaceFileByKey(
             String oldKey,
             S3FileItem newFile) {

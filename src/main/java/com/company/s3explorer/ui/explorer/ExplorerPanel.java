@@ -2835,41 +2835,135 @@ public class ExplorerPanel extends JPanel {
                     String targetParentPrefix =
                             getParentPrefix(targetKey);
 
-                    if (Objects.equals(
-                            currentBucket,
-                            targetBucket)
-                            && Objects.equals(
-                            currentPrefix,
-                            targetParentPrefix)) {
+                    if (Objects.equals(currentBucket, targetBucket)) {
 
-                        boolean targetIsFolder =
-                                targetKey != null && targetKey.endsWith("/");
+                        boolean targetIsFolder = targetKey.endsWith("/");
+                        String effectivePrefix =
+                                currentPrefix == null ? "" : currentPrefix;
 
-                        S3FileItem item =
-                                new S3FileItem(
-                                        task.getTargetRepositoryId(),
+                        if (flatBrowsingEnabled) {
+
+                            /*
+                             * Flat modda, etkin klasörün altındaki bütün
+                             * hedef nesneleri göreli yollarıyla ekle.
+                             */
+                            if (targetKey.startsWith(effectivePrefix)
+                                    && targetKey.length() > effectivePrefix.length()) {
+
+                                String relativeKey =
+                                        targetKey.substring(effectivePrefix.length());
+
+                                /*
+                                 * Dosya iç içe bir klasörün altındaysa,
+                                 * eksik üst klasör satırlarını da oluştur.
+                                 */
+                                int slashIndex = relativeKey.indexOf('/');
+
+                                while (slashIndex >= 0) {
+                                    String folderKey =
+                                            effectivePrefix
+                                                    + relativeKey.substring(0, slashIndex + 1);
+
+                                    if (!folderKey.equals(targetKey)) {
+                                        S3FileItem folderItem =
+                                                new S3FileItem(
+                                                        task.getTargetRepositoryId(),
+                                                        targetBucket,
+                                                        folderKey,
+                                                        0,
+                                                        null,
+                                                        null,
+                                                        true,
+                                                        getFlatDisplayName(
+                                                                folderKey,
+                                                                effectivePrefix,
+                                                                true));
+
+                                        view.getFileTableModel().addFile(folderItem);
+                                    }
+
+                                    slashIndex =
+                                            relativeKey.indexOf('/', slashIndex + 1);
+                                }
+
+                                S3FileItem item =
+                                        new S3FileItem(
+                                                task.getTargetRepositoryId(),
+                                                targetBucket,
+                                                targetKey,
+                                                task.getSize(),
+                                                null,
+                                                null,
+                                                targetIsFolder,
+                                                getFlatDisplayName(
+                                                        targetKey,
+                                                        effectivePrefix,
+                                                        targetIsFolder));
+
+                                boolean added =
+                                        view.getFileTableModel().addFile(item);
+
+                                log.info(
+                                        "[FILE TABLE GROUP INSERT] target={}/{} flat=true added={}",
                                         targetBucket,
                                         targetKey,
-                                        task.getSize(),
-                                        null,
-                                        null,
-                                        targetIsFolder);
+                                        added);
+                            }
 
-                        boolean added =
-                                view.getFileTableModel()
-                                        .addFile(item);
+                        } else if (Objects.equals(currentPrefix, targetParentPrefix)) {
 
-                        log.info(
-                                "[FILE TABLE GROUP INSERT] " +
-                                        "source={}/{} target={}/{} " +
-                                        "size={} added={} group={}",
-                                task.getBucket(),
-                                task.getObjectKey(),
-                                targetBucket,
-                                targetKey,
-                                task.getSize(),
-                                added,
-                                group.getDisplayName());
+                            /*
+                             * Normal modda yalnızca doğrudan alt öğeleri göster.
+                             */
+                            S3FileItem item =
+                                    new S3FileItem(
+                                            task.getTargetRepositoryId(),
+                                            targetBucket,
+                                            targetKey,
+                                            task.getSize(),
+                                            null,
+                                            null,
+                                            targetIsFolder);
+
+                            boolean added =
+                                    view.getFileTableModel().addFile(item);
+
+                            log.info(
+                                    "[FILE TABLE GROUP INSERT] target={}/{} flat=false added={}",
+                                    targetBucket,
+                                    targetKey,
+                                    added);
+
+                        } else if (targetKey.startsWith(effectivePrefix)
+                                && targetKey.length() > effectivePrefix.length()) {
+
+                            /*
+                             * Normal modda iç içe dosyaları ayrı ayrı gösterme.
+                             * Bunun yerine ilk alt klasör satırını oluştur.
+                             */
+                            String relativeKey =
+                                    targetKey.substring(effectivePrefix.length());
+
+                            int slashIndex = relativeKey.indexOf('/');
+
+                            if (slashIndex >= 0) {
+                                String folderKey =
+                                        effectivePrefix
+                                                + relativeKey.substring(0, slashIndex + 1);
+
+                                S3FileItem folderItem =
+                                        new S3FileItem(
+                                                task.getTargetRepositoryId(),
+                                                targetBucket,
+                                                folderKey,
+                                                0,
+                                                null,
+                                                null,
+                                                true);
+
+                                view.getFileTableModel().addFile(folderItem);
+                            }
+                        }
                     }
 
                     /*
@@ -2900,6 +2994,54 @@ public class ExplorerPanel extends JPanel {
                                 task.getObjectKey(),
                                 removed,
                                 group.getDisplayName());
+                    }
+                }
+            }
+
+            /*
+             * Klasör silindiğinde, içindeki dosyaların DELETE task'ları
+             * klasörün kendi satırını kaldırmak için yeterli olmayabilir.
+             * Kaynak klasör satırını ayrıca kaldır.
+             */
+            if (group.getOperation() == TransferType.DELETE_GROUP
+                    && group.isSourceFolder()) {
+
+                String sourceBucket = group.getSourceBucket();
+                String sourcePrefix = group.getSourcePrefix();
+
+                if (sourcePrefix == null || sourcePrefix.isBlank()) {
+                    sourcePrefix = event.getPrefix();
+                }
+
+                if (sourceBucket == null) {
+                    sourceBucket = event.getBucket();
+                }
+
+                if (sourcePrefix != null
+                        && !sourcePrefix.isBlank()
+                        && Objects.equals(currentBucket, sourceBucket)) {
+
+                    boolean folderIsVisible =
+                            flatBrowsingEnabled
+                                    ? currentPrefix != null
+                                    && sourcePrefix.startsWith(currentPrefix)
+                                    && !sourcePrefix.equals(currentPrefix)
+                                    : Objects.equals(
+                                    currentPrefix,
+                                    getParentPrefix(sourcePrefix));
+
+                    if (folderIsVisible) {
+                        int removedCount =
+                                view.getFileTableModel()
+                                        .removeFilesByKeyPrefix(
+                                                sourcePrefix,
+                                                flatBrowsingEnabled);
+
+                        log.info(
+                                "[FILE TABLE DELETE FOLDER] prefix={} flat={} removed={}",
+                                sourcePrefix,
+                                flatBrowsingEnabled,
+                                removedCount);
                     }
                 }
             }
@@ -6776,38 +6918,7 @@ public class ExplorerPanel extends JPanel {
                     new ArrayList<>(targetTreeRefreshes));
         }
 
-        /*
-         * COPY_GROUP / MOVE_GROUP:
-         * Hedef üst dizin açıksa File Table'ı yenile.
-         */
-        if (isGroupCopyOrMove
-                && targetPrefix != null
-                && Objects.equals(currentPrefix, targetPrefix)) {
-
-            boolean hasNestedTarget =
-                    completedTasks.stream()
-                            .filter(Objects::nonNull)
-                            .map(TransferTask::getTargetObjectKey)
-                            .filter(Objects::nonNull)
-                            .anyMatch(targetKey ->
-                                    !Objects.equals(
-                                            getParentPrefix(targetKey),
-                                            targetPrefix));
-
-            if (hasNestedTarget) {
-
-                log.info(
-                        "[EXPLORER GROUP TARGET TABLE REFRESH] "
-                                + "group={} bucket={} prefix={}",
-                        group.getDisplayName(),
-                        currentBucket,
-                        currentPrefix);
-
-                refreshScheduler.scheduleCurrentTableRefresh();
-            }
-        }
-
-        /*
+         /*
          * UPLOAD_GROUP:
          * Yüklenen klasörün üst dizini açıksa File Table'ı yenile.
          */
