@@ -113,6 +113,9 @@ public class IconProvider {
     public static ImageIcon ICON_KEYBOARD = null;
     public static ImageIcon ICON_KEYBOARD_NORMAL = loadIcon("keyboard");
     public static ImageIcon ICON_KEYBOARD_REVERSE = loadIcon("keyboard-reverse");
+    public static ImageIcon ICON_TABLE_EXPORT = null;
+    public static ImageIcon ICON_TABLE_EXPORT_NORMAL = loadIcon("table-export");
+    public static ImageIcon ICON_TABLE_EXPORT_REVERSE = loadIcon("table-export-reverse");
 
     static {
         reloadSystemIcons(null);
@@ -171,6 +174,7 @@ public class IconProvider {
         ICON_ABOUT = normal ? ICON_ABOUT_NORMAL : ICON_ABOUT_REVERSE;
         ICON_EXIT = normal ? ICON_EXIT_NORMAL : ICON_EXIT_REVERSE;
         ICON_KEYBOARD = normal ? ICON_KEYBOARD_NORMAL : ICON_KEYBOARD_REVERSE;
+        ICON_TABLE_EXPORT = normal ? ICON_TABLE_EXPORT_NORMAL : ICON_TABLE_EXPORT_REVERSE;
     }
 
     public static ImageIcon loadSvgIcon(
