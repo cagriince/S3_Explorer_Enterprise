@@ -1,5 +1,6 @@
 package com.company.s3explorer.service;
 
+import com.company.s3explorer.util.S3Util;
 import software.amazon.awssdk.services.s3.model.S3Object;
 
 import java.text.CollationKey;
@@ -72,23 +73,11 @@ public final class FileTableSortSpec {
             default:
 
                 comparator =
-                        (left, right) -> {
-
-                            CollationKey leftKey =
-                                    collationKeyCache
-                                            .computeIfAbsent(
-                                                    left.key(),
-                                                    turkishCollator::getCollationKey);
-
-                            CollationKey rightKey =
-                                    collationKeyCache
-                                            .computeIfAbsent(
-                                                    right.key(),
-                                                    turkishCollator::getCollationKey);
-
-                            return leftKey.compareTo(
-                                    rightKey);
-                        };
+                        (left, right) ->
+                                S3Util.naturalTurkishCompare(
+                                        left.key(),
+                                        right.key(),
+                                        turkishCollator);
 
                 break;
         }

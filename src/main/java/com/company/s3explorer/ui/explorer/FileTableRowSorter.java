@@ -51,17 +51,14 @@ public class FileTableRowSorter
                 FileTableModel.COL_NAME,
                 (left, right) ->
                         S3Util.naturalTurkishCompare(
-                                S3Util.extractFolderName(
-                                        ((S3FileItem) left).getKey()),
-                                S3Util.extractFolderName(
-                                        ((S3FileItem) right).getKey()),
-                                turkishCollator)
+                                ((S3FileItem) left).getDisplayName(),
+                                ((S3FileItem) right).getDisplayName(),
+                                turkishCollator));
         /*        Comparator.comparing(
                         item ->
                                 S3Util.extractFolderName(
                                         ((S3FileItem) item).getKey()),
                         turkishCollator)*/
-        );
 
         this.setComparator(
                 FileTableModel.COL_SIZE,
