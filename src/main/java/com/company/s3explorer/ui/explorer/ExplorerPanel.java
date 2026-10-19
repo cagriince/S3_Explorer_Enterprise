@@ -7491,7 +7491,6 @@ public class ExplorerPanel extends JPanel {
         menu.add(downloadDecryptedMenuItem);
 
         menu.add(new JMenuItem(bulkDownloadAction));
-        menu.addSeparator();
 
         updateEncryptionMenuVisibility();
     }

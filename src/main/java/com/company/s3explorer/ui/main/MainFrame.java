@@ -240,11 +240,6 @@ public class MainFrame extends JFrame {
 
         repositoryMenu.add(repositoryManagerMenuItem);
 
-        // File
-        JMenu fileMenu = new JMenu("File");
-        fileMenu.setMnemonic(KeyEvent.VK_F);
-        explorerPanel.populateFileMenu(fileMenu);
-
         // Exit
         exitMenuItem = new JMenuItem("Exit");
         exitMenuItem.setIcon(IconProvider.ICON_EXIT);
@@ -268,8 +263,13 @@ public class MainFrame extends JFrame {
                                 WindowEvent.WINDOW_CLOSING));
             }
         });
+        repositoryMenu.addSeparator();
+        repositoryMenu.add(exitMenuItem);
 
-        fileMenu.add(exitMenuItem);
+        // File
+        JMenu fileMenu = new JMenu("File");
+        fileMenu.setMnemonic(KeyEvent.VK_F);
+        explorerPanel.populateFileMenu(fileMenu);
 
         // Edit
         JMenu editMenu = new JMenu("Edit");

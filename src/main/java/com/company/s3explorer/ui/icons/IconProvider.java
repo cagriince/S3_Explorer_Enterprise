@@ -19,11 +19,11 @@ public class IconProvider {
     public static ImageIcon ICON_LOGO = loadIcon("logo", 40);//32
     public static ImageIcon ICON_LOGO_96 = loadIcon("logo", 96);//32
     public static ImageIcon ICON_REPOSITORY = null;
-    public static ImageIcon ICON_REPOSITORY_NORMAL = loadIcon("db", 24);//20
-    public static ImageIcon ICON_REPOSITORY_REVERSE = loadIcon("db-reverse", 24);//20
+    public static ImageIcon ICON_REPOSITORY_NORMAL = loadIcon("db");
+    public static ImageIcon ICON_REPOSITORY_REVERSE = loadIcon("db-reverse");
     public static ImageIcon ICON_BUCKET = null;
-    public static ImageIcon ICON_BUCKET_NORMAL = loadIcon("hdd", 24);//24
-    public static ImageIcon ICON_BUCKET_REVERSE = loadIcon("hdd-reverse", 24);//24
+    public static ImageIcon ICON_BUCKET_NORMAL = loadIcon("hdd");
+    public static ImageIcon ICON_BUCKET_REVERSE = loadIcon("hdd-reverse");
 
     public static ImageIcon ICON_CHECK_ALL = null;
     public static ImageIcon ICON_CHECK_ALL_NORMAL = loadIcon("check-all");

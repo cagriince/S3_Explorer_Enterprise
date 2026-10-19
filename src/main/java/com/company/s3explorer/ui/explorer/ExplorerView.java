@@ -721,8 +721,6 @@ public final class ExplorerView {
     }
 
     public void setButtonIcons() {
-        repositoryLabel.setIcon(IconProvider.ICON_REPOSITORY);
-        bucketLabel.setIcon(IconProvider.ICON_BUCKET);
         S3Util.setActionIcon(refreshAction, IconProvider.ICON_REFRESH);
         S3Util.setActionIcon(uploadAction, IconProvider.ICON_UPLOAD);
         S3Util.setActionIcon(uploadEncryptedAction, IconProvider.ICON_UPLOAD_ENCRYPTED);
