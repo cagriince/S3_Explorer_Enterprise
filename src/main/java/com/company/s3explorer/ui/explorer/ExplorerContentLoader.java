@@ -3,6 +3,7 @@ package com.company.s3explorer.ui.explorer;
 import com.company.s3explorer.service.*;
 
 import java.text.CollationKey;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -217,36 +218,56 @@ public final class ExplorerContentLoader {
                     "fileLimit must be greater than zero");
         }
 
-        if (filter == null) {
-            filter = FileTableFilter.noFilter();
-        }
+        FileTableFilter effectiveFilter =
+                filter == null
+                        ? FileTableFilter.noFilter()
+                        : filter;
 
         boolean unfiltered =
-                !filter.hasTextFilter()
-                        && filter.itemType() == ItemTypeFilter.ALL;
+                !effectiveFilter.hasTextFilter()
+                        && effectiveFilter.itemType()
+                        == ItemTypeFilter.ALL;
 
         /*
-         * Yalnızca filtresiz istekler mevcut tam sonuç önbelleğini
-         * kullanabilir. Filtreli sonuçlar bu önbelleğe girmez.
+         * Tam liste önbellekteyse, hem filtresiz hem de
+         * filtreli görüntüleme S3 isteği olmadan hazırlanabilir.
          */
-        if (unfiltered) {
-            LimitedFolderContent cached =
-                    getCachedContent(bucket, prefix, flatBrowsing);
+        LimitedFolderContent cached =
+                getCachedContent(bucket, prefix, flatBrowsing);
 
-            if (cached != null) {
+        if (cached != null) {
+            if (unfiltered) {
                 return CompletableFuture.completedFuture(
                         createDisplayContent(
                                 cached,
                                 fileLimit,
                                 sortSpec));
             }
+
+            return CompletableFuture.completedFuture(
+                    createFilteredDisplayContent(
+                            cached,
+                            fileLimit,
+                            sortSpec,
+                            effectiveFilter,
+                            prefix,
+                            flatBrowsing));
         }
 
+        /*
+         * Tam liste önbellekte değilse S3 üzerinden filtreli
+         * listeleme yapılır. Filtre, eşzamanlı yükleme anahtarına
+         * dahil edilir; farklı filtreler yanlışlıkla aynı sonucu paylaşmaz.
+         */
         String loadKey =
-                createLoadKey(bucket, prefix, fileLimit, sortSpec)
+                createLoadKey(
+                        bucket,
+                        prefix,
+                        fileLimit,
+                        sortSpec)
                         + "\u0000" + flatBrowsing
-                        + "\u0000" + filter.itemType()
-                        + "\u0000" + filter.text();
+                        + "\u0000" + effectiveFilter.itemType()
+                        + "\u0000" + effectiveFilter.text();
 
         CompletableFuture<LimitedFolderContent> existing =
                 inFlightLoads.get(loadKey);
@@ -254,8 +275,6 @@ public final class ExplorerContentLoader {
         if (existing != null) {
             return existing;
         }
-
-        FileTableFilter requestedFilter = filter;
 
         CompletableFuture<LimitedFolderContent> created =
                 CompletableFuture.supplyAsync(
@@ -266,11 +285,13 @@ public final class ExplorerContentLoader {
                                 sortSpec,
                                 discoveryListener,
                                 flatBrowsing,
-                                requestedFilter),
+                                effectiveFilter),
                         executor);
 
         CompletableFuture<LimitedFolderContent> actual =
-                inFlightLoads.putIfAbsent(loadKey, created);
+                inFlightLoads.putIfAbsent(
+                        loadKey,
+                        created);
 
         if (actual != null) {
             return actual;
@@ -278,7 +299,9 @@ public final class ExplorerContentLoader {
 
         created.whenComplete(
                 (result, throwable) ->
-                        inFlightLoads.remove(loadKey, created));
+                        inFlightLoads.remove(
+                                loadKey,
+                                created));
 
         return created;
     }
@@ -422,6 +445,111 @@ public final class ExplorerContentLoader {
                 bounded.toList(),
                 fileLimitReached,
                 cached.totalMatchingFileCount());
+    }
+
+
+    private LimitedFolderContent createFilteredDisplayContent(
+            LimitedFolderContent cached,
+            int fileLimit,
+            FileTableSortSpec sortSpec,
+            FileTableFilter filter,
+            String prefix,
+            boolean flatBrowsing) {
+
+        List<String> matchingFolders = new java.util.ArrayList<>();
+
+        if (filter.includesFolders()) {
+            for (String folderKey : cached.folders()) {
+                String displayName = getFilterDisplayName(
+                        folderKey,
+                        prefix,
+                        true,
+                        flatBrowsing);
+
+                if (filter.matchesText(displayName)) {
+                    matchingFolders.add(folderKey);
+                }
+            }
+        }
+
+        BoundedSortedFileCollection boundedFiles =
+                new BoundedSortedFileCollection(
+                        fileLimit,
+                        sortSpec.createFileComparator(
+                                collationKeyCache));
+
+        long matchingFileCount = 0;
+
+        if (filter.includesFiles()) {
+            for (software.amazon.awssdk.services.s3.model.S3Object object
+                    : cached.files()) {
+
+                String displayName = getFilterDisplayName(
+                        object.key(),
+                        prefix,
+                        false,
+                        flatBrowsing);
+
+                if (!filter.matchesText(displayName)) {
+                    continue;
+                }
+
+                matchingFileCount++;
+                boundedFiles.add(object);
+            }
+        }
+
+        List<software.amazon.awssdk.services.s3.model.S3Object>
+                matchingFiles = boundedFiles.toList();
+
+        boolean fileLimitReached =
+                matchingFileCount > matchingFiles.size();
+
+        return new LimitedFolderContent(
+                matchingFolders,
+                matchingFiles,
+                fileLimitReached,
+                matchingFileCount);
+    }
+
+    private String getFilterDisplayName(
+            String key,
+            String prefix,
+            boolean folder,
+            boolean flatBrowsing) {
+
+        String effectivePrefix =
+                prefix == null ? "" : prefix;
+
+        String displayName;
+
+        if (flatBrowsing) {
+            displayName = key.startsWith(effectivePrefix)
+                    ? key.substring(effectivePrefix.length())
+                    : key;
+        } else {
+            String normalizedKey = key;
+
+            if (folder && normalizedKey.endsWith("/")) {
+                normalizedKey = normalizedKey.substring(
+                        0,
+                        normalizedKey.length() - 1);
+            }
+
+            int slash = normalizedKey.lastIndexOf('/');
+
+            displayName = slash >= 0
+                    ? normalizedKey.substring(slash + 1)
+                    : normalizedKey;
+        }
+
+        if (folder && displayName.endsWith("/")) {
+            displayName = displayName.substring(
+                    0,
+                    displayName.length() - 1);
+        }
+
+        return displayName;
     }
 
     private String createLoadKey(
