@@ -320,7 +320,7 @@ public class MainFrame extends JFrame {
                         "<html><font color=red size=6><b>GİB<br/>"
                                 + "<font color=#0000B3>S3 </font>"
                                 + "<font color=black>Explorer</font>"
-                                + "</b></font></html>",
+                                + "</b></font><br/><div align=right><font color=black size=3>v1.0</font></div></html>",
                         "About",
                         JOptionPane.INFORMATION_MESSAGE,
                         IconProvider.ICON_LOGO_96));

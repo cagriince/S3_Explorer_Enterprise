@@ -131,7 +131,7 @@ public class RepositoryPanel extends JPanel {
 
     private JPanel createToolbar() {
         JPanel panel = new JPanel(
-                new FlowLayout(FlowLayout.CENTER, 8, 0));
+                new FlowLayout(FlowLayout.CENTER, 8, 4));
 
         JButton addBtn = new JButton("Add");
         editBtn = new JButton("Edit");
