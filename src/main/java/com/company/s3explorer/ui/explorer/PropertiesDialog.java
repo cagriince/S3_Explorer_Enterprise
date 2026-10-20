@@ -30,6 +30,9 @@ public class PropertiesDialog extends JDialog {
         this(owner);
 
         setItem(item);
+
+        pack();
+        setLocationRelativeTo(owner);
     }
 
     public PropertiesDialog(
@@ -39,6 +42,9 @@ public class PropertiesDialog extends JDialog {
         this(owner);
 
         setMultipleItems(items);
+
+        pack();
+        setLocationRelativeTo(owner);
     }
 
     private PropertiesDialog(Window owner) {
@@ -65,8 +71,6 @@ public class PropertiesDialog extends JDialog {
                 WindowConstants.DISPOSE_ON_CLOSE);
 
         setResizable(false);
-        pack();
-        setLocationRelativeTo(owner);
     }
 
     private void buildUi() {
