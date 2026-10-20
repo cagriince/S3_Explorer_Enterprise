@@ -964,6 +964,7 @@ public final class ExplorerView {
     }
 
 
+
     private JPanel createFileTableFooter() {
 
         JPanel footer = new JPanel(new BorderLayout(8, 0));
@@ -991,18 +992,30 @@ public final class ExplorerView {
 
         fileSelectionSeparator.setVisible(false);
 
+        // Keep all information components in one left-aligned row.
+        JPanel informationRow =
+                new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+
+        informationRow.setOpaque(false);
+        informationRow.add(fileFolderInfo);
+        informationRow.add(fileSelectionSeparator);
+        informationRow.add(fileSelectionInfo);
+
+        // Center the row vertically within the available footer height.
         JPanel informationPanel =
-                new JPanel(
-                        new FlowLayout(
-                                FlowLayout.LEFT,
-                                8,
-                                0));
+                new JPanel(new GridBagLayout());
 
         informationPanel.setOpaque(false);
 
-        informationPanel.add(fileFolderInfo);
-        informationPanel.add(fileSelectionSeparator);
-        informationPanel.add(fileSelectionInfo);
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.weightx = 1.0;
+        gbc.weighty = 1.0;
+        gbc.anchor = GridBagConstraints.WEST;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        informationPanel.add(informationRow, gbc);
 
         footer.add(
                 informationPanel,
