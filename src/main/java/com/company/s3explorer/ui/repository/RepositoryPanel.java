@@ -7,6 +7,7 @@ import com.company.s3explorer.service.ConnectionTestResult;
 import com.company.s3explorer.service.S3ClientFactory;
 
 import javax.swing.*;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.JTableHeader;
 import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableColumnModel;
@@ -56,6 +57,36 @@ public class RepositoryPanel extends JPanel {
     private JScrollPane createTable() {
         tableModel = new RepositoryTableModel();
         table = new JTable(tableModel);
+        table.setDefaultRenderer(
+                Object.class,
+                new DefaultTableCellRenderer() {
+                    @Override
+                    public Component getTableCellRendererComponent(
+                            JTable table,
+                            Object value,
+                            boolean isSelected,
+                            boolean hasFocus,
+                            int row,
+                            int column) {
+
+                        Component component =
+                                super.getTableCellRendererComponent(
+                                        table,
+                                        value,
+                                        isSelected,
+                                        hasFocus,
+                                        row,
+                                        column);
+
+                        if (component instanceof JComponent jComponent) {
+                            jComponent.setBorder(
+                                    BorderFactory.createEmptyBorder(
+                                            0, 2, 0, 2));
+                        }
+
+                        return component;
+                    }
+                });
 
         table.setSelectionMode(
                 ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
