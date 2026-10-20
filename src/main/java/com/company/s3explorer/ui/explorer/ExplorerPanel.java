@@ -7754,6 +7754,7 @@ public class ExplorerPanel extends JPanel {
     }
 
 
+
     private void exportFileList() {
         JFileChooser chooser = new JFileChooser();
         chooser.setDialogTitle("Export File List");
@@ -7780,7 +7781,8 @@ public class ExplorerPanel extends JPanel {
                     selectedFile.getName() + ".csv");
         }
 
-        Path exportPath = selectedFile.toPath();
+        final File exportFile = selectedFile;
+        final Path exportPath = exportFile.toPath();
 
         if (Files.exists(exportPath)) {
             int overwrite = JOptionPane.showConfirmDialog(
@@ -7795,69 +7797,195 @@ public class ExplorerPanel extends JPanel {
             }
         }
 
-        File parentFolder = selectedFile.getAbsoluteFile().getParentFile();
+        File parentFolder =
+                exportFile.getAbsoluteFile().getParentFile();
+
         if (parentFolder != null) {
             lastOpenedFolderToExport = parentFolder;
         }
 
-        FileTableModel model = view.getFileTableModel();
+        final String bucket = currentFileBucket;
+        final String prefix = currentFilePrefix == null
+                ? S3TreeNode.ROOT_PREFIX
+                : currentFilePrefix;
 
-        try (java.io.BufferedWriter writer =
-                     Files.newBufferedWriter(
-                             exportPath,
-                             java.nio.charset.StandardCharsets.UTF_8)) {
-
-            // UTF-8 BOM helps Excel recognize UTF-8 CSV files.
-            writer.write('\uFEFF');
-
-            writeCsvRow(
-                    writer,
-                    "Name",
-                    "Type",
-                    "Size",
-                    "Last Modified",
-                    "Storage Class");
-            writer.newLine();
-
-            // Export all model rows, not just visible table rows.
-            for (int row = 0; row < model.getRowCount(); row++) {
-                S3FileItem item = model.getItem(row);
-
-                // Exclude the synthetic parent-navigation row.
-                if (item.isParentFolder()) {
-                    continue;
-                }
-
-                // Name contains the real S3 key, including its full path.
-                writeCsvRow(
-                        writer,
-                        item.getKey(),
-                        model.getValueAt(row, FileTableModel.COL_TYPE),
-                        model.getValueAt(row, FileTableModel.COL_SIZE),
-                        item.getLastModified() == null
-                                ? ""
-                                : EXPORT_DATETIME_FORMATTER.format(
-                                item.getLastModified()
-                                        .atZone(ZoneId.systemDefault())),
-                        //model.getValueAt(row, FileTableModel.COL_LAST_MODIFIED),
-                        model.getValueAt(row, FileTableModel.COL_STORAGE_CLASS));
-            }
-
+        if (bucket == null || bucket.isBlank()) {
             JOptionPane.showMessageDialog(
                     SwingUtilities.getWindowAncestor(this),
-                    "File list exported successfully.",
+                    "There is no active bucket to export.",
                     "Export File List",
-                    JOptionPane.INFORMATION_MESSAGE);
-
-        } catch (IOException e) {
-            log.error("Failed to export file list to {}", exportPath, e);
-
-            JOptionPane.showMessageDialog(
-                    SwingUtilities.getWindowAncestor(this),
-                    "Failed to export file list:\n" + e.getMessage(),
-                    "Export Error",
-                    JOptionPane.ERROR_MESSAGE);
+                    JOptionPane.WARNING_MESSAGE);
+            return;
         }
+
+        final FileTableSortSpec sortSpec =
+                getCurrentFileSortSpec();
+
+        /*
+         * Use an effectively unlimited file limit for export.
+         * Do not use getSelectedFileTableRowLimit() here:
+         * that limit is intended only for the on-screen table.
+         */
+        contentLoader.loadFolder(
+                        explorerPool,
+                        bucket,
+                        prefix,
+                        Integer.MAX_VALUE,
+                        sortSpec,
+                        null,
+                        flatBrowsingEnabled)
+                .thenAccept(content -> {
+                    try {
+                        /*
+                         * Build a separate table model containing the
+                         * complete result. This does not modify the
+                         * visible table or its selected rows.
+                         */
+                        FileTableModel exportModel =
+                                new FileTableModel();
+
+                        List<S3FileItem> exportItems =
+                                content.files()
+                                        .stream()
+                                        .filter(object -> !object.key().endsWith("/"))
+                                        .map(object -> new S3FileItem(
+                                                getCurrentRepository().getId(),
+                                                bucket,
+                                                object.key(),
+                                                object.size(),
+                                                object.lastModified(),
+                                                object.storageClass() == null
+                                                        ? null
+                                                        : object.storageClass().toString(),
+                                                false,
+                                                flatBrowsingEnabled
+                                                        ? getFlatDisplayName(
+                                                        object.key(),
+                                                        prefix,
+                                                        false)
+                                                        : null))
+                                        .toList();
+
+                        exportModel.setFiles(exportItems);
+
+                        JTable exportTable =
+                                new JTable(exportModel);
+
+                        FileTableRowSorter exportSorter =
+                                new FileTableRowSorter(exportModel);
+
+                        exportTable.setRowSorter(exportSorter);
+
+                        /*
+                         * Reuse the visible table's sort keys, including
+                         * the selected column and ascending/descending
+                         * order. Apply them to the complete export table.
+                         */
+                        if (view.getFileTable().getRowSorter()
+                                instanceof FileTableRowSorter currentSorter) {
+
+                            exportSorter.setSortKeys(
+                                    currentSorter.getSortKeys());
+                        }
+
+                        try (java.io.BufferedWriter writer =
+                                     Files.newBufferedWriter(
+                                             exportPath,
+                                             java.nio.charset.StandardCharsets.UTF_8)) {
+
+                            // UTF-8 BOM helps Excel recognize UTF-8 CSV.
+                            writer.write('\uFEFF');
+
+                            writeCsvRow(
+                                    writer,
+                                    "Name",
+                                    "Type",
+                                    "Size",
+                                    "Last Modified",
+                                    "Storage Class");
+
+                            /*
+                             * Iterate in JTable view order, not model order.
+                             * This preserves the same sorting behavior as
+                             * the visible file table.
+                             */
+                            for (int viewRow = 0;
+                                 viewRow < exportTable.getRowCount();
+                                 viewRow++) {
+
+                                int modelRow =
+                                        exportTable.convertRowIndexToModel(
+                                                viewRow);
+
+                                S3FileItem item =
+                                        exportModel.getItem(modelRow);
+
+                                // Exclude any synthetic parent-navigation row.
+                                if (item.isParentFolder()) {
+                                    continue;
+                                }
+
+                                writeCsvRow(
+                                        writer,
+                                        item.getKey(),
+                                        exportModel.getValueAt(
+                                                modelRow,
+                                                FileTableModel.COL_TYPE),
+                                        exportModel.getValueAt(
+                                                modelRow,
+                                                FileTableModel.COL_SIZE),
+                                        item.getLastModified() == null
+                                                ? ""
+                                                : EXPORT_DATETIME_FORMATTER.format(
+                                                item.getLastModified()
+                                                        .atZone(
+                                                                ZoneId.systemDefault())),
+                                        exportModel.getValueAt(
+                                                modelRow,
+                                                FileTableModel.COL_STORAGE_CLASS));
+                            }
+                        }
+
+                        SwingUtilities.invokeLater(() ->
+                                JOptionPane.showMessageDialog(
+                                        SwingUtilities.getWindowAncestor(this),
+                                        "File list exported successfully.",
+                                        "Export File List",
+                                        JOptionPane.INFORMATION_MESSAGE));
+
+                    } catch (IOException e) {
+                        log.error(
+                                "Failed to export file list to {}",
+                                exportPath,
+                                e);
+
+                        SwingUtilities.invokeLater(() ->
+                                JOptionPane.showMessageDialog(
+                                        SwingUtilities.getWindowAncestor(this),
+                                        "Failed to export file list:\n"
+                                                + e.getMessage(),
+                                        "Export Error",
+                                        JOptionPane.ERROR_MESSAGE));
+                    }
+                })
+                .exceptionally(ex -> {
+                    log.error(
+                            "Failed to load complete file list for export. "
+                                    + "Bucket={}, prefix={}",
+                            bucket,
+                            prefix,
+                            ex);
+
+                    SwingUtilities.invokeLater(() ->
+                            JOptionPane.showMessageDialog(
+                                    SwingUtilities.getWindowAncestor(this),
+                                    "Failed to load the complete file list:\n"
+                                            + S3ErrorResolver.getUserMessage(ex),
+                                    "Export Error",
+                                    JOptionPane.ERROR_MESSAGE));
+
+                    return null;
+                });
     }
 
     private void writeCsvField(
