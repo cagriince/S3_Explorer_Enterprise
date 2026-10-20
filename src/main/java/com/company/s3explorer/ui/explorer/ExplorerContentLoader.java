@@ -169,6 +169,26 @@ public final class ExplorerContentLoader {
                 false);
     }
 
+    public CompletableFuture<LimitedFolderContent> loadFolder(
+            ExecutorService executor,
+            String bucket,
+            String prefix,
+            int fileLimit,
+            FileTableSortSpec sortSpec,
+            FolderDiscoveryListener discoveryListener,
+            boolean flatBrowsing) {
+
+        return loadFolder(
+                executor,
+                bucket,
+                prefix,
+                fileLimit,
+                sortSpec,
+                discoveryListener,
+                flatBrowsing,
+                FileTableFilter.noFilter());
+    }
+
     /**
      * Loads both folders and files.
      *
@@ -184,7 +204,8 @@ public final class ExplorerContentLoader {
             int fileLimit,
             FileTableSortSpec sortSpec,
             FolderDiscoveryListener discoveryListener,
-            boolean flatBrowsing) {
+            boolean flatBrowsing,
+            FileTableFilter filter) {
 
         Objects.requireNonNull(executor, "executor");
         Objects.requireNonNull(bucket, "bucket");
@@ -196,17 +217,36 @@ public final class ExplorerContentLoader {
                     "fileLimit must be greater than zero");
         }
 
-        LimitedFolderContent cached =
-                getCachedContent(bucket, prefix, flatBrowsing);
+        if (filter == null) {
+            filter = FileTableFilter.noFilter();
+        }
 
-        if (cached != null) {
-            return CompletableFuture.completedFuture(
-                    createDisplayContent(cached, fileLimit, sortSpec));
+        boolean unfiltered =
+                !filter.hasTextFilter()
+                        && filter.itemType() == ItemTypeFilter.ALL;
+
+        /*
+         * Yalnızca filtresiz istekler mevcut tam sonuç önbelleğini
+         * kullanabilir. Filtreli sonuçlar bu önbelleğe girmez.
+         */
+        if (unfiltered) {
+            LimitedFolderContent cached =
+                    getCachedContent(bucket, prefix, flatBrowsing);
+
+            if (cached != null) {
+                return CompletableFuture.completedFuture(
+                        createDisplayContent(
+                                cached,
+                                fileLimit,
+                                sortSpec));
+            }
         }
 
         String loadKey =
                 createLoadKey(bucket, prefix, fileLimit, sortSpec)
-                        + "\u0000" + flatBrowsing;
+                        + "\u0000" + flatBrowsing
+                        + "\u0000" + filter.itemType()
+                        + "\u0000" + filter.text();
 
         CompletableFuture<LimitedFolderContent> existing =
                 inFlightLoads.get(loadKey);
@@ -214,6 +254,8 @@ public final class ExplorerContentLoader {
         if (existing != null) {
             return existing;
         }
+
+        FileTableFilter requestedFilter = filter;
 
         CompletableFuture<LimitedFolderContent> created =
                 CompletableFuture.supplyAsync(
@@ -223,7 +265,8 @@ public final class ExplorerContentLoader {
                                 fileLimit,
                                 sortSpec,
                                 discoveryListener,
-                                flatBrowsing),
+                                flatBrowsing,
+                                requestedFilter),
                         executor);
 
         CompletableFuture<LimitedFolderContent> actual =
@@ -308,13 +351,15 @@ public final class ExplorerContentLoader {
      * both folders and files.
      * </p>
      */
+
     private LimitedFolderContent loadFromS3(
             String bucket,
             String prefix,
             int fileLimit,
             FileTableSortSpec sortSpec,
             FolderDiscoveryListener discoveryListener,
-            boolean flatBrowsing) {
+            boolean flatBrowsing,
+            FileTableFilter filter) {
 
         S3ExplorerService service =
                 Objects.requireNonNull(
@@ -330,9 +375,18 @@ public final class ExplorerContentLoader {
                         collationKeyCache,
                         discoveryListener,
                         FolderContentMode.FOLDERS_AND_FILES,
-                        flatBrowsing);
+                        flatBrowsing,
+                        filter);
 
-        if (!content.fileLimitReached()) {
+        boolean unfiltered =
+                !filter.hasTextFilter()
+                        && filter.itemType() == ItemTypeFilter.ALL;
+
+        /*
+         * Yalnızca filtresiz ve tam sonuçları önbelleğe al.
+         * Limit nedeniyle kesilmiş sonuç hiçbir zaman tam önbellek değildir.
+         */
+        if (unfiltered && !content.fileLimitReached()) {
             cachedContent = content;
             cachedBucket = bucket;
             cachedPrefix = prefix;

@@ -284,6 +284,8 @@ public class ExplorerPanel extends JPanel {
 
         view.setFileTableRowLimitSelectionListener(
                 fileTableRowLimitSelectionListener);
+        view.setServerFilterApplyListener(
+                this::reloadCurrentFileTable);
 
         reloadRepositories();
 
@@ -1497,7 +1499,8 @@ public class ExplorerPanel extends JPanel {
                                         folderCount);
                             }
                         },
-                        flatBrowsingEnabled)
+                        flatBrowsingEnabled,
+                        getCurrentFileTableFilter())
                 .thenAccept(content ->
                         SwingUtilities.invokeLater(() -> {
 
@@ -5148,6 +5151,20 @@ public class ExplorerPanel extends JPanel {
                 prefix);
     }
 
+    private FileTableFilter getCurrentFileTableFilter() {
+        String text = view.getFilterText();
+        String selectedType = view.getItemTypeFilter();
+
+        ItemTypeFilter itemType = switch (
+                selectedType == null ? "All" : selectedType) {
+            case "Folders Only" -> ItemTypeFilter.FOLDERS_ONLY;
+            case "Files Only" -> ItemTypeFilter.FILES_ONLY;
+            default -> ItemTypeFilter.ALL;
+        };
+
+        return new FileTableFilter(text, itemType);
+    }
+
     private void reloadCurrentFolder() {
 
         String bucket = currentFileBucket != null
@@ -5332,23 +5349,34 @@ public class ExplorerPanel extends JPanel {
         long folderCount = content.folderCount();
         long fileCount = content.fileCount();
 
-        String fileText;
+        String folderText = folderCount > 0
+                ? formatCount(folderCount, "folder")
+                : "";
 
-        if (content.fileLimitReached()) {
-            fileText =
-                    formatCount(fileCount, "file")
-                            + " / "
-                            + formatCount(
-                            content.totalMatchingFileCount(),
-                            "file");
-        } else {
+        String fileText = "";
+
+        if (fileCount > 0 || content.fileLimitReached()) {
             fileText = formatCount(fileCount, "file");
+
+            if (content.fileLimitReached()) {
+                fileText += " / "
+                        + formatCount(
+                        content.totalMatchingFileCount(),
+                        "file");
+            }
         }
 
-        view.getFileFolderInfo().setText(
-                formatCount(folderCount, "folder")
-                        + " and "
-                        + fileText);
+        String infoText;
+
+        if (folderText.isEmpty()) {
+            infoText = fileText;
+        } else if (fileText.isEmpty()) {
+            infoText = folderText;
+        } else {
+            infoText = folderText + " and " + fileText;
+        }
+
+        view.getFileFolderInfo().setText(infoText);
     }
 
     private void updateSelectedFileInfo() {
@@ -5365,8 +5393,7 @@ public class ExplorerPanel extends JPanel {
             int modelRow =
                     table.convertRowIndexToModel(viewRow);
 
-            S3FileItem item =
-                    model.getItem(modelRow);
+            S3FileItem item = model.getItem(modelRow);
 
             if (item == null || item.isParentFolder()) {
                 continue;
@@ -5380,29 +5407,41 @@ public class ExplorerPanel extends JPanel {
             }
         }
 
-        JLabel selectionInfo =
-                view.getFileSelectionInfo();
+        JLabel selectionInfo = view.getFileSelectionInfo();
 
         if (folderCount == 0 && fileCount == 0) {
-
             selectionInfo.setText("");
             selectionInfo.setVisible(false);
-
             view.setFileSelectionSeparatorVisible(false);
-
             return;
         }
 
-        selectionInfo.setText(
-                formatCount(folderCount, "folder")
-                        + " and "
-                        + formatCount(fileCount, "file")
-                        + " ("
-                        + SizeFormatter.format(totalSize)
-                        + ") selected");
+        String folderText = folderCount > 0
+                ? formatCount(folderCount, "folder")
+                : "";
 
+        String fileText = fileCount > 0
+                ? formatCount(fileCount, "file")
+                : "";
+
+        String selectedText;
+
+        if (folderText.isEmpty()) {
+            selectedText = fileText;
+        } else if (fileText.isEmpty()) {
+            selectedText = folderText;
+        } else {
+            selectedText = folderText + " and " + fileText;
+        }
+
+        if (fileCount > 0) {
+            selectedText += " ("
+                    + SizeFormatter.format(totalSize)
+                    + ")";
+        }
+
+        selectionInfo.setText(selectedText + " selected");
         selectionInfo.setVisible(true);
-
         view.setFileSelectionSeparatorVisible(true);
     }
 

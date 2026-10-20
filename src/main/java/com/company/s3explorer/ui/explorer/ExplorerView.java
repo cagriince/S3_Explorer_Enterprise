@@ -105,6 +105,7 @@ public final class ExplorerView {
     private boolean suppressThreadCountSelectionEvent;
 
     private final BooleanSupplier encryptionConfigured;
+    private Runnable serverFilterApplyListener;
 
     public ExplorerView(
             Action downloadAction,
@@ -1085,6 +1086,24 @@ public final class ExplorerView {
                     }
                 });
 
+        filterTextField.addActionListener(e -> {
+            if (serverFilterApplyListener != null) {
+                serverFilterApplyListener.run();
+            }
+        });
+
+        filterTextField.addFocusListener(
+                new java.awt.event.FocusAdapter() {
+                    @Override
+                    public void focusLost(
+                            java.awt.event.FocusEvent e) {
+
+                        if (serverFilterApplyListener != null) {
+                            serverFilterApplyListener.run();
+                        }
+                    }
+                });
+
         itemTypeCombo =
                 new JComboBox<>(
                         new String[]{
@@ -1098,8 +1117,13 @@ public final class ExplorerView {
         itemTypeCombo.setPreferredSize(
                 new Dimension(130, 26));
 
-        itemTypeCombo.addActionListener(
-                e -> applyFileTableFilters());
+        itemTypeCombo.addActionListener(e -> {
+            applyFileTableFilters();
+
+            if (serverFilterApplyListener != null) {
+                serverFilterApplyListener.run();
+            }
+        });
 
         gbc.gridx = 0;
         gbc.weightx = 0;
@@ -1238,5 +1262,9 @@ public final class ExplorerView {
         return itemTypeCombo == null
                 ? "All"
                 : (String) itemTypeCombo.getSelectedItem();
+    }
+
+    public void setServerFilterApplyListener(Runnable listener) {
+        this.serverFilterApplyListener = listener;
     }
 }
