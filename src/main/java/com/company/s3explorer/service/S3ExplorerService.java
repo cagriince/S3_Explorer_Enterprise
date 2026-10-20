@@ -56,7 +56,8 @@ public class S3ExplorerService {
                 collationKeyCache,
                 discoveryListener,
                 contentMode,
-                false);
+                false,
+                FileTableFilter.noFilter());
     }
 
     public LimitedFolderContent listFolderWithLimit(
@@ -68,6 +69,29 @@ public class S3ExplorerService {
             FolderDiscoveryListener discoveryListener,
             FolderContentMode contentMode,
             boolean flatBrowsing) {
+
+        return listFolderWithLimit(
+                bucket,
+                prefix,
+                fileLimit,
+                sortSpec,
+                collationKeyCache,
+                discoveryListener,
+                contentMode,
+                flatBrowsing,
+                FileTableFilter.noFilter());
+    }
+
+    public LimitedFolderContent listFolderWithLimit(
+            String bucket,
+            String prefix,
+            int fileLimit,
+            FileTableSortSpec sortSpec,
+            Map<String, CollationKey> collationKeyCache,
+            FolderDiscoveryListener discoveryListener,
+            FolderContentMode contentMode,
+            boolean flatBrowsing,
+            FileTableFilter filter) {
 
         if (fileLimit <= 0) {
             throw new IllegalArgumentException(
@@ -82,20 +106,26 @@ public class S3ExplorerService {
             contentMode = FolderContentMode.FOLDERS_AND_FILES;
         }
 
-        String effectivePrefix = prefix == null ? "" : prefix;
+        if (filter == null) {
+            filter = FileTableFilter.noFilter();
+        }
+
+        String effectivePrefix =
+                prefix == null ? "" : prefix;
 
         Set<String> folders = new LinkedHashSet<>();
 
         BoundedSortedFileCollection files =
                 contentMode == FolderContentMode.FOLDERS_AND_FILES
+                        && filter.includesFiles()
                         ? new BoundedSortedFileCollection(
                         fileLimit,
                         sortSpec.createFileComparator(
                                 collationKeyCache))
                         : null;
 
+        long matchingFileCount = 0;
         String continuationToken = null;
-        long scannedFileCount = 0;
 
         do {
             ListObjectsV2Request.Builder builder =
@@ -104,8 +134,6 @@ public class S3ExplorerService {
                             .prefix(effectivePrefix)
                             .maxKeys(500);
 
-            // Normal görünüm doğrudan alt klasörleri listeler.
-            // Flat Browsing ise bütün alt nesneleri tarar.
             if (!flatBrowsing) {
                 builder.delimiter("/");
             }
@@ -118,9 +146,32 @@ public class S3ExplorerService {
             ListObjectsV2Response response =
                     client.listObjectsV2(builder.build());
 
-            if (!flatBrowsing) {
-                for (CommonPrefix commonPrefix : response.commonPrefixes()) {
-                    folders.add(commonPrefix.prefix());
+            if (contentMode == FolderContentMode.FOLDERS_AND_FILES
+                    && filter.includesFolders()) {
+
+                if (!flatBrowsing) {
+                    for (CommonPrefix commonPrefix
+                            : response.commonPrefixes()) {
+
+                        String folderKey = commonPrefix.prefix();
+                        String displayName = getFilterDisplayName(
+                                folderKey,
+                                effectivePrefix,
+                                true,
+                                false);
+
+                        if (filter.matchesText(displayName)) {
+                            folders.add(folderKey);
+                        }
+                    }
+                }
+            } else if (contentMode == FolderContentMode.FOLDERS_ONLY) {
+                if (!flatBrowsing) {
+                    for (CommonPrefix commonPrefix
+                            : response.commonPrefixes()) {
+
+                        folders.add(commonPrefix.prefix());
+                    }
                 }
             }
 
@@ -133,31 +184,69 @@ public class S3ExplorerService {
                     }
 
                     if (flatBrowsing) {
-                        // Her nesnenin ara yol bileşenlerini klasör olarak ekle.
-                        int slash = key.indexOf('/', effectivePrefix.length());
+                        int slash = key.indexOf(
+                                '/',
+                                effectivePrefix.length());
 
                         while (slash >= 0) {
-                            folders.add(key.substring(0, slash + 1));
+                            String folderKey = key.substring(0, slash + 1);
+
+                            if (filter.includesFolders()) {
+                                String displayName = getFilterDisplayName(
+                                        folderKey,
+                                        effectivePrefix,
+                                        true,
+                                        true);
+
+                                if (filter.matchesText(displayName)) {
+                                    folders.add(folderKey);
+                                }
+                            }
+
                             slash = key.indexOf('/', slash + 1);
                         }
 
-                        // Klasör işaretçisi nesneleri dosya olarak gösterme.
                         if (key.endsWith("/")) {
-                            folders.add(key);
+                            if (filter.includesFolders()) {
+                                String displayName = getFilterDisplayName(
+                                        key,
+                                        effectivePrefix,
+                                        true,
+                                        true);
+
+                                if (filter.matchesText(displayName)) {
+                                    folders.add(key);
+                                }
+                            }
+
                             continue;
                         }
                     } else if (key.endsWith("/")) {
                         continue;
                     }
 
-                    scannedFileCount++;
+                    if (!filter.includesFiles()) {
+                        continue;
+                    }
+
+                    String displayName = getFilterDisplayName(
+                            key,
+                            effectivePrefix,
+                            false,
+                            flatBrowsing);
+
+                    if (!filter.matchesText(displayName)) {
+                        continue;
+                    }
+
+                    matchingFileCount++;
                     files.add(object);
                 }
             }
 
             if (discoveryListener != null) {
                 discoveryListener.onDiscovery(
-                        scannedFileCount,
+                        matchingFileCount,
                         folders.size());
             }
 
@@ -166,20 +255,59 @@ public class S3ExplorerService {
         } while (continuationToken != null
                 && !continuationToken.isBlank());
 
-        boolean fileLimitReached =
-                contentMode == FolderContentMode.FOLDERS_AND_FILES
-                        && scannedFileCount > files.size();
-
         List<S3Object> fileList =
-                contentMode == FolderContentMode.FOLDERS_AND_FILES
-                        ? files.toList()
-                        : List.of();
+                files == null
+                        ? List.of()
+                        : files.toList();
+
+        boolean fileLimitReached =
+                matchingFileCount > fileList.size();
 
         return new LimitedFolderContent(
                 new ArrayList<>(folders),
                 fileList,
                 fileLimitReached,
-                scannedFileCount);
+                matchingFileCount);
+    }
+
+    private String getFilterDisplayName(
+            String key,
+            String prefix,
+            boolean folder,
+            boolean flatBrowsing) {
+
+        String effectivePrefix =
+                prefix == null ? "" : prefix;
+
+        String displayName;
+
+        if (flatBrowsing) {
+            displayName = key.startsWith(effectivePrefix)
+                    ? key.substring(effectivePrefix.length())
+                    : key;
+        } else {
+            String normalizedKey = key;
+
+            if (folder && normalizedKey.endsWith("/")) {
+                normalizedKey = normalizedKey.substring(
+                        0,
+                        normalizedKey.length() - 1);
+            }
+
+            int slash = normalizedKey.lastIndexOf('/');
+
+            displayName = slash >= 0
+                    ? normalizedKey.substring(slash + 1)
+                    : normalizedKey;
+        }
+
+        if (folder && displayName.endsWith("/")) {
+            displayName = displayName.substring(
+                    0,
+                    displayName.length() - 1);
+        }
+
+        return displayName;
     }
 
     public HeadObjectResponse getObject(String bucket, String key) {
