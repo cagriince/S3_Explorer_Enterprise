@@ -23,6 +23,9 @@ public class PropertiesDialog extends JDialog {
     private final JLabel filesValue;
     private final JLabel totalSizeValue;
     private final JLabel statusLabel;
+    private Timer statusAnimationTimer;
+    private String statusBaseText = "";
+    private int statusDotCount = 0;
 
     public PropertiesDialog(
             Window owner,
@@ -70,6 +73,13 @@ public class PropertiesDialog extends JDialog {
 
         setDefaultCloseOperation(
                 WindowConstants.DISPOSE_ON_CLOSE);
+
+        addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override
+            public void windowClosed(java.awt.event.WindowEvent e) {
+                stopStatusAnimation();
+            }
+        });
 
         setResizable(false);
     }
@@ -316,8 +326,8 @@ public class PropertiesDialog extends JDialog {
             totalSizeValue.setText(
                     "Calculating...");
 
-            statusLabel.setText(
-                    "Calculating folder properties...");
+            startStatusAnimation(
+                    "Calculating");
 
         } else {
 
@@ -409,16 +419,19 @@ public class PropertiesDialog extends JDialog {
                         properties.totalSize()));
     }
 
-    public void setStatus(
-            String status) {
+    public void setStatus(String status) {
 
-        statusLabel.setText(
-                status == null
-                        ? ""
-                        : status);
+        if (status == null || status.isBlank()) {
+            stopStatusAnimation();
+            statusLabel.setText("");
+            return;
+        }
+
+        startStatusAnimation(status);
     }
 
     public void setCalculationCompleted() {
+        stopStatusAnimation();
         statusLabel.setText("");
     }
 
@@ -547,7 +560,34 @@ public class PropertiesDialog extends JDialog {
         filesValue.setText("Calculating...");
         totalSizeValue.setText("Calculating...");
 
-        statusLabel.setText(
-                "Calculating properties of selected items...");
+        startStatusAnimation(
+                "Calculating properties of selected items");;
+    }
+
+    private void startStatusAnimation(String message) {
+
+        stopStatusAnimation();
+
+        statusBaseText = message;
+        statusDotCount = 0;
+
+        statusLabel.setText(statusBaseText);
+
+        statusAnimationTimer = new Timer(100, e -> {
+            statusDotCount = (statusDotCount + 1) % 30;
+
+            statusLabel.setText(
+                    statusBaseText + ".".repeat(statusDotCount));
+        });
+
+        statusAnimationTimer.start();
+    }
+
+    private void stopStatusAnimation() {
+
+        if (statusAnimationTimer != null) {
+            statusAnimationTimer.stop();
+            statusAnimationTimer = null;
+        }
     }
 }
