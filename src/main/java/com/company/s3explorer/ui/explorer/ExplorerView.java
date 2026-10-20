@@ -977,7 +977,7 @@ public final class ExplorerView {
 
         footer.add(
                 exportButton,
-                BorderLayout.WEST);
+                BorderLayout.EAST);
 
         fileFolderInfo = new JLabel("");
         fileSelectionInfo = new JLabel("");
@@ -994,7 +994,7 @@ public final class ExplorerView {
         JPanel informationPanel =
                 new JPanel(
                         new FlowLayout(
-                                FlowLayout.RIGHT,
+                                FlowLayout.LEFT,
                                 8,
                                 0));
 
