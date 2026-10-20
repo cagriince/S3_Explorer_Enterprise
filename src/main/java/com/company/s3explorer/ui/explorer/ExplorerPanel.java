@@ -6181,10 +6181,31 @@ public class ExplorerPanel extends JPanel {
             if (item.isFolder()) {
                 explorerPool.submit(() -> {
                     try {
+                        /*
+                         * Check whether an object exists at the exact
+                         * folder key. A trailing slash is required.
+                         */
+                        String folderKey =
+                                item.getKey().endsWith("/")
+                                        ? item.getKey()
+                                        : item.getKey() + "/";
+
+                        var placeholder =
+                                getService().getObject(
+                                        item.getBucket(),
+                                        folderKey);
+
+                        SwingUtilities.invokeLater(() ->
+                                dialog.updateFolderType(
+                                        placeholder != null,
+                                        placeholder == null
+                                                ? null
+                                                : placeholder.lastModified()));
+
                         FolderProperties properties =
                                 getService().calculateFolderProperties(
                                         item.getBucket(),
-                                        item.getKey(),
+                                        folderKey,
                                         progress ->
                                                 SwingUtilities.invokeLater(() ->
                                                         dialog.updateFolderProgress(

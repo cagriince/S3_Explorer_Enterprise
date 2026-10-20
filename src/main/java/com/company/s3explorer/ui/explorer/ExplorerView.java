@@ -987,7 +987,7 @@ public final class ExplorerView {
                 new JSeparator(SwingConstants.VERTICAL);
 
         fileSelectionSeparator.setPreferredSize(
-                new Dimension(1, 18));
+                new Dimension(2, 18));
 
         fileSelectionSeparator.setVisible(false);
 

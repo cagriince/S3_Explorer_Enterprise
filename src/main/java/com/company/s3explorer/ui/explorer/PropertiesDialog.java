@@ -5,6 +5,7 @@ import com.company.s3explorer.ui.icons.FileIconRegistry;
 import com.company.s3explorer.ui.icons.IconProvider;
 import com.company.s3explorer.util.DateFormatter;
 
+import java.time.Instant;
 import java.util.List;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -267,9 +268,8 @@ public class PropertiesDialog extends JDialog {
 
         constraints.gridy++;
     }
-    
-    private void setItem(
-            S3FileItem item) {
+
+    private void setItem(S3FileItem item) {
 
         if (item == null) {
             return;
@@ -291,15 +291,19 @@ public class PropertiesDialog extends JDialog {
 
         if (item.isFolder()) {
 
+            // The exact S3 placeholder object will be checked asynchronously.
             typeValue.setText(
                     "Folder");
 
             sizeValue.setText(
                     "-");
 
-            lastModifiedValue.setText("-");
-            storageClassValue.setText("-");
-            
+            lastModifiedValue.setText(
+                    "-");
+
+            storageClassValue.setText(
+                    "-");
+
             foldersValue.setText(
                     "Calculating...");
 
@@ -332,7 +336,7 @@ public class PropertiesDialog extends JDialog {
                     item.getStorageClass() == null
                             ? "-"
                             : item.getStorageClass());
-            
+
             foldersValue.setText(
                     "-");
 
@@ -344,8 +348,22 @@ public class PropertiesDialog extends JDialog {
 
             statusLabel.setText(
                     "");
-
         }
+    }
+
+    public void updateFolderType(
+            boolean realFolder,
+            Instant lastModified) {
+
+        typeValue.setText(
+                realFolder
+                        ? "Folder - Real"
+                        : "Folder - Virtual");
+
+        lastModifiedValue.setText(
+                realFolder
+                        ? DateFormatter.format(lastModified)
+                        : "-");
     }
 
     public void updateFolderProperties(
