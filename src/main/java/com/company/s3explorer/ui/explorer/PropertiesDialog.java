@@ -166,6 +166,12 @@ public class PropertiesDialog extends JDialog {
                 "Total Size:",
                 totalSizeValue);
 
+        addPropertyRow(
+                propertiesPanel,
+                constraints,
+                null,
+                statusLabel);
+
         contentPanel.add(
                 propertiesPanel,
                 BorderLayout.CENTER);
@@ -173,17 +179,6 @@ public class PropertiesDialog extends JDialog {
         JPanel bottomPanel =
                 new JPanel(
                         new BorderLayout(10, 0));
-
-        statusLabel.setBorder(
-                new EmptyBorder(
-                        5,
-                        4,
-                        5,
-                        4));
-
-        bottomPanel.add(
-                statusLabel,
-                BorderLayout.CENTER);
 
         JButton okButton =
                 new JButton("OK");
@@ -226,24 +221,32 @@ public class PropertiesDialog extends JDialog {
             GridBagConstraints constraints,
             String label,
             JLabel valueLabel) {
-
+        boolean noValue = false;
+        if (label == null) {
+            noValue = true;
+        }
         constraints.gridwidth = 1;
         constraints.gridx = 0;
         constraints.weightx = 0;
+        if (noValue) {
+            constraints.gridwidth = 2;
+        }
 
-        JLabel nameLabel =
-                new JLabel(label);
+        if (!noValue) {
+            JLabel nameLabel =
+                    new JLabel(label);
 
-        nameLabel.setFont(
-                nameLabel.getFont()
-                        .deriveFont(Font.BOLD));
+            nameLabel.setFont(
+                    nameLabel.getFont()
+                            .deriveFont(Font.BOLD));
 
-        panel.add(
-                nameLabel,
-                constraints);
+            panel.add(
+                    nameLabel,
+                    constraints);
 
-        constraints.gridx = 1;
-        constraints.weightx = 1;
+            constraints.gridx = 1;
+            constraints.weightx = 1;
+        }
 
         panel.add(
                 valueLabel,
