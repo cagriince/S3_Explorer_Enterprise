@@ -10,7 +10,6 @@ import com.company.s3explorer.ui.theme.UIThemeManager;
 import com.company.s3explorer.util.S3Util;
 
 import javax.swing.*;
-import javax.swing.border.BevelBorder;
 import javax.swing.event.PopupMenuEvent;
 import javax.swing.event.PopupMenuListener;
 import javax.swing.event.TreeExpansionEvent;
@@ -61,6 +60,7 @@ public final class ExplorerView {
     private final Action reloadFolderAction;
     private final Action flatBrowsingAction;
     private final Action folderEditAction;
+    private final Action exportFileListAction;
 
     private final Consumer<S3TreeNode> treeExpansionListener;
     private final Runnable openSelectedFileItem;
@@ -90,6 +90,7 @@ public final class ExplorerView {
     private boolean locationEditMode;
     private JLabel fileFolderInfo;
     private JLabel fileSelectionInfo;
+    private JSeparator fileSelectionSeparator;
     private JPopupMenu filePopup;
 
     private JButton uploadEncryptedButton;
@@ -103,7 +104,7 @@ public final class ExplorerView {
     private boolean suppressThreadCountSelectionEvent;
 
     private final BooleanSupplier encryptionConfigured;
-    
+
     public ExplorerView(
             Action downloadAction,
             Action downloadDecryptedAction,
@@ -125,6 +126,7 @@ public final class ExplorerView {
             Action reloadFolderAction,
             Action flatBrowsingAction,
             Action folderEditAction,
+            Action exportFileListAction,
             Consumer<S3TreeNode> treeExpansionListener,
             Runnable openSelectedFileItem,
             Runnable reloadCurrentFileTable,
@@ -153,6 +155,7 @@ public final class ExplorerView {
         this.reloadFolderAction = reloadFolderAction;
         this.flatBrowsingAction = flatBrowsingAction;
         this.folderEditAction = folderEditAction;
+        this.exportFileListAction = exportFileListAction;
         this.treeExpansionListener = treeExpansionListener;
         this.openSelectedFileItem = openSelectedFileItem;
         this.reloadCurrentFileTable = reloadCurrentFileTable;
@@ -161,10 +164,6 @@ public final class ExplorerView {
         this.encryptionConfigured = encryptionConfigured;
         this.resizeExplorerPool = resizeExplorerPool;
     }
-
-
-
-
 
     public JSplitPane createMainSplit() {
         S3TreeNode root = new S3TreeNode(
@@ -409,39 +408,19 @@ public final class ExplorerView {
                 BorderLayout.CENTER);
 
         // Preserve the bottom panel and file information label.
-        JPanel bottomButtonPanel = new JPanel(new BorderLayout());
-        bottomButtonPanel.setPreferredSize(new Dimension(0, 40));
-        bottomButtonPanel.setBorder(
-                BorderFactory.createBevelBorder(BevelBorder.RAISED));
+        JPanel fileTablePanel = new JPanel(new BorderLayout());
 
-        bottomButtonPanel.add(
-                breadcrumbContainer,
+        fileTablePanel.add(
+                topButtonPanel,
+                BorderLayout.NORTH);
+
+        fileTablePanel.add(
+                tableScrollPane,
                 BorderLayout.CENTER);
 
-
-        fileFolderInfo = new JLabel("");
-        fileSelectionInfo = new JLabel("");
-        fileSelectionInfo.setVisible(false);
-
-        JPanel fileFolderInfoPanel =
-                new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 0));
-
-        fileFolderInfoPanel.setOpaque(false);
-
-        fileFolderInfoPanel.add(fileFolderInfo);
-        fileFolderInfoPanel.add(fileSelectionInfo);
-
-        bottomButtonPanel.add(
-                fileFolderInfoPanel,
-                BorderLayout.EAST);
-
-        topButtonPanel.add(
-                bottomButtonPanel,
+        fileTablePanel.add(
+                createFileTableFooter(),
                 BorderLayout.SOUTH);
-
-        JPanel fileTablePanel = new JPanel(new BorderLayout());
-        fileTablePanel.add(topButtonPanel, BorderLayout.NORTH);
-        fileTablePanel.add(tableScrollPane, BorderLayout.CENTER);
 
         createPopupMenu();
 
@@ -970,5 +949,62 @@ public final class ExplorerView {
                 enabled
                         ? "Flat Browsing (On)"
                         : "Flat Browsing (Off)");
+    }
+
+    private JPanel createFileTableFooter() {
+
+        JPanel footer = new JPanel(new BorderLayout(8, 0));
+        footer.setBorder(
+                BorderFactory.createEmptyBorder(4, 8, 4, 8));
+
+        JButton exportButton = new JButton(
+                "Export File Table",
+                (Icon) exportFileListAction.getValue(Action.SMALL_ICON));
+
+        exportButton.addActionListener(exportFileListAction);
+
+        footer.add(
+                exportButton,
+                BorderLayout.WEST);
+
+        fileFolderInfo = new JLabel("");
+        fileSelectionInfo = new JLabel("");
+        fileSelectionInfo.setVisible(false);
+
+        fileSelectionSeparator =
+                new JSeparator(SwingConstants.VERTICAL);
+
+        fileSelectionSeparator.setPreferredSize(
+                new Dimension(1, 18));
+
+        fileSelectionSeparator.setVisible(false);
+
+        JPanel informationPanel =
+                new JPanel(
+                        new FlowLayout(
+                                FlowLayout.RIGHT,
+                                8,
+                                0));
+
+        informationPanel.setOpaque(false);
+
+        informationPanel.add(fileFolderInfo);
+        informationPanel.add(fileSelectionSeparator);
+        informationPanel.add(fileSelectionInfo);
+
+        footer.add(
+                informationPanel,
+                BorderLayout.CENTER);
+
+        return footer;
+    }
+
+    public void setFileSelectionSeparatorVisible(boolean visible) {
+
+        if (fileSelectionSeparator == null) {
+            return;
+        }
+
+        fileSelectionSeparator.setVisible(visible);
     }
 }

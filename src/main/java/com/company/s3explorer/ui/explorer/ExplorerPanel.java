@@ -226,6 +226,7 @@ public class ExplorerPanel extends JPanel {
                 reloadFolderAction,
                 flatBrowsingAction,
                 folderEditAction,
+                exportFileListAction,
                 node -> treeController.loadChildren(node),
                 this::openSelectedFileItem,
                 this::reloadCurrentFileTable,
@@ -262,10 +263,6 @@ public class ExplorerPanel extends JPanel {
                         this::updateActionStates,
                         repositoryManager::findById);
 
-        /*
-         * createMainSplit() içinde
-         * treeController artık oluşturulmuş durumda.
-         */
         refreshScheduler =
                 new ExplorerRefreshScheduler(
                         treeController::refreshNode,
@@ -5355,29 +5352,28 @@ public class ExplorerPanel extends JPanel {
     private void updateFileFolderInfo(
             LimitedFolderContent content) {
 
-        long folderCount =
-                content.folderCount();
+        long folderCount = content.folderCount();
+        long fileCount = content.fileCount();
 
         String fileText;
 
         if (content.fileLimitReached()) {
 
             fileText =
-                    S3Util.formatWithThousandSeparator(content.fileCount())
+                    formatCount(fileCount, "file")
                             + " / "
-                            + S3Util.formatWithThousandSeparator(content.scannedFileCount())
-                            + " file(s)";
+                            + formatCount(
+                            content.scannedFileCount(),
+                            "file");
 
         } else {
 
-            fileText =
-                    S3Util.formatWithThousandSeparator(content.fileCount())
-                            + " file(s)";
+            fileText = formatCount(fileCount, "file");
         }
 
         view.getFileFolderInfo().setText(
-                S3Util.formatWithThousandSeparator(folderCount)
-                        + " folder(s) and "
+                formatCount(folderCount, "folder")
+                        + " and "
                         + fileText);
     }
 
@@ -5392,8 +5388,11 @@ public class ExplorerPanel extends JPanel {
 
         for (int viewRow : table.getSelectedRows()) {
 
-            int modelRow = table.convertRowIndexToModel(viewRow);
-            S3FileItem item = model.getItem(modelRow);
+            int modelRow =
+                    table.convertRowIndexToModel(viewRow);
+
+            S3FileItem item =
+                    model.getItem(modelRow);
 
             if (item == null || item.isParentFolder()) {
                 continue;
@@ -5407,23 +5406,30 @@ public class ExplorerPanel extends JPanel {
             }
         }
 
-        JLabel selectionInfo = view.getFileSelectionInfo();
+        JLabel selectionInfo =
+                view.getFileSelectionInfo();
 
         if (folderCount == 0 && fileCount == 0) {
+
             selectionInfo.setText("");
             selectionInfo.setVisible(false);
+
+            view.setFileSelectionSeparatorVisible(false);
+
             return;
         }
 
         selectionInfo.setText(
-                S3Util.formatWithThousandSeparator(folderCount)
-                        + " folder(s) and "
-                        + S3Util.formatWithThousandSeparator(fileCount)
-                        + " file(s) ("
+                formatCount(folderCount, "folder")
+                        + " and "
+                        + formatCount(fileCount, "file")
+                        + " ("
                         + SizeFormatter.format(totalSize)
                         + ") selected");
 
         selectionInfo.setVisible(true);
+
+        view.setFileSelectionSeparatorVisible(true);
     }
 
     private void updateFileDiscoveryProgress(
@@ -7890,5 +7896,15 @@ public class ExplorerPanel extends JPanel {
         }
 
         writer.newLine();
+    }
+
+    private String formatCount(
+            long count,
+            String singular) {
+
+        return S3Util.formatWithThousandSeparator(count)
+                + " "
+                + singular
+                + (count == 1 ? "" : "s");
     }
 }
