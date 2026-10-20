@@ -6169,25 +6169,22 @@ public class ExplorerPanel extends JPanel {
             return;
         }
 
-        PropertiesDialog dialog;
+        Window owner =
+                S3Util.getMainFrameAncestor(this);
 
         if (selectedItems.size() == 1) {
             S3FileItem item = selectedItems.get(0);
 
-            dialog = new PropertiesDialog(
-                    S3Util.getMainFrameAncestor(this),
-                    item);
+            PropertiesDialog dialog =
+                    new PropertiesDialog(owner, item);
 
             if (item.isFolder()) {
-                String bucket = item.getBucket();
-                String prefix = item.getKey();
-
                 explorerPool.submit(() -> {
                     try {
                         FolderProperties properties =
                                 getService().calculateFolderProperties(
-                                        bucket,
-                                        prefix,
+                                        item.getBucket(),
+                                        item.getKey(),
                                         progress ->
                                                 SwingUtilities.invokeLater(() ->
                                                         dialog.updateFolderProgress(
@@ -6202,8 +6199,8 @@ public class ExplorerPanel extends JPanel {
                         log.error(
                                 "[PROPERTIES] folder calculation failed "
                                         + "bucket={} prefix={}",
-                                bucket,
-                                prefix,
+                                item.getBucket(),
+                                item.getKey(),
                                 ex);
 
                         SwingUtilities.invokeLater(() ->
@@ -6214,11 +6211,121 @@ public class ExplorerPanel extends JPanel {
                     }
                 });
             }
-        } else {
-            dialog = new PropertiesDialog(
-                    S3Util.getMainFrameAncestor(this),
-                    selectedItems);
+
+            dialog.setVisible(true);
+            return;
         }
+
+        PropertiesDialog dialog =
+                new PropertiesDialog(owner, selectedItems);
+
+        List<S3FileItem> selectedFiles =
+                selectedItems.stream()
+                        .filter(S3FileItem::isFile)
+                        .toList();
+
+        List<S3FileItem> selectedFolders =
+                selectedItems.stream()
+                        .filter(S3FileItem::isFolder)
+                        .sorted(Comparator.comparingInt(
+                                item -> item.getKey().length()))
+                        .toList();
+
+        // Avoid calculating a selected folder again when an ancestor
+        // folder is already included in the selection.
+        List<S3FileItem> foldersToCalculate =
+                new ArrayList<>();
+
+        for (S3FileItem folder : selectedFolders) {
+            boolean coveredBySelectedFolder =
+                    foldersToCalculate.stream()
+                            .anyMatch(parent ->
+                                    folder.getBucket().equals(parent.getBucket())
+                                            && folder.getKey().startsWith(
+                                            parent.getKey()));
+
+            if (!coveredBySelectedFolder) {
+                foldersToCalculate.add(folder);
+            }
+        }
+
+        long selectedFileCount = selectedFiles.size();
+
+        long selectedFileSize =
+                selectedFiles.stream()
+                        .mapToLong(S3FileItem::getSize)
+                        .sum();
+
+        explorerPool.submit(() -> {
+            long completedFolderCount = 0;
+            long completedFileCount = 0;
+            long completedSize = 0;
+
+            try {
+                for (S3FileItem folder : foldersToCalculate) {
+                    final long previousFolderCount =
+                            completedFolderCount;
+
+                    final long previousFileCount =
+                            completedFileCount;
+
+                    final long previousSize =
+                            completedSize;
+
+                    FolderProperties properties =
+                            getService().calculateFolderProperties(
+                                    folder.getBucket(),
+                                    folder.getKey(),
+                                    progress -> {
+                                        FolderProperties aggregate =
+                                                new FolderProperties(
+                                                        previousFolderCount
+                                                                + progress.folderCount(),
+                                                        selectedFileCount
+                                                                + previousFileCount
+                                                                + progress.fileCount(),
+                                                        selectedFileSize
+                                                                + previousSize
+                                                                + progress.totalSize());
+
+                                        SwingUtilities.invokeLater(() ->
+                                                dialog.updateFolderProgress(
+                                                        aggregate));
+                                    });
+
+                    completedFolderCount +=
+                            properties.folderCount();
+
+                    completedFileCount +=
+                            properties.fileCount();
+
+                    completedSize +=
+                            properties.totalSize();
+                }
+
+                FolderProperties result =
+                        new FolderProperties(
+                                completedFolderCount,
+                                selectedFileCount + completedFileCount,
+                                selectedFileSize + completedSize);
+
+                SwingUtilities.invokeLater(() -> {
+                    dialog.updateFolderProperties(result);
+                    dialog.setCalculationCompleted();
+                });
+
+            } catch (Exception ex) {
+                log.error(
+                        "[PROPERTIES] multi-selection calculation failed",
+                        ex);
+
+                SwingUtilities.invokeLater(() ->
+                        dialog.setStatus(
+                                "Calculation failed: "
+                                        + S3ErrorResolver
+                                        .getDetailedMessage(ex)));
+            }
+        });
 
         dialog.setVisible(true);
     }

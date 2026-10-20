@@ -840,6 +840,9 @@ public class S3ExplorerService {
             Consumer<FolderProperties> progressConsumer) {
 
         Set<String> folders = new HashSet<>();
+        if (prefix != null && !prefix.isBlank()) {
+            folders.add(prefix);
+        }
 
         long fileCount = 0;
         long totalSize = 0;

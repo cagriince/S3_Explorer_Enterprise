@@ -499,25 +499,34 @@ public class PropertiesDialog extends JDialog {
 
         S3FileItem firstItem = items.get(0);
 
-        boolean sameLocation =
-                items.stream().allMatch(item ->
-                        item.getBucket().equals(firstItem.getBucket()));
+        String key = firstItem.getKey();
 
-        if (sameLocation) {
-            String bucket = firstItem.getBucket();
-
-            locationValue.setText(bucket);
-        } else {
-            locationValue.setText("-");
+        if (firstItem.isFolder() && key.endsWith("/")) {
+            key = key.substring(0, key.length() - 1);
         }
+
+        int lastSlash = key.lastIndexOf('/');
+
+        String parentPrefix =
+                lastSlash >= 0
+                        ? key.substring(0, lastSlash + 1)
+                        : "";
+
+        locationValue.setText(
+                firstItem.getBucket()
+                        + (parentPrefix.isEmpty()
+                        ? ""
+                        : "/" + parentPrefix));
 
         sizeValue.setText("-");
         lastModifiedValue.setText("-");
         storageClassValue.setText("-");
-        foldersValue.setText("-");
-        filesValue.setText("-");
-        totalSizeValue.setText("-");
 
-        statusLabel.setText("");
+        foldersValue.setText("Calculating...");
+        filesValue.setText("Calculating...");
+        totalSizeValue.setText("Calculating...");
+
+        statusLabel.setText(
+                "Calculating properties of selected items...");
     }
 }
