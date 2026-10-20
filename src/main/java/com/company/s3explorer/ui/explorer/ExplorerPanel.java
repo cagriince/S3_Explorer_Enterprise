@@ -368,7 +368,9 @@ public class ExplorerPanel extends JPanel {
         flatBrowsingAction = new ExplorerAction("Flat Browsing", this::toggleFlatBrowsing);
         folderEditAction = new ExplorerAction("Folder Edit", this::changeFolderEditStatus);
         reloadFolderAction = new ExplorerAction("Reload Folder", this::reloadCurrentFolder);
+
         exportFileListAction = new ExplorerAction("Export List", this::exportFileList);
+        exportFileListAction.setEnabled(false);
     }
 
     private void defineShortCuts() {
@@ -645,6 +647,7 @@ public class ExplorerPanel extends JPanel {
         copyTextAction.setEnabled(hasSelection);
 
         reloadFolderAction.setEnabled(folderSelected);
+        exportFileListAction.setEnabled(folderSelected);
         bulkDownloadAction.setEnabled(hasSelection);
 
         selectAllAction.setEnabled(
