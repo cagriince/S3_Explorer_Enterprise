@@ -7754,7 +7754,6 @@ public class ExplorerPanel extends JPanel {
     }
 
 
-
     private void exportFileList() {
         JFileChooser chooser = new JFileChooser();
         chooser.setDialogTitle("Export File List");
@@ -7822,9 +7821,8 @@ public class ExplorerPanel extends JPanel {
                 getCurrentFileSortSpec();
 
         /*
-         * Use an effectively unlimited file limit for export.
-         * Do not use getSelectedFileTableRowLimit() here:
-         * that limit is intended only for the on-screen table.
+         * Export the complete folder content, independently of the
+         * row limit used by the visible file table.
          */
         contentLoader.loadFolder(
                         explorerPool,
@@ -7836,35 +7834,67 @@ public class ExplorerPanel extends JPanel {
                         flatBrowsingEnabled)
                 .thenAccept(content -> {
                     try {
-                        /*
-                         * Build a separate table model containing the
-                         * complete result. This does not modify the
-                         * visible table or its selected rows.
-                         */
                         FileTableModel exportModel =
                                 new FileTableModel();
 
                         List<S3FileItem> exportItems =
+                                new java.util.ArrayList<>();
+
+                        String repositoryId =
+                                getCurrentRepository().getId();
+
+                        /*
+                         * Add folders first, using the same S3FileItem
+                         * representation as the visible file table.
+                         */
+                        exportItems.addAll(
+                                content.folders()
+                                        .stream()
+                                        .map(folderKey ->
+                                                new S3FileItem(
+                                                        repositoryId,
+                                                        bucket,
+                                                        folderKey,
+                                                        0,
+                                                        null,
+                                                        null,
+                                                        true,
+                                                        flatBrowsingEnabled
+                                                                ? getFlatDisplayName(
+                                                                folderKey,
+                                                                prefix,
+                                                                true)
+                                                                : null))
+                                        .toList());
+
+                        /*
+                         * Add files. S3 directory-marker objects ending
+                         * with "/" are excluded, matching the normal
+                         * file-table loading behavior.
+                         */
+                        exportItems.addAll(
                                 content.files()
                                         .stream()
-                                        .filter(object -> !object.key().endsWith("/"))
-                                        .map(object -> new S3FileItem(
-                                                getCurrentRepository().getId(),
-                                                bucket,
-                                                object.key(),
-                                                object.size(),
-                                                object.lastModified(),
-                                                object.storageClass() == null
-                                                        ? null
-                                                        : object.storageClass().toString(),
-                                                false,
-                                                flatBrowsingEnabled
-                                                        ? getFlatDisplayName(
+                                        .filter(object ->
+                                                !object.key().endsWith("/"))
+                                        .map(object ->
+                                                new S3FileItem(
+                                                        repositoryId,
+                                                        bucket,
                                                         object.key(),
-                                                        prefix,
-                                                        false)
-                                                        : null))
-                                        .toList();
+                                                        object.size(),
+                                                        object.lastModified(),
+                                                        object.storageClass() == null
+                                                                ? null
+                                                                : object.storageClass().toString(),
+                                                        false,
+                                                        flatBrowsingEnabled
+                                                                ? getFlatDisplayName(
+                                                                object.key(),
+                                                                prefix,
+                                                                false)
+                                                                : null))
+                                        .toList());
 
                         exportModel.setFiles(exportItems);
 
@@ -7877,13 +7907,12 @@ public class ExplorerPanel extends JPanel {
                         exportTable.setRowSorter(exportSorter);
 
                         /*
-                         * Reuse the visible table's sort keys, including
-                         * the selected column and ascending/descending
-                         * order. Apply them to the complete export table.
+                         * Reuse the current table's sort keys so that
+                         * folders and files follow the visible table's
+                         * sorting rules.
                          */
                         if (view.getFileTable().getRowSorter()
                                 instanceof FileTableRowSorter currentSorter) {
-
                             exportSorter.setSortKeys(
                                     currentSorter.getSortKeys());
                         }
@@ -7905,9 +7934,8 @@ public class ExplorerPanel extends JPanel {
                                     "Storage Class");
 
                             /*
-                             * Iterate in JTable view order, not model order.
-                             * This preserves the same sorting behavior as
-                             * the visible file table.
+                             * Export in sorted JTable view order.
+                             * Do not apply the visible table's row limit.
                              */
                             for (int viewRow = 0;
                                  viewRow < exportTable.getRowCount();
@@ -7920,7 +7948,6 @@ public class ExplorerPanel extends JPanel {
                                 S3FileItem item =
                                         exportModel.getItem(modelRow);
 
-                                // Exclude any synthetic parent-navigation row.
                                 if (item.isParentFolder()) {
                                     continue;
                                 }
