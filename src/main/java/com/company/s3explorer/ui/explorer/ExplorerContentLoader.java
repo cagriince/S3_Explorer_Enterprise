@@ -357,18 +357,17 @@ public final class ExplorerContentLoader {
                         sortSpec.createFileComparator(
                                 collationKeyCache));
 
-        bounded.addAll(
-                cached.files());
+        bounded.addAll(cached.files());
 
         boolean fileLimitReached =
-                cached.scannedFileCount()
+                cached.totalMatchingFileCount()
                         > bounded.size();
 
         return new LimitedFolderContent(
                 cached.folders(),
                 bounded.toList(),
                 fileLimitReached,
-                cached.scannedFileCount());
+                cached.totalMatchingFileCount());
     }
 
     private String createLoadKey(

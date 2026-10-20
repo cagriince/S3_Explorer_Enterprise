@@ -5322,7 +5322,7 @@ public class ExplorerPanel extends JPanel {
                 prefix,
                 content.folderCount(),
                 content.fileCount(),
-                content.scannedFileCount(),
+                content.totalMatchingFileCount(),
                 content.fileLimitReached());
     }
 
@@ -5335,16 +5335,13 @@ public class ExplorerPanel extends JPanel {
         String fileText;
 
         if (content.fileLimitReached()) {
-
             fileText =
                     formatCount(fileCount, "file")
                             + " / "
                             + formatCount(
-                            content.scannedFileCount(),
+                            content.totalMatchingFileCount(),
                             "file");
-
         } else {
-
             fileText = formatCount(fileCount, "file");
         }
 
@@ -8029,7 +8026,7 @@ public class ExplorerPanel extends JPanel {
                                     .toLowerCase(turkishLocale)
                                     .contains(normalizedFilter);
                         });
-                        
+
                         exportModel.setFiles(exportItems);
 
                         JTable exportTable =

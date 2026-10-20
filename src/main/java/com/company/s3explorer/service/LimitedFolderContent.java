@@ -8,7 +8,22 @@ public record LimitedFolderContent(
         List<String> folders,
         List<S3Object> files,
         boolean fileLimitReached,
-        long scannedFileCount) {
+        long totalMatchingFileCount) {
+
+    public LimitedFolderContent {
+        folders = folders == null
+                ? List.of()
+                : List.copyOf(folders);
+
+        files = files == null
+                ? List.of()
+                : List.copyOf(files);
+
+        if (totalMatchingFileCount < 0) {
+            throw new IllegalArgumentException(
+                    "totalMatchingFileCount must not be negative");
+        }
+    }
 
     public int fileCount() {
         return files.size();
