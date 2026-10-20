@@ -1099,8 +1099,6 @@ public final class ExplorerView {
                 new Dimension(130, 26));
 
         itemTypeCombo.addActionListener(e -> {
-            applyFileTableFilters();
-
             if (serverFilterApplyListener != null) {
                 serverFilterApplyListener.run();
             }

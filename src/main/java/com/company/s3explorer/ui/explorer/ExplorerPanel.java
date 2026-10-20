@@ -116,6 +116,9 @@ public class ExplorerPanel extends JPanel {
     private boolean suppressRepositorySelectionEvent;
     private boolean forceBucketReload;
 
+    private String lastAppliedFilterText = "";
+    private String lastAppliedItemType = "All";
+
     private record NavigationEntry(
             String repositoryId,
             String bucket,
@@ -284,8 +287,10 @@ public class ExplorerPanel extends JPanel {
 
         view.setFileTableRowLimitSelectionListener(
                 fileTableRowLimitSelectionListener);
+        lastAppliedFilterText = view.getFilterText();
+        lastAppliedItemType = view.getItemTypeFilter();
         view.setServerFilterApplyListener(
-                this::reloadCurrentFileTable);
+                this::applyServerFiltersIfChanged);
 
         reloadRepositories();
 
@@ -8256,5 +8261,32 @@ public class ExplorerPanel extends JPanel {
         }
 
         return selectedItems;
+    }
+
+    private void applyServerFiltersIfChanged() {
+
+        String currentText = view.getFilterText();
+        String currentItemType = view.getItemTypeFilter();
+
+        if (currentText == null) {
+            currentText = "";
+        }
+
+        if (currentItemType == null) {
+            currentItemType = "All";
+        }
+
+        if (currentText.equals(lastAppliedFilterText)
+                && currentItemType.equals(lastAppliedItemType)) {
+            return;
+        }
+
+        // Değerleri yükleme başlamadan güncelle.
+        // Böylece Enter ve focusLost aynı değişiklik için
+        // art arda çalışsa bile ikinci yükleme yapılmaz.
+        lastAppliedFilterText = currentText;
+        lastAppliedItemType = currentItemType;
+
+        reloadCurrentFileTable();
     }
 }
