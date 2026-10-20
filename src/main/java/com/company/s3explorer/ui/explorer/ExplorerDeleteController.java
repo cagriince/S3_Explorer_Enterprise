@@ -262,7 +262,7 @@ public class ExplorerDeleteController {
         }
 
         String groupName =
-                getOperationGroupName(
+                S3Util.getOperationGroupName(
                         items);
 
         TransferGroup group =
@@ -378,27 +378,6 @@ public class ExplorerDeleteController {
         }
 
         return items;
-    }
-
-    private String getOperationGroupName(
-            List<S3FileItem> items) {
-
-        if (items == null
-                || items.isEmpty()) {
-
-            return "";
-        }
-
-        String firstName =
-                items.getFirst()
-                        .getName();
-
-        if (items.size() == 1) {
-            return firstName;
-        }
-
-        return firstName
-                + " and others";
     }
 
     private void showError(

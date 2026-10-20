@@ -306,7 +306,7 @@ public class ExplorerPasteController {
              * Tek dosyalı Copy/Move grupsuz devam eder.
              */
             if (group == null && requiresGroup) {
-                String groupName = getOperationGroupName(items);
+                String groupName = S3Util.getOperationGroupName(items);
 
                 String sourcePrefix = item.isFolder()
                         ? item.getKey()
@@ -520,25 +520,5 @@ public class ExplorerPasteController {
                         ex.getMessage(),
                         title,
                         JOptionPane.ERROR_MESSAGE));
-    }
-
-    private String getOperationGroupName(
-            List<S3FileItem> items) {
-
-        if (items == null
-                || items.isEmpty()) {
-
-            return "";
-        }
-
-        String firstName =
-                items.getFirst().getName();
-
-        if (items.size() == 1) {
-            return firstName;
-        }
-
-        return firstName
-                + " and others";
     }
 }

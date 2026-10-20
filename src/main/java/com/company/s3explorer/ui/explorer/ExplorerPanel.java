@@ -4633,7 +4633,7 @@ public class ExplorerPanel extends JPanel {
                         repositoryId,
                         bucket,
                         sourcePrefix,
-                        getOperationGroupName(items),
+                        S3Util.getOperationGroupName(items),
                         destination);
 
         for (S3FileItem item : items) {
@@ -4758,7 +4758,7 @@ public class ExplorerPanel extends JPanel {
                         repositoryId,
                         bucket,
                         sourcePrefix,
-                        getOperationGroupName(items),
+                        S3Util.getOperationGroupName(items),
                         destination);
 
         for (S3FileItem item : items) {
@@ -6140,26 +6140,6 @@ public class ExplorerPanel extends JPanel {
 
         return true;
     }
-
-    private String getOperationGroupName(
-            List<S3FileItem> items) {
-
-        if (items == null
-                || items.isEmpty()) {
-            return "";
-        }
-
-        String firstName =
-                items.getFirst().getName();
-
-        if (items.size() == 1) {
-            return firstName;
-        }
-
-        return firstName
-                + " and others";
-    }
-
 
     private void showProperties() {
         JTable table = view.getFileTable();

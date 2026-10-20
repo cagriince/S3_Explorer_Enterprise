@@ -1,6 +1,7 @@
 package com.company.s3explorer.util;
 
 import com.company.s3explorer.transfer.TransferType;
+import com.company.s3explorer.ui.explorer.S3FileItem;
 import com.company.s3explorer.ui.main.MainFrame;
 import com.company.s3explorer.ui.theme.UIThemeManager;
 
@@ -10,6 +11,7 @@ import java.nio.file.Path;
 import java.text.Collator;
 import java.time.Instant;
 import java.util.Date;
+import java.util.List;
 
 public class S3Util {
     public static String combineKey(String prefix, String name) {
@@ -342,5 +344,35 @@ public class S3Util {
     public static void setActionIcon(Action action, Icon icon) {
         action.putValue(Action.SMALL_ICON, icon);
         action.putValue(Action.LARGE_ICON_KEY, icon);
+    }
+
+    public static String getOperationGroupName(
+            List<S3FileItem> items) {
+
+        if (items == null
+                || items.isEmpty()) {
+            return "";
+        }
+
+        int size = items.size();
+        int displayedCount = Math.min(size, 3);
+
+        String groupName =
+                items.stream()
+                        .limit(displayedCount)
+                        .map(S3FileItem::getName)
+                        .collect(
+                                java.util.stream.Collectors.joining(", "));
+
+        if (size <= 3) {
+            return groupName;
+        }
+
+        int remainingCount = size - displayedCount;
+
+        return groupName
+                + " and "
+                + remainingCount
+                + (remainingCount == 1 ? " other" : " others");
     }
 }
