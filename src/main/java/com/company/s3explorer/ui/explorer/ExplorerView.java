@@ -11,10 +11,7 @@ import com.company.s3explorer.util.S3Util;
 
 import javax.swing.*;
 import javax.swing.border.BevelBorder;
-import javax.swing.event.PopupMenuEvent;
-import javax.swing.event.PopupMenuListener;
-import javax.swing.event.TreeExpansionEvent;
-import javax.swing.event.TreeWillExpandListener;
+import javax.swing.event.*;
 import javax.swing.table.TableColumn;
 import javax.swing.tree.DefaultTreeCellRenderer;
 import javax.swing.tree.DefaultTreeModel;
@@ -22,6 +19,7 @@ import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.List;
+import java.util.Locale;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 
@@ -89,6 +87,8 @@ public final class ExplorerView {
     private JToggleButton editLocationButton;
     private JTextField locationField;
     private boolean locationEditMode;
+    private JTextField filterTextField;
+    private JComboBox<String> itemTypeCombo;
     private JLabel fileFolderInfo;
     private JLabel fileSelectionInfo;
     private JSeparator fileSelectionSeparator;
@@ -407,6 +407,10 @@ public final class ExplorerView {
         breadcrumbContainer.add(
                 breadcrumbHost,
                 BorderLayout.CENTER);
+
+        breadcrumbContainer.add(
+                createBreadcrumbFilterControls(),
+                BorderLayout.EAST);
 
         // Keep the breadcrumb row directly below the toolbar.
         JPanel breadcrumbRow = new JPanel(new BorderLayout());
@@ -1031,5 +1035,196 @@ public final class ExplorerView {
         }
 
         fileSelectionSeparator.setVisible(visible);
+    }
+
+    private JPanel createBreadcrumbFilterControls() {
+
+        JPanel controls =
+                new JPanel(new GridBagLayout());
+
+        controls.setOpaque(false);
+
+        GridBagConstraints gbc =
+                new GridBagConstraints();
+
+        gbc.gridy = 0;
+        gbc.insets = new Insets(0, 0, 0, 6);
+        gbc.anchor = GridBagConstraints.CENTER;
+        gbc.fill = GridBagConstraints.NONE;
+
+        JLabel filterLabel =
+                new JLabel("Filter Text");
+
+        filterTextField =
+                new JTextField();
+
+        filterTextField.setToolTipText("Filter Text");
+        filterTextField.setPreferredSize(
+                new Dimension(150, 26));
+        filterTextField.setMinimumSize(
+                new Dimension(100, 26));
+
+        filterLabel.setLabelFor(filterTextField);
+
+        filterTextField.getDocument().addDocumentListener(
+                new DocumentListener() {
+
+                    @Override
+                    public void insertUpdate(DocumentEvent e) {
+                        applyFileTableFilters();
+                    }
+
+                    @Override
+                    public void removeUpdate(DocumentEvent e) {
+                        applyFileTableFilters();
+                    }
+
+                    @Override
+                    public void changedUpdate(DocumentEvent e) {
+                        applyFileTableFilters();
+                    }
+                });
+
+        itemTypeCombo =
+                new JComboBox<>(
+                        new String[]{
+                                "All",
+                                "Folders Only",
+                                "Files Only"
+                        });
+
+        itemTypeCombo.setSelectedItem("All");
+        itemTypeCombo.setToolTipText("Item Type");
+        itemTypeCombo.setPreferredSize(
+                new Dimension(130, 26));
+
+        itemTypeCombo.addActionListener(
+                e -> applyFileTableFilters());
+
+        gbc.gridx = 0;
+        gbc.weightx = 0;
+        controls.add(filterLabel, gbc);
+
+        gbc.gridx = 1;
+        gbc.weightx = 0;
+        controls.add(filterTextField, gbc);
+
+        gbc.gridx = 2;
+        gbc.weightx = 0;
+        gbc.insets = new Insets(0, 0, 0, 0);
+        controls.add(itemTypeCombo, gbc);
+
+        return controls;
+    }
+
+    private void applyFileTableFilters() {
+
+        if (fileTable == null
+                || fileTableModel == null
+                || filterTextField == null
+                || itemTypeCombo == null) {
+
+            return;
+        }
+
+        if (!(fileTable.getRowSorter()
+                instanceof FileTableRowSorter sorter)) {
+
+            return;
+        }
+
+        String filterText =
+                filterTextField.getText();
+
+        if (filterText == null) {
+            filterText = "";
+        }
+
+        Locale turkishLocale =
+                Locale.forLanguageTag("tr-TR");
+
+        String normalizedFilter =
+                filterText
+                        .trim()
+                        .toLowerCase(turkishLocale);
+
+        String itemType =
+                (String) itemTypeCombo.getSelectedItem();
+
+        boolean foldersOnly =
+                "Folders Only".equals(itemType);
+
+        boolean filesOnly =
+                "Files Only".equals(itemType);
+
+        /*
+         * Filtre yoksa RowFilter'ı kaldır.
+         */
+        if (normalizedFilter.isEmpty()
+                && !foldersOnly
+                && !filesOnly) {
+
+            sorter.setRowFilter(null);
+            return;
+        }
+
+        RowFilter<FileTableModel, Integer> rowFilter =
+                new RowFilter<>() {
+
+                    @Override
+                    public boolean include(
+                            Entry<? extends FileTableModel,
+                                    ? extends Integer> entry) {
+
+                        S3FileItem item =
+                                fileTableModel.getItem(
+                                        entry.getIdentifier());
+
+                        if (item == null) {
+                            return false;
+                        }
+
+                        /*
+                         * Önce öğe türü filtresini uygula.
+                         */
+                        if (foldersOnly && !item.isFolder()) {
+                            return false;
+                        }
+
+                        if (filesOnly && !item.isFile()) {
+                            return false;
+                        }
+
+                        /*
+                         * Parent folder (..) navigasyon için
+                         * görünür kalır; Files Only seçildiğinde
+                         * ise yukarıdaki tür filtresiyle elenir.
+                         */
+                        if (item.isParentFolder()) {
+                            return true;
+                        }
+
+                        /*
+                         * Türkçe karakter kurallarına uygun,
+                         * büyük/küçük harf duyarsız contains.
+                         */
+                        if (normalizedFilter.isEmpty()) {
+                            return true;
+                        }
+
+                        String itemName =
+                                item.getDisplayName();
+
+                        if (itemName == null) {
+                            return false;
+                        }
+
+                        return itemName
+                                .toLowerCase(turkishLocale)
+                                .contains(normalizedFilter);
+                    }
+                };
+
+        sorter.setRowFilter(rowFilter);
     }
 }
