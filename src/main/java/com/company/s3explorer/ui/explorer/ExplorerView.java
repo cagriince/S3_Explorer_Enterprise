@@ -10,6 +10,7 @@ import com.company.s3explorer.ui.theme.UIThemeManager;
 import com.company.s3explorer.util.S3Util;
 
 import javax.swing.*;
+import javax.swing.border.BevelBorder;
 import javax.swing.event.PopupMenuEvent;
 import javax.swing.event.PopupMenuListener;
 import javax.swing.event.TreeExpansionEvent;
@@ -405,6 +406,17 @@ public final class ExplorerView {
 
         breadcrumbContainer.add(
                 breadcrumbHost,
+                BorderLayout.CENTER);
+
+        // Keep the breadcrumb row directly below the toolbar.
+        JPanel breadcrumbRow = new JPanel(new BorderLayout());
+        breadcrumbRow.setPreferredSize(new Dimension(0, 40));
+        breadcrumbRow.setBorder(
+                BorderFactory.createBevelBorder(BevelBorder.RAISED));
+        breadcrumbRow.add(breadcrumbContainer, BorderLayout.CENTER);
+
+        topButtonPanel.add(
+                breadcrumbRow,
                 BorderLayout.CENTER);
 
         // Preserve the bottom panel and file information label.
