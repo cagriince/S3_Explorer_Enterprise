@@ -1067,25 +1067,6 @@ public final class ExplorerView {
 
         filterLabel.setLabelFor(filterTextField);
 
-        filterTextField.getDocument().addDocumentListener(
-                new DocumentListener() {
-
-                    @Override
-                    public void insertUpdate(DocumentEvent e) {
-                        applyFileTableFilters();
-                    }
-
-                    @Override
-                    public void removeUpdate(DocumentEvent e) {
-                        applyFileTableFilters();
-                    }
-
-                    @Override
-                    public void changedUpdate(DocumentEvent e) {
-                        applyFileTableFilters();
-                    }
-                });
-
         filterTextField.addActionListener(e -> {
             if (serverFilterApplyListener != null) {
                 serverFilterApplyListener.run();
