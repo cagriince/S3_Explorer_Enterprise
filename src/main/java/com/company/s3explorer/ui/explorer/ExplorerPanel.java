@@ -7979,6 +7979,57 @@ public class ExplorerPanel extends JPanel {
                                                                 : null))
                                         .toList());
 
+                        /*
+                         * Apply the same filters used by the visible file table.
+                         * Export all matching items, regardless of the visible row limit.
+                         */
+                        String filterText = view.getFilterText();
+
+                        if (filterText == null) {
+                            filterText = "";
+                        }
+
+                        Locale turkishLocale =
+                                Locale.forLanguageTag("tr-TR");
+
+                        String normalizedFilter =
+                                filterText.trim().toLowerCase(turkishLocale);
+
+                        String itemTypeFilter =
+                                view.getItemTypeFilter();
+
+                        boolean foldersOnly =
+                                "Folders Only".equals(itemTypeFilter);
+
+                        boolean filesOnly =
+                                "Files Only".equals(itemTypeFilter);
+
+                        exportItems.removeIf(item -> {
+
+                            if (foldersOnly && !item.isFolder()) {
+                                return true;
+                            }
+
+                            if (filesOnly && !item.isFile()) {
+                                return true;
+                            }
+
+                            if (item.isParentFolder()) {
+                                return true;
+                            }
+
+                            if (normalizedFilter.isEmpty()) {
+                                return false;
+                            }
+
+                            String itemName = item.getDisplayName();
+
+                            return itemName == null
+                                    || !itemName
+                                    .toLowerCase(turkishLocale)
+                                    .contains(normalizedFilter);
+                        });
+                        
                         exportModel.setFiles(exportItems);
 
                         JTable exportTable =

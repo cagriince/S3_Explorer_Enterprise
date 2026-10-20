@@ -1227,4 +1227,16 @@ public final class ExplorerView {
 
         sorter.setRowFilter(rowFilter);
     }
+
+    public String getFilterText() {
+        return filterTextField == null
+                ? ""
+                : filterTextField.getText();
+    }
+
+    public String getItemTypeFilter() {
+        return itemTypeCombo == null
+                ? "All"
+                : (String) itemTypeCombo.getSelectedItem();
+    }
 }
