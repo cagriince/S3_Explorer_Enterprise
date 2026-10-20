@@ -970,7 +970,7 @@ public final class ExplorerView {
                 BorderFactory.createEmptyBorder(4, 8, 4, 8));
 
         JButton exportButton = new JButton(
-                "Export Table",
+                "Export List",
                 (Icon) exportFileListAction.getValue(Action.SMALL_ICON));
 
         exportButton.addActionListener(exportFileListAction);

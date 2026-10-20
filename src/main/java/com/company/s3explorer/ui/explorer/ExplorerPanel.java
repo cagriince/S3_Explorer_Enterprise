@@ -368,7 +368,7 @@ public class ExplorerPanel extends JPanel {
         flatBrowsingAction = new ExplorerAction("Flat Browsing", this::toggleFlatBrowsing);
         folderEditAction = new ExplorerAction("Folder Edit", this::changeFolderEditStatus);
         reloadFolderAction = new ExplorerAction("Reload Folder", this::reloadCurrentFolder);
-        exportFileListAction = new ExplorerAction("Export File List", this::exportFileList);
+        exportFileListAction = new ExplorerAction("Export List", this::exportFileList);
     }
 
     private void defineShortCuts() {
@@ -7856,7 +7856,7 @@ public class ExplorerPanel extends JPanel {
 
     private void exportFileList() {
         JFileChooser chooser = new JFileChooser();
-        chooser.setDialogTitle("Export File List");
+        chooser.setDialogTitle("Export List");
         chooser.setSelectedFile(new File("file-list.csv"));
 
         if (lastOpenedFolderToExport != null
@@ -7912,7 +7912,7 @@ public class ExplorerPanel extends JPanel {
             JOptionPane.showMessageDialog(
                     SwingUtilities.getWindowAncestor(this),
                     "There is no active bucket to export.",
-                    "Export File List",
+                    "Export List",
                     JOptionPane.WARNING_MESSAGE);
             return;
         }
@@ -8076,20 +8076,20 @@ public class ExplorerPanel extends JPanel {
                         SwingUtilities.invokeLater(() ->
                                 JOptionPane.showMessageDialog(
                                         SwingUtilities.getWindowAncestor(this),
-                                        "File list exported successfully.",
-                                        "Export File List",
+                                        "List exported successfully.",
+                                        "Export List",
                                         JOptionPane.INFORMATION_MESSAGE));
 
                     } catch (IOException e) {
                         log.error(
-                                "Failed to export file list to {}",
+                                "Failed to export list to {}",
                                 exportPath,
                                 e);
 
                         SwingUtilities.invokeLater(() ->
                                 JOptionPane.showMessageDialog(
                                         SwingUtilities.getWindowAncestor(this),
-                                        "Failed to export file list:\n"
+                                        "Failed to export list:\n"
                                                 + e.getMessage(),
                                         "Export Error",
                                         JOptionPane.ERROR_MESSAGE));
@@ -8097,7 +8097,7 @@ public class ExplorerPanel extends JPanel {
                 })
                 .exceptionally(ex -> {
                     log.error(
-                            "Failed to load complete file list for export. "
+                            "Failed to load complete list for export. "
                                     + "Bucket={}, prefix={}",
                             bucket,
                             prefix,
@@ -8106,7 +8106,7 @@ public class ExplorerPanel extends JPanel {
                     SwingUtilities.invokeLater(() ->
                             JOptionPane.showMessageDialog(
                                     SwingUtilities.getWindowAncestor(this),
-                                    "Failed to load the complete file list:\n"
+                                    "Failed to load the complete list:\n"
                                             + S3ErrorResolver.getUserMessage(ex),
                                     "Export Error",
                                     JOptionPane.ERROR_MESSAGE));
