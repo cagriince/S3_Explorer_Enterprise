@@ -963,17 +963,17 @@ public final class ExplorerView {
                         : "Flat Browsing (Off)");
     }
 
+
     private JPanel createFileTableFooter() {
 
         JPanel footer = new JPanel(new BorderLayout(8, 0));
         footer.setBorder(
                 BorderFactory.createEmptyBorder(4, 8, 4, 8));
 
-        JButton exportButton = new JButton(
-                "Export List",
-                (Icon) exportFileListAction.getValue(Action.SMALL_ICON));
+        JButton exportButton =
+                new JButton(exportFileListAction);
 
-        exportButton.addActionListener(exportFileListAction);
+        exportButton.setHideActionText(false);
 
         footer.add(
                 exportButton,
