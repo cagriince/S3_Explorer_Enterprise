@@ -5,6 +5,7 @@ import com.company.s3explorer.ui.icons.FileIconRegistry;
 import com.company.s3explorer.ui.icons.IconProvider;
 import com.company.s3explorer.util.DateFormatter;
 
+import java.util.List;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
@@ -21,10 +22,26 @@ public class PropertiesDialog extends JDialog {
     private final JLabel filesValue;
     private final JLabel totalSizeValue;
     private final JLabel statusLabel;
-    
+
     public PropertiesDialog(
             Window owner,
             S3FileItem item) {
+
+        this(owner);
+
+        setItem(item);
+    }
+
+    public PropertiesDialog(
+            Window owner,
+            List<S3FileItem> items) {
+
+        this(owner);
+
+        setMultipleItems(items);
+    }
+
+    private PropertiesDialog(Window owner) {
 
         super(
                 owner,
@@ -43,7 +60,6 @@ public class PropertiesDialog extends JDialog {
         statusLabel = new JLabel();
 
         buildUi();
-        setItem(item);
 
         setDefaultCloseOperation(
                 WindowConstants.DISPOSE_ON_CLOSE);
@@ -419,5 +435,66 @@ public class PropertiesDialog extends JDialog {
                 "%.1f %s",
                 value,
                 units[unitIndex]);
+    }
+
+
+    private void setMultipleItems(
+            List<S3FileItem> items) {
+
+        if (items == null || items.isEmpty()) {
+            nameValue.setText("-");
+            nameValue.setIcon(null);
+            typeValue.setText("-");
+            locationValue.setText("-");
+            sizeValue.setText("-");
+            lastModifiedValue.setText("-");
+            storageClassValue.setText("-");
+            foldersValue.setText("-");
+            filesValue.setText("-");
+            totalSizeValue.setText("-");
+            statusLabel.setText("");
+            return;
+        }
+
+        long folderCount =
+                items.stream()
+                        .filter(S3FileItem::isFolder)
+                        .count();
+
+        long fileCount =
+                items.size() - folderCount;
+
+        StringBuilder name = new StringBuilder();
+
+        if (folderCount > 0) {
+            name.append(folderCount)
+                    .append(folderCount == 1 ? " folder" : " folders");
+        }
+
+        if (folderCount > 0 && fileCount > 0) {
+            name.append(" and ");
+        }
+
+        if (fileCount > 0) {
+            name.append(fileCount)
+                    .append(fileCount == 1 ? " file" : " files");
+        }
+
+        name.append(" selected");
+
+        nameValue.setText(name.toString());
+        nameValue.setIcon(null);
+
+        // These fields will be implemented in the following steps.
+        typeValue.setText("-");
+        locationValue.setText("-");
+        sizeValue.setText("-");
+        lastModifiedValue.setText("-");
+        storageClassValue.setText("-");
+        foldersValue.setText("-");
+        filesValue.setText("-");
+        totalSizeValue.setText("-");
+
+        statusLabel.setText("");
     }
 }

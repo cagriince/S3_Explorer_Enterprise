@@ -584,6 +584,7 @@ public class ExplorerPanel extends JPanel {
         return mainSplit;
     }
 
+
     public void updateActionStates() {
         updateSelectedFileInfo();
 
@@ -599,32 +600,15 @@ public class ExplorerPanel extends JPanel {
 
         boolean hasSelection = false;
 
-        if (folderSelected
-                && selectedRowCount > 0) {
-
+        if (folderSelected && selectedRowCount > 0) {
             if (selectedRowCount > 1) {
-
                 hasSelection = true;
-
             } else {
+                S3FileItem item = getSelectedFileItem();
 
-                int viewRow =
-                        table.getSelectedRow();
-
-                if (viewRow >= 0) {
-
-                    int modelRow =
-                            table.convertRowIndexToModel(
-                                    viewRow);
-
-                    S3FileItem item =
-                            view.getFileTableModel()
-                                    .getItem(modelRow);
-
-                    hasSelection =
-                            item != null
-                                    && !item.isParentFolder();
-                }
+                hasSelection =
+                        item != null
+                                && !item.isParentFolder();
             }
         }
 
@@ -632,53 +616,40 @@ public class ExplorerPanel extends JPanel {
                 folderSelected
                         && !clipboard.isEmpty();
 
-        newFolderAction.setEnabled(
-                folderSelected);
-
-        uploadAction.setEnabled(
-                folderSelected);
+        newFolderAction.setEnabled(folderSelected);
+        uploadAction.setEnabled(folderSelected);
 
         uploadEncryptedAction.setEnabled(
                 folderSelected
                         && hasEncryptionConfiguration());
 
-        downloadAction.setEnabled(
-                hasSelection);
+        downloadAction.setEnabled(hasSelection);
 
         downloadDecryptedAction.setEnabled(
                 hasSelection
                         && hasEncryptionConfiguration());
 
-        deleteAction.setEnabled(
-                hasSelection);
+        deleteAction.setEnabled(hasSelection);
+        renameAction.setEnabled(hasSelection);
 
-        renameAction.setEnabled(
-                hasSelection);
+        List<S3FileItem> selectedItems =
+                getSelectedFileItems();
 
         propertiesAction.setEnabled(
-                view.getFileTable().getSelectedRowCount() == 1
-                        && getSelectedFileItem() != null
-                        && !getSelectedFileItem().isParentFolder());
-        
-        copyAction.setEnabled(
-                hasSelection);
+                selectedRowCount > 0
+                        && selectedItems.size() == selectedRowCount);
 
-        cutAction.setEnabled(
-                hasSelection);
+        copyAction.setEnabled(hasSelection);
+        cutAction.setEnabled(hasSelection);
+        pasteAction.setEnabled(hasClipboard);
+        copyTextAction.setEnabled(hasSelection);
 
-        pasteAction.setEnabled(
-                hasClipboard);
-
-        copyTextAction.setEnabled(
-                hasSelection);
-
-        reloadFolderAction.setEnabled(
-                folderSelected);
-
+        reloadFolderAction.setEnabled(folderSelected);
         bulkDownloadAction.setEnabled(hasSelection);
 
         selectAllAction.setEnabled(
-                folderSelected && table.getRowCount() > 0);
+                folderSelected
+                        && table.getRowCount() > 0);
 
         boolean atRoot =
                 currentFilePrefix == null
@@ -686,10 +657,12 @@ public class ExplorerPanel extends JPanel {
                         || S3TreeNode.ROOT_PREFIX.equals(currentFilePrefix);
 
         goToParentAction.setEnabled(
-                folderSelected && !atRoot);
+                folderSelected
+                        && !atRoot);
 
         homeAction.setEnabled(
-                folderSelected && !atRoot);
+                folderSelected
+                        && !atRoot);
 
         refreshAction.setEnabled(
                 getCurrentRepository() != null
@@ -702,7 +675,8 @@ public class ExplorerPanel extends JPanel {
         updateEncryptionMenuVisibility();
 
         log.debug(
-                "[ACTION STATES] folderSelected={} selectedRows={} hasSelection={} hasClipboard={}",
+                "[ACTION STATES] folderSelected={} selectedRows={} "
+                        + "hasSelection={} hasClipboard={}",
                 folderSelected,
                 selectedRowCount,
                 hasSelection,
@@ -6183,69 +6157,67 @@ public class ExplorerPanel extends JPanel {
                 + " and others";
     }
 
+
     private void showProperties() {
+        JTable table = view.getFileTable();
 
-        if (view.getFileTable().getSelectedRowCount() != 1) {
+        List<S3FileItem> selectedItems =
+                getSelectedFileItems();
+
+        if (selectedItems.isEmpty()
+                || selectedItems.size() != table.getSelectedRowCount()) {
             return;
         }
 
-        S3FileItem item =
-                getSelectedFileItem();
+        PropertiesDialog dialog;
 
-        if (item == null
-                || item.isParentFolder()) {
-            return;
-        }
+        if (selectedItems.size() == 1) {
+            S3FileItem item = selectedItems.get(0);
 
-        PropertiesDialog dialog =
-                new PropertiesDialog(
-                        S3Util.getMainFrameAncestor(this),
-                        item);
+            dialog = new PropertiesDialog(
+                    S3Util.getMainFrameAncestor(this),
+                    item);
 
-        if (item.isFolder()) {
+            if (item.isFolder()) {
+                String bucket = item.getBucket();
+                String prefix = item.getKey();
 
-            String bucket =
-                    item.getBucket();
+                explorerPool.submit(() -> {
+                    try {
+                        FolderProperties properties =
+                                getService().calculateFolderProperties(
+                                        bucket,
+                                        prefix,
+                                        progress ->
+                                                SwingUtilities.invokeLater(() ->
+                                                        dialog.updateFolderProgress(
+                                                                progress)));
 
-            String prefix =
-                    item.getKey();
+                        SwingUtilities.invokeLater(() -> {
+                            dialog.updateFolderProperties(properties);
+                            dialog.setCalculationCompleted();
+                        });
 
-            explorerPool.submit(() -> {
+                    } catch (Exception ex) {
+                        log.error(
+                                "[PROPERTIES] folder calculation failed "
+                                        + "bucket={} prefix={}",
+                                bucket,
+                                prefix,
+                                ex);
 
-                try {
-
-                    FolderProperties properties =
-                            getService().calculateFolderProperties(
-                                    bucket,
-                                    prefix,
-                                    progress ->
-                                            SwingUtilities.invokeLater(() ->
-                                                    dialog.updateFolderProgress(
-                                                            progress)));
-
-                    SwingUtilities.invokeLater(() -> {
-
-                        dialog.updateFolderProperties(
-                                properties);
-
-                        dialog.setCalculationCompleted();
-                    });
-
-                } catch (Exception ex) {
-
-                    log.error(
-                            "[PROPERTIES] folder calculation failed bucket={} prefix={}",
-                            bucket,
-                            prefix,
-                            ex);
-
-                    SwingUtilities.invokeLater(() ->
-                            dialog.setStatus(
-                                    "Calculation failed: "
-                                            + S3ErrorResolver
-                                            .getDetailedMessage(ex)));
-                }
-            });
+                        SwingUtilities.invokeLater(() ->
+                                dialog.setStatus(
+                                        "Calculation failed: "
+                                                + S3ErrorResolver
+                                                .getDetailedMessage(ex)));
+                    }
+                });
+            }
+        } else {
+            dialog = new PropertiesDialog(
+                    S3Util.getMainFrameAncestor(this),
+                    selectedItems);
         }
 
         dialog.setVisible(true);
@@ -8061,5 +8033,30 @@ public class ExplorerPanel extends JPanel {
                 + " "
                 + singular
                 + (count == 1 ? "" : "s");
+    }
+
+
+    private List<S3FileItem> getSelectedFileItems() {
+        JTable table = view.getFileTable();
+        int[] selectedViewRows = table.getSelectedRows();
+
+        List<S3FileItem> selectedItems =
+                new ArrayList<>(selectedViewRows.length);
+
+        for (int viewRow : selectedViewRows) {
+            int modelRow =
+                    table.convertRowIndexToModel(viewRow);
+
+            S3FileItem item =
+                    view.getFileTableModel().getItem(modelRow);
+
+            if (item == null || item.isParentFolder()) {
+                continue;
+            }
+
+            selectedItems.add(item);
+        }
+
+        return selectedItems;
     }
 }
