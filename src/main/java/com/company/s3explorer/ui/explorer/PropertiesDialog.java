@@ -489,9 +489,28 @@ public class PropertiesDialog extends JDialog {
         nameValue.setText(name.toString());
         nameValue.setIcon(null);
 
-        // These fields will be implemented in the following steps.
-        typeValue.setText("-");
-        locationValue.setText("-");
+        if (folderCount == items.size()) {
+            typeValue.setText("Folder");
+        } else if (fileCount == items.size()) {
+            typeValue.setText("File");
+        } else {
+            typeValue.setText("Mixed");
+        }
+
+        S3FileItem firstItem = items.get(0);
+
+        boolean sameLocation =
+                items.stream().allMatch(item ->
+                        item.getBucket().equals(firstItem.getBucket()));
+
+        if (sameLocation) {
+            String bucket = firstItem.getBucket();
+
+            locationValue.setText(bucket);
+        } else {
+            locationValue.setText("-");
+        }
+
         sizeValue.setText("-");
         lastModifiedValue.setText("-");
         storageClassValue.setText("-");
