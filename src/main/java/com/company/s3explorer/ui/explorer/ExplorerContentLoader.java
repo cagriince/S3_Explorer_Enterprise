@@ -469,6 +469,7 @@ public final class ExplorerContentLoader {
                 cached.totalMatchingFileCount());
     }
 
+
     private LimitedFolderContent createFilteredDisplayContent(
             LimitedFolderContent cached,
             int fileLimit,
@@ -538,11 +539,12 @@ public final class ExplorerContentLoader {
         java.util.Comparator<
                 software.amazon.awssdk.services.s3.model.S3Object>
                 actualComparator =
-                sortSpec.createFileComparator(
-                        collationKeyCache);
+                sortSpec.createFileComparator(collationKeyCache);
 
         long comparatorBuildNanos =
                 System.nanoTime() - comparatorBuildStart;
+
+        int cacheSizeBeforeSort = collationKeyCache.size();
 
         long sortStart = System.nanoTime();
 
@@ -552,20 +554,29 @@ public final class ExplorerContentLoader {
 
         long primaryComparisons = -1;
         long secondaryComparisons = -1;
+        long collationKeyCacheMisses = -1;
+        long collationKeyCreationNanos = -1;
 
         if (actualComparator
                 instanceof FileTableSortSpec.ComparisonMetrics) {
 
             FileTableSortSpec.ComparisonMetrics metrics =
-                    (FileTableSortSpec.ComparisonMetrics)
-                            actualComparator;
+                    (FileTableSortSpec.ComparisonMetrics) actualComparator;
 
             primaryComparisons =
                     metrics.getPrimaryComparisonCount();
 
             secondaryComparisons =
                     metrics.getSecondaryComparisonCount();
+
+            collationKeyCacheMisses =
+                    metrics.getCollationKeyCacheMissCount();
+
+            collationKeyCreationNanos =
+                    metrics.getCollationKeyCreationNanos();
         }
+
+        int cacheSizeAfterSort = collationKeyCache.size();
 
         long trimStart = System.nanoTime();
 
@@ -599,9 +610,14 @@ public final class ExplorerContentLoader {
                 "[FILTER PROFILE] column=%s, ascending=%s, "
                         + "scan=%d ms, comparatorBuild=%d ms, "
                         + "sort=%d ms, primaryComparisons=%d, "
-                        + "secondaryComparisons=%d, trim=%d ms, "
-                        + "resultCreation=%d ms, total=%d ms, "
-                        + "matchingFiles=%d, displayedFiles=%d%n",
+                        + "secondaryComparisons=%d, "
+                        + "collationKeyCacheBefore=%d, "
+                        + "collationKeyCacheAfter=%d, "
+                        + "collationKeyCacheMisses=%d, "
+                        + "collationKeyCreation=%d ms, "
+                        + "trim=%d ms, resultCreation=%d ms, "
+                        + "total=%d ms, matchingFiles=%d, "
+                        + "displayedFiles=%d%n",
                 sortSpec.getColumn(),
                 sortSpec.isAscending(),
                 TimeUnit.NANOSECONDS.toMillis(scanNanos),
@@ -609,6 +625,13 @@ public final class ExplorerContentLoader {
                 TimeUnit.NANOSECONDS.toMillis(sortNanos),
                 primaryComparisons,
                 secondaryComparisons,
+                cacheSizeBeforeSort,
+                cacheSizeAfterSort,
+                collationKeyCacheMisses,
+                TimeUnit.NANOSECONDS.toMillis(
+                        collationKeyCreationNanos < 0
+                                ? 0
+                                : collationKeyCreationNanos),
                 TimeUnit.NANOSECONDS.toMillis(trimNanos),
                 TimeUnit.NANOSECONDS.toMillis(resultCreationNanos),
                 TimeUnit.NANOSECONDS.toMillis(totalNanos),

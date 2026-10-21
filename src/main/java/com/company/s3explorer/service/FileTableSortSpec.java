@@ -21,12 +21,17 @@ public final class FileTableSortSpec {
     }
 
     /**
-     * Exposes comparison counters for performance diagnostics.
+     * Exposes comparison and CollationKey creation metrics.
      */
     public interface ComparisonMetrics {
+
         long getPrimaryComparisonCount();
 
         long getSecondaryComparisonCount();
+
+        long getCollationKeyCacheMissCount();
+
+        long getCollationKeyCreationNanos();
     }
 
     private final Column column;
@@ -55,6 +60,9 @@ public final class FileTableSortSpec {
                 Collator.getInstance(new Locale("tr", "TR"));
 
         turkishCollator.setStrength(Collator.PRIMARY);
+
+        long[] cacheMissCount = {0};
+        long[] keyCreationNanos = {0};
 
         Comparator<S3Object> primaryComparator;
 
@@ -91,15 +99,42 @@ public final class FileTableSortSpec {
 
         if (column != Column.NAME) {
             secondaryComparator = (left, right) -> {
+
                 CollationKey leftKey =
                         collationKeyCache.computeIfAbsent(
                                 left.key(),
-                                turkishCollator::getCollationKey);
+                                key -> {
+                                    long start = System.nanoTime();
+
+                                    CollationKey result =
+                                            turkishCollator.getCollationKey(
+                                                    key);
+
+                                    keyCreationNanos[0] +=
+                                            System.nanoTime() - start;
+
+                                    cacheMissCount[0]++;
+
+                                    return result;
+                                });
 
                 CollationKey rightKey =
                         collationKeyCache.computeIfAbsent(
                                 right.key(),
-                                turkishCollator::getCollationKey);
+                                key -> {
+                                    long start = System.nanoTime();
+
+                                    CollationKey result =
+                                            turkishCollator.getCollationKey(
+                                                    key);
+
+                                    keyCreationNanos[0] +=
+                                            System.nanoTime() - start;
+
+                                    cacheMissCount[0]++;
+
+                                    return result;
+                                });
 
                 return leftKey.compareTo(rightKey);
             };
@@ -108,7 +143,9 @@ public final class FileTableSortSpec {
         return new MeasuredComparator(
                 primaryComparator,
                 secondaryComparator,
-                ascending);
+                ascending,
+                cacheMissCount,
+                keyCreationNanos);
     }
 
     private static final class MeasuredComparator
@@ -118,17 +155,24 @@ public final class FileTableSortSpec {
         private final Comparator<S3Object> secondaryComparator;
         private final boolean ascending;
 
+        private final long[] cacheMissCount;
+        private final long[] keyCreationNanos;
+
         private long primaryComparisonCount;
         private long secondaryComparisonCount;
 
         private MeasuredComparator(
                 Comparator<S3Object> primaryComparator,
                 Comparator<S3Object> secondaryComparator,
-                boolean ascending) {
+                boolean ascending,
+                long[] cacheMissCount,
+                long[] keyCreationNanos) {
 
             this.primaryComparator = primaryComparator;
             this.secondaryComparator = secondaryComparator;
             this.ascending = ascending;
+            this.cacheMissCount = cacheMissCount;
+            this.keyCreationNanos = keyCreationNanos;
         }
 
         @Override
@@ -168,6 +212,16 @@ public final class FileTableSortSpec {
         @Override
         public long getSecondaryComparisonCount() {
             return secondaryComparisonCount;
+        }
+
+        @Override
+        public long getCollationKeyCacheMissCount() {
+            return cacheMissCount[0];
+        }
+
+        @Override
+        public long getCollationKeyCreationNanos() {
+            return keyCreationNanos[0];
         }
     }
 
