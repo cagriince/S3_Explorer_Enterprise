@@ -1129,60 +1129,73 @@ public final class ExplorerView {
         return controls;
     }
 
+
     private void applyFileTableFilters() {
+        System.out.printf(
+                "[FILTER DEBUG] applyFileTableFilters entered, time=%s%n",
+                java.time.LocalTime.now()
+        );
+
+        long totalStart = System.nanoTime();
 
         if (fileTable == null
                 || fileTableModel == null
                 || filterTextField == null
                 || itemTypeCombo == null) {
-
             return;
         }
 
         if (!(fileTable.getRowSorter()
                 instanceof FileTableRowSorter sorter)) {
-
             return;
         }
 
-        String filterText =
-                filterTextField.getText();
+        String filterText = filterTextField.getText();
 
         if (filterText == null) {
             filterText = "";
         }
 
-        Locale turkishLocale =
-                Locale.forLanguageTag("tr-TR");
+        Locale turkishLocale = Locale.forLanguageTag("tr-TR");
 
         String normalizedFilter =
-                filterText
-                        .trim()
-                        .toLowerCase(turkishLocale);
+                filterText.trim().toLowerCase(turkishLocale);
 
-        String itemType =
-                (String) itemTypeCombo.getSelectedItem();
+        String itemType = (String) itemTypeCombo.getSelectedItem();
 
-        boolean foldersOnly =
-                "Folders Only".equals(itemType);
+        boolean foldersOnly = "Folders Only".equals(itemType);
+        boolean filesOnly = "Files Only".equals(itemType);
 
-        boolean filesOnly =
-                "Files Only".equals(itemType);
+        int modelRowsBefore = fileTableModel.getRowCount();
+        long filterStart = System.nanoTime();
 
-        /*
-         * Filtre yoksa RowFilter'ı kaldır.
-         */
         if (normalizedFilter.isEmpty()
                 && !foldersOnly
                 && !filesOnly) {
 
             sorter.setRowFilter(null);
+
+            long filterMillis =
+                    (System.nanoTime() - filterStart) / 1_000_000;
+            long totalMillis =
+                    (System.nanoTime() - totalStart) / 1_000_000;
+
+            System.out.printf(
+                    "[FILTER TIMING] type=%s, textLength=%d, "
+                            + "modelRows=%d, visibleRows=%d, "
+                            + "setRowFilter=%d ms, total=%d ms%n",
+                    itemType,
+                    normalizedFilter.length(),
+                    modelRowsBefore,
+                    fileTable.getRowCount(),
+                    filterMillis,
+                    totalMillis
+            );
             return;
         }
 
         RowFilter<FileTableModel, Integer> rowFilter =
                 new RowFilter<>() {
-
                     @Override
                     public boolean include(
                             Entry<? extends FileTableModel,
@@ -1196,9 +1209,6 @@ public final class ExplorerView {
                             return false;
                         }
 
-                        /*
-                         * Önce öğe türü filtresini uygula.
-                         */
                         if (foldersOnly && !item.isFolder()) {
                             return false;
                         }
@@ -1207,25 +1217,15 @@ public final class ExplorerView {
                             return false;
                         }
 
-                        /*
-                         * Parent folder (..) navigasyon için
-                         * görünür kalır; Files Only seçildiğinde
-                         * ise yukarıdaki tür filtresiyle elenir.
-                         */
                         if (item.isParentFolder()) {
                             return true;
                         }
 
-                        /*
-                         * Türkçe karakter kurallarına uygun,
-                         * büyük/küçük harf duyarsız contains.
-                         */
                         if (normalizedFilter.isEmpty()) {
                             return true;
                         }
 
-                        String itemName =
-                                item.getDisplayName();
+                        String itemName = item.getDisplayName();
 
                         if (itemName == null) {
                             return false;
@@ -1238,6 +1238,23 @@ public final class ExplorerView {
                 };
 
         sorter.setRowFilter(rowFilter);
+
+        long filterMillis =
+                (System.nanoTime() - filterStart) / 1_000_000;
+        long totalMillis =
+                (System.nanoTime() - totalStart) / 1_000_000;
+
+        System.out.printf(
+                "[FILTER TIMING] type=%s, textLength=%d, "
+                        + "modelRows=%d, visibleRows=%d, "
+                        + "setRowFilter=%d ms, total=%d ms%n",
+                itemType,
+                normalizedFilter.length(),
+                modelRowsBefore,
+                fileTable.getRowCount(),
+                filterMillis,
+                totalMillis
+        );
     }
 
     public String getFilterText() {
