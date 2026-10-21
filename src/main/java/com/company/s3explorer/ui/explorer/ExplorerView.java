@@ -1108,6 +1108,13 @@ public final class ExplorerView {
                 new Dimension(130, 26));
 
         itemTypeCombo.addActionListener(e -> {
+            System.err.println(
+                    "[FILTER DEBUG] itemTypeCombo action: "
+                            + itemTypeCombo.getSelectedItem()
+                            + ", time="
+                            + java.time.LocalDateTime.now()
+            );
+
             if (serverFilterApplyListener != null) {
                 serverFilterApplyListener.run();
             }
