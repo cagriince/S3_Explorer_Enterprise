@@ -237,21 +237,23 @@ public final class ExplorerContentLoader {
 
         if (cached != null) {
             if (unfiltered) {
-                return CompletableFuture.completedFuture(
-                        createDisplayContent(
+                return CompletableFuture.supplyAsync(
+                        () -> createDisplayContent(
                                 cached,
                                 fileLimit,
-                                sortSpec));
+                                sortSpec),
+                        executor);
             }
 
-            return CompletableFuture.completedFuture(
-                    createFilteredDisplayContent(
+            return CompletableFuture.supplyAsync(
+                    () -> createFilteredDisplayContent(
                             cached,
                             fileLimit,
                             sortSpec,
                             effectiveFilter,
                             prefix,
-                            flatBrowsing));
+                            flatBrowsing),
+                    executor);
         }
 
         /*
