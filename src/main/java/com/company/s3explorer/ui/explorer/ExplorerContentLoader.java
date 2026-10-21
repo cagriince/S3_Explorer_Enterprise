@@ -533,10 +533,6 @@ public final class ExplorerContentLoader {
             }
         }
 
-        /*
-         * Build the comparator separately so its creation cost
-         * can be measured independently from the sorting cost.
-         */
         long comparatorBuildStart = System.nanoTime();
 
         java.util.Comparator<
@@ -548,26 +544,28 @@ public final class ExplorerContentLoader {
         long comparatorBuildNanos =
                 System.nanoTime() - comparatorBuildStart;
 
-        /*
-         * Count comparisons without calling System.nanoTime()
-         * for every comparison. Sorting is performed on this
-         * thread, so a simple long counter is sufficient.
-         */
-        long[] comparisonCount = {0};
-
-        java.util.Comparator<
-                software.amazon.awssdk.services.s3.model.S3Object>
-                measuredComparator =
-                (left, right) -> {
-                    comparisonCount[0]++;
-                    return actualComparator.compare(left, right);
-                };
-
         long sortStart = System.nanoTime();
 
-        matchingFiles.sort(measuredComparator);
+        matchingFiles.sort(actualComparator);
 
         long sortNanos = System.nanoTime() - sortStart;
+
+        long primaryComparisons = -1;
+        long secondaryComparisons = -1;
+
+        if (actualComparator
+                instanceof FileTableSortSpec.ComparisonMetrics) {
+
+            FileTableSortSpec.ComparisonMetrics metrics =
+                    (FileTableSortSpec.ComparisonMetrics)
+                            actualComparator;
+
+            primaryComparisons =
+                    metrics.getPrimaryComparisonCount();
+
+            secondaryComparisons =
+                    metrics.getSecondaryComparisonCount();
+        }
 
         long trimStart = System.nanoTime();
 
@@ -591,26 +589,31 @@ public final class ExplorerContentLoader {
                         fileLimitReached,
                         matchingFileCount);
 
-        long resultNanos = System.nanoTime() - resultStart;
-        long totalNanos = System.nanoTime() - methodStart;
+        long resultCreationNanos =
+                System.nanoTime() - resultStart;
+
+        long totalNanos =
+                System.nanoTime() - methodStart;
 
         System.err.printf(
-                "[FILTER PROFILE] column=%s, ascending=%b, "
+                "[FILTER PROFILE] column=%s, ascending=%s, "
                         + "scan=%d ms, comparatorBuild=%d ms, "
-                        + "sort=%d ms, comparisons=%d, "
-                        + "trim=%d ms, resultCreation=%d ms, "
-                        + "total=%d ms, matchingFiles=%d, displayedFiles=%d%n",
+                        + "sort=%d ms, primaryComparisons=%d, "
+                        + "secondaryComparisons=%d, trim=%d ms, "
+                        + "resultCreation=%d ms, total=%d ms, "
+                        + "matchingFiles=%d, displayedFiles=%d%n",
                 sortSpec.getColumn(),
                 sortSpec.isAscending(),
                 TimeUnit.NANOSECONDS.toMillis(scanNanos),
                 TimeUnit.NANOSECONDS.toMillis(comparatorBuildNanos),
                 TimeUnit.NANOSECONDS.toMillis(sortNanos),
-                comparisonCount[0],
+                primaryComparisons,
+                secondaryComparisons,
                 TimeUnit.NANOSECONDS.toMillis(trimNanos),
-                TimeUnit.NANOSECONDS.toMillis(resultNanos),
+                TimeUnit.NANOSECONDS.toMillis(resultCreationNanos),
                 TimeUnit.NANOSECONDS.toMillis(totalNanos),
                 matchingFileCount,
-                result.files().size());
+                matchingFiles.size());
 
         return result;
     }

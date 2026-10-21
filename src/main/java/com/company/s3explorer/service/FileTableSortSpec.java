@@ -20,6 +20,15 @@ public final class FileTableSortSpec {
         LAST_MODIFIED
     }
 
+    /**
+     * Exposes comparison counters for performance diagnostics.
+     */
+    public interface ComparisonMetrics {
+        long getPrimaryComparisonCount();
+
+        long getSecondaryComparisonCount();
+    }
+
     private final Column column;
     private final boolean ascending;
 
@@ -43,90 +52,126 @@ public final class FileTableSortSpec {
             Map<String, CollationKey> collationKeyCache) {
 
         Collator turkishCollator =
-                Collator.getInstance(
-                        new Locale("tr", "TR"));
+                Collator.getInstance(new Locale("tr", "TR"));
 
-        turkishCollator.setStrength(
-                Collator.PRIMARY);
+        turkishCollator.setStrength(Collator.PRIMARY);
 
-        Comparator<S3Object> comparator;
+        Comparator<S3Object> primaryComparator;
 
         switch (column) {
-
             case SIZE:
-
-                comparator =
-                        Comparator.comparingLong(
-                                S3Object::size);
-
+                primaryComparator =
+                        Comparator.comparingLong(S3Object::size);
                 break;
 
             case LAST_MODIFIED:
-
-                comparator =
+                primaryComparator =
                         Comparator.comparing(
                                 S3Object::lastModified,
                                 Comparator.nullsFirst(
                                         Instant::compareTo));
-
                 break;
 
             case NAME:
-
             default:
-
-                /*
-                 * Character collation keys are local to this
-                 * comparator, so repeated comparisons reuse them.
-                 * This map is accessed by the sorting thread.
-                 */
                 Map<Character, CollationKey> characterKeyCache =
                         new HashMap<>();
 
-                comparator =
+                primaryComparator =
                         (left, right) ->
                                 S3Util.naturalTurkishCompare(
                                         left.key(),
                                         right.key(),
                                         turkishCollator,
                                         characterKeyCache);
-
                 break;
         }
 
-        if (!ascending) {
-            comparator = comparator.reversed();
+        Comparator<S3Object> secondaryComparator = null;
+
+        if (column != Column.NAME) {
+            secondaryComparator = (left, right) -> {
+                CollationKey leftKey =
+                        collationKeyCache.computeIfAbsent(
+                                left.key(),
+                                turkishCollator::getCollationKey);
+
+                CollationKey rightKey =
+                        collationKeyCache.computeIfAbsent(
+                                right.key(),
+                                turkishCollator::getCollationKey);
+
+                return leftKey.compareTo(rightKey);
+            };
         }
 
-        /*
-         * NAME already compares keys through the natural
-         * Turkish comparator, so no additional key comparison
-         * is needed.
-         */
-        if (column != Column.NAME) {
+        return new MeasuredComparator(
+                primaryComparator,
+                secondaryComparator,
+                ascending);
+    }
 
-            Comparator<S3Object> keyComparator =
-                    Comparator.comparing(
-                            S3Object::key,
-                            turkishCollator);
+    private static final class MeasuredComparator
+            implements Comparator<S3Object>, ComparisonMetrics {
+
+        private final Comparator<S3Object> primaryComparator;
+        private final Comparator<S3Object> secondaryComparator;
+        private final boolean ascending;
+
+        private long primaryComparisonCount;
+        private long secondaryComparisonCount;
+
+        private MeasuredComparator(
+                Comparator<S3Object> primaryComparator,
+                Comparator<S3Object> secondaryComparator,
+                boolean ascending) {
+
+            this.primaryComparator = primaryComparator;
+            this.secondaryComparator = secondaryComparator;
+            this.ascending = ascending;
+        }
+
+        @Override
+        public int compare(
+                S3Object left,
+                S3Object right) {
+
+            primaryComparisonCount++;
+
+            int result =
+                    primaryComparator.compare(left, right);
 
             if (!ascending) {
-                keyComparator =
-                        keyComparator.reversed();
+                result = -Integer.signum(result);
             }
 
-            comparator =
-                    comparator.thenComparing(
-                            keyComparator);
+            if (result != 0 || secondaryComparator == null) {
+                return result;
+            }
+
+            secondaryComparisonCount++;
+
+            result = secondaryComparator.compare(left, right);
+
+            if (!ascending) {
+                result = -Integer.signum(result);
+            }
+
+            return result;
         }
 
-        return comparator;
+        @Override
+        public long getPrimaryComparisonCount() {
+            return primaryComparisonCount;
+        }
+
+        @Override
+        public long getSecondaryComparisonCount() {
+            return secondaryComparisonCount;
+        }
     }
 
     public static FileTableSortSpec defaultSpec() {
-
-        return new FileTableSortSpec(
-                Column.NAME,
-                true);
+        return new FileTableSortSpec(Column.NAME, true);
     }
 }
