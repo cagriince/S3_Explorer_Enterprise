@@ -470,6 +470,7 @@ public final class ExplorerContentLoader {
     }
 
 
+
     private LimitedFolderContent createFilteredDisplayContent(
             LimitedFolderContent cached,
             int fileLimit,
@@ -494,53 +495,83 @@ public final class ExplorerContentLoader {
             }
         }
 
-        BoundedSortedFileCollection boundedFiles =
-                new BoundedSortedFileCollection(
-                        fileLimit,
-                        sortSpec.createFileComparator(
-                                collationKeyCache));
-
         long matchingFileCount = 0;
-        long scanNanos = 0;
-        long addNanos = 0;
-
-        if (filter.includesFiles()) {
-            for (software.amazon.awssdk.services.s3.model.S3Object object
-                    : cached.files()) {
-
-                long scanStart = System.nanoTime();
-
-                String displayName = getFilterDisplayName(
-                        object.key(),
-                        prefix,
-                        false,
-                        flatBrowsing);
-
-                boolean matches = filter.matchesText(displayName);
-
-                scanNanos += System.nanoTime() - scanStart;
-
-                if (!matches) {
-                    continue;
-                }
-
-                matchingFileCount++;
-
-                long addStart = System.nanoTime();
-                boundedFiles.add(object);
-                addNanos += System.nanoTime() - addStart;
-            }
-        }
-
-        System.err.printf(
-                "[FILTER DETAIL] scan=%d ms, boundedAdd=%d ms, "
-                        + "matchingFiles=%d%n",
-                TimeUnit.NANOSECONDS.toMillis(scanNanos),
-                TimeUnit.NANOSECONDS.toMillis(addNanos),
-                matchingFileCount);
 
         List<software.amazon.awssdk.services.s3.model.S3Object>
-                matchingFiles = boundedFiles.toList();
+                matchingFiles;
+
+        /*
+         * Fast path:
+         * Text filter is empty, so every cached file matches.
+         * Bulk sorting avoids hundreds of thousands of expensive
+         * BoundedSortedFileCollection.add() calls.
+         */
+        if (filter.includesFiles() && !filter.hasTextFilter()) {
+
+            matchingFileCount = cached.files().size();
+
+            matchingFiles = new java.util.ArrayList<>(
+                    cached.files());
+
+            matchingFiles.sort(
+                    sortSpec.createFileComparator(
+                            collationKeyCache));
+
+            if (matchingFiles.size() > fileLimit) {
+                matchingFiles.subList(
+                        fileLimit,
+                        matchingFiles.size()).clear();
+            }
+
+        } else {
+
+            BoundedSortedFileCollection boundedFiles =
+                    new BoundedSortedFileCollection(
+                            fileLimit,
+                            sortSpec.createFileComparator(
+                                    collationKeyCache));
+
+            long scanNanos = 0;
+            long addNanos = 0;
+
+            if (filter.includesFiles()) {
+                for (software.amazon.awssdk.services.s3.model.S3Object object
+                        : cached.files()) {
+
+                    long scanStart = System.nanoTime();
+
+                    String displayName = getFilterDisplayName(
+                            object.key(),
+                            prefix,
+                            false,
+                            flatBrowsing);
+
+                    boolean matches =
+                            filter.matchesText(displayName);
+
+                    scanNanos += System.nanoTime() - scanStart;
+
+                    if (!matches) {
+                        continue;
+                    }
+
+                    matchingFileCount++;
+
+                    long addStart = System.nanoTime();
+                    boundedFiles.add(object);
+                    addNanos += System.nanoTime() - addStart;
+                }
+            }
+
+            System.err.printf(
+                    "[FILTER DETAIL] scan=%d ms, boundedAdd=%d ms, "
+                            + "matchingFiles=%d%n",
+                    TimeUnit.NANOSECONDS.toMillis(scanNanos),
+                    TimeUnit.NANOSECONDS.toMillis(addNanos),
+                    matchingFileCount);
+
+            matchingFiles = boundedFiles.toList();
+        }
 
         boolean fileLimitReached =
                 matchingFileCount > matchingFiles.size();
