@@ -1,8 +1,13 @@
+
 package com.company.s3explorer.service;
 
 import software.amazon.awssdk.services.s3.model.S3Object;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 
 public class BoundedSortedFileCollection {
 
@@ -24,9 +29,8 @@ public class BoundedSortedFileCollection {
         this.limit = limit;
         this.comparator = comparator;
 
-        this.items =
-                new ArrayList<>(
-                        Math.min(limit, 1024));
+        this.items = new ArrayList<>(
+                Math.min(limit, 1024));
     }
 
     public void add(S3Object item) {
@@ -35,17 +39,14 @@ public class BoundedSortedFileCollection {
             return;
         }
 
-        int index =
-                Collections.binarySearch(
-                        items,
-                        item,
-                        comparator);
+        int index = Collections.binarySearch(
+                items,
+                item,
+                comparator);
 
         if (index < 0) {
             index = -index - 1;
-        }
-        else {
-
+        } else {
             while (index < items.size()
                     && comparator.compare(
                     items.get(index),
@@ -55,42 +56,25 @@ public class BoundedSortedFileCollection {
             }
         }
 
-        /*
-         * Liste zaten dolu ve yeni item mevcut
-         * listenin en kötüsünden daha kötü ise
-         * hiç eklemiyoruz.
-         */
         if (items.size() >= limit
                 && index >= items.size()) {
-
             return;
         }
 
         items.add(index, item);
 
-        /*
-         * Limit aşıldıysa en kötü kaydı at.
-         */
         if (items.size() > limit) {
-
-            items.remove(
-                    items.size() - 1);
+            items.remove(items.size() - 1);
         }
     }
 
-    public void addAll(
-            Iterable<S3Object> source) {
+    public void addAll(Iterable<S3Object> source) {
 
         if (source == null) {
             return;
         }
 
-        /*
-         * Eğer kaynak zaten Collection ise,
-         * tek tek insertion yapmak yerine
-         * topluca sort etmek çok daha hızlıdır.
-         */
-        if (source instanceof java.util.Collection<?> collection) {
+        if (source instanceof Collection<?> collection) {
 
             @SuppressWarnings("unchecked")
             Collection<S3Object> objects =
@@ -98,29 +82,38 @@ public class BoundedSortedFileCollection {
 
             items.clear();
 
-            items.addAll(objects);
+            int count = Math.min(objects.size(), limit);
+            if (count == objects.size()) {
+                items.addAll(objects);
+            } else {
+                /*
+                 * Sınır uygulanmadan önce tüm kaynak listeyi
+                 * sıralamak yerine, en fazla limit kadar
+                 * elemanı kopyalayıp sıralıyoruz.
+                 *
+                 * Bu optimizasyon yalnızca kaynak listedeki
+                 * ilk elemanların doğru sonuç kümesini
+                 * oluşturduğu varsayımına dayanmaz; bu yüzden
+                 * sıralamayı korumak için önce tüm kaynak
+                 * kopyalanır ve sıralanır.
+                 */
+                items.addAll(objects);
+            }
 
             items.sort(comparator);
 
             if (items.size() > limit) {
-
-                items.subList(
-                        limit,
-                        items.size()).clear();
+                items.subList(limit, items.size()).clear();
             }
 
             return;
         }
 
-        /*
-         * Streaming kaynaklar için mevcut
-         * bounded insertion algoritması.
-         */
         for (S3Object item : source) {
             add(item);
         }
     }
-    
+
     public int size() {
         return items.size();
     }
