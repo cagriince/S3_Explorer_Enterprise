@@ -9,6 +9,7 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 /**
@@ -245,15 +246,34 @@ public final class ExplorerContentLoader {
                         executor);
             }
 
-            return CompletableFuture.supplyAsync(
-                    () -> createFilteredDisplayContent(
-                            cached,
-                            fileLimit,
-                            sortSpec,
-                            effectiveFilter,
-                            prefix,
-                            flatBrowsing),
-                    executor);
+            return CompletableFuture.supplyAsync(() -> {
+                long start = System.nanoTime();
+
+                LimitedFolderContent result =
+                        createFilteredDisplayContent(
+                                cached,
+                                fileLimit,
+                                sortSpec,
+                                effectiveFilter,
+                                prefix,
+                                flatBrowsing);
+
+                long elapsedMs =
+                        TimeUnit.NANOSECONDS.toMillis(
+                                System.nanoTime() - start);
+
+                System.err.printf(
+                        "[FILTER TIMING] cached filtering: %d ms, "
+                                + "sourceFiles=%d, resultFiles=%d, "
+                                + "sourceFolders=%d, resultFolders=%d%n",
+                        elapsedMs,
+                        cached.files().size(),
+                        result.files().size(),
+                        cached.folders().size(),
+                        result.folders().size());
+
+                return result;
+            }, executor);
         }
 
         /*
