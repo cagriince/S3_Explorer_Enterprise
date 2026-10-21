@@ -472,6 +472,7 @@ public final class ExplorerContentLoader {
 
 
 
+
     private LimitedFolderContent createFilteredDisplayContent(
             LimitedFolderContent cached,
             int fileLimit,
@@ -479,6 +480,8 @@ public final class ExplorerContentLoader {
             FileTableFilter filter,
             String prefix,
             boolean flatBrowsing) {
+
+        long methodStart = System.nanoTime();
 
         List<String> matchingFolders = new java.util.ArrayList<>();
 
@@ -501,27 +504,14 @@ public final class ExplorerContentLoader {
         List<software.amazon.awssdk.services.s3.model.S3Object>
                 matchingFiles = new java.util.ArrayList<>();
 
-        /*
-         * Fast path:
-         * With no text filter, all cached files match.
-         * Copy and sort the list in bulk rather than inserting
-         * each file individually into a sorted collection.
-         */
+        long scanNanos = 0;
+
         if (filter.includesFiles() && !filter.hasTextFilter()) {
 
             matchingFileCount = cached.files().size();
-
             matchingFiles.addAll(cached.files());
 
         } else if (filter.includesFiles()) {
-
-            /*
-             * Collect matching files first.
-             * Sorting once after scanning avoids the expensive
-             * repeated insertion and element shifting performed
-             * by BoundedSortedFileCollection.add().
-             */
-            long scanNanos = 0;
 
             for (software.amazon.awssdk.services.s3.model.S3Object object
                     : cached.files()) {
@@ -545,40 +535,54 @@ public final class ExplorerContentLoader {
                 matchingFileCount++;
                 matchingFiles.add(object);
             }
-
-            System.err.printf(
-                    "[FILTER DETAIL] scan=%d ms, "
-                            + "matchingFiles=%d%n",
-                    TimeUnit.NANOSECONDS.toMillis(scanNanos),
-                    matchingFileCount);
         }
 
-        /*
-         * Sort all matches once, using the existing comparator
-         * so the current column and ascending/descending behavior
-         * remain unchanged.
-         */
+        long sortStart = System.nanoTime();
+
         matchingFiles.sort(
                 sortSpec.createFileComparator(
                         collationKeyCache));
 
-        /*
-         * Apply the display limit after sorting.
-         */
+        long sortNanos = System.nanoTime() - sortStart;
+
+        long trimStart = System.nanoTime();
+
         if (matchingFiles.size() > fileLimit) {
             matchingFiles.subList(
                     fileLimit,
                     matchingFiles.size()).clear();
         }
 
+        long trimNanos = System.nanoTime() - trimStart;
+
         boolean fileLimitReached =
                 matchingFileCount > matchingFiles.size();
 
-        return new LimitedFolderContent(
-                matchingFolders,
-                matchingFiles,
-                fileLimitReached,
-                matchingFileCount);
+        long resultStart = System.nanoTime();
+
+        LimitedFolderContent result =
+                new LimitedFolderContent(
+                        matchingFolders,
+                        matchingFiles,
+                        fileLimitReached,
+                        matchingFileCount);
+
+        long resultNanos = System.nanoTime() - resultStart;
+        long totalNanos = System.nanoTime() - methodStart;
+
+        System.err.printf(
+                "[FILTER PROFILE] scan=%d ms, sort=%d ms, "
+                        + "trim=%d ms, resultCreation=%d ms, "
+                        + "total=%d ms, matchingFiles=%d, displayedFiles=%d%n",
+                TimeUnit.NANOSECONDS.toMillis(scanNanos),
+                TimeUnit.NANOSECONDS.toMillis(sortNanos),
+                TimeUnit.NANOSECONDS.toMillis(trimNanos),
+                TimeUnit.NANOSECONDS.toMillis(resultNanos),
+                TimeUnit.NANOSECONDS.toMillis(totalNanos),
+                matchingFileCount,
+                result.files().size());
+
+        return result;
     }
 
     private String getFilterDisplayName(
