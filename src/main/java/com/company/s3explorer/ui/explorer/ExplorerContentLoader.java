@@ -501,10 +501,14 @@ public final class ExplorerContentLoader {
                                 collationKeyCache));
 
         long matchingFileCount = 0;
+        long scanNanos = 0;
+        long addNanos = 0;
 
         if (filter.includesFiles()) {
             for (software.amazon.awssdk.services.s3.model.S3Object object
                     : cached.files()) {
+
+                long scanStart = System.nanoTime();
 
                 String displayName = getFilterDisplayName(
                         object.key(),
@@ -512,14 +516,28 @@ public final class ExplorerContentLoader {
                         false,
                         flatBrowsing);
 
-                if (!filter.matchesText(displayName)) {
+                boolean matches = filter.matchesText(displayName);
+
+                scanNanos += System.nanoTime() - scanStart;
+
+                if (!matches) {
                     continue;
                 }
 
                 matchingFileCount++;
+
+                long addStart = System.nanoTime();
                 boundedFiles.add(object);
+                addNanos += System.nanoTime() - addStart;
             }
         }
+
+        System.err.printf(
+                "[FILTER DETAIL] scan=%d ms, boundedAdd=%d ms, "
+                        + "matchingFiles=%d%n",
+                TimeUnit.NANOSECONDS.toMillis(scanNanos),
+                TimeUnit.NANOSECONDS.toMillis(addNanos),
+                matchingFileCount);
 
         List<software.amazon.awssdk.services.s3.model.S3Object>
                 matchingFiles = boundedFiles.toList();
