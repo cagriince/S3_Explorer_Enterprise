@@ -20,14 +20,15 @@ public final class FileTableSortSpec {
         LAST_MODIFIED
     }
 
-    /**
-     * Exposes comparison and CollationKey creation metrics.
-     */
     public interface ComparisonMetrics {
 
         long getPrimaryComparisonCount();
 
+        long getPrimaryEqualComparisonCount();
+
         long getSecondaryComparisonCount();
+
+        long getSecondaryNonZeroComparisonCount();
 
         long getCollationKeyCacheMissCount();
 
@@ -159,7 +160,9 @@ public final class FileTableSortSpec {
         private final long[] keyCreationNanos;
 
         private long primaryComparisonCount;
+        private long primaryEqualComparisonCount;
         private long secondaryComparisonCount;
+        private long secondaryNonZeroComparisonCount;
 
         private MeasuredComparator(
                 Comparator<S3Object> primaryComparator,
@@ -185,23 +188,28 @@ public final class FileTableSortSpec {
             int result =
                     primaryComparator.compare(left, right);
 
-            if (!ascending) {
-                result = -Integer.signum(result);
+            if (result != 0) {
+                return ascending
+                        ? Integer.signum(result)
+                        : -Integer.signum(result);
             }
 
-            if (result != 0 || secondaryComparator == null) {
-                return result;
+            if (secondaryComparator == null) {
+                return 0;
             }
 
+            primaryEqualComparisonCount++;
             secondaryComparisonCount++;
 
             result = secondaryComparator.compare(left, right);
 
-            if (!ascending) {
-                result = -Integer.signum(result);
+            if (result != 0) {
+                secondaryNonZeroComparisonCount++;
             }
 
-            return result;
+            return ascending
+                    ? Integer.signum(result)
+                    : -Integer.signum(result);
         }
 
         @Override
@@ -210,8 +218,18 @@ public final class FileTableSortSpec {
         }
 
         @Override
+        public long getPrimaryEqualComparisonCount() {
+            return primaryEqualComparisonCount;
+        }
+
+        @Override
         public long getSecondaryComparisonCount() {
             return secondaryComparisonCount;
+        }
+
+        @Override
+        public long getSecondaryNonZeroComparisonCount() {
+            return secondaryNonZeroComparisonCount;
         }
 
         @Override

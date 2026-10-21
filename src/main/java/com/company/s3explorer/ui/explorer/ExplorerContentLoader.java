@@ -48,6 +48,9 @@ public final class ExplorerContentLoader {
 
     private volatile boolean cachedFlatBrowsing;
 
+    long primaryEqualComparisons = -1;
+    long secondaryNonZeroComparisons = -1;
+
     public ExplorerContentLoader(
             Supplier<S3ExplorerService> serviceSupplier) {
 
@@ -574,6 +577,12 @@ public final class ExplorerContentLoader {
 
             collationKeyCreationNanos =
                     metrics.getCollationKeyCreationNanos();
+
+            primaryEqualComparisons =
+                    metrics.getPrimaryEqualComparisonCount();
+
+            secondaryNonZeroComparisons =
+                    metrics.getSecondaryNonZeroComparisonCount();
         }
 
         int cacheSizeAfterSort = collationKeyCache.size();
@@ -617,7 +626,9 @@ public final class ExplorerContentLoader {
                         + "collationKeyCreation=%d ms, "
                         + "trim=%d ms, resultCreation=%d ms, "
                         + "total=%d ms, matchingFiles=%d, "
-                        + "displayedFiles=%d%n",
+                        + "displayedFiles=%d%n"
+                        + "primaryEqualComparisons=%d, "
+                        + "secondaryNonZeroComparisons=%d, ",
                 sortSpec.getColumn(),
                 sortSpec.isAscending(),
                 TimeUnit.NANOSECONDS.toMillis(scanNanos),
@@ -636,7 +647,9 @@ public final class ExplorerContentLoader {
                 TimeUnit.NANOSECONDS.toMillis(resultCreationNanos),
                 TimeUnit.NANOSECONDS.toMillis(totalNanos),
                 matchingFileCount,
-                matchingFiles.size());
+                matchingFiles.size(),
+                primaryEqualComparisons,
+                secondaryNonZeroComparisons);
 
         return result;
     }
