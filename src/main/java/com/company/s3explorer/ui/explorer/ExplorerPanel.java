@@ -3974,7 +3974,7 @@ public class ExplorerPanel extends JPanel {
             button = new JButton(text + " /");
         }
         else {
-            button = new JButton(" /", IconProvider.ICON_SYSTEM_CLOSED_FOLDER);
+            button = new JButton("", IconProvider.ICON_SYSTEM_CLOSED_FOLDER);
         }
         button.setBackground(new Color(70, 130, 180));
         Color fgColor = button.getForeground();

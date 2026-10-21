@@ -8,10 +8,13 @@ import com.company.s3explorer.ui.theme.UIThemeManager;
 import javax.swing.*;
 import java.awt.*;
 import java.nio.file.Path;
+import java.text.CollationKey;
 import java.text.Collator;
 import java.time.Instant;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class S3Util {
     public static String combineKey(String prefix, String name) {
@@ -240,6 +243,31 @@ public class S3Util {
             String right,
             Collator collator) {
 
+        return naturalTurkishCompare(
+                left,
+                right,
+                collator,
+                new HashMap<>());
+    }
+
+    public static int naturalTurkishCompare(
+            String left,
+            String right,
+            Collator collator,
+            Map<Character, CollationKey> characterKeyCache) {
+
+        if (left == right) {
+            return 0;
+        }
+
+        if (left == null) {
+            return -1;
+        }
+
+        if (right == null) {
+            return 1;
+        }
+
         int leftIndex = 0;
         int rightIndex = 0;
 
@@ -249,7 +277,10 @@ public class S3Util {
             char leftChar = left.charAt(leftIndex);
             char rightChar = right.charAt(rightIndex);
 
-            // İki tarafta da sayı başladıysa doğal/sayısal karşılaştır
+            /*
+             * Preserve natural numeric ordering:
+             * file2 sorts before file10.
+             */
             if (Character.isDigit(leftChar)
                     && Character.isDigit(rightChar)) {
 
@@ -257,53 +288,89 @@ public class S3Util {
                 int rightStart = rightIndex;
 
                 while (leftIndex < left.length()
-                        && Character.isDigit(left.charAt(leftIndex))) {
+                        && Character.isDigit(
+                        left.charAt(leftIndex))) {
                     leftIndex++;
                 }
 
                 while (rightIndex < right.length()
-                        && Character.isDigit(right.charAt(rightIndex))) {
+                        && Character.isDigit(
+                        right.charAt(rightIndex))) {
                     rightIndex++;
                 }
 
-                String leftNumber =
-                        left.substring(leftStart, leftIndex);
+                /*
+                 * Ignore leading zeroes without allocating
+                 * normalized strings or executing a regex.
+                 * Keep at least one digit for an all-zero number.
+                 */
+                int normalizedLeftStart = leftStart;
+                int normalizedRightStart = rightStart;
 
-                String rightNumber =
-                        right.substring(rightStart, rightIndex);
+                while (normalizedLeftStart < leftIndex - 1
+                        && left.charAt(normalizedLeftStart) == '0') {
+                    normalizedLeftStart++;
+                }
 
-                String normalizedLeft =
-                        leftNumber.replaceFirst("^0+(?!$)", "");
+                while (normalizedRightStart < rightIndex - 1
+                        && right.charAt(normalizedRightStart) == '0') {
+                    normalizedRightStart++;
+                }
 
-                String normalizedRight =
-                        rightNumber.replaceFirst("^0+(?!$)", "");
+                int leftDigits =
+                        leftIndex - normalizedLeftStart;
 
-                // Önce basamak sayısı
-                if (normalizedLeft.length()
-                        != normalizedRight.length()) {
+                int rightDigits =
+                        rightIndex - normalizedRightStart;
 
+                if (leftDigits != rightDigits) {
                     return Integer.compare(
-                            normalizedLeft.length(),
-                            normalizedRight.length());
+                            leftDigits,
+                            rightDigits);
                 }
 
-                // Sonra rakamların kendisi
-                int numberCompare =
-                        normalizedLeft.compareTo(normalizedRight);
+                for (int i = 0; i < leftDigits; i++) {
 
-                if (numberCompare != 0) {
-                    return numberCompare;
+                    char leftDigit =
+                            left.charAt(normalizedLeftStart + i);
+
+                    char rightDigit =
+                            right.charAt(normalizedRightStart + i);
+
+                    if (leftDigit != rightDigit) {
+                        return Character.compare(
+                                leftDigit,
+                                rightDigit);
+                    }
                 }
 
-                // Sayılar aynı değerse devam et
+                /*
+                 * Numeric values are equal. Continue after
+                 * both complete digit sequences, preserving
+                 * the existing comparison behavior.
+                 */
                 continue;
             }
 
-            // Normal karakter karşılaştırması
+            /*
+             * Cache the collation key for each individual
+             * character. This preserves the existing algorithm's
+             * character-by-character Collator comparison.
+             */
+            CollationKey leftKey =
+                    characterKeyCache.computeIfAbsent(
+                            leftChar,
+                            ch -> collator.getCollationKey(
+                                    String.valueOf(ch)));
+
+            CollationKey rightKey =
+                    characterKeyCache.computeIfAbsent(
+                            rightChar,
+                            ch -> collator.getCollationKey(
+                                    String.valueOf(ch)));
+
             int charCompare =
-                    collator.compare(
-                            String.valueOf(leftChar),
-                            String.valueOf(rightChar));
+                    leftKey.compareTo(rightKey);
 
             if (charCompare != 0) {
                 return charCompare;
@@ -314,19 +381,9 @@ public class S3Util {
         }
 
         /*
-         * Buraya geldiysek ortak prefix tamamen eşleşmiş demektir.
-         *
-         * Örnek:
-         *
-         * ABC
-         * ABC-
-         *
-         * veya:
-         *
-         * ABC
-         * ABC2
-         *
-         * Kısa olan her zaman önce gelir.
+         * Preserve the existing prefix rule:
+         * the shorter string sorts first when the common
+         * prefix has matched completely.
          */
         if (leftIndex == left.length()
                 && rightIndex < right.length()) {

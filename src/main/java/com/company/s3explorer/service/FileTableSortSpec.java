@@ -1,3 +1,4 @@
+
 package com.company.s3explorer.service;
 
 import com.company.s3explorer.util.S3Util;
@@ -7,6 +8,7 @@ import java.text.CollationKey;
 import java.text.Collator;
 import java.time.Instant;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 
@@ -37,7 +39,8 @@ public final class FileTableSortSpec {
         return ascending;
     }
 
-    public Comparator<S3Object> createFileComparator(Map<String, CollationKey> collationKeyCache) {
+    public Comparator<S3Object> createFileComparator(
+            Map<String, CollationKey> collationKeyCache) {
 
         Collator turkishCollator =
                 Collator.getInstance(
@@ -72,25 +75,33 @@ public final class FileTableSortSpec {
 
             default:
 
+                /*
+                 * Character collation keys are local to this
+                 * comparator, so repeated comparisons reuse them.
+                 * This map is accessed by the sorting thread.
+                 */
+                Map<Character, CollationKey> characterKeyCache =
+                        new HashMap<>();
+
                 comparator =
                         (left, right) ->
                                 S3Util.naturalTurkishCompare(
                                         left.key(),
                                         right.key(),
-                                        turkishCollator);
+                                        turkishCollator,
+                                        characterKeyCache);
 
                 break;
         }
 
         if (!ascending) {
-
-            comparator =
-                    comparator.reversed();
+            comparator = comparator.reversed();
         }
 
         /*
-         * NAME zaten key üzerinden sıralandığı için
-         * ikinci key comparator'a gerek yok.
+         * NAME already compares keys through the natural
+         * Turkish comparator, so no additional key comparison
+         * is needed.
          */
         if (column != Column.NAME) {
 
@@ -111,7 +122,7 @@ public final class FileTableSortSpec {
 
         return comparator;
     }
-    
+
     public static FileTableSortSpec defaultSpec() {
 
         return new FileTableSortSpec(
