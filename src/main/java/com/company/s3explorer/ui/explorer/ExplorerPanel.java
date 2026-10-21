@@ -1518,6 +1518,8 @@ public class ExplorerPanel extends JPanel {
                         filter)
                 .thenApplyAsync(content -> {
 
+                    long prepareStart = System.nanoTime();
+
                     List<S3FileItem> rows =
                             createFileTableRows(
                                     repositoryId,
@@ -1525,6 +1527,14 @@ public class ExplorerPanel extends JPanel {
                                     prefix,
                                     content,
                                     flatBrowsing);
+
+                    long prepareMillis =
+                            (System.nanoTime() - prepareStart) / 1_000_000;
+
+                    log.info(
+                            "[FILE TABLE TIMING] row preparation: {} ms, rows={}",
+                            prepareMillis,
+                            rows.size());
 
                     return new PreparedFileTable(
                             content,
@@ -1539,6 +1549,21 @@ public class ExplorerPanel extends JPanel {
                                 return;
                             }
 
+                            long applyStart = System.nanoTime();
+
+                            applyPreparedFileTableRows(
+                                    prepared.rows(),
+                                    prepared.content(),
+                                    bucket,
+                                    prefix);
+
+                            long applyMillis =
+                                    (System.nanoTime() - applyStart) / 1_000_000;
+
+                            log.info(
+                                    "[FILE TABLE TIMING] model apply: {} ms, rows={}",
+                                    applyMillis,
+                                    prepared.rows().size());
                             applyPreparedFileTableRows(
                                     prepared.rows(),
                                     prepared.content(),
