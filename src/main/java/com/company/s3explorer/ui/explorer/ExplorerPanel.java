@@ -5246,94 +5246,85 @@ public class ExplorerPanel extends JPanel {
             String prefix,
             LimitedFolderContent content) {
 
-        List<S3FileItem> rows =
-                new ArrayList<>();
+        String repositoryId = getCurrentRepository().getId();
 
-        /*
-         * Parent folder.
-         *
-         * Root'ta ".." göstermiyoruz.
-         */
-        if (prefix != null
-                && !prefix.isEmpty()) {
+        List<S3FileItem> rows = createFileTableRows(
+                repositoryId,
+                bucket,
+                prefix,
+                content,
+                flatBrowsingEnabled);
 
-            rows.add(
-                    new S3FileItem(
-                            this.getCurrentRepository()
-                                    .getId(),
-                            bucket,
-                            prefix
-                                    + S3FileItem
-                                    .PARENT_FOLDER_NAME,
-                            0,
-                            null,
-                            null,
-                            true));
+        applyPreparedFileTableRows(rows, content, bucket, prefix);
+    }
+
+    private List<S3FileItem> createFileTableRows(
+            String repositoryId,
+            String bucket,
+            String prefix,
+            LimitedFolderContent content,
+            boolean flatBrowsing) {
+
+        List<S3FileItem> rows = new ArrayList<>();
+
+        // Parent folder: root'ta gösterilmez.
+        if (prefix != null && !prefix.isEmpty()) {
+            rows.add(new S3FileItem(
+                    repositoryId,
+                    bucket,
+                    prefix + S3FileItem.PARENT_FOLDER_NAME,
+                    0,
+                    null,
+                    null,
+                    true));
         }
 
-        /*
-         * -------------------------------------------------
-         * TÜM KLASÖRLER
-         * -------------------------------------------------
-         *
-         * Klasör sayısı Max Line Count'tan etkilenmez.
-         */
-        rows.addAll(
-                content.folders()
-                        .stream()
-                        .map(folder ->
-                                new S3FileItem(
-                                        this.getCurrentRepository().getId(),
-                                        bucket,
-                                        folder,
-                                        0,
-                                        null,
-                                        null,
-                                        true,
-                                        flatBrowsingEnabled
-                                                ? getFlatDisplayName(
-                                                folder,
-                                                prefix,
-                                                true)
-                                                : null))
-                        .toList());
-        /*
-         * -------------------------------------------------
-         * SINIRLI DOSYALAR
-         * -------------------------------------------------
-         *
-         * Burada yalnızca bounded collection'da
-         * kalan dosyalar bulunur.
-         */
-        rows.addAll(
-                content.files()
-                        .stream()
-                        .filter(object ->
-                                !object.key().endsWith("/"))
-                        .map(object ->
-                                new S3FileItem(
-                                        this.getCurrentRepository().getId(),
-                                        bucket,
-                                        object.key(),
-                                        object.size(),
-                                        object.lastModified(),
-                                        object.storageClass() == null
-                                                ? null
-                                                : object.storageClass().toString(),
-                                        false,
-                                        flatBrowsingEnabled
-                                                ? getFlatDisplayName(
-                                                object.key(),
-                                                prefix,
-                                                false)
-                                                : null))
-                        .toList());
+        // Tüm klasörler.
+        for (String folder : content.folders()) {
+            rows.add(new S3FileItem(
+                    repositoryId,
+                    bucket,
+                    folder,
+                    0,
+                    null,
+                    null,
+                    true,
+                    flatBrowsing
+                            ? getFlatDisplayName(folder, prefix, true)
+                            : null));
+        }
 
-        /*
-         * JTable'a sonucu tek seferde veriyoruz.
-         *
-         * Lazy loading yok.
-         */
+        // Bounded collection'da bulunan dosyalar.
+        for (var object : content.files()) {
+            if (object.key().endsWith("/")) {
+                continue;
+            }
+
+            rows.add(new S3FileItem(
+                    repositoryId,
+                    bucket,
+                    object.key(),
+                    object.size(),
+                    object.lastModified(),
+                    object.storageClass() == null
+                            ? null
+                            : object.storageClass().toString(),
+                    false,
+                    flatBrowsing
+                            ? getFlatDisplayName(
+                            object.key(), prefix, false)
+                            : null));
+        }
+
+        return rows;
+    }
+
+    private void applyPreparedFileTableRows(
+            List<S3FileItem> rows,
+            LimitedFolderContent content,
+            String bucket,
+            String prefix) {
+
         view.getFileTableModel().setFiles(rows);
 
         updateFileFolderInfo(content);
