@@ -1564,11 +1564,6 @@ public class ExplorerPanel extends JPanel {
                                     "[FILE TABLE TIMING] model apply: {} ms, rows={}",
                                     applyMillis,
                                     prepared.rows().size());
-                            applyPreparedFileTableRows(
-                                    prepared.rows(),
-                                    prepared.content(),
-                                    bucket,
-                                    prefix);
 
                             setFileTableLoading(false);
 

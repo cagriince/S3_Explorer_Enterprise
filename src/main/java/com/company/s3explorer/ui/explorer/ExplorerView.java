@@ -566,6 +566,15 @@ public final class ExplorerView {
         
         FileTableRowSorter sorter = new FileTableRowSorter(model);
         table.setRowSorter(sorter);
+        sorter.addRowSorterListener(e -> {
+            if (e.getType() == javax.swing.event.RowSorterEvent.Type.SORTED) {
+                System.out.printf(
+                        "[SORT TIMING] sorter event completed: rows=%d, time=%s%n",
+                        table.getRowCount(),
+                        java.time.LocalTime.now()
+                );
+            }
+        });
         table.getTableHeader().setReorderingAllowed(false);
         table.getTableHeader().addMouseListener(new MouseAdapter() {
             @Override
