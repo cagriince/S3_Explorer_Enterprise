@@ -1454,6 +1454,7 @@ public class ExplorerPanel extends JPanel {
             String bucket,
             String prefix,
             boolean restoreFocus) {
+
         final long generation =
                 fileLoadGeneration.incrementAndGet();
 
@@ -1481,6 +1482,15 @@ public class ExplorerPanel extends JPanel {
         final FileTableSortSpec sortSpec =
                 getCurrentFileSortSpec();
 
+        final String repositoryId =
+                getCurrentRepository().getId();
+
+        final boolean flatBrowsing =
+                flatBrowsingEnabled;
+
+        final var filter =
+                getCurrentFileTableFilter();
+
         updateFileDiscoveryProgress(
                 generation,
                 bucket,
@@ -1504,9 +1514,24 @@ public class ExplorerPanel extends JPanel {
                                         folderCount);
                             }
                         },
-                        flatBrowsingEnabled,
-                        getCurrentFileTableFilter())
-                .thenAccept(content ->
+                        flatBrowsing,
+                        filter)
+                .thenApplyAsync(content -> {
+
+                    List<S3FileItem> rows =
+                            createFileTableRows(
+                                    repositoryId,
+                                    bucket,
+                                    prefix,
+                                    content,
+                                    flatBrowsing);
+
+                    return new PreparedFileTable(
+                            content,
+                            rows);
+
+                }, explorerPool)
+                .thenAccept(prepared ->
                         SwingUtilities.invokeLater(() -> {
 
                             if (generation !=
@@ -1514,13 +1539,11 @@ public class ExplorerPanel extends JPanel {
                                 return;
                             }
 
-                            updateFileFolderInfo(
-                                    content);
-
-                            applyLimitedFolderContent(
+                            applyPreparedFileTableRows(
+                                    prepared.rows(),
+                                    prepared.content(),
                                     bucket,
-                                    prefix,
-                                    content);
+                                    prefix);
 
                             setFileTableLoading(false);
 
@@ -1568,8 +1591,7 @@ public class ExplorerPanel extends JPanel {
                                 pendingDeleteSelectionViewRow = -1;
                             }
 
-                            if (restoreFocus
-                                    || restoreFileTableFocus) {
+                            if (restoreFocus || restoreFileTableFocus) {
 
                                 restoreFileTableFocus();
 
@@ -1580,13 +1602,11 @@ public class ExplorerPanel extends JPanel {
 
                     log.error(
                             "[FILE LOAD] failed: {}",
-                            S3ErrorResolver
-                                    .getDetailedMessage(ex));
+                            S3ErrorResolver.getDetailedMessage(ex));
 
                     SwingUtilities.invokeLater(() -> {
 
-                        if (generation !=
-                                fileLoadGeneration.get()) {
+                        if (generation != fileLoadGeneration.get()) {
                             return;
                         }
 
@@ -1597,8 +1617,7 @@ public class ExplorerPanel extends JPanel {
 
                         JOptionPane.showMessageDialog(
                                 this,
-                                S3ErrorResolver
-                                        .getUserMessage(ex),
+                                S3ErrorResolver.getUserMessage(ex),
                                 "S3 Operation Failed",
                                 JOptionPane.ERROR_MESSAGE);
                     });
@@ -1633,60 +1652,99 @@ public class ExplorerPanel extends JPanel {
                         : prefix)
                         + "</html>");
 
-        SwingUtilities.invokeLater(() -> {
+        final String repositoryId =
+                getCurrentRepository().getId();
 
-            if (generation !=
-                    fileLoadGeneration.get()) {
-                return;
-            }
+        final boolean flatBrowsing =
+                flatBrowsingEnabled;
 
-            updateFileFolderInfo(
-                    content);
+        CompletableFuture.supplyAsync(
+                        () -> createFileTableRows(
+                                repositoryId,
+                                bucket,
+                                prefix,
+                                content,
+                                flatBrowsing),
+                        explorerPool)
+                .thenAccept(rows ->
+                        SwingUtilities.invokeLater(() -> {
 
-            applyLimitedFolderContent(
-                    bucket,
-                    prefix,
-                    content);
+                            if (generation !=
+                                    fileLoadGeneration.get()) {
+                                return;
+                            }
 
-            setFileTableLoading(false);
+                            applyPreparedFileTableRows(
+                                    rows,
+                                    content,
+                                    bucket,
+                                    prefix);
 
-            hideOperationDialog(
-                    OperationDialogType.FILE_TABLE);
+                            setFileTableLoading(false);
 
-            if (!pasteSelectionCollectionInProgress) {
+                            hideOperationDialog(
+                                    OperationDialogType.FILE_TABLE);
 
-                if (pendingFileTableSelectionKeys != null
-                        && !pendingFileTableSelectionKeys.isEmpty()) {
+                            if (!pasteSelectionCollectionInProgress) {
 
-                    restorePendingPasteSelection();
+                                if (pendingFileTableSelectionKeys != null
+                                        && !pendingFileTableSelectionKeys.isEmpty()) {
 
-                } else if (pendingFileTableSelectionKey != null) {
+                                    restorePendingPasteSelection();
 
-                    restoreFileTableSelectionByKey(
-                            pendingFileTableSelectionKey);
+                                } else if (pendingFileTableSelectionKey != null) {
 
-                    pendingFileTableSelectionKey =
-                            null;
+                                    restoreFileTableSelectionByKey(
+                                            pendingFileTableSelectionKey);
 
-                } else if (preservedFileTableSelectionKeys != null
-                        && !preservedFileTableSelectionKeys.isEmpty()) {
+                                    pendingFileTableSelectionKey =
+                                            null;
 
-                    List<String> preservedKeys =
-                            new ArrayList<>(
-                                    preservedFileTableSelectionKeys);
+                                } else if (preservedFileTableSelectionKeys != null
+                                        && !preservedFileTableSelectionKeys.isEmpty()) {
 
-                    restoreFileTableSelectionByKeys(
-                            preservedKeys);
+                                    List<String> preservedKeys =
+                                            new ArrayList<>(
+                                                    preservedFileTableSelectionKeys);
 
-                    preservedFileTableSelectionKeys =
-                            null;
+                                    restoreFileTableSelectionByKeys(
+                                            preservedKeys);
 
-                    log.debug(
-                            "[FILE TABLE SELECTION] restored preserved selection keys={}",
-                            preservedKeys);
-                }
-            }
-        });
+                                    preservedFileTableSelectionKeys =
+                                            null;
+
+                                    log.debug(
+                                            "[FILE TABLE SELECTION] restored preserved selection keys={}",
+                                            preservedKeys);
+                                }
+                            }
+                        }))
+                .exceptionally(ex -> {
+
+                    log.error(
+                            "[FILE TABLE PREPARATION] failed: {}",
+                            S3ErrorResolver.getDetailedMessage(ex));
+
+                    SwingUtilities.invokeLater(() -> {
+
+                        if (generation != fileLoadGeneration.get()) {
+                            return;
+                        }
+
+                        setFileTableLoading(false);
+
+                        hideOperationDialog(
+                                OperationDialogType.FILE_TABLE);
+
+                        JOptionPane.showMessageDialog(
+                                this,
+                                S3ErrorResolver.getUserMessage(ex),
+                                "S3 Operation Failed",
+                                JOptionPane.ERROR_MESSAGE);
+                    });
+
+                    return null;
+                });
     }
 
     private void bindEvents() {
@@ -8279,5 +8337,10 @@ public class ExplorerPanel extends JPanel {
         lastAppliedItemType = currentItemType;
 
         reloadCurrentFileTable();
+    }
+
+    private record PreparedFileTable(
+            LimitedFolderContent content,
+            List<S3FileItem> rows) {
     }
 }
