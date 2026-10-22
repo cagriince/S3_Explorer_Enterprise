@@ -77,11 +77,14 @@ public class ExplorerPanel extends JPanel {
 
     private OperationDialog bucketDialog;
     private OperationDialog fileTableDialog;
+    private OperationDialog filterRefreshDialog;
 
     private enum OperationDialogType {
         BUCKET,
-        FILE_TABLE
+        FILE_TABLE,
+        FILTER_REFRESH
     }
+
     private final List<OperationDialog> visibleOperationDialogs = new ArrayList<>();
 
     private File lastOpenedFolderToUpload;
@@ -284,7 +287,7 @@ public class ExplorerPanel extends JPanel {
                             "[FILE TABLE LIMIT CHANGED] limit={}",
                             selectedLimit);
 
-                    reloadCurrentFileTable();
+                    reloadCurrentFileTable(true);
                 };
 
         view.setFileTableRowLimitSelectionListener(
@@ -1460,25 +1463,14 @@ public class ExplorerPanel extends JPanel {
                     return null;
                 });
     }
-    
-    private void loadFiles(
-            String bucket,
-            String prefix) {
-        loadFiles(
-                bucket,
-                prefix,
-                false);
-    }
 
     private void loadFiles(
             String bucket,
             String prefix,
-            boolean restoreFocus) {
+            LimitedFolderContent content) {
 
         final long generation =
                 fileLoadGeneration.incrementAndGet();
-        final long discoveryGeneration =
-                fileDiscoveryGeneration.get();
 
         currentFileBucket = bucket;
         currentFilePrefix = prefix;
@@ -1498,6 +1490,169 @@ public class ExplorerPanel extends JPanel {
                         : prefix)
                         + "</html>");
 
+        final String repositoryId =
+                getCurrentRepository().getId();
+
+        final boolean flatBrowsing =
+                flatBrowsingEnabled;
+
+        CompletableFuture
+                .supplyAsync(() -> {
+                    long prepareStart = System.nanoTime();
+
+                    List<S3FileItem> rows =
+                            createFileTableRows(
+                                    repositoryId,
+                                    bucket,
+                                    prefix,
+                                    content,
+                                    flatBrowsing);
+
+                    long prepareMillis =
+                            (System.nanoTime() - prepareStart) / 1_000_000;
+
+                    log.info(
+                            "[FILE TABLE TIMING] row preparation: {} ms, rows={}",
+                            prepareMillis,
+                            rows.size());
+
+                    return new PreparedFileTable(
+                            content,
+                            rows);
+                }, explorerPool)
+                .thenAccept(prepared ->
+                        SwingUtilities.invokeLater(() -> {
+
+                            if (generation != fileLoadGeneration.get()) {
+                                return;
+                            }
+
+                            long applyStart = System.nanoTime();
+
+                            applyPreparedFileTableRows(
+                                    prepared.rows(),
+                                    prepared.content(),
+                                    bucket,
+                                    prefix);
+
+                            long applyMillis =
+                                    (System.nanoTime() - applyStart) / 1_000_000;
+
+                            log.info(
+                                    "[FILE TABLE TIMING] model apply: {} ms, rows={}",
+                                    applyMillis,
+                                    prepared.rows().size());
+
+                            setFileTableLoading(false);
+
+                            hideOperationDialog(
+                                    OperationDialogType.FILE_TABLE);
+
+                            hideOperationDialog(
+                                    OperationDialogType.FILTER_REFRESH);
+                        }))
+                .exceptionally(ex -> {
+
+                    log.error(
+                            "[FILE LOAD] failed: {}",
+                            S3ErrorResolver.getDetailedMessage(ex));
+
+                    SwingUtilities.invokeLater(() -> {
+
+                        if (generation != fileLoadGeneration.get()) {
+                            return;
+                        }
+
+                        setFileTableLoading(false);
+
+                        hideOperationDialog(
+                                OperationDialogType.FILE_TABLE);
+
+                        hideOperationDialog(
+                                OperationDialogType.FILTER_REFRESH);
+
+                        JOptionPane.showMessageDialog(
+                                this,
+                                S3ErrorResolver.getUserMessage(ex),
+                                "S3 Operation Failed",
+                                JOptionPane.ERROR_MESSAGE);
+                    });
+
+                    return null;
+                });
+    }
+
+    private void loadFiles(
+            String bucket,
+            String prefix) {
+
+        loadFiles(
+                bucket,
+                prefix,
+                false,
+                false);
+    }
+
+    private void loadFiles(
+            String bucket,
+            String prefix,
+            boolean restoreFocus) {
+
+        loadFiles(
+                bucket,
+                prefix,
+                restoreFocus,
+                false);
+    }
+
+    private void loadFiles(
+            String bucket,
+            String prefix,
+            boolean restoreFocus,
+            boolean filterRefresh) {
+
+        final long generation =
+                fileLoadGeneration.incrementAndGet();
+
+        final long discoveryGeneration =
+                fileDiscoveryGeneration.get();
+
+        currentFileBucket = bucket;
+        currentFilePrefix = prefix;
+
+        setFileTableLoading(true);
+
+        if (filterRefresh) {
+
+            showOperationDialog(
+                    OperationDialogType.FILTER_REFRESH,
+                    "<html><b>Applying filters...</b><br>"
+                            + "Please wait while the file table is updated."
+                            + "</html>");
+
+        } else {
+
+            showOperationDialog(
+                    OperationDialogType.FILE_TABLE,
+                    "<html>"
+                            + "<b>Preparing file table...</b><br><br>"
+                            + "<b>Bucket:</b> "
+                            + bucket
+                            + "<br><br>"
+                            + "<b>Folder:</b> "
+                            + (prefix == null || prefix.isBlank()
+                            ? "/"
+                            : prefix)
+                            + "</html>");
+
+            updateFileDiscoveryProgress(
+                    discoveryGeneration,
+                    bucket,
+                    prefix,
+                    0,
+                    0);
+        }
+
         final int fileLimit =
                 getSelectedFileTableRowLimit();
 
@@ -1512,13 +1667,6 @@ public class ExplorerPanel extends JPanel {
 
         final var filter =
                 getCurrentFileTableFilter();
-
-        updateFileDiscoveryProgress(
-                discoveryGeneration,
-                bucket,
-                prefix,
-                0,
-                0);
 
         contentLoader.loadFolder(
                         explorerPool,
@@ -1563,8 +1711,7 @@ public class ExplorerPanel extends JPanel {
                 .thenAccept(prepared ->
                         SwingUtilities.invokeLater(() -> {
 
-                            if (generation !=
-                                    fileLoadGeneration.get()) {
+                            if (generation != fileLoadGeneration.get()) {
                                 return;
                             }
 
@@ -1589,6 +1736,9 @@ public class ExplorerPanel extends JPanel {
                             hideOperationDialog(
                                     OperationDialogType.FILE_TABLE);
 
+                            hideOperationDialog(
+                                    OperationDialogType.FILTER_REFRESH);
+
                             if (!pasteSelectionCollectionInProgress) {
 
                                 if (pendingFileTableSelectionKeys != null
@@ -1601,8 +1751,7 @@ public class ExplorerPanel extends JPanel {
                                     restoreFileTableSelectionByKey(
                                             pendingFileTableSelectionKey);
 
-                                    pendingFileTableSelectionKey =
-                                            null;
+                                    pendingFileTableSelectionKey = null;
 
                                 } else if (preservedFileTableSelectionKeys != null
                                         && !preservedFileTableSelectionKeys.isEmpty()) {
@@ -1614,8 +1763,7 @@ public class ExplorerPanel extends JPanel {
                                     restoreFileTableSelectionByKeys(
                                             preservedKeys);
 
-                                    preservedFileTableSelectionKeys =
-                                            null;
+                                    preservedFileTableSelectionKeys = null;
 
                                     log.debug(
                                             "[FILE TABLE SELECTION] restored preserved selection keys={}",
@@ -1654,126 +1802,8 @@ public class ExplorerPanel extends JPanel {
                         hideOperationDialog(
                                 OperationDialogType.FILE_TABLE);
 
-                        JOptionPane.showMessageDialog(
-                                this,
-                                S3ErrorResolver.getUserMessage(ex),
-                                "S3 Operation Failed",
-                                JOptionPane.ERROR_MESSAGE);
-                    });
-
-                    return null;
-                });
-    }
-
-    private void loadFiles(
-            String bucket,
-            String prefix,
-            LimitedFolderContent content) {
-
-        final long generation =
-                fileLoadGeneration.incrementAndGet();
-
-        currentFileBucket = bucket;
-        currentFilePrefix = prefix;
-
-        setFileTableLoading(true);
-
-        showOperationDialog(
-                OperationDialogType.FILE_TABLE,
-                "<html>"
-                        + "<b>Preparing file table...</b><br><br>"
-                        + "<b>Bucket:</b> "
-                        + bucket
-                        + "<br><br>"
-                        + "<b>Folder:</b> "
-                        + (prefix == null || prefix.isBlank()
-                        ? "/"
-                        : prefix)
-                        + "</html>");
-
-        final String repositoryId =
-                getCurrentRepository().getId();
-
-        final boolean flatBrowsing =
-                flatBrowsingEnabled;
-
-        CompletableFuture.supplyAsync(
-                        () -> createFileTableRows(
-                                repositoryId,
-                                bucket,
-                                prefix,
-                                content,
-                                flatBrowsing),
-                        explorerPool)
-                .thenAccept(rows ->
-                        SwingUtilities.invokeLater(() -> {
-
-                            if (generation !=
-                                    fileLoadGeneration.get()) {
-                                return;
-                            }
-
-                            applyPreparedFileTableRows(
-                                    rows,
-                                    content,
-                                    bucket,
-                                    prefix);
-
-                            setFileTableLoading(false);
-
-                            hideOperationDialog(
-                                    OperationDialogType.FILE_TABLE);
-
-                            if (!pasteSelectionCollectionInProgress) {
-
-                                if (pendingFileTableSelectionKeys != null
-                                        && !pendingFileTableSelectionKeys.isEmpty()) {
-
-                                    restorePendingPasteSelection();
-
-                                } else if (pendingFileTableSelectionKey != null) {
-
-                                    restoreFileTableSelectionByKey(
-                                            pendingFileTableSelectionKey);
-
-                                    pendingFileTableSelectionKey =
-                                            null;
-
-                                } else if (preservedFileTableSelectionKeys != null
-                                        && !preservedFileTableSelectionKeys.isEmpty()) {
-
-                                    List<String> preservedKeys =
-                                            new ArrayList<>(
-                                                    preservedFileTableSelectionKeys);
-
-                                    restoreFileTableSelectionByKeys(
-                                            preservedKeys);
-
-                                    preservedFileTableSelectionKeys =
-                                            null;
-
-                                    log.debug(
-                                            "[FILE TABLE SELECTION] restored preserved selection keys={}",
-                                            preservedKeys);
-                                }
-                            }
-                        }))
-                .exceptionally(ex -> {
-
-                    log.error(
-                            "[FILE TABLE PREPARATION] failed: {}",
-                            S3ErrorResolver.getDetailedMessage(ex));
-
-                    SwingUtilities.invokeLater(() -> {
-
-                        if (generation != fileLoadGeneration.get()) {
-                            return;
-                        }
-
-                        setFileTableLoading(false);
-
                         hideOperationDialog(
-                                OperationDialogType.FILE_TABLE);
+                                OperationDialogType.FILTER_REFRESH);
 
                         JOptionPane.showMessageDialog(
                                 this,
@@ -5157,31 +5187,35 @@ public class ExplorerPanel extends JPanel {
     }
 
     private void reloadCurrentFileTable() {
+        reloadCurrentFileTable(false);
+    }
 
-        String bucket =
-                currentFileBucket;
+    private void reloadCurrentFileTable(
+            boolean filterRefresh) {
 
-        String prefix =
-                currentFilePrefix;
+        String bucket = currentFileBucket;
+        String prefix = currentFilePrefix;
 
         if (bucket == null) {
             return;
         }
 
         if (prefix == null) {
-            prefix =
-                    S3TreeNode.ROOT_PREFIX;
+            prefix = S3TreeNode.ROOT_PREFIX;
         }
 
         log.debug(
-                "[FILE TABLE RELOAD] bucket={} prefix={} limit={}",
+                "[FILE TABLE RELOAD] bucket={} prefix={} limit={} filterRefresh={}",
                 bucket,
                 prefix,
-                getSelectedFileTableRowLimit());
+                getSelectedFileTableRowLimit(),
+                filterRefresh);
 
         loadFiles(
                 bucket,
-                prefix);
+                prefix,
+                false,
+                filterRefresh);
     }
 
     private FileTableFilter getCurrentFileTableFilter() {
@@ -5559,6 +5593,15 @@ public class ExplorerPanel extends JPanel {
     private OperationDialog createOperationDialog(
             String title) {
 
+        return createOperationDialog(
+                title,
+                new Dimension(450, 150));
+    }
+
+    private OperationDialog createOperationDialog(
+            String title,
+            Dimension minimumSize) {
+
         Window owner =
                 SwingUtilities.getWindowAncestor(this);
 
@@ -5579,10 +5622,10 @@ public class ExplorerPanel extends JPanel {
 
         panel.setBorder(
                 new EmptyBorder(
+                        14,
                         18,
-                        20,
-                        18,
-                        20));
+                        14,
+                        18));
 
         JLabel message =
                 new JLabel("Preparing file table...");
@@ -5634,10 +5677,7 @@ public class ExplorerPanel extends JPanel {
 
         dialog.setContentPane(panel);
 
-        dialog.setMinimumSize(
-                new Dimension(
-                        450,
-                        150));
+        dialog.setMinimumSize(minimumSize);
 
         return new OperationDialog(
                 dialog,
@@ -5673,86 +5713,73 @@ public class ExplorerPanel extends JPanel {
                 case BUCKET:
 
                     if (bucketDialog == null) {
-
                         bucketDialog =
                                 createOperationDialog(
                                         "Bucket Loading");
                     }
 
-                    operationDialog =
-                            bucketDialog;
-
+                    operationDialog = bucketDialog;
                     break;
 
                 case FILE_TABLE:
 
                     if (fileTableDialog == null) {
-
                         fileTableDialog =
                                 createOperationDialog(
                                         "File Table");
                     }
 
-                    operationDialog =
-                            fileTableDialog;
+                    operationDialog = fileTableDialog;
+                    break;
 
+                case FILTER_REFRESH:
+
+                    if (filterRefreshDialog == null) {
+                        filterRefreshDialog =
+                                createOperationDialog(
+                                        "Updating File Table",
+                                        new Dimension(320, 95));
+                    }
+
+                    operationDialog = filterRefreshDialog;
                     break;
 
                 default:
-
                     return;
             }
 
-            operationDialog.message.setText(
-                    message);
-
+            operationDialog.message.setText(message);
             operationDialog.dialog.pack();
 
             if (operationDialog.showTimer != null) {
-
                 operationDialog.showTimer.stop();
             }
 
-            if (!visibleOperationDialogs.contains(
-                    operationDialog)) {
-
-                visibleOperationDialogs.add(
-                        operationDialog);
+            if (!visibleOperationDialogs.contains(operationDialog)) {
+                visibleOperationDialogs.add(operationDialog);
             }
 
-            operationDialog.dialog.setVisible(
-                    false);
+            operationDialog.dialog.setVisible(false);
 
             operationDialog.showTimer =
                     new Timer(
                             OPERATION_DIALOG_DELAY_MS,
                             e -> {
 
-                                /*
-                                 * Dialog artık geçerli değilse
-                                 * gösterme.
-                                 */
                                 if (!visibleOperationDialogs.contains(
                                         operationDialog)) {
 
-                                    ((Timer) e.getSource())
-                                            .stop();
-
+                                    ((Timer) e.getSource()).stop();
                                     return;
                                 }
 
-                                operationDialog.dialog.setVisible(
-                                        true);
-
+                                operationDialog.dialog.setVisible(true);
                                 positionOperationDialogs();
 
-                                ((Timer) e.getSource())
-                                        .stop();
+                                ((Timer) e.getSource()).stop();
                             });
 
-            operationDialog.showTimer.setRepeats(
-                    false);
-
+            operationDialog.showTimer.setRepeats(false);
             operationDialog.showTimer.start();
         });
     }
@@ -5804,24 +5831,21 @@ public class ExplorerPanel extends JPanel {
             OperationDialogType type) {
 
         SwingUtilities.invokeLater(() -> {
-            OperationDialog operationDialog = null;
+
+            OperationDialog operationDialog;
 
             switch (type) {
 
                 case BUCKET:
-
-                    if (bucketDialog != null) {
-                        operationDialog = bucketDialog;
-                    }
-
+                    operationDialog = bucketDialog;
                     break;
 
                 case FILE_TABLE:
+                    operationDialog = fileTableDialog;
+                    break;
 
-                    if (fileTableDialog != null) {
-                        operationDialog = fileTableDialog;
-                    }
-
+                case FILTER_REFRESH:
+                    operationDialog = filterRefreshDialog;
                     break;
 
                 default:
@@ -5831,16 +5855,13 @@ public class ExplorerPanel extends JPanel {
             if (operationDialog != null) {
 
                 if (operationDialog.showTimer != null) {
-
                     operationDialog.showTimer.stop();
-
                     operationDialog.showTimer = null;
                 }
 
                 operationDialog.dialog.setVisible(false);
 
-                visibleOperationDialogs.remove(
-                        operationDialog);
+                visibleOperationDialogs.remove(operationDialog);
             }
 
             positionOperationDialogs();
@@ -8318,13 +8339,10 @@ public class ExplorerPanel extends JPanel {
             return;
         }
 
-        // Değerleri yükleme başlamadan güncelle.
-        // Böylece Enter ve focusLost aynı değişiklik için
-        // art arda çalışsa bile ikinci yükleme yapılmaz.
         lastAppliedFilterText = currentText;
         lastAppliedItemType = currentItemType;
 
-        reloadCurrentFileTable();
+        reloadCurrentFileTable(true);
     }
 
     private record PreparedFileTable(
