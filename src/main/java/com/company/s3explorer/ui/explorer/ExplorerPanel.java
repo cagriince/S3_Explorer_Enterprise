@@ -2653,6 +2653,104 @@ public class ExplorerPanel extends JPanel {
                 group.isSourceFolder());
 
         /*
+         * ---------------------------------------------------------
+         * MULTI-FILE UPLOAD GROUP
+         * ---------------------------------------------------------
+         *
+         * Folder uploads keep their existing completion flow.
+         * File upload groups insert every successfully completed
+         * task, then restore the complete multi-selection.
+         */
+        if (group.getOperation() == TransferType.UPLOAD_GROUP
+                && !group.isSourceFolder()) {
+
+            if (completedTasks.isEmpty()) {
+                log.warn(
+                        "[UPLOAD GROUP COMPLETED] no completed tasks group={}",
+                        group.getDisplayName());
+                return;
+            }
+
+            /*
+             * A grouped upload must not use the old single-key
+             * selection mechanism.
+             */
+            pendingFileTableSelectionKey = null;
+            restoreFileTableFocus = false;
+
+            List<TransferTask> uploadTasks =
+                    new ArrayList<>(completedTasks);
+
+            SwingUtilities.invokeLater(() -> {
+
+                List<String> uploadedKeys =
+                        new ArrayList<>();
+
+                for (TransferTask task : uploadTasks) {
+                    if (task == null
+                            || task.getType() != TransferType.UPLOAD) {
+                        continue;
+                    }
+
+                    String targetBucket =
+                            task.getTargetBucket();
+
+                    String targetKey =
+                            task.getTargetObjectKey();
+
+                    if (targetBucket == null
+                            || targetKey == null
+                            || targetKey.isBlank()) {
+                        continue;
+                    }
+
+                    /*
+                     * Only select keys belonging to the current table.
+                     */
+                    if (Objects.equals(currentFileBucket, targetBucket)
+                            && Objects.equals(
+                            currentFilePrefix,
+                            getParentPrefix(targetKey))) {
+
+                        uploadedKeys.add(targetKey);
+                    }
+
+                    /*
+                     * This method inserts the row only when its
+                     * target folder matches the currently open table.
+                     */
+                    addUploadedFileToCurrentFileTable(task);
+                }
+
+                log.info(
+                        "[UPLOAD GROUP TABLE UPDATE] group={} uploadedKeys={}",
+                        group.getDisplayName(),
+                        uploadedKeys);
+
+                /*
+                 * Run selection after all row insertions and sorter
+                 * updates have had an opportunity to complete.
+                 */
+                SwingUtilities.invokeLater(() -> {
+                    if (!uploadedKeys.isEmpty()) {
+                        restoreFileTableSelectionByKeys(
+                                uploadedKeys);
+
+                        restoreFileTableFocus = true;
+                        restoreFileTableFocus();
+
+                        log.info(
+                                "[UPLOAD GROUP SELECTION RESTORE] group={} selectedKeys={}",
+                                group.getDisplayName(),
+                                uploadedKeys);
+                    }
+                });
+            });
+
+            return;
+        }
+
+        /*
          * =========================================================
          * INCREMENTAL MULTI FILE OPERATIONS
          * =========================================================
@@ -8281,11 +8379,6 @@ public class ExplorerPanel extends JPanel {
             return;
         }
 
-        /*
-         * Dosya tablosunun gösterdiği konumu esas al.
-         * Ağaç seçimi ile tablo konumu geçici olarak farklı
-         * olduğunda dosyaların bucket köküne yüklenmesini önler.
-         */
         String prefix =
                 currentFilePrefix == null
                         ? S3TreeNode.ROOT_PREFIX
@@ -8295,103 +8388,154 @@ public class ExplorerPanel extends JPanel {
             prefix += "/";
         }
 
-        File[] files = chooser.getSelectedFiles();
+        File[] selectedFiles = chooser.getSelectedFiles();
 
-        for (File file : files) {
+        List<Path> uploadPaths = new ArrayList<>();
+        List<String> objectKeys = new ArrayList<>();
+        List<Boolean> overwrites = new ArrayList<>();
+        List<File> selectedDirectories = new ArrayList<>();
+
+        /*
+         * First collect upload decisions.
+         * If the user cancels a conflict prompt, do not submit
+         * a partial file group.
+         */
+        for (File file : selectedFiles) {
+            if (file.isDirectory()) {
+                selectedDirectories.add(file);
+                continue;
+            }
+
+            if (!file.isFile()) {
+                continue;
+            }
+
+            String objectKey =
+                    prefix + file.getName();
+
             try {
-                if (file.isFile()) {
-
-                    String objectKey =
-                            prefix + file.getName();
-
-                    int conflictResult =
-                            confirmUploadConflict(
-                                    bucket,
-                                    objectKey);
-
-                    if (conflictResult == 1) {
-                        log.info(
-                                "[UPLOAD FILE] skipped existing object key={}",
+                int conflictResult =
+                        confirmUploadConflict(
+                                bucket,
                                 objectKey);
-                        continue;
-                    }
 
-                    if (conflictResult != 0
-                            && conflictResult != 3) {
-                        log.info(
-                                "[UPLOAD FILE] selection cancelled at key={}",
-                                objectKey);
-                        return;
-                    }
-
-                    boolean overwrite =
-                            conflictResult == 0;
-
-                    pendingFileTableSelectionKey =
-                            objectKey;
-
-                    restoreFileTableFocus = true;
-
+                if (conflictResult == 1) {
                     log.info(
-                            "[UPLOAD FILE] targetBucket={} targetPrefix={} "
-                                    + "key={} restoreFocus={} overwrite={}",
-                            bucket,
-                            prefix,
-                            objectKey,
-                            restoreFileTableFocus,
-                            overwrite);
-
-                    lastOpenedFolderToUpload =
-                            file.getParentFile();
-
-                    transferManager.submitUpload(
-                            repositoryId,
-                            bucket,
-                            objectKey,
-                            file.toPath(),
-                            file.length(),
-                            overwrite);
-
-                } else if (file.isDirectory()) {
-
-                    pendingFileTableSelectionKey =
-                            S3Util.combineKey(
-                                    prefix,
-                                    file.getName()) + "/";
-
-                    restoreFileTableFocus = true;
-
-                    log.info(
-                            "[UPLOAD FOLDER] targetBucket={} targetPrefix={} "
-                                    + "selectionKey={}",
-                            bucket,
-                            prefix,
-                            pendingFileTableSelectionKey);
-
-                    lastOpenedFolderToUpload = file;
-
-                    transferManager.submitFolderUpload(
-                            repositoryId,
-                            bucket,
-                            prefix,
-                            file.toPath());
+                            "[UPLOAD GROUP] skipped existing object key={}",
+                            objectKey);
+                    continue;
                 }
+
+                if (conflictResult != 0
+                        && conflictResult != 3) {
+                    log.info(
+                            "[UPLOAD GROUP] selection cancelled at key={}",
+                            objectKey);
+                    return;
+                }
+
+                uploadPaths.add(file.toPath());
+                objectKeys.add(objectKey);
+                overwrites.add(conflictResult == 0);
+
+            } catch (Exception ex) {
+                log.error(
+                        "[UPLOAD GROUP] conflict check failed key={}",
+                        objectKey,
+                        ex);
+
+                JOptionPane.showMessageDialog(
+                        this,
+                        ex.getMessage(),
+                        "Upload Error",
+                        JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+        }
+
+        /*
+         * Preserve the existing folder-upload workflow.
+         * Folder uploads already create their own UPLOAD_GROUP.
+         */
+        for (File directory : selectedDirectories) {
+            try {
+                String folderKey =
+                        S3Util.combineKey(
+                                prefix,
+                                directory.getName()) + "/";
+
+                lastOpenedFolderToUpload = directory;
+
+                log.info(
+                        "[UPLOAD FOLDER] targetBucket={} targetPrefix={} selectionKey={}",
+                        bucket,
+                        prefix,
+                        folderKey);
+
+                transferManager.submitFolderUpload(
+                        repositoryId,
+                        bucket,
+                        prefix,
+                        directory.toPath());
+
+            } catch (Exception ex) {
+                log.error(
+                        "[UPLOAD FOLDER] submission failed folder={}",
+                        directory.getAbsolutePath(),
+                        ex);
+
+                JOptionPane.showMessageDialog(
+                        this,
+                        ex.getMessage(),
+                        "Upload Error",
+                        JOptionPane.ERROR_MESSAGE);
+            }
+        }
+
+        /*
+         * Submit all selected regular files as one Upload Group.
+         */
+        if (!uploadPaths.isEmpty()) {
+            try {
+                pendingFileTableSelectionKey = null;
+                pendingFileTableSelectionKeys = null;
+                restoreFileTableFocus = false;
+
+                for (Path path : uploadPaths) {
+                    lastOpenedFolderToUpload =
+                            path.toFile().getParentFile();
+                }
+
+                log.info(
+                        "[UPLOAD GROUP] submitting files={} bucket={} prefix={} keys={}",
+                        uploadPaths.size(),
+                        bucket,
+                        prefix,
+                        objectKeys);
+
+                transferManager.submitUploadGroup(
+                        repositoryId,
+                        bucket,
+                        prefix,
+                        uploadPaths,
+                        objectKeys,
+                        overwrites);
 
             } catch (Exception ex) {
                 pendingFileTableSelectionKey = null;
                 restoreFileTableFocus = false;
 
                 log.error(
-                        "[UPLOAD FILE] submission failed file={}",
-                        file.getAbsolutePath(),
+                        "[UPLOAD GROUP] submission failed bucket={} prefix={}",
+                        bucket,
+                        prefix,
                         ex);
 
-                SwingUtilities.invokeLater(() ->
-                        JOptionPane.showMessageDialog(
-                                this,
-                                ex.getMessage(),
-                                "Upload Error",
-                                JOptionPane.ERROR_MESSAGE));
+                JOptionPane.showMessageDialog(
+                        this,
+                        ex.getMessage(),
+                        "Upload Error",
+                        JOptionPane.ERROR_MESSAGE);
             }
         }
     }
@@ -8440,17 +8584,24 @@ public class ExplorerPanel extends JPanel {
             prefix += "/";
         }
 
-        File[] files = chooser.getSelectedFiles();
+        File[] selectedFiles = chooser.getSelectedFiles();
 
-        for (File file : files) {
+        List<Path> uploadPaths = new ArrayList<>();
+        List<String> objectKeys = new ArrayList<>();
+        List<Boolean> overwrites = new ArrayList<>();
+
+        /*
+         * Resolve all conflict decisions before submitting the group.
+         */
+        for (File file : selectedFiles) {
+            if (!file.isFile()) {
+                continue;
+            }
+
+            String objectKey =
+                    prefix + file.getName();
+
             try {
-                if (!file.isFile()) {
-                    continue;
-                }
-
-                String objectKey =
-                        prefix + file.getName();
-
                 int conflictResult =
                         confirmUploadConflict(
                                 bucket,
@@ -8458,7 +8609,7 @@ public class ExplorerPanel extends JPanel {
 
                 if (conflictResult == 1) {
                     log.info(
-                            "[UPLOAD ENCRYPTED FILE] skipped existing object key={}",
+                            "[UPLOAD ENCRYPTED GROUP] skipped existing object key={}",
                             objectKey);
                     continue;
                 }
@@ -8466,56 +8617,75 @@ public class ExplorerPanel extends JPanel {
                 if (conflictResult != 0
                         && conflictResult != 3) {
                     log.info(
-                            "[UPLOAD ENCRYPTED FILE] selection cancelled at key={}",
+                            "[UPLOAD ENCRYPTED GROUP] selection cancelled at key={}",
                             objectKey);
                     return;
                 }
 
-                boolean overwrite =
-                        conflictResult == 0;
-
-                pendingFileTableSelectionKey =
-                        objectKey;
-
-                restoreFileTableFocus = true;
-
-                log.info(
-                        "[UPLOAD ENCRYPTED FILE] targetBucket={} targetPrefix={} "
-                                + "key={} restoreFocus={} overwrite={}",
-                        bucket,
-                        prefix,
-                        objectKey,
-                        restoreFileTableFocus,
-                        overwrite);
-
-                lastOpenedFolderToUpload =
-                        file.getParentFile();
-
-                transferManager.submitUploadEncrypted(
-                        repositoryId,
-                        bucket,
-                        objectKey,
-                        file.toPath(),
-                        file.length(),
-                        encryptionConfig,
-                        overwrite);
+                uploadPaths.add(file.toPath());
+                objectKeys.add(objectKey);
+                overwrites.add(conflictResult == 0);
 
             } catch (Exception ex) {
-                pendingFileTableSelectionKey = null;
-                restoreFileTableFocus = false;
-
                 log.error(
-                        "[UPLOAD ENCRYPTED FILE] submission failed file={}",
-                        file.getAbsolutePath(),
+                        "[UPLOAD ENCRYPTED GROUP] conflict check failed key={}",
+                        objectKey,
                         ex);
 
-                SwingUtilities.invokeLater(() ->
-                        JOptionPane.showMessageDialog(
-                                this,
-                                ex.getMessage(),
-                                "Upload Error",
-                                JOptionPane.ERROR_MESSAGE));
+                JOptionPane.showMessageDialog(
+                        this,
+                        ex.getMessage(),
+                        "Encrypted Upload Error",
+                        JOptionPane.ERROR_MESSAGE);
+                return;
             }
+        }
+
+        if (uploadPaths.isEmpty()) {
+            return;
+        }
+
+        try {
+            pendingFileTableSelectionKey = null;
+            pendingFileTableSelectionKeys = null;
+            restoreFileTableFocus = false;
+
+            for (Path path : uploadPaths) {
+                lastOpenedFolderToUpload =
+                        path.toFile().getParentFile();
+            }
+
+            log.info(
+                    "[UPLOAD ENCRYPTED GROUP] submitting files={} bucket={} prefix={} keys={}",
+                    uploadPaths.size(),
+                    bucket,
+                    prefix,
+                    objectKeys);
+
+            transferManager.submitUploadEncryptedGroup(
+                    repositoryId,
+                    bucket,
+                    prefix,
+                    uploadPaths,
+                    objectKeys,
+                    overwrites,
+                    encryptionConfig);
+
+        } catch (Exception ex) {
+            pendingFileTableSelectionKey = null;
+            restoreFileTableFocus = false;
+
+            log.error(
+                    "[UPLOAD ENCRYPTED GROUP] submission failed bucket={} prefix={}",
+                    bucket,
+                    prefix,
+                    ex);
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    ex.getMessage(),
+                    "Encrypted Upload Error",
+                    JOptionPane.ERROR_MESSAGE);
         }
     }
 }
