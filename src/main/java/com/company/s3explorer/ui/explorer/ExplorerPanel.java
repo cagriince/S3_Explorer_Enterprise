@@ -72,6 +72,7 @@ public class ExplorerPanel extends JPanel {
     private final AtomicLong operationGeneration = new AtomicLong();
     private String currentFileBucket;
     private String currentFilePrefix;
+    private final AtomicLong rootFolderLoadGeneration = new AtomicLong();
 
     private OperationDialog bucketDialog;
     private OperationDialog fileTableDialog;
@@ -1327,11 +1328,36 @@ public class ExplorerPanel extends JPanel {
         });
     }
 
-
     public void loadRootFolders(String bucket) {
 
+        if (bucket == null || bucket.isBlank()) {
+            return;
+        }
+
+        /*
+         * Loading a different bucket or returning to the bucket root
+         * changes the active file-table location.
+         */
+        if (!Objects.equals(bucket, currentFileBucket)
+                || !Objects.equals(
+                S3TreeNode.ROOT_PREFIX,
+                currentFilePrefix)) {
+
+            prepareForLocationChange();
+        }
+
+        /*
+         * Keep operationGeneration separate: it also protects the
+         * asynchronous repository/bucket-list loading flow.
+         */
         final long operationId =
                 operationGeneration.get();
+
+        /*
+         * A newer root load supersedes every older root load.
+         */
+        final long rootLoadId =
+                rootFolderLoadGeneration.incrementAndGet();
 
         final String prefix =
                 S3TreeNode.ROOT_PREFIX;
@@ -1360,8 +1386,10 @@ public class ExplorerPanel extends JPanel {
                 .thenAccept(content ->
                         SwingUtilities.invokeLater(() -> {
 
-                            if (operationId !=
-                                    operationGeneration.get()) {
+                            if (operationId
+                                    != operationGeneration.get()
+                                    || rootLoadId
+                                    != rootFolderLoadGeneration.get()) {
                                 return;
                             }
 
@@ -1407,13 +1435,14 @@ public class ExplorerPanel extends JPanel {
 
                     log.error(
                             "[FOLDER LOAD] failed: {}",
-                            S3ErrorResolver
-                                    .getDetailedMessage(ex));
+                            S3ErrorResolver.getDetailedMessage(ex));
 
                     SwingUtilities.invokeLater(() -> {
 
-                        if (operationId !=
-                                operationGeneration.get()) {
+                        if (operationId
+                                != operationGeneration.get()
+                                || rootLoadId
+                                != rootFolderLoadGeneration.get()) {
                             return;
                         }
 
@@ -1422,8 +1451,7 @@ public class ExplorerPanel extends JPanel {
 
                         JOptionPane.showMessageDialog(
                                 this,
-                                S3ErrorResolver
-                                        .getUserMessage(ex),
+                                S3ErrorResolver.getUserMessage(ex),
                                 "Folder Load Failed",
                                 JOptionPane.ERROR_MESSAGE);
                     });
@@ -2035,9 +2063,13 @@ public class ExplorerPanel extends JPanel {
         return new S3ExplorerService(clientManager.getClient(context.getActiveRepository()));
     }
 
-
     public void setSelectedRepository(
             RepositoryDefinition repository) {
+
+        prepareForLocationChange();
+
+        // Invalidate any root-folder load belonging to the previous repository.
+        rootFolderLoadGeneration.incrementAndGet();
 
         operationGeneration.incrementAndGet();
 
@@ -2055,7 +2087,7 @@ public class ExplorerPanel extends JPanel {
 
         view.getBucketCombo().removeAllItems();
 
-        // Repository değiştiğinde Folder Edit durumunu sıfırla.
+        // Reset Folder Edit state when the repository changes.
         view.getLocationField().setText("");
 
         updateBreadcrumb(S3TreeNode.ROOT_PREFIX);
@@ -2078,7 +2110,6 @@ public class ExplorerPanel extends JPanel {
 
         reloadBuckets();
     }
-
 
     public void reloadRepositories() {
         view.getRepositoryCombo().removeAllItems();
@@ -7438,6 +7469,21 @@ public class ExplorerPanel extends JPanel {
             String bucket,
             String prefix) {
 
+        /*
+         * The tree selection has been validated at this point.
+         * Avoid disabling Flat Browsing for a selection that resolves
+         * to the location already displayed in the file table.
+         */
+        boolean locationChanged =
+                !Objects.equals(bucket, currentFileBucket)
+                        || !Objects.equals(
+                        prefix,
+                        currentFilePrefix);
+
+        if (locationChanged) {
+            prepareForLocationChange();
+        }
+
         loadFiles(
                 bucket,
                 prefix,
@@ -7478,8 +7524,7 @@ public class ExplorerPanel extends JPanel {
         updateNavigationButtonStates();
         updateActionStates();
     }
-
-
+    
     private void recoverMissingHistoryTarget(
             NavigationEntry target) {
 
@@ -8686,6 +8731,28 @@ public class ExplorerPanel extends JPanel {
                     ex.getMessage(),
                     "Encrypted Upload Error",
                     JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    /**
+     * Invalidates pending file-table loads when the active location changes
+     * and disables Flat Browsing for the new location.
+     *
+     * This method does not start a file-table reload. The caller is
+     * responsible for continuing the existing navigation flow.
+     */
+    private void prepareForLocationChange() {
+
+        // Invalidate any pending file-table result, even if Flat Browsing
+        // is already disabled.
+        fileLoadGeneration.incrementAndGet();
+
+        if (flatBrowsingEnabled) {
+            flatBrowsingEnabled = false;
+
+            if (view != null) {
+                view.setFlatBrowsingEnabled(false);
+            }
         }
     }
 }
