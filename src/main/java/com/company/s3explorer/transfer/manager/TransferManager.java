@@ -154,8 +154,15 @@ public class TransferManager {
                     "Upload group arguments are invalid.");
         }
 
+
         String displayName =
-                localFiles.size() + " files";
+                S3Util.getOperationGroupNameFromNames(
+                        localFiles.stream()
+                                .map(path ->
+                                        path.getFileName() != null
+                                                ? path.getFileName().toString()
+                                                : path.toString())
+                                .toList());
 
         String source =
                 localFiles.get(0).getParent() != null
@@ -337,8 +344,15 @@ public class TransferManager {
                     "Upload group arguments are invalid.");
         }
 
+
         String displayName =
-                localFiles.size() + " encrypted files";
+                S3Util.getOperationGroupNameFromNames(
+                        localFiles.stream()
+                                .map(path ->
+                                        path.getFileName() != null
+                                                ? path.getFileName().toString()
+                                                : path.toString())
+                                .toList());
 
         String source =
                 localFiles.get(0).getParent() != null

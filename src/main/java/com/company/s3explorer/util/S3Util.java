@@ -406,18 +406,39 @@ public class S3Util {
     public static String getOperationGroupName(
             List<S3FileItem> items) {
 
-        if (items == null
-                || items.isEmpty()) {
+        if (items == null || items.isEmpty()) {
             return "";
         }
 
-        int size = items.size();
+        return getOperationGroupNameFromNames(
+                items.stream()
+                        .map(S3FileItem::getName)
+                        .toList());
+    }
+
+    public static String getOperationGroupNameFromNames(
+            List<String> names) {
+
+        if (names == null || names.isEmpty()) {
+            return "";
+        }
+
+        List<String> validNames =
+                names.stream()
+                        .filter(name ->
+                                name != null && !name.isBlank())
+                        .toList();
+
+        if (validNames.isEmpty()) {
+            return "";
+        }
+
+        int size = validNames.size();
         int displayedCount = Math.min(size, 3);
 
         String groupName =
-                items.stream()
+                validNames.stream()
                         .limit(displayedCount)
-                        .map(S3FileItem::getName)
                         .collect(
                                 java.util.stream.Collectors.joining(", "));
 
