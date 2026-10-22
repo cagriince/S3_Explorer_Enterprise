@@ -10,6 +10,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
 /**
@@ -58,6 +59,12 @@ public final class ExplorerContentLoader {
 
     long primaryEqualComparisons = -1;
     long secondaryNonZeroComparisons = -1;
+
+    /**
+     * Changes whenever the cached snapshot is invalidated.
+     * Prevents an older in-flight scan from repopulating the cache.
+     */
+    private final AtomicLong snapshotGeneration = new AtomicLong();
 
     public ExplorerContentLoader(
             Supplier<S3ExplorerService> serviceSupplier) {
@@ -216,11 +223,13 @@ public final class ExplorerContentLoader {
         }
 
         String snapshotKey =
-                bucket
-                        + "\u0000"
-                        + prefix
-                        + "\u0000"
-                        + flatBrowsing;
+                bucket + "\u0000" + prefix + "\u0000" + flatBrowsing;
+
+        /*
+         * Capture the generation before starting or joining a scan.
+         * A scan started before invalidation must not repopulate the cache.
+         */
+        long generationAtStart = snapshotGeneration.get();
 
         CompletableFuture<FolderContentSnapshot> snapshotFuture =
                 inFlightSnapshots.computeIfAbsent(
@@ -239,10 +248,29 @@ public final class ExplorerContentLoader {
                                                     discoveryListener,
                                                     flatBrowsing);
 
-                                    cachedSnapshot = snapshot;
-                                    cachedBucket = bucket;
-                                    cachedPrefix = prefix;
-                                    cachedFlatBrowsing = flatBrowsing;
+                                    /*
+                                     * Publish only if no invalidation happened
+                                     * while this scan was running.
+                                     */
+                                    if (snapshotGeneration.get()
+                                            == generationAtStart) {
+
+                                        synchronized (this) {
+                                            if (snapshotGeneration.get()
+                                                    == generationAtStart) {
+                                                cachedSnapshot = snapshot;
+                                                cachedBucket = bucket;
+                                                cachedPrefix = prefix;
+                                                cachedFlatBrowsing = flatBrowsing;
+                                            }
+                                        }
+                                    } else {
+                                        System.err.printf(
+                                                "[SNAPSHOT CACHE] discarded stale scan "
+                                                        + "bucket=%s prefix=%s%n",
+                                                bucket,
+                                                prefix);
+                                    }
 
                                     return snapshot;
                                 },
@@ -294,14 +322,52 @@ public final class ExplorerContentLoader {
             String bucket,
             String prefix) {
 
-        if (!Objects.equals(cachedBucket, bucket)
-                || !Objects.equals(cachedPrefix, prefix)) {
+        if (bucket == null || prefix == null) {
             return;
         }
 
-        cachedSnapshot = null;
-        cachedBucket = null;
-        cachedPrefix = null;
+        String keyPrefix =
+                bucket + "\u0000" + prefix + "\u0000";
+
+        boolean cachedMatches =
+                Objects.equals(cachedBucket, bucket)
+                        && Objects.equals(cachedPrefix, prefix);
+
+        boolean inFlightMatches =
+                inFlightSnapshots.keySet().stream()
+                        .anyMatch(key -> key.startsWith(keyPrefix));
+
+        if (!cachedMatches && !inFlightMatches) {
+            return;
+        }
+
+        synchronized (this) {
+            /*
+             * Increment first so a running scan cannot publish stale data.
+             */
+            snapshotGeneration.incrementAndGet();
+
+            if (Objects.equals(cachedBucket, bucket)
+                    && Objects.equals(cachedPrefix, prefix)) {
+
+                cachedSnapshot = null;
+                cachedContent = null;
+                cachedBucket = null;
+                cachedPrefix = null;
+            }
+        }
+
+        /*
+         * Remove matching futures from the map. Existing callers may still
+         * receive their result, but a subsequent load can start a fresh scan.
+         */
+        inFlightSnapshots.keySet().removeIf(
+                key -> key.startsWith(keyPrefix));
+
+        System.err.printf(
+                "[SNAPSHOT CACHE] invalidated bucket=%s prefix=%s%n",
+                bucket,
+                prefix);
     }
 
     /**
@@ -637,5 +703,75 @@ public final class ExplorerContentLoader {
                 + sortSpec.getColumn()
                 + "\u0000"
                 + sortSpec.isAscending();
+    }
+
+    /**
+     * Adds a folder to the cached snapshot if the snapshot matches
+     * the folder's parent listing.
+     *
+     * @return true if the cached snapshot was updated.
+     */
+    public synchronized boolean addFolderToSnapshot(
+            String bucket,
+            String parentPrefix,
+            String folderKey,
+            boolean flatBrowsing) {
+
+        FolderContentSnapshot snapshot =
+                getCachedSnapshot(bucket, parentPrefix, flatBrowsing);
+
+        if (snapshot == null
+                || folderKey == null
+                || folderKey.isBlank()) {
+            return false;
+        }
+
+        if (snapshot.folders().contains(folderKey)) {
+            return true;
+        }
+
+        List<String> folders =
+                new java.util.ArrayList<>(snapshot.folders());
+
+        folders.add(folderKey);
+
+        cachedSnapshot = new FolderContentSnapshot(
+                folders,
+                snapshot.files());
+
+        return true;
+    }
+
+    /**
+     * Adds or replaces an uploaded object in the cached snapshot.
+     *
+     * @return true if the cached snapshot was updated.
+     */
+    public synchronized boolean upsertObjectInSnapshot(
+            String bucket,
+            String prefix,
+            boolean flatBrowsing,
+            software.amazon.awssdk.services.s3.model.S3Object object) {
+
+        FolderContentSnapshot snapshot =
+                getCachedSnapshot(bucket, prefix, flatBrowsing);
+
+        if (snapshot == null || object == null || object.key() == null) {
+            return false;
+        }
+
+        List<software.amazon.awssdk.services.s3.model.S3Object> files =
+                new java.util.ArrayList<>(snapshot.files());
+
+        files.removeIf(existing ->
+                Objects.equals(existing.key(), object.key()));
+
+        files.add(object);
+
+        cachedSnapshot = new FolderContentSnapshot(
+                snapshot.folders(),
+                files);
+
+        return true;
     }
 }

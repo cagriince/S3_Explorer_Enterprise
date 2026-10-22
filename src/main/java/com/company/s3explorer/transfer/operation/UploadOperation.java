@@ -1,7 +1,9 @@
+
 package com.company.s3explorer.transfer.operation;
 
 import com.company.s3explorer.transfer.TransferRuntime;
 import com.company.s3explorer.transfer.context.TransferContext;
+import com.company.s3explorer.transfer.model.TransferTask;
 
 public class UploadOperation extends AbstractTransferOperation {
 
@@ -11,51 +13,42 @@ public class UploadOperation extends AbstractTransferOperation {
             TransferContext transferContext)
             throws Exception {
 
+        TransferTask task = runtime.getTask();
+
         updateProgressPercent(
                 runtime,
                 transferContext,
                 0);
 
         try {
-            if (runtime.getTask().getEncryptionConfig() != null) {
+            if (task.getEncryptionConfig() != null) {
 
                 transferContext
-                        .getService(
-                                runtime.getTask()
-                                        .getTargetRepositoryId())
+                        .getService(task.getTargetRepositoryId())
                         .uploadEncryptedFile(
-                                runtime.getTask()
-                                        .getTargetBucket(),
-                                runtime.getTask()
-                                        .getTargetObjectKey(),
-                                runtime.getTask()
-                                        .getLocalPath(),
-                                runtime.getTask()
-                                        .getEncryptionConfig(),
+                                task.getTargetBucket(),
+                                task.getTargetObjectKey(),
+                                task.getLocalPath(),
+                                task.getEncryptionConfig(),
+                                task.isOverwrite(),
                                 createProgressListener(
                                         runtime,
                                         transferContext));
 
-            }
-            else {
+            } else {
 
                 transferContext
-                        .getService(
-                                runtime.getTask()
-                                        .getTargetRepositoryId())
+                        .getService(task.getTargetRepositoryId())
                         .uploadFile(
-                                runtime.getTask()
-                                        .getTargetBucket(),
-                                runtime.getTask()
-                                        .getTargetObjectKey(),
-                                runtime.getTask()
-                                        .getLocalPath(),
+                                task.getTargetBucket(),
+                                task.getTargetObjectKey(),
+                                task.getLocalPath(),
+                                task.isOverwrite(),
                                 createProgressListener(
                                         runtime,
                                         transferContext));
             }
-        }
-        finally {
+        } finally {
             if (!runtime.isCancelRequested()) {
                 updateProgressCompleted(
                         runtime,

@@ -2324,215 +2324,6 @@ public class ExplorerPanel extends JPanel {
         });
     }
 
-    private void uploadFile() {
-
-        String repositoryId =
-                this.getCurrentRepository().getId();
-
-        String bucket =
-                this.getCurrentBucket();
-
-        if (bucket == null) {
-            return;
-        }
-
-        JFileChooser chooser =
-                new JFileChooser();
-
-        chooser.setMultiSelectionEnabled(true);
-
-        chooser.setFileSelectionMode(
-                JFileChooser.FILES_AND_DIRECTORIES);
-
-        if (lastOpenedFolderToUpload != null) {
-
-            chooser.setCurrentDirectory(
-                    lastOpenedFolderToUpload);
-        }
-
-        int result =
-                chooser.showOpenDialog(this);
-
-        if (result != JFileChooser.APPROVE_OPTION) {
-            return;
-        }
-
-        String prefix =
-                getCurrentPrefix();
-
-        File[] files =
-                chooser.getSelectedFiles();
-
-        for (File file : files) {
-
-            try {
-
-                /*
-                 * -------------------------------------------------
-                 * DOSYA
-                 * -------------------------------------------------
-                 */
-                if (file.isFile()) {
-
-                    String objectKey =
-                            prefix + file.getName();
-
-                    pendingFileTableSelectionKey =
-                            objectKey;
-
-                    restoreFileTableFocus =
-                            true;
-
-                    log.info(
-                            "[UPLOAD FILE] pending selection key={} restoreFocus={}",
-                            pendingFileTableSelectionKey,
-                            restoreFileTableFocus);
-
-                    lastOpenedFolderToUpload =
-                            file.getParentFile();
-
-                    transferManager.submitUpload(
-                            repositoryId,
-                            bucket,
-                            objectKey,
-                            file.toPath(),
-                            file.length());
-
-                }
-
-                /*
-                 * -------------------------------------------------
-                 * KLASÖR
-                 * -------------------------------------------------
-                 */
-                else {
-
-                    pendingFileTableSelectionKey =
-                            S3Util.combineKey(
-                                    prefix,
-                                    file.getName())
-                                    + "/";
-
-                    restoreFileTableFocus =
-                            true;
-
-                    log.info(
-                            "[UPLOAD FOLDER] pending selection key={} restoreFocus={}",
-                            pendingFileTableSelectionKey,
-                            restoreFileTableFocus);
-
-                    lastOpenedFolderToUpload =
-                            file;
-
-                    transferManager.submitFolderUpload(
-                            repositoryId,
-                            bucket,
-                            prefix,
-                            file.toPath());
-                }
-
-            } catch (Exception ex) {
-
-                /*
-                 * İşlem submit edilemediyse
-                 * bekleyen selection artık geçerli değil.
-                 */
-                pendingFileTableSelectionKey =
-                        null;
-
-                restoreFileTableFocus =
-                        false;
-
-                SwingUtilities.invokeLater(() ->
-                        JOptionPane.showMessageDialog(
-                                this,
-                                ex.getMessage()));
-            }
-        }
-    }
-
-    private void uploadFileEncrypted() {
-
-        String repositoryId =
-                this.getCurrentRepository().getId();
-
-        String bucket =
-                this.getCurrentBucket();
-
-        if (bucket == null
-                || encryptionConfig == null) {
-            return;
-        }
-
-        JFileChooser chooser =
-                new JFileChooser();
-
-        chooser.setMultiSelectionEnabled(true);
-
-        chooser.setFileSelectionMode(
-                JFileChooser.FILES_ONLY);
-
-        if (lastOpenedFolderToUpload != null) {
-
-            chooser.setCurrentDirectory(
-                    lastOpenedFolderToUpload);
-        }
-
-        int result =
-                chooser.showOpenDialog(this);
-
-        if (result != JFileChooser.APPROVE_OPTION) {
-            return;
-        }
-
-        String prefix =
-                getCurrentPrefix();
-
-        File[] files =
-                chooser.getSelectedFiles();
-
-        for (File file : files) {
-
-            try {
-
-                String objectKey =
-                        prefix + file.getName();
-
-                pendingFileTableSelectionKey =
-                        objectKey;
-
-                restoreFileTableFocus =
-                        true;
-
-                log.info(
-                        "[UPLOAD ENCRYPTED FILE] pending selection key={} restoreFocus={}",
-                        pendingFileTableSelectionKey,
-                        restoreFileTableFocus);
-
-                lastOpenedFolderToUpload =
-                        file.getParentFile();
-
-                transferManager.submitUploadEncrypted(
-                        repositoryId,
-                        bucket,
-                        objectKey,
-                        file.toPath(),
-                        file.length(),
-                        encryptionConfig);
-
-            } catch (Exception ex) {
-
-                pendingFileTableSelectionKey = null;
-                restoreFileTableFocus = false;
-
-                SwingUtilities.invokeLater(() ->
-                        JOptionPane.showMessageDialog(
-                                this,
-                                ex.getMessage()));
-            }
-        }
-    }
-    
     public void setThemeSelectionListener(Consumer<UITheme> listener) {
         this.themeSelectionListener = listener;
     }
@@ -2577,6 +2368,45 @@ public class ExplorerPanel extends JPanel {
 
         if (completedTask == null) {
             return;
+        }
+
+        /*
+         * Invalidate the current listing before performing any incremental
+         * File Table update. This also covers grouped operations and prevents
+         * sorting/filtering from rebuilding the table from an old snapshot.
+         */
+        if (completedTask.isAffectsObjectList()) {
+
+            String currentBucket = currentFileBucket;
+            String currentPrefix = currentFilePrefix;
+
+            boolean sourceAffectsCurrentListing =
+                    Objects.equals(currentBucket, completedTask.getBucket());
+
+            boolean targetAffectsCurrentListing =
+                    Objects.equals(
+                            currentBucket,
+                            completedTask.getTargetBucket());
+
+            if (sourceAffectsCurrentListing
+                    || targetAffectsCurrentListing) {
+
+                contentLoader.invalidate(
+                        currentBucket,
+                        currentPrefix);
+
+                log.info(
+                        "[SNAPSHOT INVALIDATE] type={} "
+                                + "currentBucket={} currentPrefix={} "
+                                + "sourceBucket={} targetBucket={} key={} targetKey={}",
+                        completedTask.getType(),
+                        currentBucket,
+                        currentPrefix,
+                        completedTask.getBucket(),
+                        completedTask.getTargetBucket(),
+                        completedTask.getObjectKey(),
+                        completedTask.getTargetObjectKey());
+            }
         }
 
         /*
@@ -8353,5 +8183,322 @@ public class ExplorerPanel extends JPanel {
     private record PreparedFileTable(
             LimitedFolderContent content,
             List<S3FileItem> rows) {
+    }
+
+
+    private int confirmUploadConflict(
+            String bucket,
+            String objectKey) {
+
+        if (!getService().objectExists(bucket, objectKey)) {
+            return 0;
+        }
+
+        String[] options = {
+                "Overwrite",
+                "Skip",
+                "Cancel"
+        };
+
+        int result = JOptionPane.showOptionDialog(
+                SwingUtilities.getWindowAncestor(this),
+                objectKey + " already exists.\n"
+                        + "Do you want to overwrite it?",
+                "File Conflict",
+                JOptionPane.DEFAULT_OPTION,
+                JOptionPane.WARNING_MESSAGE,
+                null,
+                options,
+                options[1]);
+
+        // 0 = Overwrite, 1 = Skip, 2 or close = Cancel
+        return result;
+    }
+
+    private boolean confirmUploadOverwrite(
+            String bucket,
+            String objectKey) {
+
+        if (!getService().objectExists(bucket, objectKey)) {
+            return true;
+        }
+
+        Object[] options = {
+                "Overwrite",
+                "Skip",
+                "Cancel"
+        };
+
+        int result = JOptionPane.showOptionDialog(
+                SwingUtilities.getWindowAncestor(this),
+                "The file already exists:\n"
+                        + objectKey
+                        + "\n\nDo you want to overwrite it?",
+                "File Conflict",
+                JOptionPane.DEFAULT_OPTION,
+                JOptionPane.WARNING_MESSAGE,
+                null,
+                options,
+                options[1]);
+
+        if (result == 0) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private void uploadFile() {
+
+        String repositoryId =
+                this.getCurrentRepository().getId();
+
+        String bucket =
+                this.getCurrentBucket();
+
+        if (bucket == null) {
+            return;
+        }
+
+        JFileChooser chooser = new JFileChooser();
+        chooser.setMultiSelectionEnabled(true);
+        chooser.setFileSelectionMode(
+                JFileChooser.FILES_AND_DIRECTORIES);
+
+        if (lastOpenedFolderToUpload != null) {
+            chooser.setCurrentDirectory(lastOpenedFolderToUpload);
+        }
+
+        int result = chooser.showOpenDialog(this);
+
+        if (result != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+
+        String prefix = getCurrentPrefix();
+        File[] files = chooser.getSelectedFiles();
+
+        for (File file : files) {
+            try {
+                if (file.isFile()) {
+
+                    String objectKey = prefix + file.getName();
+
+                    int conflictResult =
+                            confirmUploadConflict(bucket, objectKey);
+
+                    if (conflictResult == 1) {
+                        log.info(
+                                "[UPLOAD FILE] skipped existing object key={}",
+                                objectKey);
+                        continue;
+                    }
+
+                    if (conflictResult != 0) {
+                        log.info(
+                                "[UPLOAD FILE] selection cancelled at key={}",
+                                objectKey);
+                        return;
+                    }
+
+                    boolean overwrite = false;
+
+                    pendingFileTableSelectionKey = objectKey;
+                    restoreFileTableFocus = true;
+
+                    log.info(
+                            "[UPLOAD FILE] pending selection key={} restoreFocus={} overwrite={}",
+                            pendingFileTableSelectionKey,
+                            restoreFileTableFocus,
+                            overwrite);
+
+                    lastOpenedFolderToUpload = file.getParentFile();
+
+                    if (getService().objectExists(bucket, objectKey)) {
+
+                        Object[] options = {
+                                "Overwrite",
+                                "Skip",
+                                "Cancel"
+                        };
+
+                        int choice = JOptionPane.showOptionDialog(
+                                SwingUtilities.getWindowAncestor(this),
+                                "The file already exists:\n"
+                                        + objectKey
+                                        + "\n\nDo you want to overwrite it?",
+                                "File Conflict",
+                                JOptionPane.DEFAULT_OPTION,
+                                JOptionPane.WARNING_MESSAGE,
+                                null,
+                                options,
+                                options[1]);
+
+                        if (choice != 0) {
+                            // Skip and Cancel both leave the existing object untouched.
+                            continue;
+                        }
+
+                        overwrite = true;
+                    }
+
+
+                    transferManager.submitUpload(
+                            repositoryId,
+                            bucket,
+                            objectKey,
+                            file.toPath(),
+                            file.length(),
+                            overwrite);
+
+                } else {
+
+                    pendingFileTableSelectionKey =
+                            S3Util.combineKey(
+                                    prefix,
+                                    file.getName()) + "/";
+
+                    restoreFileTableFocus = true;
+
+                    log.info(
+                            "[UPLOAD FOLDER] pending selection key={} restoreFocus={}",
+                            pendingFileTableSelectionKey,
+                            restoreFileTableFocus);
+
+                    lastOpenedFolderToUpload = file;
+
+                    transferManager.submitFolderUpload(
+                            repositoryId,
+                            bucket,
+                            prefix,
+                            file.toPath());
+                }
+
+            } catch (Exception ex) {
+                pendingFileTableSelectionKey = null;
+                restoreFileTableFocus = false;
+
+                SwingUtilities.invokeLater(() ->
+                        JOptionPane.showMessageDialog(
+                                this,
+                                ex.getMessage(),
+                                "Upload Error",
+                                JOptionPane.ERROR_MESSAGE));
+            }
+        }
+    }
+
+    private void uploadFileEncrypted() {
+
+        String repositoryId =
+                this.getCurrentRepository().getId();
+
+        String bucket =
+                this.getCurrentBucket();
+
+        if (bucket == null || encryptionConfig == null) {
+            return;
+        }
+
+        JFileChooser chooser = new JFileChooser();
+        chooser.setMultiSelectionEnabled(true);
+        chooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
+
+        if (lastOpenedFolderToUpload != null) {
+            chooser.setCurrentDirectory(lastOpenedFolderToUpload);
+        }
+
+        int result = chooser.showOpenDialog(this);
+
+        if (result != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+
+        String prefix = getCurrentPrefix();
+        File[] files = chooser.getSelectedFiles();
+
+        for (File file : files) {
+            try {
+                String objectKey = prefix + file.getName();
+
+                int conflictResult =
+                        confirmUploadConflict(bucket, objectKey);
+
+                if (conflictResult == 1) {
+                    log.info(
+                            "[UPLOAD ENCRYPTED FILE] skipped existing object key={}",
+                            objectKey);
+                    continue;
+                }
+
+                if (conflictResult != 0) {
+                    log.info(
+                            "[UPLOAD ENCRYPTED FILE] selection cancelled at key={}",
+                            objectKey);
+                    return;
+                }
+
+                boolean overwrite = false;
+
+                pendingFileTableSelectionKey = objectKey;
+                restoreFileTableFocus = true;
+
+                log.info(
+                        "[UPLOAD ENCRYPTED FILE] pending selection key={} restoreFocus={} overwrite={}",
+                        pendingFileTableSelectionKey,
+                        restoreFileTableFocus,
+                        overwrite);
+
+                lastOpenedFolderToUpload = file.getParentFile();
+
+                if (getService().objectExists(bucket, objectKey)) {
+
+                    Object[] options = {
+                            "Overwrite",
+                            "Skip",
+                            "Cancel"
+                    };
+
+                    int choice = JOptionPane.showOptionDialog(
+                            SwingUtilities.getWindowAncestor(this),
+                            "The file already exists:\n"
+                                    + objectKey
+                                    + "\n\nDo you want to overwrite it?",
+                            "File Conflict",
+                            JOptionPane.DEFAULT_OPTION,
+                            JOptionPane.WARNING_MESSAGE,
+                            null,
+                            options,
+                            options[1]);
+
+                    if (choice != 0) {
+                        // Skip and Cancel both leave the existing object untouched.
+                        continue;
+                    }
+
+                    overwrite = true;
+                }
+
+                transferManager.submitUploadEncrypted(
+                        repositoryId,
+                        bucket,
+                        objectKey,
+                        file.toPath(),
+                        file.length(),
+                        encryptionConfig,
+                        overwrite);
+
+            } catch (Exception ex) {
+                pendingFileTableSelectionKey = null;
+                restoreFileTableFocus = false;
+
+                SwingUtilities.invokeLater(() ->
+                        JOptionPane.showMessageDialog(
+                                this,
+                                ex.getMessage(),
+                                "Upload Error",
+                                JOptionPane.ERROR_MESSAGE));
+            }
+        }
     }
 }

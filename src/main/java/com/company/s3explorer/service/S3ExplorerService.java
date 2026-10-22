@@ -871,10 +871,32 @@ public class S3ExplorerService {
             }
         }
     }
-    
-    public void uploadFile(String bucket, String objectKey, Path file, TransferProgressListener listener) throws IOException {
-        if (objectExists(bucket, objectKey)) {
-            throw new RuntimeException("Already exists: " + bucket + "/" + objectKey);
+
+
+    public void uploadFile(
+            String bucket,
+            String objectKey,
+            Path file,
+            TransferProgressListener listener) throws IOException {
+
+        uploadFile(
+                bucket,
+                objectKey,
+                file,
+                false,
+                listener);
+    }
+
+    public void uploadFile(
+            String bucket,
+            String objectKey,
+            Path file,
+            boolean overwrite,
+            TransferProgressListener listener) throws IOException {
+
+        if (!overwrite && objectExists(bucket, objectKey)) {
+            throw new RuntimeException(
+                    "Already exists: " + bucket + "/" + objectKey);
         }
 
         long totalBytes = Files.size(file);
@@ -901,7 +923,24 @@ public class S3ExplorerService {
             EncryptionConfig encryptionConfig,
             TransferProgressListener listener) throws Exception {
 
-        if (objectExists(bucket, objectKey)) {
+        uploadEncryptedFile(
+                bucket,
+                objectKey,
+                file,
+                encryptionConfig,
+                false,
+                listener);
+    }
+
+    public void uploadEncryptedFile(
+            String bucket,
+            String objectKey,
+            Path file,
+            EncryptionConfig encryptionConfig,
+            boolean overwrite,
+            TransferProgressListener listener) throws Exception {
+
+        if (!overwrite && objectExists(bucket, objectKey)) {
             throw new RuntimeException(
                     "Already exists: " + bucket + "/" + objectKey);
         }
@@ -912,22 +951,16 @@ public class S3ExplorerService {
         }
 
         Cipher cipher =
-                encryptionConfig.createCipher(
-                        Cipher.ENCRYPT_MODE);
+                encryptionConfig.createCipher(Cipher.ENCRYPT_MODE);
 
-        long plainSize =
-                Files.size(file);
+        long plainSize = Files.size(file);
 
         long encryptedSize =
-                cipher.getOutputSize(
-                        Math.toIntExact(plainSize));
+                cipher.getOutputSize(Math.toIntExact(plainSize));
 
-        try (InputStream fileInput =
-                     Files.newInputStream(file);
+        try (InputStream fileInput = Files.newInputStream(file);
              CipherInputStream encryptedInput =
-                     new CipherInputStream(
-                             fileInput,
-                             cipher);
+                     new CipherInputStream(fileInput, cipher);
              InputStream progressInput =
                      new ProgressInputStream(
                              encryptedInput,
