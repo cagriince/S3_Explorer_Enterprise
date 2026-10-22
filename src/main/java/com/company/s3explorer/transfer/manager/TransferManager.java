@@ -136,6 +136,98 @@ public class TransferManager {
         });
     }
 
+    public TransferGroup submitUploadGroup(
+            String repositoryId,
+            String bucket,
+            String targetPrefix,
+            java.util.List<Path> localFiles,
+            java.util.List<String> objectKeys,
+            java.util.List<Boolean> overwrites) {
+
+        if (localFiles == null
+                || objectKeys == null
+                || overwrites == null
+                || localFiles.isEmpty()
+                || localFiles.size() != objectKeys.size()
+                || localFiles.size() != overwrites.size()) {
+            throw new IllegalArgumentException(
+                    "Upload group arguments are invalid.");
+        }
+
+        String displayName =
+                localFiles.size() + " files";
+
+        String source =
+                localFiles.get(0).getParent() != null
+                        ? localFiles.get(0).getParent().toString()
+                        : localFiles.get(0).toString();
+
+        TransferGroup group =
+                new TransferGroup(
+                        UUID.randomUUID(),
+                        displayName,
+                        TransferType.UPLOAD_GROUP,
+                        source,
+                        buildGroupLocation(
+                                repositoryId,
+                                bucket,
+                                targetPrefix),
+                        null,
+                        null,
+                        null,
+                        repositoryId,
+                        bucket,
+                        targetPrefix,
+                        false);
+
+        configureGroupCompletion(
+                group,
+                repositoryId,
+                bucket,
+                targetPrefix,
+                false);
+
+        transferContext.publishGroupUpdated(
+                group,
+                repositoryId,
+                bucket,
+                targetPrefix,
+                false);
+
+        try {
+            for (int i = 0; i < localFiles.size(); i++) {
+                Path localFile = localFiles.get(i);
+                String objectKey = objectKeys.get(i);
+                boolean overwrite = overwrites.get(i);
+
+                TransferTask task =
+                        TransferTask.upload()
+                                .targetRepositoryId(repositoryId)
+                                .targetBucket(bucket)
+                                .targetObjectKey(objectKey)
+                                .localPath(localFile)
+                                .size(java.nio.file.Files.size(localFile))
+                                .overwrite(overwrite)
+                                .affectsObjectList(true)
+                                .affectsFolderTree(false)
+                                .group(group)
+                                .build();
+
+                submitGroupedTask(task, group);
+            }
+
+            group.markProductionCompleted();
+            return group;
+
+        } catch (Exception ex) {
+            group.setErrorMessage(ex.getMessage());
+            group.markProductionFailed();
+            throw new IllegalStateException(
+                    "Unable to submit upload group.",
+                    ex);
+        }
+    }
+
     public void submitUpload(
             String repositoryId,
             String bucket,
@@ -219,6 +311,105 @@ public class TransferManager {
                         .affectsFolderTree(false)
                         .build()
         );
+    }
+
+    public TransferGroup submitUploadEncryptedGroup(
+            String repositoryId,
+            String bucket,
+            String targetPrefix,
+            java.util.List<Path> localFiles,
+            java.util.List<String> objectKeys,
+            java.util.List<Boolean> overwrites,
+            EncryptionConfig encryptionConfig) {
+
+        if (encryptionConfig == null) {
+            throw new IllegalArgumentException(
+                    "Encryption configuration is not available.");
+        }
+
+        if (localFiles == null
+                || objectKeys == null
+                || overwrites == null
+                || localFiles.isEmpty()
+                || localFiles.size() != objectKeys.size()
+                || localFiles.size() != overwrites.size()) {
+            throw new IllegalArgumentException(
+                    "Upload group arguments are invalid.");
+        }
+
+        String displayName =
+                localFiles.size() + " encrypted files";
+
+        String source =
+                localFiles.get(0).getParent() != null
+                        ? localFiles.get(0).getParent().toString()
+                        : localFiles.get(0).toString();
+
+        TransferGroup group =
+                new TransferGroup(
+                        UUID.randomUUID(),
+                        displayName,
+                        TransferType.UPLOAD_GROUP,
+                        source,
+                        buildGroupLocation(
+                                repositoryId,
+                                bucket,
+                                targetPrefix),
+                        null,
+                        null,
+                        null,
+                        repositoryId,
+                        bucket,
+                        targetPrefix,
+                        false);
+
+        configureGroupCompletion(
+                group,
+                repositoryId,
+                bucket,
+                targetPrefix,
+                false);
+
+        transferContext.publishGroupUpdated(
+                group,
+                repositoryId,
+                bucket,
+                targetPrefix,
+                false);
+
+        try {
+            for (int i = 0; i < localFiles.size(); i++) {
+                Path localFile = localFiles.get(i);
+                String objectKey = objectKeys.get(i);
+                boolean overwrite = overwrites.get(i);
+
+                TransferTask task =
+                        TransferTask.upload()
+                                .targetRepositoryId(repositoryId)
+                                .targetBucket(bucket)
+                                .targetObjectKey(objectKey)
+                                .localPath(localFile)
+                                .size(java.nio.file.Files.size(localFile))
+                                .encryptionConfig(encryptionConfig)
+                                .overwrite(overwrite)
+                                .affectsObjectList(true)
+                                .affectsFolderTree(false)
+                                .group(group)
+                                .build();
+
+                submitGroupedTask(task, group);
+            }
+
+            group.markProductionCompleted();
+            return group;
+
+        } catch (Exception ex) {
+            group.setErrorMessage(ex.getMessage());
+            group.markProductionFailed();
+            throw new IllegalStateException(
+                    "Unable to submit encrypted upload group.",
+                    ex);
+        }
     }
 
     public void submitDownload(

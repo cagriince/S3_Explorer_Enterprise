@@ -8185,13 +8185,12 @@ public class ExplorerPanel extends JPanel {
             List<S3FileItem> rows) {
     }
 
-
     private int confirmUploadConflict(
             String bucket,
             String objectKey) {
 
         if (!getService().objectExists(bucket, objectKey)) {
-            return 0;
+            return 3;
         }
 
         String[] options = {
@@ -8248,17 +8247,23 @@ public class ExplorerPanel extends JPanel {
         return false;
     }
 
+
     private void uploadFile() {
 
-        String repositoryId =
-                this.getCurrentRepository().getId();
+        RepositoryDefinition repository =
+                getCurrentRepository();
 
         String bucket =
-                this.getCurrentBucket();
+                getCurrentBucket();
 
-        if (bucket == null) {
+        if (repository == null
+                || repository.isEmpty()
+                || bucket == null
+                || bucket.isBlank()) {
             return;
         }
+
+        String repositoryId = repository.getId();
 
         JFileChooser chooser = new JFileChooser();
         chooser.setMultiSelectionEnabled(true);
@@ -8266,7 +8271,8 @@ public class ExplorerPanel extends JPanel {
                 JFileChooser.FILES_AND_DIRECTORIES);
 
         if (lastOpenedFolderToUpload != null) {
-            chooser.setCurrentDirectory(lastOpenedFolderToUpload);
+            chooser.setCurrentDirectory(
+                    lastOpenedFolderToUpload);
         }
 
         int result = chooser.showOpenDialog(this);
@@ -8275,17 +8281,33 @@ public class ExplorerPanel extends JPanel {
             return;
         }
 
-        String prefix = getCurrentPrefix();
+        /*
+         * Dosya tablosunun gösterdiği konumu esas al.
+         * Ağaç seçimi ile tablo konumu geçici olarak farklı
+         * olduğunda dosyaların bucket köküne yüklenmesini önler.
+         */
+        String prefix =
+                currentFilePrefix == null
+                        ? S3TreeNode.ROOT_PREFIX
+                        : currentFilePrefix;
+
+        if (!prefix.isEmpty() && !prefix.endsWith("/")) {
+            prefix += "/";
+        }
+
         File[] files = chooser.getSelectedFiles();
 
         for (File file : files) {
             try {
                 if (file.isFile()) {
 
-                    String objectKey = prefix + file.getName();
+                    String objectKey =
+                            prefix + file.getName();
 
                     int conflictResult =
-                            confirmUploadConflict(bucket, objectKey);
+                            confirmUploadConflict(
+                                    bucket,
+                                    objectKey);
 
                     if (conflictResult == 1) {
                         log.info(
@@ -8294,7 +8316,8 @@ public class ExplorerPanel extends JPanel {
                         continue;
                     }
 
-                    if (conflictResult != 0) {
+                    if (conflictResult != 0
+                            && conflictResult != 3) {
                         log.info(
                                 "[UPLOAD FILE] selection cancelled at key={}",
                                 objectKey);
@@ -8302,19 +8325,24 @@ public class ExplorerPanel extends JPanel {
                     }
 
                     boolean overwrite =
-                            getService().objectExists(bucket, objectKey)
-                                    && conflictResult == 0;
+                            conflictResult == 0;
 
-                    pendingFileTableSelectionKey = objectKey;
+                    pendingFileTableSelectionKey =
+                            objectKey;
+
                     restoreFileTableFocus = true;
 
                     log.info(
-                            "[UPLOAD FILE] pending selection key={} restoreFocus={} overwrite={}",
-                            pendingFileTableSelectionKey,
+                            "[UPLOAD FILE] targetBucket={} targetPrefix={} "
+                                    + "key={} restoreFocus={} overwrite={}",
+                            bucket,
+                            prefix,
+                            objectKey,
                             restoreFileTableFocus,
                             overwrite);
 
-                    lastOpenedFolderToUpload = file.getParentFile();
+                    lastOpenedFolderToUpload =
+                            file.getParentFile();
 
                     transferManager.submitUpload(
                             repositoryId,
@@ -8324,7 +8352,7 @@ public class ExplorerPanel extends JPanel {
                             file.length(),
                             overwrite);
 
-                } else {
+                } else if (file.isDirectory()) {
 
                     pendingFileTableSelectionKey =
                             S3Util.combineKey(
@@ -8334,9 +8362,11 @@ public class ExplorerPanel extends JPanel {
                     restoreFileTableFocus = true;
 
                     log.info(
-                            "[UPLOAD FOLDER] pending selection key={} restoreFocus={}",
-                            pendingFileTableSelectionKey,
-                            restoreFileTableFocus);
+                            "[UPLOAD FOLDER] targetBucket={} targetPrefix={} "
+                                    + "selectionKey={}",
+                            bucket,
+                            prefix,
+                            pendingFileTableSelectionKey);
 
                     lastOpenedFolderToUpload = file;
 
@@ -8351,6 +8381,11 @@ public class ExplorerPanel extends JPanel {
                 pendingFileTableSelectionKey = null;
                 restoreFileTableFocus = false;
 
+                log.error(
+                        "[UPLOAD FILE] submission failed file={}",
+                        file.getAbsolutePath(),
+                        ex);
+
                 SwingUtilities.invokeLater(() ->
                         JOptionPane.showMessageDialog(
                                 this,
@@ -8361,24 +8396,33 @@ public class ExplorerPanel extends JPanel {
         }
     }
 
+
     private void uploadFileEncrypted() {
 
-        String repositoryId =
-                this.getCurrentRepository().getId();
+        RepositoryDefinition repository =
+                getCurrentRepository();
 
         String bucket =
-                this.getCurrentBucket();
+                getCurrentBucket();
 
-        if (bucket == null || encryptionConfig == null) {
+        if (repository == null
+                || repository.isEmpty()
+                || bucket == null
+                || bucket.isBlank()
+                || encryptionConfig == null) {
             return;
         }
 
+        String repositoryId = repository.getId();
+
         JFileChooser chooser = new JFileChooser();
         chooser.setMultiSelectionEnabled(true);
-        chooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
+        chooser.setFileSelectionMode(
+                JFileChooser.FILES_ONLY);
 
         if (lastOpenedFolderToUpload != null) {
-            chooser.setCurrentDirectory(lastOpenedFolderToUpload);
+            chooser.setCurrentDirectory(
+                    lastOpenedFolderToUpload);
         }
 
         int result = chooser.showOpenDialog(this);
@@ -8387,15 +8431,30 @@ public class ExplorerPanel extends JPanel {
             return;
         }
 
-        String prefix = getCurrentPrefix();
+        String prefix =
+                currentFilePrefix == null
+                        ? S3TreeNode.ROOT_PREFIX
+                        : currentFilePrefix;
+
+        if (!prefix.isEmpty() && !prefix.endsWith("/")) {
+            prefix += "/";
+        }
+
         File[] files = chooser.getSelectedFiles();
 
         for (File file : files) {
             try {
-                String objectKey = prefix + file.getName();
+                if (!file.isFile()) {
+                    continue;
+                }
+
+                String objectKey =
+                        prefix + file.getName();
 
                 int conflictResult =
-                        confirmUploadConflict(bucket, objectKey);
+                        confirmUploadConflict(
+                                bucket,
+                                objectKey);
 
                 if (conflictResult == 1) {
                     log.info(
@@ -8404,7 +8463,8 @@ public class ExplorerPanel extends JPanel {
                     continue;
                 }
 
-                if (conflictResult != 0) {
+                if (conflictResult != 0
+                        && conflictResult != 3) {
                     log.info(
                             "[UPLOAD ENCRYPTED FILE] selection cancelled at key={}",
                             objectKey);
@@ -8412,19 +8472,24 @@ public class ExplorerPanel extends JPanel {
                 }
 
                 boolean overwrite =
-                        getService().objectExists(bucket, objectKey)
-                                && conflictResult == 0;
+                        conflictResult == 0;
 
-                pendingFileTableSelectionKey = objectKey;
+                pendingFileTableSelectionKey =
+                        objectKey;
+
                 restoreFileTableFocus = true;
 
                 log.info(
-                        "[UPLOAD ENCRYPTED FILE] pending selection key={} restoreFocus={} overwrite={}",
-                        pendingFileTableSelectionKey,
+                        "[UPLOAD ENCRYPTED FILE] targetBucket={} targetPrefix={} "
+                                + "key={} restoreFocus={} overwrite={}",
+                        bucket,
+                        prefix,
+                        objectKey,
                         restoreFileTableFocus,
                         overwrite);
 
-                lastOpenedFolderToUpload = file.getParentFile();
+                lastOpenedFolderToUpload =
+                        file.getParentFile();
 
                 transferManager.submitUploadEncrypted(
                         repositoryId,
@@ -8438,6 +8503,11 @@ public class ExplorerPanel extends JPanel {
             } catch (Exception ex) {
                 pendingFileTableSelectionKey = null;
                 restoreFileTableFocus = false;
+
+                log.error(
+                        "[UPLOAD ENCRYPTED FILE] submission failed file={}",
+                        file.getAbsolutePath(),
+                        ex);
 
                 SwingUtilities.invokeLater(() ->
                         JOptionPane.showMessageDialog(
