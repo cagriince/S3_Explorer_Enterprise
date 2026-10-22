@@ -7524,7 +7524,7 @@ public class ExplorerPanel extends JPanel {
         updateNavigationButtonStates();
         updateActionStates();
     }
-    
+
     private void recoverMissingHistoryTarget(
             NavigationEntry target) {
 
