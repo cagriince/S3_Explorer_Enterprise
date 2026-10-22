@@ -69,6 +69,7 @@ public class ExplorerPanel extends JPanel {
     private ExplorerDeleteController deleteController;
 
     private final AtomicLong fileLoadGeneration = new AtomicLong();
+    private final AtomicLong fileDiscoveryGeneration = new AtomicLong();
     private final AtomicLong operationGeneration = new AtomicLong();
     private String currentFileBucket;
     private String currentFilePrefix;
@@ -1476,6 +1477,8 @@ public class ExplorerPanel extends JPanel {
 
         final long generation =
                 fileLoadGeneration.incrementAndGet();
+        final long discoveryGeneration =
+                fileDiscoveryGeneration.get();
 
         currentFileBucket = bucket;
         currentFilePrefix = prefix;
@@ -1511,7 +1514,7 @@ public class ExplorerPanel extends JPanel {
                 getCurrentFileTableFilter();
 
         updateFileDiscoveryProgress(
-                generation,
+                discoveryGeneration,
                 bucket,
                 prefix,
                 0,
@@ -1523,16 +1526,13 @@ public class ExplorerPanel extends JPanel {
                         prefix,
                         fileLimit,
                         sortSpec,
-                        (fileCount, folderCount) -> {
-                            if (generation == fileLoadGeneration.get()) {
+                        (fileCount, folderCount) ->
                                 updateFileDiscoveryProgress(
-                                        generation,
+                                        discoveryGeneration,
                                         bucket,
                                         prefix,
                                         fileCount,
-                                        folderCount);
-                            }
-                        },
+                                        folderCount),
                         flatBrowsing,
                         filter)
                 .thenApplyAsync(content -> {
@@ -5479,13 +5479,13 @@ public class ExplorerPanel extends JPanel {
         SwingUtilities.invokeLater(() -> {
 
             if (generation !=
-                    fileLoadGeneration.get()) {
+                    fileDiscoveryGeneration.get()) {
 
                 return;
             }
 
             view.getFileFolderInfo().setText(
-                    "Preparing... "
+                    "Preparing file table... "
                             + S3Util.formatWithThousandSeparator(folderCount)
                             + " folders / "
                             + S3Util.formatWithThousandSeparator(fileCount)
@@ -5585,7 +5585,7 @@ public class ExplorerPanel extends JPanel {
                         20));
 
         JLabel message =
-                new JLabel("Preparing...");
+                new JLabel("Preparing file table...");
 
         panel.add(
                 message,
@@ -7878,7 +7878,11 @@ public class ExplorerPanel extends JPanel {
     }
 
     private void toggleFlatBrowsing() {
+
         flatBrowsingEnabled = !flatBrowsingEnabled;
+
+        // A change of browsing mode starts a new discovery session.
+        fileDiscoveryGeneration.incrementAndGet();
 
         if (view != null) {
             view.setFlatBrowsingEnabled(flatBrowsingEnabled);
@@ -8743,11 +8747,14 @@ public class ExplorerPanel extends JPanel {
      */
     private void prepareForLocationChange() {
 
+        // Invalidate progress updates from the previous location session.
+        fileDiscoveryGeneration.incrementAndGet();
+
         /*
          * Invalidate the active folder's snapshot when Flat Browsing
          * is enabled. This prevents a later visit from joining an
          * in-flight scan whose progress listener belongs to an
-         * obsolete file-load generation.
+         * obsolete location session.
          */
         if (flatBrowsingEnabled
                 && currentFileBucket != null
