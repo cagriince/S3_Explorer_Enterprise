@@ -1327,6 +1327,7 @@ public class ExplorerPanel extends JPanel {
         });
     }
 
+
     public void loadRootFolders(String bucket) {
 
         final long operationId =
@@ -1341,28 +1342,29 @@ public class ExplorerPanel extends JPanel {
         final FileTableSortSpec sortSpec =
                 getCurrentFileSortSpec();
 
+        final boolean flatBrowsing =
+                flatBrowsingEnabled;
+
+        final FileTableFilter filter =
+                getCurrentFileTableFilter();
+
         contentLoader.loadFolder(
                         explorerPool,
                         bucket,
                         prefix,
                         fileLimit,
-                        sortSpec)
+                        sortSpec,
+                        null,
+                        flatBrowsing,
+                        filter)
                 .thenAccept(content ->
                         SwingUtilities.invokeLater(() -> {
 
-                            /*
-                             * Bu repository işlemi artık güncel değilse
-                             * UI'ya dokunma.
-                             */
                             if (operationId !=
                                     operationGeneration.get()) {
-
                                 return;
                             }
 
-                            /*
-                             * Tek S3 listing sonucundan Folder Tree'yi kur.
-                             */
                             treeController.applyRootFolders(
                                     bucket,
                                     content.folders());
@@ -1370,16 +1372,6 @@ public class ExplorerPanel extends JPanel {
                             hideOperationDialog(
                                     OperationDialogType.BUCKET);
 
-                            /*
-                             * IMPORTANT:
-                             *
-                             * content was already obtained above.
-                             * Do NOT call loadFiles(bucket, prefix),
-                             * because that would create another
-                             * content-loading request.
-                             *
-                             * Apply the existing result directly.
-                             */
                             loadFiles(
                                     bucket,
                                     prefix,
@@ -1387,7 +1379,8 @@ public class ExplorerPanel extends JPanel {
 
                             updateBreadcrumb(prefix);
 
-                            NavigationEntry restoreTarget = pendingNavigationTarget;
+                            NavigationEntry restoreTarget =
+                                    pendingNavigationTarget;
 
                             if (navigationPlayback
                                     && restoreTarget != null
@@ -1396,9 +1389,12 @@ public class ExplorerPanel extends JPanel {
                                     getCurrentRepository() == null
                                             ? null
                                             : getCurrentRepository().getId())
-                                    && Objects.equals(restoreTarget.bucket(), bucket)) {
+                                    && Objects.equals(
+                                    restoreTarget.bucket(),
+                                    bucket)) {
 
-                                restorePendingNavigationPrefix(restoreTarget);
+                                restorePendingNavigationPrefix(
+                                        restoreTarget);
 
                             } else {
                                 recordNavigation();
@@ -1416,13 +1412,8 @@ public class ExplorerPanel extends JPanel {
 
                     SwingUtilities.invokeLater(() -> {
 
-                        /*
-                         * Başka bir repository artık aktifse
-                         * eski işlemin hatasını gösterme.
-                         */
                         if (operationId !=
                                 operationGeneration.get()) {
-
                             return;
                         }
 
