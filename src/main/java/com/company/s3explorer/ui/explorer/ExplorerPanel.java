@@ -8301,7 +8301,9 @@ public class ExplorerPanel extends JPanel {
                         return;
                     }
 
-                    boolean overwrite = false;
+                    boolean overwrite =
+                            getService().objectExists(bucket, objectKey)
+                                    && conflictResult == 0;
 
                     pendingFileTableSelectionKey = objectKey;
                     restoreFileTableFocus = true;
@@ -8313,35 +8315,6 @@ public class ExplorerPanel extends JPanel {
                             overwrite);
 
                     lastOpenedFolderToUpload = file.getParentFile();
-
-                    if (getService().objectExists(bucket, objectKey)) {
-
-                        Object[] options = {
-                                "Overwrite",
-                                "Skip",
-                                "Cancel"
-                        };
-
-                        int choice = JOptionPane.showOptionDialog(
-                                SwingUtilities.getWindowAncestor(this),
-                                "The file already exists:\n"
-                                        + objectKey
-                                        + "\n\nDo you want to overwrite it?",
-                                "File Conflict",
-                                JOptionPane.DEFAULT_OPTION,
-                                JOptionPane.WARNING_MESSAGE,
-                                null,
-                                options,
-                                options[1]);
-
-                        if (choice != 0) {
-                            // Skip and Cancel both leave the existing object untouched.
-                            continue;
-                        }
-
-                        overwrite = true;
-                    }
-
 
                     transferManager.submitUpload(
                             repositoryId,
@@ -8438,7 +8411,9 @@ public class ExplorerPanel extends JPanel {
                     return;
                 }
 
-                boolean overwrite = false;
+                boolean overwrite =
+                        getService().objectExists(bucket, objectKey)
+                                && conflictResult == 0;
 
                 pendingFileTableSelectionKey = objectKey;
                 restoreFileTableFocus = true;
@@ -8450,34 +8425,6 @@ public class ExplorerPanel extends JPanel {
                         overwrite);
 
                 lastOpenedFolderToUpload = file.getParentFile();
-
-                if (getService().objectExists(bucket, objectKey)) {
-
-                    Object[] options = {
-                            "Overwrite",
-                            "Skip",
-                            "Cancel"
-                    };
-
-                    int choice = JOptionPane.showOptionDialog(
-                            SwingUtilities.getWindowAncestor(this),
-                            "The file already exists:\n"
-                                    + objectKey
-                                    + "\n\nDo you want to overwrite it?",
-                            "File Conflict",
-                            JOptionPane.DEFAULT_OPTION,
-                            JOptionPane.WARNING_MESSAGE,
-                            null,
-                            options,
-                            options[1]);
-
-                    if (choice != 0) {
-                        // Skip and Cancel both leave the existing object untouched.
-                        continue;
-                    }
-
-                    overwrite = true;
-                }
 
                 transferManager.submitUploadEncrypted(
                         repositoryId,
