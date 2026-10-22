@@ -42,11 +42,19 @@ public final class ExplorerContentLoader {
      */
     private volatile LimitedFolderContent cachedContent;
 
+    private volatile FolderContentSnapshot cachedSnapshot;
+
     private volatile String cachedBucket;
 
     private volatile String cachedPrefix;
 
     private volatile boolean cachedFlatBrowsing;
+
+    /**
+     * Concurrent requests for the same folder share one full S3 discovery.
+     */
+    private final Map<String, CompletableFuture<FolderContentSnapshot>>
+            inFlightSnapshots = new ConcurrentHashMap<>();
 
     long primaryEqualComparisons = -1;
     long secondaryNonZeroComparisons = -1;
@@ -70,22 +78,6 @@ public final class ExplorerContentLoader {
     /**
      * Loads without a progress listener.
      */
-    public CompletableFuture<LimitedFolderContent> loadFolder(
-            ExecutorService executor,
-            String bucket,
-            String prefix,
-            int fileLimit,
-            FileTableSortSpec sortSpec) {
-
-        return loadFolder(
-                executor,
-                bucket,
-                prefix,
-                fileLimit,
-                sortSpec,
-                null);
-    }
-
     public CompletableFuture<LimitedFolderContent> loadFolders(
             ExecutorService executor,
             String bucket,
@@ -155,25 +147,6 @@ public final class ExplorerContentLoader {
         return created;
     }
 
-
-    public CompletableFuture<LimitedFolderContent> loadFolder(
-            ExecutorService executor,
-            String bucket,
-            String prefix,
-            int fileLimit,
-            FileTableSortSpec sortSpec,
-            FolderDiscoveryListener discoveryListener) {
-
-        return loadFolder(
-                executor,
-                bucket,
-                prefix,
-                fileLimit,
-                sortSpec,
-                discoveryListener,
-                false);
-    }
-
     public CompletableFuture<LimitedFolderContent> loadFolder(
             ExecutorService executor,
             String bucket,
@@ -227,108 +200,69 @@ public final class ExplorerContentLoader {
                         ? FileTableFilter.noFilter()
                         : filter;
 
-        boolean unfiltered =
-                !effectiveFilter.hasTextFilter()
-                        && effectiveFilter.itemType()
-                        == ItemTypeFilter.ALL;
-
-        /*
-         * Tam liste önbellekteyse, hem filtresiz hem de
-         * filtreli görüntüleme S3 isteği olmadan hazırlanabilir.
-         */
-        LimitedFolderContent cached =
-                getCachedContent(bucket, prefix, flatBrowsing);
+        FolderContentSnapshot cached =
+                getCachedSnapshot(bucket, prefix, flatBrowsing);
 
         if (cached != null) {
-            if (unfiltered) {
-                return CompletableFuture.supplyAsync(
-                        () -> createDisplayContent(
-                                cached,
-                                fileLimit,
-                                sortSpec),
-                        executor);
-            }
-
-            return CompletableFuture.supplyAsync(() -> {
-                long start = System.nanoTime();
-
-                LimitedFolderContent result =
-                        createFilteredDisplayContent(
-                                cached,
-                                fileLimit,
-                                sortSpec,
-                                effectiveFilter,
-                                prefix,
-                                flatBrowsing);
-
-                long elapsedMs =
-                        TimeUnit.NANOSECONDS.toMillis(
-                                System.nanoTime() - start);
-
-                System.err.printf(
-                        "[FILTER TIMING] cached filtering: %d ms, "
-                                + "sourceFiles=%d, resultFiles=%d, "
-                                + "sourceFolders=%d, resultFolders=%d%n",
-                        elapsedMs,
-                        cached.files().size(),
-                        result.files().size(),
-                        cached.folders().size(),
-                        result.folders().size());
-
-                return result;
-            }, executor);
+            return CompletableFuture.supplyAsync(
+                    () -> createDisplayContent(
+                            cached,
+                            fileLimit,
+                            sortSpec,
+                            effectiveFilter,
+                            prefix,
+                            flatBrowsing),
+                    executor);
         }
 
-        /*
-         * Tam liste önbellekte değilse S3 üzerinden filtreli
-         * listeleme yapılır. Filtre, eşzamanlı yükleme anahtarına
-         * dahil edilir; farklı filtreler yanlışlıkla aynı sonucu paylaşmaz.
-         */
-        String loadKey =
-                createLoadKey(
-                        bucket,
-                        prefix,
+        String snapshotKey =
+                bucket
+                        + "\u0000"
+                        + prefix
+                        + "\u0000"
+                        + flatBrowsing;
+
+        CompletableFuture<FolderContentSnapshot> snapshotFuture =
+                inFlightSnapshots.computeIfAbsent(
+                        snapshotKey,
+                        key -> CompletableFuture.supplyAsync(
+                                () -> {
+                                    S3ExplorerService service =
+                                            Objects.requireNonNull(
+                                                    serviceSupplier.get(),
+                                                    "serviceSupplier returned null");
+
+                                    FolderContentSnapshot snapshot =
+                                            service.listFolderSnapshot(
+                                                    bucket,
+                                                    prefix,
+                                                    discoveryListener,
+                                                    flatBrowsing);
+
+                                    cachedSnapshot = snapshot;
+                                    cachedBucket = bucket;
+                                    cachedPrefix = prefix;
+                                    cachedFlatBrowsing = flatBrowsing;
+
+                                    return snapshot;
+                                },
+                                executor));
+
+        snapshotFuture.whenComplete(
+                (snapshot, throwable) ->
+                        inFlightSnapshots.remove(
+                                snapshotKey,
+                                snapshotFuture));
+
+        return snapshotFuture.thenApplyAsync(
+                snapshot -> createDisplayContent(
+                        snapshot,
                         fileLimit,
-                        sortSpec)
-                        + "\u0000" + flatBrowsing
-                        + "\u0000" + effectiveFilter.itemType()
-                        + "\u0000" + effectiveFilter.text();
-
-        CompletableFuture<LimitedFolderContent> existing =
-                inFlightLoads.get(loadKey);
-
-        if (existing != null) {
-            return existing;
-        }
-
-        CompletableFuture<LimitedFolderContent> created =
-                CompletableFuture.supplyAsync(
-                        () -> loadFromS3(
-                                bucket,
-                                prefix,
-                                fileLimit,
-                                sortSpec,
-                                discoveryListener,
-                                flatBrowsing,
-                                effectiveFilter),
-                        executor);
-
-        CompletableFuture<LimitedFolderContent> actual =
-                inFlightLoads.putIfAbsent(
-                        loadKey,
-                        created);
-
-        if (actual != null) {
-            return actual;
-        }
-
-        created.whenComplete(
-                (result, throwable) ->
-                        inFlightLoads.remove(
-                                loadKey,
-                                created));
-
-        return created;
+                        sortSpec,
+                        effectiveFilter,
+                        prefix,
+                        flatBrowsing),
+                executor);
     }
 
     /**
@@ -339,109 +273,35 @@ public final class ExplorerContentLoader {
      * as a complete cache.
      * </p>
      */
-    public LimitedFolderContent getCachedContent(
-            String bucket,
-            String prefix) {
-
-        return getCachedContent(bucket, prefix, false);
-    }
-
-    public LimitedFolderContent getCachedContent(
+    public FolderContentSnapshot getCachedSnapshot(
             String bucket,
             String prefix,
             boolean flatBrowsing) {
 
-        LimitedFolderContent content = cachedContent;
+        FolderContentSnapshot snapshot = cachedSnapshot;
 
-        if (content == null
+        if (snapshot == null
                 || !Objects.equals(cachedBucket, bucket)
                 || !Objects.equals(cachedPrefix, prefix)
-                || cachedFlatBrowsing != flatBrowsing
-                || content.fileLimitReached()) {
+                || cachedFlatBrowsing != flatBrowsing) {
             return null;
         }
 
-        return content;
+        return snapshot;
     }
 
-    /**
-     * Invalidates one folder's completed cache.
-     */
     public void invalidate(
             String bucket,
             String prefix) {
 
-        if (!Objects.equals(
-                cachedBucket,
-                bucket)) {
-
+        if (!Objects.equals(cachedBucket, bucket)
+                || !Objects.equals(cachedPrefix, prefix)) {
             return;
         }
 
-        if (!Objects.equals(
-                cachedPrefix,
-                prefix)) {
-
-            return;
-        }
-
-        cachedContent = null;
+        cachedSnapshot = null;
         cachedBucket = null;
         cachedPrefix = null;
-    }
-
-    /**
-     * Performs the actual S3 listing.
-     *
-     * <p>
-     * This is intentionally the only S3 content-listing call
-     * in this loader. The returned LimitedFolderContent contains
-     * both folders and files.
-     * </p>
-     */
-
-    private LimitedFolderContent loadFromS3(
-            String bucket,
-            String prefix,
-            int fileLimit,
-            FileTableSortSpec sortSpec,
-            FolderDiscoveryListener discoveryListener,
-            boolean flatBrowsing,
-            FileTableFilter filter) {
-
-        S3ExplorerService service =
-                Objects.requireNonNull(
-                        serviceSupplier.get(),
-                        "serviceSupplier returned null");
-
-        LimitedFolderContent content =
-                service.listFolderWithLimit(
-                        bucket,
-                        prefix,
-                        fileLimit,
-                        sortSpec,
-                        collationKeyCache,
-                        discoveryListener,
-                        FolderContentMode.FOLDERS_AND_FILES,
-                        flatBrowsing,
-                        filter);
-
-        boolean unfiltered =
-                !filter.hasTextFilter()
-                        && filter.itemType() == ItemTypeFilter.ALL;
-
-        /*
-         * Yalnızca filtresiz ve tam sonuçları önbelleğe al.
-         * Limit nedeniyle kesilmiş sonuç hiçbir zaman tam önbellek değildir.
-         */
-        if (unfiltered && !content.fileLimitReached()) {
-            cachedContent = content;
-            cachedBucket = bucket;
-            cachedPrefix = prefix;
-            cachedFlatBrowsing = flatBrowsing;
-        }
-
-        return content;
     }
 
     /**
@@ -449,29 +309,97 @@ public final class ExplorerContentLoader {
      * cached result without making another S3 request.
      */
     private LimitedFolderContent createDisplayContent(
-            LimitedFolderContent cached,
+            FolderContentSnapshot snapshot,
             int fileLimit,
-            FileTableSortSpec sortSpec) {
+            FileTableSortSpec sortSpec,
+            FileTableFilter filter,
+            String prefix,
+            boolean flatBrowsing) {
 
-        BoundedSortedFileCollection bounded =
-                new BoundedSortedFileCollection(
-                        fileLimit,
-                        sortSpec.createFileComparator(
-                                collationKeyCache));
+        long start = System.nanoTime();
 
-        bounded.addAll(cached.files());
+        List<String> matchingFolders = new java.util.ArrayList<>();
+
+        if (filter.includesFolders()) {
+            for (String folderKey : snapshot.folders()) {
+                String displayName = getFilterDisplayName(
+                        folderKey,
+                        prefix,
+                        true,
+                        flatBrowsing);
+
+                if (filter.matchesText(displayName)) {
+                    matchingFolders.add(folderKey);
+                }
+            }
+        }
+
+        List<software.amazon.awssdk.services.s3.model.S3Object>
+                matchingFiles = new java.util.ArrayList<>();
+
+        if (filter.includesFiles()) {
+            for (software.amazon.awssdk.services.s3.model.S3Object object
+                    : snapshot.files()) {
+
+                String displayName = getFilterDisplayName(
+                        object.key(),
+                        prefix,
+                        false,
+                        flatBrowsing);
+
+                if (filter.matchesText(displayName)) {
+                    matchingFiles.add(object);
+                }
+            }
+        }
+
+        long matchingFileCount = matchingFiles.size();
+
+        java.util.Comparator<
+                software.amazon.awssdk.services.s3.model.S3Object>
+                comparator = sortSpec.createFileComparator(
+                collationKeyCache);
+
+        matchingFiles.sort(comparator);
 
         boolean fileLimitReached =
-                cached.totalMatchingFileCount()
-                        > bounded.size();
+                matchingFiles.size() > fileLimit;
 
-        return new LimitedFolderContent(
-                cached.folders(),
-                bounded.toList(),
-                fileLimitReached,
-                cached.totalMatchingFileCount());
+        if (fileLimitReached) {
+            matchingFiles.subList(
+                    fileLimit,
+                    matchingFiles.size()).clear();
+        }
+
+        LimitedFolderContent result =
+                new LimitedFolderContent(
+                        matchingFolders,
+                        matchingFiles,
+                        fileLimitReached,
+                        matchingFileCount);
+
+        long elapsedMs =
+                TimeUnit.NANOSECONDS.toMillis(
+                        System.nanoTime() - start);
+
+        System.err.printf(
+                "[SNAPSHOT VIEW] elapsed=%d ms, "
+                        + "snapshotFiles=%d, displayedFiles=%d, "
+                        + "snapshotFolders=%d, displayedFolders=%d, "
+                        + "filterType=%s, filterText=%s, "
+                        + "sortColumn=%s, ascending=%s%n",
+                elapsedMs,
+                snapshot.files().size(),
+                result.files().size(),
+                snapshot.folders().size(),
+                result.folders().size(),
+                filter.itemType(),
+                filter.text(),
+                sortSpec.getColumn(),
+                sortSpec.isAscending());
+
+        return result;
     }
-
 
     private LimitedFolderContent createFilteredDisplayContent(
             LimitedFolderContent cached,

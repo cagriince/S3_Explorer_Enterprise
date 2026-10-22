@@ -1033,4 +1033,91 @@ public class S3ExplorerService {
             index = key.lastIndexOf('/', index - 1);
         }
     }
+
+    public FolderContentSnapshot listFolderSnapshot(
+            String bucket,
+            String prefix,
+            FolderDiscoveryListener discoveryListener,
+            boolean flatBrowsing) {
+
+        Objects.requireNonNull(bucket, "bucket");
+
+        String effectivePrefix = prefix == null ? "" : prefix;
+
+        Set<String> folders = new LinkedHashSet<>();
+        List<S3Object> files = new ArrayList<>();
+
+        String continuationToken = null;
+        long discoveredFileCount = 0;
+
+        do {
+            ListObjectsV2Request.Builder builder =
+                    ListObjectsV2Request.builder()
+                            .bucket(bucket)
+                            .prefix(effectivePrefix)
+                            .maxKeys(500);
+
+            if (!flatBrowsing) {
+                builder.delimiter("/");
+            }
+
+            if (continuationToken != null
+                    && !continuationToken.isBlank()) {
+                builder.continuationToken(continuationToken);
+            }
+
+            ListObjectsV2Response response =
+                    client.listObjectsV2(builder.build());
+
+            if (!flatBrowsing) {
+                for (CommonPrefix commonPrefix : response.commonPrefixes()) {
+                    folders.add(commonPrefix.prefix());
+                }
+            }
+
+            for (S3Object object : response.contents()) {
+                String key = object.key();
+
+                if (key.equals(effectivePrefix)) {
+                    continue;
+                }
+
+                if (flatBrowsing) {
+                    int slash = key.indexOf(
+                            '/',
+                            effectivePrefix.length());
+
+                    while (slash >= 0) {
+                        folders.add(key.substring(0, slash + 1));
+                        slash = key.indexOf('/', slash + 1);
+                    }
+                }
+
+                /*
+                 * S3 folder-marker objects represent folders, not files.
+                 */
+                if (key.endsWith("/")) {
+                    folders.add(key);
+                    continue;
+                }
+
+                files.add(object);
+                discoveredFileCount++;
+            }
+
+            if (discoveryListener != null) {
+                discoveryListener.onDiscovery(
+                        discoveredFileCount,
+                        folders.size());
+            }
+
+            continuationToken = response.nextContinuationToken();
+
+        } while (continuationToken != null
+                && !continuationToken.isBlank());
+
+        return new FolderContentSnapshot(
+                new ArrayList<>(folders),
+                files);
+    }
 }
