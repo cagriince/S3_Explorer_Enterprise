@@ -8743,8 +8743,22 @@ public class ExplorerPanel extends JPanel {
      */
     private void prepareForLocationChange() {
 
-        // Invalidate any pending file-table result, even if Flat Browsing
-        // is already disabled.
+        /*
+         * Invalidate the active folder's snapshot when Flat Browsing
+         * is enabled. This prevents a later visit from joining an
+         * in-flight scan whose progress listener belongs to an
+         * obsolete file-load generation.
+         */
+        if (flatBrowsingEnabled
+                && currentFileBucket != null
+                && currentFilePrefix != null) {
+
+            contentLoader.invalidate(
+                    currentFileBucket,
+                    currentFilePrefix);
+        }
+
+        // Reject any pending file-table result for the old location.
         fileLoadGeneration.incrementAndGet();
 
         if (flatBrowsingEnabled) {
