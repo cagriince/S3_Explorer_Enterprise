@@ -71,75 +71,67 @@ public class FileTableRowSorter
                         Instant::compareTo));
     }
 
+
     @Override
-    public void toggleSortOrder(
-            int column) {
+    public void toggleSortOrder(int column) {
+        long startNanos = System.nanoTime();
 
-        /*
-         * Folder/File kolonuna basılırsa
-         * mevcut Swing davranışını koru.
-         */
-        if (column ==
-                FileTableModel.COL_FOLDER) {
-
-            super.toggleSortOrder(column);
-
-            return;
-        }
-
-        SortOrder yeniDuzen =
-                SortOrder.ASCENDING;
-
-        List<? extends SortKey>
-                mevcutAnahtarlar =
-                getSortKeys();
-
-        /*
-         * Tıklanan kolonun mevcut yönünü bul.
-         */
-        for (SortKey anahtar :
-                mevcutAnahtarlar) {
-
-            if (anahtar.getColumn()
-                    == column) {
-
-                if (anahtar.getSortOrder()
-                        == SortOrder.ASCENDING) {
-
-                    yeniDuzen =
-                            SortOrder.DESCENDING;
-
-                } else {
-
-                    yeniDuzen =
-                            SortOrder.ASCENDING;
-                }
-
-                break;
+        try {
+            /*
+             * Folder/File kolonuna basılırsa
+             * mevcut Swing davranışını koru.
+             */
+            if (column == FileTableModel.COL_FOLDER) {
+                super.toggleSortOrder(column);
+                return;
             }
+
+            SortOrder yeniDuzen = SortOrder.ASCENDING;
+
+            List<? extends SortKey> mevcutAnahtarlar = getSortKeys();
+
+            /*
+             * Tıklanan kolonun mevcut yönünü bul.
+             */
+            for (SortKey anahtar : mevcutAnahtarlar) {
+                if (anahtar.getColumn() == column) {
+                    if (anahtar.getSortOrder() == SortOrder.ASCENDING) {
+                        yeniDuzen = SortOrder.DESCENDING;
+                    } else {
+                        yeniDuzen = SortOrder.ASCENDING;
+                    }
+                    break;
+                }
+            }
+
+            List<SortKey> yeniAnahtarlar = new ArrayList<>();
+
+            /*
+             * Klasörler her zaman dosyalardan önce.
+             */
+            yeniAnahtarlar.add(
+                    new SortKey(
+                            FileTableModel.COL_FOLDER,
+                            SortOrder.ASCENDING));
+
+            /*
+             * Kullanıcının seçtiği kolon.
+             */
+            yeniAnahtarlar.add(
+                    new SortKey(column, yeniDuzen));
+
+            setSortKeys(yeniAnahtarlar);
+
+        } finally {
+            long elapsedMillis =
+                    (System.nanoTime() - startNanos) / 1_000_000;
+
+            System.out.printf(
+                    "[SORT TIMING] toggleSortOrder: column=%d, rows=%d, elapsed=%d ms%n",
+                    column,
+                    getModel().getRowCount(),
+                    elapsedMillis);
         }
-
-        List<SortKey> yeniAnahtarlar =
-                new ArrayList<>();
-
-        /*
-         * Klasörler her zaman dosyalardan önce.
-         */
-        yeniAnahtarlar.add(
-                new SortKey(
-                        FileTableModel.COL_FOLDER,
-                        SortOrder.ASCENDING));
-
-        /*
-         * Kullanıcının seçtiği kolon.
-         */
-        yeniAnahtarlar.add(
-                new SortKey(
-                        column,
-                        yeniDuzen));
-
-        setSortKeys(
-                yeniAnahtarlar);
     }
 
     public int getPrimarySortColumn() {
