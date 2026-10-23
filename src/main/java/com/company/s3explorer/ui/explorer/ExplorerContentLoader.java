@@ -397,7 +397,9 @@ public final class ExplorerContentLoader {
             String prefix,
             boolean flatBrowsing) {
 
-        long start = System.nanoTime();
+        long totalStart = System.nanoTime();
+
+        long folderScanStart = System.nanoTime();
 
         List<String> matchingFolders = new java.util.ArrayList<>();
 
@@ -414,6 +416,11 @@ public final class ExplorerContentLoader {
                 }
             }
         }
+
+        long folderScanNanos =
+                System.nanoTime() - folderScanStart;
+
+        long fileScanStart = System.nanoTime();
 
         List<software.amazon.awssdk.services.s3.model.S3Object>
                 matchingFiles = new java.util.ArrayList<>();
@@ -434,23 +441,55 @@ public final class ExplorerContentLoader {
             }
         }
 
+        long fileScanNanos =
+                System.nanoTime() - fileScanStart;
+
         long matchingFileCount = matchingFiles.size();
 
-        java.util.Comparator<
-                software.amazon.awssdk.services.s3.model.S3Object>
-                comparator = sortSpec.createFileComparator(
-                collationKeyCache);
-
-        matchingFiles.sort(comparator);
-
+        /*
+         * When every matching file fits within the display limit,
+         * the JTable RowSorter will sort the displayed rows.
+         *
+         * When the limit is exceeded, sort first so the correct
+         * leading files can be selected before trimming.
+         */
         boolean fileLimitReached =
                 matchingFiles.size() > fileLimit;
+
+        long comparatorNanos = 0;
+        long sortNanos = 0;
+
+        if (fileLimitReached) {
+            long comparatorStart = System.nanoTime();
+
+            java.util.Comparator<
+                    software.amazon.awssdk.services.s3.model.S3Object>
+                    comparator = sortSpec.createFileComparator(
+                    collationKeyCache);
+
+            comparatorNanos =
+                    System.nanoTime() - comparatorStart;
+
+            long sortStart = System.nanoTime();
+
+            matchingFiles.sort(comparator);
+
+            sortNanos =
+                    System.nanoTime() - sortStart;
+        }
+
+        long trimStart = System.nanoTime();
 
         if (fileLimitReached) {
             matchingFiles.subList(
                     fileLimit,
                     matchingFiles.size()).clear();
         }
+
+        long trimNanos =
+                System.nanoTime() - trimStart;
+
+        long resultStart = System.nanoTime();
 
         LimitedFolderContent result =
                 new LimitedFolderContent(
@@ -459,18 +498,41 @@ public final class ExplorerContentLoader {
                         fileLimitReached,
                         matchingFileCount);
 
-        long elapsedMs =
-                TimeUnit.NANOSECONDS.toMillis(
-                        System.nanoTime() - start);
+        long resultNanos =
+                System.nanoTime() - resultStart;
+
+        long totalNanos =
+                System.nanoTime() - totalStart;
 
         System.err.printf(
-                "[SNAPSHOT VIEW] elapsed=%d ms, "
-                        + "snapshotFiles=%d, displayedFiles=%d, "
-                        + "snapshotFolders=%d, displayedFolders=%d, "
-                        + "filterType=%s, filterText=%s, "
-                        + "sortColumn=%s, ascending=%s%n",
-                elapsedMs,
+                "[SNAPSHOT PROFILE] "
+                        + "folderScan=%d ms, "
+                        + "fileScan=%d ms, "
+                        + "comparatorBuild=%d ms, "
+                        + "sort=%d ms, "
+                        + "sortSkipped=%s, "
+                        + "trim=%d ms, "
+                        + "resultCreation=%d ms, "
+                        + "total=%d ms, "
+                        + "snapshotFiles=%d, "
+                        + "matchingFiles=%d, "
+                        + "displayedFiles=%d, "
+                        + "snapshotFolders=%d, "
+                        + "displayedFolders=%d, "
+                        + "filterType=%s, "
+                        + "filterText=%s, "
+                        + "sortColumn=%s, "
+                        + "ascending=%s%n",
+                TimeUnit.NANOSECONDS.toMillis(folderScanNanos),
+                TimeUnit.NANOSECONDS.toMillis(fileScanNanos),
+                TimeUnit.NANOSECONDS.toMillis(comparatorNanos),
+                TimeUnit.NANOSECONDS.toMillis(sortNanos),
+                !fileLimitReached,
+                TimeUnit.NANOSECONDS.toMillis(trimNanos),
+                TimeUnit.NANOSECONDS.toMillis(resultNanos),
+                TimeUnit.NANOSECONDS.toMillis(totalNanos),
                 snapshot.files().size(),
+                matchingFileCount,
                 result.files().size(),
                 snapshot.folders().size(),
                 result.folders().size(),

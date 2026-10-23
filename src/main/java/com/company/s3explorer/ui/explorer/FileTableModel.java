@@ -121,14 +121,37 @@ public class FileTableModel extends AbstractTableModel {
         };
     }
 
-    public void setFiles(
-            List<S3FileItem> newFiles) {
+
+    public void setFiles(List<S3FileItem> newFiles) {
+        long totalStart = System.nanoTime();
+
+        int newRowCount = newFiles.size();
+
+        long updateStart = System.nanoTime();
 
         files.clear();
-
         files.addAll(newFiles);
 
+        long updateMillis =
+                (System.nanoTime() - updateStart) / 1_000_000;
+
+        long eventStart = System.nanoTime();
+
         fireTableDataChanged();
+
+        long eventMillis =
+                (System.nanoTime() - eventStart) / 1_000_000;
+
+        long totalMillis =
+                (System.nanoTime() - totalStart) / 1_000_000;
+
+        System.out.printf(
+                "[FILE MODEL TIMING] rows=%d, listUpdate=%d ms, "
+                        + "tableEvent=%d ms, total=%d ms%n",
+                newRowCount,
+                updateMillis,
+                eventMillis,
+                totalMillis);
     }
 
     public boolean addFile(

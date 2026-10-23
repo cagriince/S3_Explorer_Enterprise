@@ -4,15 +4,16 @@ import com.company.s3explorer.util.S3Util;
 
 import javax.swing.SortOrder;
 import javax.swing.table.TableRowSorter;
+import java.text.CollationKey;
 import java.text.Collator;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Locale;
+import java.util.*;
 
 public class FileTableRowSorter
         extends TableRowSorter<FileTableModel> {
+
+    private final Map<Character, CollationKey> characterKeyCache =
+            new HashMap<>();
 
     public FileTableRowSorter(
             FileTableModel model) {
@@ -53,7 +54,8 @@ public class FileTableRowSorter
                         S3Util.naturalTurkishCompare(
                                 ((S3FileItem) left).getDisplayName(),
                                 ((S3FileItem) right).getDisplayName(),
-                                turkishCollator));
+                                turkishCollator,
+                                characterKeyCache));
         /*        Comparator.comparing(
                         item ->
                                 S3Util.extractFolderName(
@@ -178,5 +180,22 @@ public class FileTableRowSorter
         }
 
         return SortOrder.ASCENDING;
+    }
+
+    @Override
+    public void allRowsChanged() {
+        long startNanos = System.nanoTime();
+
+        try {
+            super.allRowsChanged();
+        } finally {
+            long elapsedMillis =
+                    (System.nanoTime() - startNanos) / 1_000_000;
+
+            System.out.printf(
+                    "[SORT TIMING] allRowsChanged: rows=%d, elapsed=%d ms%n",
+                    getModel().getRowCount(),
+                    elapsedMillis);
+        }
     }
 }
