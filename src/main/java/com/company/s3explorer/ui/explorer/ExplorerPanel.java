@@ -1605,11 +1605,37 @@ public class ExplorerPanel extends JPanel {
                 false);
     }
 
+
     private void loadFiles(
             String bucket,
             String prefix,
             boolean restoreFocus,
             boolean filterRefresh) {
+
+        // Capture the current location before updating it.
+        final boolean sameLocation =
+                Objects.equals(currentFileBucket, bucket)
+                        && Objects.equals(currentFilePrefix, prefix);
+
+        final boolean flatBrowsing =
+                flatBrowsingEnabled;
+
+        final boolean cachedSnapshotAvailable =
+                contentLoader.getCachedSnapshot(
+                        bucket,
+                        prefix,
+                        flatBrowsing) != null;
+
+        final boolean discoveryInProgress =
+                contentLoader.isDiscoveryInProgress(
+                        bucket,
+                        prefix,
+                        flatBrowsing);
+
+        final boolean preparingDialogActive =
+                sameLocation
+                        && fileTableDialog != null
+                        && visibleOperationDialogs.contains(fileTableDialog);
 
         final long generation =
                 fileLoadGeneration.incrementAndGet();
@@ -1622,15 +1648,55 @@ public class ExplorerPanel extends JPanel {
 
         setFileTableLoading(true);
 
-        if (filterRefresh) {
+        /*
+         * Keep the existing Preparing dialog while discovery is in progress.
+         * Never replace its live counters with a second dialog.
+         */
+        if (preparingDialogActive) {
+
+            // Keep the existing dialog and its progress counters.
+
+        } else if (discoveryInProgress) {
+
+            hideOperationDialog(
+                    OperationDialogType.FILTER_REFRESH);
+
+            showOperationDialog(
+                    OperationDialogType.FILE_TABLE,
+                    "<html>"
+                            + "<b>Preparing file table...</b><br><br>"
+                            + "<b>Bucket:</b> "
+                            + bucket
+                            + "<br><br>"
+                            + "<b>Folder:</b> "
+                            + (prefix == null || prefix.isBlank()
+                            ? "/"
+                            : prefix)
+                            + "</html>");
+
+        } else if (cachedSnapshotAvailable) {
+
+            // The data has already been discovered; only the display
+            // needs to be recalculated.
+            hideOperationDialog(
+                    OperationDialogType.FILE_TABLE);
+
+            String message = filterRefresh
+                    ? "<html><b>Applying filters...</b><br>"
+                    + "Please wait while the file table is updated."
+                    + "</html>"
+                    : "<html><b>Updating file table...</b><br>"
+                    + "Please wait while the file table is updated."
+                    + "</html>";
 
             showOperationDialog(
                     OperationDialogType.FILTER_REFRESH,
-                    "<html><b>Applying filters...</b><br>"
-                            + "Please wait while the file table is updated."
-                            + "</html>");
+                    message);
 
         } else {
+
+            hideOperationDialog(
+                    OperationDialogType.FILTER_REFRESH);
 
             showOperationDialog(
                     OperationDialogType.FILE_TABLE,
@@ -1662,9 +1728,6 @@ public class ExplorerPanel extends JPanel {
         final String repositoryId =
                 getCurrentRepository().getId();
 
-        final boolean flatBrowsing =
-                flatBrowsingEnabled;
-
         final var filter =
                 getCurrentFileTableFilter();
 
@@ -1685,7 +1748,8 @@ public class ExplorerPanel extends JPanel {
                         filter)
                 .thenApplyAsync(content -> {
 
-                    long prepareStart = System.nanoTime();
+                    long prepareStart =
+                            System.nanoTime();
 
                     List<S3FileItem> rows =
                             createFileTableRows(
@@ -1715,7 +1779,8 @@ public class ExplorerPanel extends JPanel {
                                 return;
                             }
 
-                            long applyStart = System.nanoTime();
+                            long applyStart =
+                                    System.nanoTime();
 
                             applyPreparedFileTableRows(
                                     prepared.rows(),
@@ -8793,5 +8858,11 @@ public class ExplorerPanel extends JPanel {
                 view.setFlatBrowsingEnabled(false);
             }
         }
+    }
+
+    private boolean isFileTablePreparationDialogActive() {
+
+        return fileTableDialog != null
+                && visibleOperationDialogs.contains(fileTableDialog);
     }
 }

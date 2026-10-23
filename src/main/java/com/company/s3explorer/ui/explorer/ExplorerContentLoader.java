@@ -318,6 +318,21 @@ public final class ExplorerContentLoader {
         return snapshot;
     }
 
+    public boolean isDiscoveryInProgress(
+            String bucket,
+            String prefix,
+            boolean flatBrowsing) {
+
+        if (bucket == null || prefix == null) {
+            return false;
+        }
+
+        String snapshotKey =
+                bucket + "\u0000" + prefix + "\u0000" + flatBrowsing;
+
+        return inFlightSnapshots.containsKey(snapshotKey);
+    }
+
     public void invalidate(
             String bucket,
             String prefix) {
