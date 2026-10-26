@@ -577,7 +577,6 @@ public final class ExplorerView {
                 );
             }
         });
-        table.getTableHeader().setReorderingAllowed(false);
 
         table.getTableHeader().setReorderingAllowed(false);
 
@@ -599,7 +598,7 @@ public final class ExplorerView {
 
                 if (fileTableSortReloadTimer == null) {
                     fileTableSortReloadTimer = new Timer(
-                            200,
+                            600,
                             event -> {
                                 if (reloadCurrentFileTable != null) {
                                     reloadCurrentFileTable.run();
