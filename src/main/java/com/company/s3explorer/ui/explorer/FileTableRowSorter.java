@@ -180,7 +180,21 @@ public class FileTableRowSorter
         long startNanos = System.nanoTime();
 
         try {
+            /*
+             * If a sort request is pending, the model has now changed.
+             * Apply the requested sort to the new rows directly instead
+             * of sorting once with the old keys and then sorting again.
+             */
+            if (pendingSortKeys != null) {
+                List<SortKey> keysToApply = pendingSortKeys;
+                pendingSortKeys = null;
+
+                setSortKeys(keysToApply);
+                return;
+            }
+
             super.allRowsChanged();
+
         } finally {
             long elapsedMillis =
                     (System.nanoTime() - startNanos) / 1_000_000;
