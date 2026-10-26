@@ -4,6 +4,7 @@ package com.company.s3explorer.ui.explorer;
 import com.company.s3explorer.util.S3Util;
 
 import javax.swing.SortOrder;
+import javax.swing.RowSorter;
 import javax.swing.table.TableRowSorter;
 import java.text.CollationKey;
 import java.text.Collator;
@@ -15,6 +16,13 @@ public class FileTableRowSorter
 
     private final Map<Character, CollationKey> characterKeyCache =
             new HashMap<>();
+
+    /*
+     * Sort keys requested by the user but not yet applied to the table.
+     * This prevents Swing from sorting the current (possibly limited)
+     * rows before the background reload has prepared the correct rows.
+     */
+    private List<SortKey> pendingSortKeys;
 
     public FileTableRowSorter(FileTableModel model) {
         super(model);
@@ -39,10 +47,6 @@ public class FileTableRowSorter
                                 turkishCollator,
                                 characterKeyCache));
 
-        /*
-         * Type values are strings and usually repeat across many rows.
-         * Avoid the default String comparator for this large table.
-         */
         setComparator(
                 FileTableModel.COL_TYPE,
                 Comparator.nullsFirst(
@@ -67,17 +71,17 @@ public class FileTableRowSorter
                 return;
             }
 
-            SortOrder newOrder = SortOrder.ASCENDING;
+            List<? extends SortKey> currentKeys =
+                    getRequestedSortKeys();
 
-            List<? extends SortKey> currentKeys = getSortKeys();
+            SortOrder newOrder = SortOrder.ASCENDING;
 
             for (SortKey key : currentKeys) {
                 if (key.getColumn() == column) {
-                    if (key.getSortOrder() == SortOrder.ASCENDING) {
-                        newOrder = SortOrder.DESCENDING;
-                    } else {
-                        newOrder = SortOrder.ASCENDING;
-                    }
+                    newOrder =
+                            key.getSortOrder() == SortOrder.ASCENDING
+                                    ? SortOrder.DESCENDING
+                                    : SortOrder.ASCENDING;
                     break;
                 }
             }
@@ -90,25 +94,57 @@ public class FileTableRowSorter
                             FileTableModel.COL_FOLDER,
                             SortOrder.ASCENDING));
 
-            // Apply the requested sort column and direction.
+            // Record the requested sort without sorting current rows.
             newKeys.add(new SortKey(column, newOrder));
 
-            setSortKeys(newKeys);
+            pendingSortKeys = List.copyOf(newKeys);
 
         } finally {
             long elapsedMillis =
                     (System.nanoTime() - startNanos) / 1_000_000;
 
             System.out.printf(
-                    "[SORT TIMING] toggleSortOrder: column=%d, rows=%d, elapsed=%d ms%n",
+                    "[SORT TIMING] sort request recorded: "
+                            + "column=%d, rows=%d, elapsed=%d ms, pending=%s%n",
                     column,
                     getModel().getRowCount(),
-                    elapsedMillis);
+                    elapsedMillis,
+                    pendingSortKeys != null);
         }
     }
 
+    /**
+     * Returns the pending sort request if one exists; otherwise returns
+     * the sort keys currently applied to the table.
+     */
+    public List<? extends SortKey> getRequestedSortKeys() {
+        if (pendingSortKeys != null) {
+            return pendingSortKeys;
+        }
+
+        return getSortKeys();
+    }
+
+    public boolean hasPendingSortRequest() {
+        return pendingSortKeys != null;
+    }
+
+    /**
+     * Applies the most recent requested sort keys and clears the request.
+     */
+    public void applyPendingSortKeys() {
+        if (pendingSortKeys == null) {
+            return;
+        }
+
+        List<SortKey> keysToApply = pendingSortKeys;
+        pendingSortKeys = null;
+
+        setSortKeys(keysToApply);
+    }
+
     public int getPrimarySortColumn() {
-        List<? extends SortKey> keys = getSortKeys();
+        List<? extends SortKey> keys = getRequestedSortKeys();
 
         if (keys == null || keys.isEmpty()) {
             return FileTableModel.COL_NAME;
@@ -124,7 +160,7 @@ public class FileTableRowSorter
     }
 
     public SortOrder getPrimarySortOrder() {
-        List<? extends SortKey> keys = getSortKeys();
+        List<? extends SortKey> keys = getRequestedSortKeys();
 
         if (keys == null || keys.isEmpty()) {
             return SortOrder.ASCENDING;

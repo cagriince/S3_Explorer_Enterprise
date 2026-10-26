@@ -548,33 +548,41 @@ public final class ExplorerView {
         return wrapper;
     }
 
+
     private JTable createFileTable(FileTableModel model) {
         JTable table = new JTable(model);
+
         table.setDefaultRenderer(
                 Object.class,
                 new PaddedTableCellRenderer());
+
         TableColumn hidden = table.getColumnModel().getColumn(0);
         hidden.setMinWidth(0);
         hidden.setMaxWidth(0);
         hidden.setPreferredWidth(0);
         hidden.setResizable(false);
+
         table.getColumnModel().getColumn(FileTableModel.COL_NAME)
                 .setCellRenderer(new FileTableCellRenderer());
+
         table.getColumnModel().getColumn(FileTableModel.COL_SIZE)
                 .setCellRenderer(new FileSizeRenderer());
+
         table.getColumnModel().getColumn(FileTableModel.COL_LAST_MODIFIED)
                 .setCellRenderer(new InstantRenderer());
+
         updateFileTableRowHeight(table);
-        
+
         FileTableRowSorter sorter = new FileTableRowSorter(model);
         table.setRowSorter(sorter);
+
         sorter.addRowSorterListener(e -> {
-            if (e.getType() == javax.swing.event.RowSorterEvent.Type.SORTED) {
+            if (e.getType()
+                    == javax.swing.event.RowSorterEvent.Type.SORTED) {
                 System.out.printf(
                         "[SORT TIMING] sorter event completed: rows=%d, time=%s%n",
                         table.getRowCount(),
-                        java.time.LocalTime.now()
-                );
+                        java.time.LocalTime.now());
             }
         });
 
@@ -609,36 +617,63 @@ public final class ExplorerView {
                 }
 
                 fileTableSortReloadTimer.restart();
+                table.getTableHeader().repaint();
             }
         });
 
         final javax.swing.table.TableCellRenderer originalRenderer =
                 table.getTableHeader().getDefaultRenderer();
+
         table.getTableHeader().setDefaultRenderer(
                 (table1, value, isSelected, hasFocus, row, column) -> {
-                    Component component = originalRenderer
-                            .getTableCellRendererComponent(
-                                    table1, value, isSelected, hasFocus, row, column);
+                    Component component =
+                            originalRenderer.getTableCellRendererComponent(
+                                    table1,
+                                    value,
+                                    isSelected,
+                                    hasFocus,
+                                    row,
+                                    column);
+
                     if (component instanceof JLabel label) {
                         label.setIcon(null);
-                        if (table1.getRowSorter() != null) {
+
+                        if (table1.getRowSorter()
+                                instanceof FileTableRowSorter fileSorter) {
+
                             List<? extends RowSorter.SortKey> sortKeys =
-                                    table1.getRowSorter().getSortKeys();
+                                    fileSorter.getRequestedSortKeys();
+
                             for (RowSorter.SortKey key : sortKeys) {
                                 if (key.getColumn() == column && column != 0) {
-                                    if (key.getSortOrder() == SortOrder.ASCENDING) {
-                                        label.setIcon(UIManager.getIcon("Table.ascendingSortIcon"));
-                                    } else if (key.getSortOrder() == SortOrder.DESCENDING) {
-                                        label.setIcon(UIManager.getIcon("Table.descendingSortIcon"));
+                                    if (key.getSortOrder()
+                                            == SortOrder.ASCENDING) {
+                                        label.setIcon(
+                                                UIManager.getIcon(
+                                                        "Table.ascendingSortIcon"));
+                                    } else if (key.getSortOrder()
+                                            == SortOrder.DESCENDING) {
+                                        label.setIcon(
+                                                UIManager.getIcon(
+                                                        "Table.descendingSortIcon"));
                                     }
                                 }
                             }
                         }
                     }
+
                     return component;
                 });
 
-        table.getRowSorter().toggleSortOrder(1);
+        // Set the initial sort directly; do not create a pending request.
+        sorter.setSortKeys(List.of(
+                new RowSorter.SortKey(
+                        FileTableModel.COL_FOLDER,
+                        SortOrder.ASCENDING),
+                new RowSorter.SortKey(
+                        FileTableModel.COL_NAME,
+                        SortOrder.ASCENDING)));
+
         table.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
@@ -647,23 +682,14 @@ public final class ExplorerView {
                 }
             }
         });
+
         table.getSelectionModel().addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting() && updateActionStates != null) {
                 updateActionStates.run();
             }
         });
+
         return table;
-    }
-
-    private void updateFileTableRowHeight(JTable table) {
-        if (table == null) {
-            return;
-        }
-
-        FontMetrics fontMetrics = table.getFontMetrics(table.getFont());
-        int rowHeight = fontMetrics.getHeight() + 8;
-
-        table.setRowHeight(rowHeight);
     }
     
     private void installPopup(JComponent component) {
@@ -928,6 +954,17 @@ public final class ExplorerView {
 
         downloadDecryptedButton.setVisible(
                 configured);
+    }
+
+    private void updateFileTableRowHeight(JTable table) {
+        if (table == null) {
+            return;
+        }
+
+        FontMetrics fontMetrics = table.getFontMetrics(table.getFont());
+        int rowHeight = fontMetrics.getHeight() + 8;
+
+        table.setRowHeight(rowHeight);
     }
 
     public void updateFileTableRowHeight() {

@@ -5511,6 +5511,7 @@ public class ExplorerPanel extends JPanel {
         return rows;
     }
 
+
     private void applyPreparedFileTableRows(
             List<S3FileItem> rows,
             LimitedFolderContent content,
@@ -5519,7 +5520,14 @@ public class ExplorerPanel extends JPanel {
 
         currentFileTableLimitReached = content.fileLimitReached();
 
+        if (view.getFileTable().getRowSorter()
+                instanceof FileTableRowSorter sorter) {
+            sorter.applyPendingSortKeys();
+        }
+
         view.getFileTableModel().setFiles(rows);
+
+        view.getFileTable().getTableHeader().repaint();
 
         updateFileFolderInfo(content);
 
@@ -8933,8 +8941,15 @@ public class ExplorerPanel extends JPanel {
                 && visibleOperationDialogs.contains(fileTableDialog);
     }
 
+
     private void reloadCurrentFileTableAfterSort() {
         if (!currentFileTableLimitReached) {
+            if (view.getFileTable().getRowSorter()
+                    instanceof FileTableRowSorter sorter) {
+                sorter.applyPendingSortKeys();
+                view.getFileTable().getTableHeader().repaint();
+            }
+
             return;
         }
 
