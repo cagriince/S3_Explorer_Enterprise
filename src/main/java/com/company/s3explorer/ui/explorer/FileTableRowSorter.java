@@ -17,13 +17,6 @@ public class FileTableRowSorter
     private final Map<Character, CollationKey> characterKeyCache =
             new HashMap<>();
 
-    /*
-     * Sort keys requested by the user but not yet applied to the table.
-     * This prevents Swing from sorting the current (possibly limited)
-     * rows before the background reload has prepared the correct rows.
-     */
-    private List<SortKey> pendingSortKeys;
-
     public FileTableRowSorter(FileTableModel model) {
         super(model);
 
@@ -60,6 +53,13 @@ public class FileTableRowSorter
                 FileTableModel.COL_LAST_MODIFIED,
                 Comparator.nullsFirst(Instant::compareTo));
     }
+
+    /*
+     * Sort keys requested by the user but not yet applied to the table.
+     * This prevents Swing from sorting the current (possibly limited)
+     * rows before the background reload has prepared the correct rows.
+     */
+    private List<SortKey> pendingSortKeys;
 
     @Override
     public void toggleSortOrder(int column) {
@@ -123,10 +123,6 @@ public class FileTableRowSorter
         }
 
         return getSortKeys();
-    }
-
-    public boolean hasPendingSortRequest() {
-        return pendingSortKeys != null;
     }
 
     /**

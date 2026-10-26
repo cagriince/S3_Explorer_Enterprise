@@ -8387,22 +8387,6 @@ public class ExplorerPanel extends JPanel {
                 });
     }
 
-    private void writeCsvField(
-            java.io.BufferedWriter writer,
-            Object value) throws IOException {
-
-        // Write a comma before every field except the first one.
-        // A new CSV row starts with an empty field count.
-        writer.write('"');
-
-        if (value != null) {
-            writer.write(
-                    String.valueOf(value).replace("\"", "\"\""));
-        }
-
-        writer.write('"');
-    }
-
     private void writeCsvRow(
             java.io.BufferedWriter writer,
             Object... values) throws IOException {
@@ -8517,40 +8501,6 @@ public class ExplorerPanel extends JPanel {
         // 0 = Overwrite, 1 = Skip, 2 or close = Cancel
         return result;
     }
-
-    private boolean confirmUploadOverwrite(
-            String bucket,
-            String objectKey) {
-
-        if (!getService().objectExists(bucket, objectKey)) {
-            return true;
-        }
-
-        Object[] options = {
-                "Overwrite",
-                "Skip",
-                "Cancel"
-        };
-
-        int result = JOptionPane.showOptionDialog(
-                SwingUtilities.getWindowAncestor(this),
-                "The file already exists:\n"
-                        + objectKey
-                        + "\n\nDo you want to overwrite it?",
-                "File Conflict",
-                JOptionPane.DEFAULT_OPTION,
-                JOptionPane.WARNING_MESSAGE,
-                null,
-                options,
-                options[1]);
-
-        if (result == 0) {
-            return true;
-        }
-
-        return false;
-    }
-
 
     private void uploadFile() {
 
@@ -8933,13 +8883,6 @@ public class ExplorerPanel extends JPanel {
             }
         }
     }
-
-    private boolean isFileTablePreparationDialogActive() {
-
-        return fileTableDialog != null
-                && visibleOperationDialogs.contains(fileTableDialog);
-    }
-
 
     private void reloadCurrentFileTableAfterSort() {
         if (!currentFileTableLimitReached) {
