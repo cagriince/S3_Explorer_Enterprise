@@ -21,68 +21,52 @@ public final class FileIconRegistry {
     private static final Map<String, String>
             DISPLAY_NAMES;
 
+    private static final List<Map.Entry<String, String>>
+            EXTENSIONS_BY_LENGTH_DESC;
+
     static {
-        RegistryData data =
-                loadDefinitions();
+        RegistryData data = loadDefinitions();
 
-        FILE_NAME_INDEX =
-                data.fileNames();
+        FILE_NAME_INDEX = data.fileNames();
+        EXTENSION_INDEX = data.extensions();
+        DISPLAY_NAMES = data.displayNames();
 
-        EXTENSION_INDEX =
-                data.extensions();
-
-        DISPLAY_NAMES =
-                data.displayNames();
+        EXTENSIONS_BY_LENGTH_DESC =
+                EXTENSION_INDEX.entrySet()
+                        .stream()
+                        .sorted(
+                                (a, b) -> Integer.compare(
+                                        b.getKey().length(),
+                                        a.getKey().length()))
+                        .toList();
     }
 
     private FileIconRegistry() {
     }
 
-    public static String findIconName(
-            String filename) {
+    public static String findIconName(String filename) {
 
-        if (filename == null
-                || filename.isBlank()) {
-
+        if (filename == null || filename.isBlank()) {
             return DEFAULT_ICON;
         }
 
-        String normalized =
-                filename.toLowerCase(
-                        Locale.ROOT);
+        String normalized = filename.toLowerCase(Locale.ROOT);
 
-        String exact =
-                FILE_NAME_INDEX.get(normalized);
+        String exact = FILE_NAME_INDEX.get(normalized);
 
         if (exact != null) {
             return exact;
         }
 
-        String matchedIcon = null;
-        int matchLength = 0;
+        for (Map.Entry<String, String> entry
+                : EXTENSIONS_BY_LENGTH_DESC) {
 
-        for (Map.Entry<String, String> entry :
-                EXTENSION_INDEX.entrySet()) {
-
-            String extension =
-                    entry.getKey();
-
-            if (extension.length()
-                    > matchLength
-                    && normalized.endsWith(
-                    "." + extension)) {
-
-                matchedIcon =
-                        entry.getValue();
-
-                matchLength =
-                        extension.length();
+            if (normalized.endsWith("." + entry.getKey())) {
+                return entry.getValue();
             }
         }
 
-        return matchedIcon != null
-                ? matchedIcon
-                : DEFAULT_ICON;
+        return DEFAULT_ICON;
     }
 
     public static FileTypeDefinition findFileType(

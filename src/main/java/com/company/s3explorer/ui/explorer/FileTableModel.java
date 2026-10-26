@@ -62,18 +62,9 @@ public class FileTableModel extends AbstractTableModel {
             case COL_NAME ->
                     item;
 
-            case COL_TYPE -> {
+            case COL_TYPE ->
+                    item.getTypeDisplayName();
 
-                if (item.isFolder()) {
-                    yield "Folder";
-                }
-
-                yield FileIconRegistry
-                        .findFileType(
-                                item.getKey())
-                        .displayName();
-            }
-            
             case COL_SIZE ->
                     item.isFolder()
                             ? null

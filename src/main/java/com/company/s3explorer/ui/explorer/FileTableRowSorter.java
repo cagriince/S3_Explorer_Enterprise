@@ -1,3 +1,4 @@
+
 package com.company.s3explorer.ui.explorer;
 
 import com.company.s3explorer.util.S3Util;
@@ -15,40 +16,21 @@ public class FileTableRowSorter
     private final Map<Character, CollationKey> characterKeyCache =
             new HashMap<>();
 
-    public FileTableRowSorter(
-            FileTableModel model) {
-
+    public FileTableRowSorter(FileTableModel model) {
         super(model);
 
-        /*
-         * ÖNEMLİ:
-         *
-         * FileTableModel'de rename / replace işlemi
-         *
-         *     fireTableRowsUpdated(...)
-         *
-         * gönderiyor.
-         *
-         * Sorter'ın bu update sonrasında satırı mevcut
-         * sıralama kriterine göre yeniden konumlandırması gerekir.
-         *
-         * Varsayılan Swing davranışında sortsOnUpdates false'tur.
-         */
         setSortsOnUpdates(true);
 
         Collator turkishCollator =
-                Collator.getInstance(
-                        new Locale("tr", "TR"));
+                Collator.getInstance(new Locale("tr", "TR"));
 
-        turkishCollator.setStrength(
-                Collator.PRIMARY);
+        turkishCollator.setStrength(Collator.PRIMARY);
 
-        this.setComparator(
+        setComparator(
                 FileTableModel.COL_FOLDER,
-                Comparator.nullsFirst(
-                        Integer::compareTo));
+                Comparator.nullsFirst(Integer::compareTo));
 
-        this.setComparator(
+        setComparator(
                 FileTableModel.COL_NAME,
                 (left, right) ->
                         S3Util.naturalTurkishCompare(
@@ -56,73 +38,62 @@ public class FileTableRowSorter
                                 ((S3FileItem) right).getDisplayName(),
                                 turkishCollator,
                                 characterKeyCache));
-        /*        Comparator.comparing(
-                        item ->
-                                S3Util.extractFolderName(
-                                        ((S3FileItem) item).getKey()),
-                        turkishCollator)*/
 
-        this.setComparator(
+        /*
+         * Type values are strings and usually repeat across many rows.
+         * Avoid the default String comparator for this large table.
+         */
+        setComparator(
+                FileTableModel.COL_TYPE,
+                Comparator.nullsFirst(
+                        String.CASE_INSENSITIVE_ORDER));
+
+        setComparator(
                 FileTableModel.COL_SIZE,
-                Comparator.nullsFirst(
-                        Long::compareTo));
+                Comparator.nullsFirst(Long::compareTo));
 
-        this.setComparator(
+        setComparator(
                 FileTableModel.COL_LAST_MODIFIED,
-                Comparator.nullsFirst(
-                        Instant::compareTo));
+                Comparator.nullsFirst(Instant::compareTo));
     }
-
 
     @Override
     public void toggleSortOrder(int column) {
         long startNanos = System.nanoTime();
 
         try {
-            /*
-             * Folder/File kolonuna basılırsa
-             * mevcut Swing davranışını koru.
-             */
             if (column == FileTableModel.COL_FOLDER) {
                 super.toggleSortOrder(column);
                 return;
             }
 
-            SortOrder yeniDuzen = SortOrder.ASCENDING;
+            SortOrder newOrder = SortOrder.ASCENDING;
 
-            List<? extends SortKey> mevcutAnahtarlar = getSortKeys();
+            List<? extends SortKey> currentKeys = getSortKeys();
 
-            /*
-             * Tıklanan kolonun mevcut yönünü bul.
-             */
-            for (SortKey anahtar : mevcutAnahtarlar) {
-                if (anahtar.getColumn() == column) {
-                    if (anahtar.getSortOrder() == SortOrder.ASCENDING) {
-                        yeniDuzen = SortOrder.DESCENDING;
+            for (SortKey key : currentKeys) {
+                if (key.getColumn() == column) {
+                    if (key.getSortOrder() == SortOrder.ASCENDING) {
+                        newOrder = SortOrder.DESCENDING;
                     } else {
-                        yeniDuzen = SortOrder.ASCENDING;
+                        newOrder = SortOrder.ASCENDING;
                     }
                     break;
                 }
             }
 
-            List<SortKey> yeniAnahtarlar = new ArrayList<>();
+            List<SortKey> newKeys = new ArrayList<>();
 
-            /*
-             * Klasörler her zaman dosyalardan önce.
-             */
-            yeniAnahtarlar.add(
+            // Keep folders before files.
+            newKeys.add(
                     new SortKey(
                             FileTableModel.COL_FOLDER,
                             SortOrder.ASCENDING));
 
-            /*
-             * Kullanıcının seçtiği kolon.
-             */
-            yeniAnahtarlar.add(
-                    new SortKey(column, yeniDuzen));
+            // Apply the requested sort column and direction.
+            newKeys.add(new SortKey(column, newOrder));
 
-            setSortKeys(yeniAnahtarlar);
+            setSortKeys(newKeys);
 
         } finally {
             long elapsedMillis =
@@ -137,21 +108,14 @@ public class FileTableRowSorter
     }
 
     public int getPrimarySortColumn() {
+        List<? extends SortKey> keys = getSortKeys();
 
-        List<? extends SortKey> keys =
-                getSortKeys();
-
-        if (keys == null
-                || keys.isEmpty()) {
-
+        if (keys == null || keys.isEmpty()) {
             return FileTableModel.COL_NAME;
         }
 
         for (SortKey key : keys) {
-
-            if (key.getColumn()
-                    != FileTableModel.COL_FOLDER) {
-
+            if (key.getColumn() != FileTableModel.COL_FOLDER) {
                 return key.getColumn();
             }
         }
@@ -160,21 +124,14 @@ public class FileTableRowSorter
     }
 
     public SortOrder getPrimarySortOrder() {
+        List<? extends SortKey> keys = getSortKeys();
 
-        List<? extends SortKey> keys =
-                getSortKeys();
-
-        if (keys == null
-                || keys.isEmpty()) {
-
+        if (keys == null || keys.isEmpty()) {
             return SortOrder.ASCENDING;
         }
 
         for (SortKey key : keys) {
-
-            if (key.getColumn()
-                    != FileTableModel.COL_FOLDER) {
-
+            if (key.getColumn() != FileTableModel.COL_FOLDER) {
                 return key.getSortOrder();
             }
         }

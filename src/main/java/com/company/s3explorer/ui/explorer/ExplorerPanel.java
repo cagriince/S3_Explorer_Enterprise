@@ -120,6 +120,7 @@ public class ExplorerPanel extends JPanel {
     private boolean suppressBucketSelectionEvent;
     private boolean suppressRepositorySelectionEvent;
     private boolean forceBucketReload;
+    private boolean currentFileTableLimitReached;
 
     private String lastAppliedFilterText = "";
     private String lastAppliedItemType = "All";
@@ -237,7 +238,7 @@ public class ExplorerPanel extends JPanel {
                 exportFileListAction,
                 node -> treeController.loadChildren(node),
                 this::openSelectedFileItem,
-                this::reloadCurrentFileTable,
+                this::reloadCurrentFileTableAfterSort,
                 this::updateActionStates,
                 clipboardController::isEmpty,
                 this::hasEncryptionConfiguration,
@@ -5452,6 +5453,8 @@ public class ExplorerPanel extends JPanel {
             String bucket,
             String prefix) {
 
+        currentFileTableLimitReached = content.fileLimitReached();
+
         view.getFileTableModel().setFiles(rows);
 
         updateFileFolderInfo(content);
@@ -8864,5 +8867,13 @@ public class ExplorerPanel extends JPanel {
 
         return fileTableDialog != null
                 && visibleOperationDialogs.contains(fileTableDialog);
+    }
+
+    private void reloadCurrentFileTableAfterSort() {
+        if (!currentFileTableLimitReached) {
+            return;
+        }
+
+        reloadCurrentFileTable();
     }
 }
