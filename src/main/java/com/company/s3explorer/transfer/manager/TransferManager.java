@@ -1058,8 +1058,9 @@ public class TransferManager {
             boolean overwrite) {
 
         TransferGroup group =
-                createObjectOperationGroup(
+                createOperationGroup(
                         TransferType.RENAME,
+                        S3Util.extractFileName(keySource),
                         repositoryId,
                         bucket,
                         keySource,
@@ -1736,50 +1737,6 @@ public class TransferManager {
                 targetRepositoryId,
                 targetBucket,
                 targetPrefix);
-    }
-
-    private TransferGroup createObjectOperationGroup(
-            TransferType operation,
-            String sourceRepositoryId,
-            String sourceBucket,
-            String sourceKey,
-            String targetRepositoryId,
-            String targetBucket,
-            String targetKey) {
-
-        String displayName =
-                S3Util.extractFileName(sourceKey);
-
-        if (displayName == null
-                || displayName.isBlank()) {
-
-            displayName = sourceKey;
-        }
-
-        String source =
-                buildGroupLocation(
-                        sourceRepositoryId,
-                        sourceBucket,
-                        sourceKey);
-
-        String target =
-                buildGroupLocation(
-                        targetRepositoryId,
-                        targetBucket,
-                        targetKey);
-
-        return new TransferGroup(
-                UUID.randomUUID(),
-                displayName,
-                operation,
-                source,
-                target,
-                sourceRepositoryId,
-                sourceBucket,
-                sourceKey,
-                targetRepositoryId,
-                targetBucket,
-                targetKey);
     }
 
     private TransferGroup createFolderOperationGroup(
