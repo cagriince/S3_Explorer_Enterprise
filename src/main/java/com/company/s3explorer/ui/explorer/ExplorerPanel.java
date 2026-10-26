@@ -1607,6 +1607,7 @@ public class ExplorerPanel extends JPanel {
     }
 
 
+
     private void loadFiles(
             String bucket,
             String prefix,
@@ -1646,6 +1647,32 @@ public class ExplorerPanel extends JPanel {
 
         currentFileBucket = bucket;
         currentFilePrefix = prefix;
+
+        final int fileLimit =
+                getSelectedFileTableRowLimit();
+
+        final FileTableSortSpec sortSpec =
+                getCurrentFileSortSpec();
+
+        final String repositoryId =
+                getCurrentRepository().getId();
+
+        final var filter =
+                getCurrentFileTableFilter();
+
+        log.info(
+                "[FILE LOAD TRACE] START generation={}, bucket={}, prefix={}, "
+                        + "sortColumn={}, ascending={}, fileLimit={}, "
+                        + "cachedSnapshot={}, discoveryInProgress={}, filterRefresh={}",
+                generation,
+                bucket,
+                prefix,
+                sortSpec.getColumn(),
+                sortSpec.isAscending(),
+                fileLimit,
+                cachedSnapshotAvailable,
+                discoveryInProgress,
+                filterRefresh);
 
         setFileTableLoading(true);
 
@@ -1720,18 +1747,6 @@ public class ExplorerPanel extends JPanel {
                     0);
         }
 
-        final int fileLimit =
-                getSelectedFileTableRowLimit();
-
-        final FileTableSortSpec sortSpec =
-                getCurrentFileSortSpec();
-
-        final String repositoryId =
-                getCurrentRepository().getId();
-
-        final var filter =
-                getCurrentFileTableFilter();
-
         contentLoader.loadFolder(
                         explorerPool,
                         bucket,
@@ -1749,6 +1764,27 @@ public class ExplorerPanel extends JPanel {
                         filter)
                 .thenApplyAsync(content -> {
 
+                    /*
+                     * The folder discovery/display sorting has completed.
+                     * If a newer request exists, skip the additional row
+                     * preparation for this obsolete request.
+                     */
+                    if (generation != fileLoadGeneration.get()) {
+
+                        log.info(
+                                "[FILE LOAD TRACE] STALE_AFTER_CONTENT "
+                                        + "generation={}, currentGeneration={}, "
+                                        + "bucket={}, prefix={}, sortColumn={}, ascending={}",
+                                generation,
+                                fileLoadGeneration.get(),
+                                bucket,
+                                prefix,
+                                sortSpec.getColumn(),
+                                sortSpec.isAscending());
+
+                        return null;
+                    }
+
                     long prepareStart =
                             System.nanoTime();
 
@@ -1764,7 +1800,9 @@ public class ExplorerPanel extends JPanel {
                             (System.nanoTime() - prepareStart) / 1_000_000;
 
                     log.info(
-                            "[FILE TABLE TIMING] row preparation: {} ms, rows={}",
+                            "[FILE TABLE TIMING] generation={}, "
+                                    + "row preparation: {} ms, rows={}",
+                            generation,
                             prepareMillis,
                             rows.size());
 
@@ -1773,88 +1811,119 @@ public class ExplorerPanel extends JPanel {
                             rows);
 
                 }, explorerPool)
-                .thenAccept(prepared ->
-                        SwingUtilities.invokeLater(() -> {
+                .thenAccept(prepared -> {
 
-                            if (generation != fileLoadGeneration.get()) {
-                                return;
-                            }
+                    // A stale request deliberately returns null above.
+                    if (prepared == null) {
+                        return;
+                    }
 
-                            long applyStart =
-                                    System.nanoTime();
+                    SwingUtilities.invokeLater(() -> {
 
-                            applyPreparedFileTableRows(
-                                    prepared.rows(),
-                                    prepared.content(),
+                        if (generation != fileLoadGeneration.get()) {
+
+                            log.info(
+                                    "[FILE LOAD TRACE] STALE_BEFORE_APPLY "
+                                            + "generation={}, currentGeneration={}, "
+                                            + "bucket={}, prefix={}",
+                                    generation,
+                                    fileLoadGeneration.get(),
                                     bucket,
                                     prefix);
 
-                            long applyMillis =
-                                    (System.nanoTime() - applyStart) / 1_000_000;
+                            return;
+                        }
 
-                            log.info(
-                                    "[FILE TABLE TIMING] model apply: {} ms, rows={}",
-                                    applyMillis,
-                                    prepared.rows().size());
+                        long applyStart =
+                                System.nanoTime();
 
-                            setFileTableLoading(false);
+                        applyPreparedFileTableRows(
+                                prepared.rows(),
+                                prepared.content(),
+                                bucket,
+                                prefix);
 
-                            hideOperationDialog(
-                                    OperationDialogType.FILE_TABLE);
+                        long applyMillis =
+                                (System.nanoTime() - applyStart) / 1_000_000;
 
-                            hideOperationDialog(
-                                    OperationDialogType.FILTER_REFRESH);
+                        log.info(
+                                "[FILE TABLE TIMING] generation={}, "
+                                        + "model apply: {} ms, rows={}",
+                                generation,
+                                applyMillis,
+                                prepared.rows().size());
 
-                            if (!pasteSelectionCollectionInProgress) {
+                        log.info(
+                                "[FILE LOAD TRACE] APPLIED generation={}, "
+                                        + "bucket={}, prefix={}, rows={}",
+                                generation,
+                                bucket,
+                                prefix,
+                                prepared.rows().size());
 
-                                if (pendingFileTableSelectionKeys != null
-                                        && !pendingFileTableSelectionKeys.isEmpty()) {
+                        setFileTableLoading(false);
 
-                                    restorePendingPasteSelection();
+                        hideOperationDialog(
+                                OperationDialogType.FILE_TABLE);
 
-                                } else if (pendingFileTableSelectionKey != null) {
+                        hideOperationDialog(
+                                OperationDialogType.FILTER_REFRESH);
 
-                                    restoreFileTableSelectionByKey(
-                                            pendingFileTableSelectionKey);
+                        if (!pasteSelectionCollectionInProgress) {
 
-                                    pendingFileTableSelectionKey = null;
+                            if (pendingFileTableSelectionKeys != null
+                                    && !pendingFileTableSelectionKeys.isEmpty()) {
 
-                                } else if (preservedFileTableSelectionKeys != null
-                                        && !preservedFileTableSelectionKeys.isEmpty()) {
+                                restorePendingPasteSelection();
 
-                                    List<String> preservedKeys =
-                                            new ArrayList<>(
-                                                    preservedFileTableSelectionKeys);
+                            } else if (pendingFileTableSelectionKey != null) {
 
-                                    restoreFileTableSelectionByKeys(
-                                            preservedKeys);
+                                restoreFileTableSelectionByKey(
+                                        pendingFileTableSelectionKey);
 
-                                    preservedFileTableSelectionKeys = null;
+                                pendingFileTableSelectionKey = null;
 
-                                    log.debug(
-                                            "[FILE TABLE SELECTION] restored preserved selection keys={}",
-                                            preservedKeys);
-                                }
+                            } else if (preservedFileTableSelectionKeys != null
+                                    && !preservedFileTableSelectionKeys.isEmpty()) {
+
+                                List<String> preservedKeys =
+                                        new ArrayList<>(
+                                                preservedFileTableSelectionKeys);
+
+                                restoreFileTableSelectionByKeys(
+                                        preservedKeys);
+
+                                preservedFileTableSelectionKeys = null;
+
+                                log.debug(
+                                        "[FILE TABLE SELECTION] restored preserved selection keys={}",
+                                        preservedKeys);
                             }
+                        }
 
-                            if (pendingDeleteSelectionViewRow >= 0) {
+                        if (pendingDeleteSelectionViewRow >= 0) {
 
-                                restoreFileTableSelectionAfterDelete();
+                            restoreFileTableSelectionAfterDelete();
 
-                                pendingDeleteSelectionViewRow = -1;
-                            }
+                            pendingDeleteSelectionViewRow = -1;
+                        }
 
-                            if (restoreFocus || restoreFileTableFocus) {
+                        if (restoreFocus || restoreFileTableFocus) {
 
-                                restoreFileTableFocus();
+                            restoreFileTableFocus();
 
-                                restoreFileTableFocus = false;
-                            }
-                        }))
+                            restoreFileTableFocus = false;
+                        }
+                    });
+                })
                 .exceptionally(ex -> {
 
                     log.error(
-                            "[FILE LOAD] failed: {}",
+                            "[FILE LOAD TRACE] FAILED generation={}, "
+                                    + "bucket={}, prefix={}, error={}",
+                            generation,
+                            bucket,
+                            prefix,
                             S3ErrorResolver.getDetailedMessage(ex));
 
                     SwingUtilities.invokeLater(() -> {
