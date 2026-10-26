@@ -5512,6 +5512,7 @@ public class ExplorerPanel extends JPanel {
     }
 
 
+
     private void applyPreparedFileTableRows(
             List<S3FileItem> rows,
             LimitedFolderContent content,
@@ -5520,11 +5521,9 @@ public class ExplorerPanel extends JPanel {
 
         currentFileTableLimitReached = content.fileLimitReached();
 
-        if (view.getFileTable().getRowSorter()
-                instanceof FileTableRowSorter sorter) {
-            sorter.applyPendingSortKeys();
-        }
-
+        // Update the model first.
+        // FileTableRowSorter.allRowsChanged() will consume pending sort
+        // keys and apply them to the new rows, avoiding a sort of stale rows.
         view.getFileTableModel().setFiles(rows);
 
         view.getFileTable().getTableHeader().repaint();
