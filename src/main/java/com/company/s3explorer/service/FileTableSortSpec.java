@@ -54,6 +54,7 @@ public final class FileTableSortSpec {
         return ascending;
     }
 
+
     public Comparator<S3Object> createFileComparator(
             Map<String, CollationKey> collationKeyCache) {
 
@@ -64,6 +65,14 @@ public final class FileTableSortSpec {
 
         long[] cacheMissCount = {0};
         long[] keyCreationNanos = {0};
+
+        /*
+         * Reuse character-level collation keys across comparisons.
+         * This avoids creating a full CollationKey for every
+         * distinct filename when comparing secondary sort values.
+         */
+        Map<Character, CollationKey> characterKeyCache =
+                new HashMap<>();
 
         Comparator<S3Object> primaryComparator;
 
@@ -83,9 +92,6 @@ public final class FileTableSortSpec {
 
             case NAME:
             default:
-                Map<Character, CollationKey> characterKeyCache =
-                        new HashMap<>();
-
                 primaryComparator =
                         (left, right) ->
                                 S3Util.naturalTurkishCompare(
@@ -99,46 +105,12 @@ public final class FileTableSortSpec {
         Comparator<S3Object> secondaryComparator = null;
 
         if (column != Column.NAME) {
-            secondaryComparator = (left, right) -> {
-
-                CollationKey leftKey =
-                        collationKeyCache.computeIfAbsent(
-                                left.key(),
-                                key -> {
-                                    long start = System.nanoTime();
-
-                                    CollationKey result =
-                                            turkishCollator.getCollationKey(
-                                                    key);
-
-                                    keyCreationNanos[0] +=
-                                            System.nanoTime() - start;
-
-                                    cacheMissCount[0]++;
-
-                                    return result;
-                                });
-
-                CollationKey rightKey =
-                        collationKeyCache.computeIfAbsent(
-                                right.key(),
-                                key -> {
-                                    long start = System.nanoTime();
-
-                                    CollationKey result =
-                                            turkishCollator.getCollationKey(
-                                                    key);
-
-                                    keyCreationNanos[0] +=
-                                            System.nanoTime() - start;
-
-                                    cacheMissCount[0]++;
-
-                                    return result;
-                                });
-
-                return leftKey.compareTo(rightKey);
-            };
+            secondaryComparator = (left, right) ->
+                    S3Util.naturalTurkishCompare(
+                            left.key(),
+                            right.key(),
+                            turkishCollator,
+                            characterKeyCache);
         }
 
         return new MeasuredComparator(
