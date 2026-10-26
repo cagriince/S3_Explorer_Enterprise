@@ -107,6 +107,8 @@ public final class ExplorerView {
     private final BooleanSupplier encryptionConfigured;
     private Runnable serverFilterApplyListener;
 
+    private Timer fileTableSortReloadTimer;
+
     public ExplorerView(
             Action downloadAction,
             Action downloadDecryptedAction,
@@ -576,22 +578,38 @@ public final class ExplorerView {
             }
         });
         table.getTableHeader().setReorderingAllowed(false);
+
+        table.getTableHeader().setReorderingAllowed(false);
+
         table.getTableHeader().addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
                 int viewColumn = table.columnAtPoint(e.getPoint());
+
                 if (viewColumn < 0) {
                     return;
                 }
-                int modelColumn = table.convertColumnIndexToModel(viewColumn);
+
+                int modelColumn =
+                        table.convertColumnIndexToModel(viewColumn);
+
                 if (modelColumn == FileTableModel.COL_FOLDER) {
                     return;
                 }
-                SwingUtilities.invokeLater(() -> {
-                    if (reloadCurrentFileTable != null) {
-                        reloadCurrentFileTable.run();
-                    }
-                });
+
+                if (fileTableSortReloadTimer == null) {
+                    fileTableSortReloadTimer = new Timer(
+                            200,
+                            event -> {
+                                if (reloadCurrentFileTable != null) {
+                                    reloadCurrentFileTable.run();
+                                }
+                            });
+
+                    fileTableSortReloadTimer.setRepeats(false);
+                }
+
+                fileTableSortReloadTimer.restart();
             }
         });
 
