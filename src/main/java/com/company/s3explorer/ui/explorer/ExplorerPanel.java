@@ -5433,23 +5433,6 @@ public class ExplorerPanel extends JPanel {
                 }));
     }
 
-    private void applyLimitedFolderContent(
-            String bucket,
-            String prefix,
-            LimitedFolderContent content) {
-
-        String repositoryId = getCurrentRepository().getId();
-
-        List<S3FileItem> rows = createFileTableRows(
-                repositoryId,
-                bucket,
-                prefix,
-                content,
-                flatBrowsingEnabled);
-
-        applyPreparedFileTableRows(rows, content, bucket, prefix);
-    }
-
     private List<S3FileItem> createFileTableRows(
             String repositoryId,
             String bucket,
