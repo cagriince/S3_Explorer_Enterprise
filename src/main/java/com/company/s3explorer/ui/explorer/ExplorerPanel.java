@@ -5039,11 +5039,6 @@ public class ExplorerPanel extends JPanel {
 
     private void setFileTableLoading(boolean loading) {
         view.getFileTable().setEnabled(!loading);
-
-        if (loading) {
-            view.getFileTable().clearSelection();
-            view.getFileTableModel().clearAndRepaint();
-        }
     }
 
     private void goToParentFolder() {
