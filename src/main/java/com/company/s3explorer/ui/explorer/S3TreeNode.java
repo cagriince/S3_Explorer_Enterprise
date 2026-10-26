@@ -3,8 +3,8 @@ package com.company.s3explorer.ui.explorer;
 import javax.swing.tree.DefaultMutableTreeNode;
 
 public class S3TreeNode extends DefaultMutableTreeNode {
-    public static String ROOT_PREFIX = "";
-    public static String LOADING = "Loading...";
+    public static final String ROOT_PREFIX = "";
+    public static final String LOADING = "Loading...";
 
     private String displayName;
     private String bucket;

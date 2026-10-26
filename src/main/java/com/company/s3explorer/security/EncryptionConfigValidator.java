@@ -7,7 +7,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public final class EncryptionConfigValidator {
-    public static String BYTES_REGEX = "[-+]?\\d+";
+    public static final String BYTES_REGEX = "[-+]?\\d+";
     public enum ENCRYPTION_FIELDS {
         ENCRYPTION_IV("Encryption IV"),
         ENCRYPTION_KEY("Encryption key");

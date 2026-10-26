@@ -15,7 +15,7 @@ public class UIThemeManager {
     public static String TRANSFER_PANEL_COLOR_BUCKET;
     public static String TRANSFER_PANEL_COLOR_FILEFOLDER;
     public static String TRANSFER_PANEL_COLOR_GROUP;
-    private static List<UITheme> themes;
+    private static final List<UITheme> themes;
 
     static {
         themes = new ArrayList<>();
@@ -47,7 +47,7 @@ public class UIThemeManager {
         }
     }
 
-    public static UITheme DEFAULT_THEME = UIThemeManager.getThemeFromClassName(UIManager.getSystemLookAndFeelClassName());
+    public static final UITheme DEFAULT_THEME = UIThemeManager.getThemeFromClassName(UIManager.getSystemLookAndFeelClassName());
 
     private Runnable menuIconUpdater = () -> {};
 

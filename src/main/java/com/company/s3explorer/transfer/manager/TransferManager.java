@@ -1740,10 +1740,10 @@ public class TransferManager {
 
     private TransferGroup createObjectOperationGroup(
             TransferType operation,
-            String sourceRepository,
+            String sourceRepositoryId,
             String sourceBucket,
             String sourceKey,
-            String targetRepository,
+            String targetRepositoryId,
             String targetBucket,
             String targetKey) {
 
@@ -1758,13 +1758,13 @@ public class TransferManager {
 
         String source =
                 buildGroupLocation(
-                        sourceRepository,
+                        sourceRepositoryId,
                         sourceBucket,
                         sourceKey);
 
         String target =
                 buildGroupLocation(
-                        targetRepository,
+                        targetRepositoryId,
                         targetBucket,
                         targetKey);
 
@@ -1774,10 +1774,10 @@ public class TransferManager {
                 operation,
                 source,
                 target,
-                sourceRepository,
+                sourceRepositoryId,
                 sourceBucket,
                 sourceKey,
-                targetRepository,
+                targetRepositoryId,
                 targetBucket,
                 targetKey);
     }

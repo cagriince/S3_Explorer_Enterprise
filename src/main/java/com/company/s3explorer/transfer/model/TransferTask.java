@@ -25,7 +25,7 @@ public class TransferTask {
     private String targetBucket;
     private String targetObjectKey;
 
-    private Set<RefreshTreeNode> affectedPrefixes = new HashSet<>();
+    private final Set<RefreshTreeNode> affectedPrefixes = new HashSet<>();
     private boolean affectsObjectList;
     private boolean affectsFolderTree;
     private boolean overwrite;

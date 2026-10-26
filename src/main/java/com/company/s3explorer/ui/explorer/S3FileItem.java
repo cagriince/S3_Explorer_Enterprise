@@ -8,7 +8,7 @@ import java.time.Instant;
 
 public class S3FileItem {
 
-    public static String PARENT_FOLDER_NAME = "..";
+    public static final String PARENT_FOLDER_NAME = "..";
 
     private final String repositoryId;
     private final String bucket;
