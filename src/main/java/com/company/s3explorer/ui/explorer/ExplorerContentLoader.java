@@ -389,6 +389,7 @@ public final class ExplorerContentLoader {
      * Creates a display-limited result from a complete
      * cached result without making another S3 request.
      */
+
     private LimitedFolderContent createDisplayContent(
             FolderContentSnapshot snapshot,
             int fileLimit,
@@ -399,6 +400,7 @@ public final class ExplorerContentLoader {
 
         long totalStart = System.nanoTime();
 
+        // Filter folders.
         long folderScanStart = System.nanoTime();
 
         List<String> matchingFolders = new java.util.ArrayList<>();
@@ -420,14 +422,40 @@ public final class ExplorerContentLoader {
         long folderScanNanos =
                 System.nanoTime() - folderScanStart;
 
+        /*
+         * Keep only the first fileLimit matching files until the limit
+         * is exceeded. If it is exceeded, switch to a bounded priority
+         * queue and retain only the best candidates according to the
+         * requested sort order.
+         *
+         * The source index is used as a tie-breaker to preserve the
+         * stable ordering of files that compare as equal.
+         */
         long fileScanStart = System.nanoTime();
 
-        List<software.amazon.awssdk.services.s3.model.S3Object>
-                matchingFiles = new java.util.ArrayList<>();
+        List<IndexedFile> selectedFiles =
+                new java.util.ArrayList<>(
+                        Math.min(snapshot.files().size(), fileLimit));
+
+        java.util.PriorityQueue<IndexedFile> bestFiles = null;
+
+        java.util.Comparator<IndexedFile> stableComparator = null;
+
+        long matchingFileCount = 0;
+
+        long comparatorNanos = 0;
+        long selectionAndSortNanos = 0;
 
         if (filter.includesFiles()) {
-            for (software.amazon.awssdk.services.s3.model.S3Object object
-                    : snapshot.files()) {
+            List<software.amazon.awssdk.services.s3.model.S3Object>
+                    sourceFiles = snapshot.files();
+
+            for (int sourceIndex = 0;
+                 sourceIndex < sourceFiles.size();
+                 sourceIndex++) {
+
+                software.amazon.awssdk.services.s3.model.S3Object object =
+                        sourceFiles.get(sourceIndex);
 
                 String displayName = getFilterDisplayName(
                         object.key(),
@@ -435,59 +463,120 @@ public final class ExplorerContentLoader {
                         false,
                         flatBrowsing);
 
-                if (filter.matchesText(displayName)) {
-                    matchingFiles.add(object);
+                if (!filter.matchesText(displayName)) {
+                    continue;
                 }
+
+                matchingFileCount++;
+
+                IndexedFile candidate =
+                        new IndexedFile(sourceIndex, object);
+
+                // Until the limit is exceeded, preserve the original order.
+                if (bestFiles == null
+                        && selectedFiles.size() < fileLimit) {
+
+                    selectedFiles.add(candidate);
+                    continue;
+                }
+
+                /*
+                 * The first matching file beyond the limit triggers
+                 * bounded selection. The queue head must be the worst
+                 * candidate currently retained.
+                 */
+                if (bestFiles == null) {
+                    long comparatorStart = System.nanoTime();
+
+                    java.util.Comparator<
+                            software.amazon.awssdk.services.s3.model.S3Object>
+                            fileComparator =
+                            sortSpec.createFileComparator(collationKeyCache);
+
+                    stableComparator = (left, right) -> {
+                        int comparison = fileComparator.compare(
+                                left.object(),
+                                right.object());
+
+                        if (comparison != 0) {
+                            return comparison;
+                        }
+
+                        return Integer.compare(
+                                left.sourceIndex(),
+                                right.sourceIndex());
+                    };
+
+                    comparatorNanos +=
+                            System.nanoTime() - comparatorStart;
+
+                    long selectionStart = System.nanoTime();
+
+                    bestFiles = new java.util.PriorityQueue<>(
+                            fileLimit,
+                            stableComparator.reversed());
+
+                    bestFiles.addAll(selectedFiles);
+                    selectedFiles.clear();
+
+                    selectionAndSortNanos +=
+                            System.nanoTime() - selectionStart;
+                }
+
+                long selectionStart = System.nanoTime();
+
+                IndexedFile worstCandidate = bestFiles.peek();
+
+                if (stableComparator.compare(
+                        candidate,
+                        worstCandidate) < 0) {
+
+                    bestFiles.poll();
+                    bestFiles.offer(candidate);
+                }
+
+                selectionAndSortNanos +=
+                        System.nanoTime() - selectionStart;
             }
         }
 
         long fileScanNanos =
                 System.nanoTime() - fileScanStart;
 
-        long matchingFileCount = matchingFiles.size();
+        boolean fileLimitReached =
+                matchingFileCount > fileLimit;
 
         /*
-         * When every matching file fits within the display limit,
-         * the JTable RowSorter will sort the displayed rows.
-         *
-         * When the limit is exceeded, sort first so the correct
-         * leading files can be selected before trimming.
+         * If the limit was exceeded, sort only the retained candidates
+         * into their final display order. Otherwise, preserve the source
+         * order as before; the JTable sorter handles the visible order.
          */
-        boolean fileLimitReached =
-                matchingFiles.size() > fileLimit;
+        long finalSortStart = System.nanoTime();
 
-        long comparatorNanos = 0;
-        long sortNanos = 0;
+        List<software.amazon.awssdk.services.s3.model.S3Object>
+                matchingFiles =
+                new java.util.ArrayList<>(
+                        bestFiles == null
+                                ? selectedFiles.size()
+                                : bestFiles.size());
 
-        if (fileLimitReached) {
-            long comparatorStart = System.nanoTime();
+        if (bestFiles == null) {
+            for (IndexedFile indexedFile : selectedFiles) {
+                matchingFiles.add(indexedFile.object());
+            }
+        } else {
+            List<IndexedFile> sortedFiles =
+                    new java.util.ArrayList<>(bestFiles);
 
-            java.util.Comparator<
-                    software.amazon.awssdk.services.s3.model.S3Object>
-                    comparator = sortSpec.createFileComparator(
-                    collationKeyCache);
+            sortedFiles.sort(stableComparator);
 
-            comparatorNanos =
-                    System.nanoTime() - comparatorStart;
-
-            long sortStart = System.nanoTime();
-
-            matchingFiles.sort(comparator);
-
-            sortNanos =
-                    System.nanoTime() - sortStart;
+            for (IndexedFile indexedFile : sortedFiles) {
+                matchingFiles.add(indexedFile.object());
+            }
         }
 
-        long trimStart = System.nanoTime();
-
-        if (fileLimitReached) {
-            matchingFiles.subList(
-                    fileLimit,
-                    matchingFiles.size()).clear();
-        }
-
-        long trimNanos =
-                System.nanoTime() - trimStart;
+        selectionAndSortNanos +=
+                System.nanoTime() - finalSortStart;
 
         long resultStart = System.nanoTime();
 
@@ -511,7 +600,7 @@ public final class ExplorerContentLoader {
                         + "comparatorBuild=%d ms, "
                         + "sort=%d ms, "
                         + "sortSkipped=%s, "
-                        + "trim=%d ms, "
+                        + "trim=0 ms, "
                         + "resultCreation=%d ms, "
                         + "total=%d ms, "
                         + "snapshotFiles=%d, "
@@ -526,9 +615,8 @@ public final class ExplorerContentLoader {
                 TimeUnit.NANOSECONDS.toMillis(folderScanNanos),
                 TimeUnit.NANOSECONDS.toMillis(fileScanNanos),
                 TimeUnit.NANOSECONDS.toMillis(comparatorNanos),
-                TimeUnit.NANOSECONDS.toMillis(sortNanos),
+                TimeUnit.NANOSECONDS.toMillis(selectionAndSortNanos),
                 !fileLimitReached,
-                TimeUnit.NANOSECONDS.toMillis(trimNanos),
                 TimeUnit.NANOSECONDS.toMillis(resultNanos),
                 TimeUnit.NANOSECONDS.toMillis(totalNanos),
                 snapshot.files().size(),
@@ -850,5 +938,11 @@ public final class ExplorerContentLoader {
                 files);
 
         return true;
+    }
+
+
+    private record IndexedFile(
+            int sourceIndex,
+            software.amazon.awssdk.services.s3.model.S3Object object) {
     }
 }
