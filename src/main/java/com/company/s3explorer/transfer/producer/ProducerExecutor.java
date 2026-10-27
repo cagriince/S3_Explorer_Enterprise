@@ -119,9 +119,6 @@ public class ProducerExecutor
             runtime.setMessage(
                     "Producer cancelled");
 
-            runtime.setStatus(
-                    TransferStatus.CANCELLED);
-
             runtime.forceNextUiPublish();
 
             eventBus.publishProducer(runtime);
@@ -176,9 +173,6 @@ public class ProducerExecutor
                 runtime.setMessage(
                         "Producer cancelled");
 
-                runtime.setStatus(
-                        TransferStatus.CANCELLED);
-
                 runtime.forceNextUiPublish();
 
                 eventBus.publishProducer(runtime);
@@ -224,9 +218,6 @@ public class ProducerExecutor
         runtime.setStartTime(
                 Instant.now());
 
-        runtime.setStatus(
-                TransferStatus.RUNNING);
-
         eventBus.publishProducer(runtime);
 
         try {
@@ -238,17 +229,9 @@ public class ProducerExecutor
 
                 runtime.setMessage(
                         "Producer cancelled");
-
-                runtime.setStatus(
-                        TransferStatus.CANCELLED);
-
             } else {
-
                 runtime.setMessage(
                         "Folder preparation completed");
-
-                runtime.setStatus(
-                        TransferStatus.COMPLETED);
             }
 
         }
@@ -256,10 +239,6 @@ public class ProducerExecutor
 
             runtime.setMessage(
                     "Producer cancelled");
-
-            runtime.setStatus(
-                    TransferStatus.CANCELLED);
-
         }
         catch (Exception ex) {
 
@@ -272,17 +251,10 @@ public class ProducerExecutor
 
                 runtime.setMessage(
                         "Producer cancelled");
-
-                runtime.setStatus(
-                        TransferStatus.CANCELLED);
-
             } else {
 
                 runtime.setMessage(
                         ex.getMessage());
-
-                runtime.setStatus(
-                        TransferStatus.FAILED);
             }
 
         }

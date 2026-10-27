@@ -1,14 +1,9 @@
 package com.company.s3explorer.transfer.producer;
 
-import com.company.s3explorer.transfer.TransferStatus;
-
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ProducerRuntime {
-
-    private volatile TransferStatus status =
-            TransferStatus.QUEUED;
 
     private volatile long discoveredCount;
 
@@ -39,12 +34,6 @@ public class ProducerRuntime {
      */
     private final AtomicBoolean cancelledBeforeStart =
             new AtomicBoolean(false);
-
-    public void setStatus(
-            TransferStatus status) {
-
-        this.status = status;
-    }
 
     public void incrementDiscovered() {
 
