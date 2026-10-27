@@ -815,23 +815,9 @@ public final class ExplorerView {
     public JComboBox<Integer> getFileTableRowLimitCombo() { return fileTableRowLimitCombo; }
     public JPanel getBreadcrumbPanel() { return breadcrumbPanel; }
 
-    public JButton getBackNavigationButton() {
-        return backNavigationButton;
-    }
-
-    public JButton getForwardNavigationButton() {
-        return forwardNavigationButton;
-    }
-
-    public JToggleButton getEditLocationButton() {
-        return editLocationButton;
-    }
-
     public JTextField getLocationField() {
         return locationField;
     }
-
-
 
     public void setLocationEditMode(boolean editMode) {
         locationEditMode = editMode;
