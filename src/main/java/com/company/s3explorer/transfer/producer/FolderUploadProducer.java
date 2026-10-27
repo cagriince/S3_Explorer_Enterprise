@@ -63,8 +63,6 @@ public class FolderUploadProducer
                         }
 
                         produceFile(file);
-
-                        runtime.incrementDiscovered();
                     });
 
             group.markProductionCompleted();

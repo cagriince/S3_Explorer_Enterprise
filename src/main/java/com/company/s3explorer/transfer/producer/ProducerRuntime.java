@@ -6,10 +6,6 @@ public class ProducerRuntime {
 
     private volatile boolean cancelRequested;
 
-    private volatile long lastUiPublishTime;
-
-    private volatile Runnable progressCallback;
-
     /*
      * Producer gerçekten execution'a başladı mı?
      *
@@ -27,14 +23,6 @@ public class ProducerRuntime {
     private final AtomicBoolean cancelledBeforeStart =
             new AtomicBoolean(false);
 
-    public void incrementDiscovered() {
-        if (shouldPublishUi(100)
-                && progressCallback != null) {
-
-            progressCallback.run();
-        }
-    }
-
     public boolean isCancelRequested() {
         return cancelRequested;
     }
@@ -43,36 +31,7 @@ public class ProducerRuntime {
         cancelRequested = true;
     }
 
-    public void setProgressCallback(
-            Runnable progressCallback) {
-
-        this.progressCallback =
-                progressCallback;
-    }
-
-    public boolean shouldPublishUi(
-            long intervalMillis) {
-
-        long now =
-                System.currentTimeMillis();
-
-        if (now - lastUiPublishTime
-                >= intervalMillis) {
-
-            lastUiPublishTime = now;
-
-            return true;
-        }
-
-        return false;
-    }
-
-    public void forceNextUiPublish() {
-        lastUiPublishTime = 0;
-    }
-
     public boolean isInterruptedOrCancelRequested() {
-
         return cancelRequested
                 || Thread.currentThread().isInterrupted();
     }

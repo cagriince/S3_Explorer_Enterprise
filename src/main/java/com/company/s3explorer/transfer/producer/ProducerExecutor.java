@@ -65,9 +65,6 @@ public class ProducerExecutor
         ProducerRuntime runtime =
                 new ProducerRuntime();
 
-        runtime.setProgressCallback(
-                () -> eventBus.publishProducer(runtime));
-
         synchronized (lifecycleLock) {
 
             Future<?> future =
@@ -113,8 +110,6 @@ public class ProducerExecutor
              * Önce mantıksal cancellation.
              */
             runtime.requestCancel();
-
-            runtime.forceNextUiPublish();
 
             eventBus.publishProducer(runtime);
 
@@ -165,8 +160,6 @@ public class ProducerExecutor
                  */
                 runtime.requestCancel();
 
-                runtime.forceNextUiPublish();
-
                 eventBus.publishProducer(runtime);
 
                 /*
@@ -215,7 +208,6 @@ public class ProducerExecutor
         catch (Exception ex) {
         }
         finally {
-            runtime.forceNextUiPublish();
             eventBus.publishProducer(runtime);
             runningProducers.remove(runtime);
         }
