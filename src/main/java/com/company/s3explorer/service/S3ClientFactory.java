@@ -164,8 +164,7 @@ public class S3ClientFactory {
              * Authentication problemleri.
              */
             if (isInvalidCredentials(
-                    errorCode,
-                    statusCode)) {
+                    errorCode)) {
 
                 return ConnectionTestResult
                         .invalidCredentials(detail);
@@ -230,8 +229,7 @@ public class S3ClientFactory {
          * InvalidToken
          */
         if (isInvalidCredentials(
-                errorCode,
-                statusCode)) {
+                errorCode)) {
 
             return ConnectionTestResult
                     .invalidCredentials(detail);
@@ -257,8 +255,7 @@ public class S3ClientFactory {
     }
 
     private boolean isInvalidCredentials(
-            String errorCode,
-            int statusCode) {
+            String errorCode) {
 
         if (errorCode == null) {
             return false;
