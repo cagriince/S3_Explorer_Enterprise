@@ -35,11 +35,6 @@ public class FolderMoveProducer
     }
 
     @Override
-    public String getDescription() {
-        return "Preparing folder move...";
-    }
-
-    @Override
     protected TransferTask createTask(
             S3Object object) {
 

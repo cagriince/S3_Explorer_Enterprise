@@ -34,11 +34,6 @@ public class FolderRenameProducer
     }
     
     @Override
-    public String getDescription() {
-        return "Renaming folder...";
-    }
-
-    @Override
     protected TransferTask createTask(
             S3Object object) {
 

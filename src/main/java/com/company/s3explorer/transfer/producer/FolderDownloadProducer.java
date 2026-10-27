@@ -39,11 +39,6 @@ public class FolderDownloadProducer
     }
     
     @Override
-    public String getDescription() {
-        return "Preparing folder download...";
-    }
-
-    @Override
     protected TransferTask createTask(S3Object object) {
 
         Path target =

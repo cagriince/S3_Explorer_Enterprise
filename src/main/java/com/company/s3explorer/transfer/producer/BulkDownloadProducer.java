@@ -54,11 +54,6 @@ public final class BulkDownloadProducer
     }
 
     @Override
-    public String getDescription() {
-        return group.getDisplayName();
-    }
-
-    @Override
     public void produce(
             ProducerRuntime runtime) {
 

@@ -229,11 +229,6 @@ public abstract class AbstractFolderTransferProducer
                 group.getOperation() == TransferType.MOVE || group.getOperation() == TransferType.MOVE_GROUP || group.getOperation() == TransferType.RENAME || group.getOperation() == TransferType.RENAME_GROUP);
     }
 
-    @Override
-    public String getDescription() {
-        return group.getDisplayName();
-    }
-
     protected abstract TransferTask createTask(
             S3Object object);
 

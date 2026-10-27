@@ -28,11 +28,6 @@ public class FolderDeleteProducer
     }
 
     @Override
-    public String getDescription() {
-        return "Preparing folder delete...";
-    }
-
-    @Override
     protected TransferTask createTask(
             S3Object object) {
 

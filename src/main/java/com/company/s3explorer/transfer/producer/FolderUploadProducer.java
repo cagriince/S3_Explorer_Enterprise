@@ -42,11 +42,6 @@ public class FolderUploadProducer
     }
 
     @Override
-    public String getDescription() {
-        return "Preparing folder upload...";
-    }
-
-    @Override
     public void produce(
             ProducerRuntime runtime)
             throws IOException {
