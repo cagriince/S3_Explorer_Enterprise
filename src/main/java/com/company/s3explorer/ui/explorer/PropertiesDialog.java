@@ -6,6 +6,7 @@ import com.company.s3explorer.ui.icons.IconProvider;
 import com.company.s3explorer.util.DateFormatter;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -31,12 +32,7 @@ public class PropertiesDialog extends JDialog {
             Window owner,
             S3FileItem item) {
 
-        this(owner);
-
-        setItem(item);
-
-        pack();
-        setLocationRelativeTo(owner);
+        this(owner, List.of(item));
     }
 
     public PropertiesDialog(
@@ -45,10 +41,18 @@ public class PropertiesDialog extends JDialog {
 
         this(owner);
 
-        setMultipleItems(items);
+        if (items.size() > 1) {
+            setMultipleItems(items);
+        }
+        else {
+            setItem(items.getFirst());
+        }
 
         pack();
         setLocationRelativeTo(owner);
+        setSize(
+                300,
+                350);
     }
 
     private PropertiesDialog(Window owner) {
@@ -81,7 +85,7 @@ public class PropertiesDialog extends JDialog {
             }
         });
 
-        setResizable(false);
+        setResizable(true);
     }
 
     private void buildUi() {
