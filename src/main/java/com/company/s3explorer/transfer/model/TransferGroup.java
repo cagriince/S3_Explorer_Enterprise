@@ -354,12 +354,6 @@ public class TransferGroup {
         fireCompletionIfNecessary();
     }
 
-
-    public void completed(TransferTask task) {
-        completed();
-    }
-
-
     public void failed() {
 
         decrementIfPositive(running);
@@ -433,12 +427,6 @@ public class TransferGroup {
 
         fireCompletionIfNecessary();
     }
-
-
-    public void skipped(TransferTask task) {
-        skipped();
-    }
-
 
     // ---------------------------------------------------------------------
     // GETTERS

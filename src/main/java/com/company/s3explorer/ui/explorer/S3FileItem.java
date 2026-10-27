@@ -126,11 +126,6 @@ public class S3FileItem {
         return typeDisplayName;
     }
 
-    public boolean isFolderButNotParent() {
-        return this.isFolder()
-                && !this.isParentFolder();
-    }
-
     public boolean isFile() {
         return !folder;
     }
