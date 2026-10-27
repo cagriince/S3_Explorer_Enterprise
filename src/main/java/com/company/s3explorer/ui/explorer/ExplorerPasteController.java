@@ -339,7 +339,6 @@ public class ExplorerPasteController {
 
                 transferManager.configureGroupCompletion(
                         group,
-                        item.getRepositoryId(),
                         item.getBucket(),
                         sourcePrefix,
                         operation == ExplorerClipboard.Operation.MOVE);

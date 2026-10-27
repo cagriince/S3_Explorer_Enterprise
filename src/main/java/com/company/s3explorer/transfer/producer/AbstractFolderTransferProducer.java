@@ -222,11 +222,7 @@ public abstract class AbstractFolderTransferProducer
     private void publishGroupUpdated() {
 
         context.publishGroupUpdated(
-                group,
-                repositoryId,
-                bucket,
-                prefix,
-                group.getOperation() == TransferType.MOVE || group.getOperation() == TransferType.MOVE_GROUP || group.getOperation() == TransferType.RENAME || group.getOperation() == TransferType.RENAME_GROUP);
+                group);
     }
 
     protected abstract TransferTask createTask(

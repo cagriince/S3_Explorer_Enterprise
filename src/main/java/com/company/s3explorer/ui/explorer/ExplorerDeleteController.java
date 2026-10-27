@@ -278,7 +278,6 @@ public class ExplorerDeleteController {
 
         transferManager.configureGroupCompletion(
                 group,
-                repositoryId,
                 bucket,
                 sourcePrefix,
                 true);

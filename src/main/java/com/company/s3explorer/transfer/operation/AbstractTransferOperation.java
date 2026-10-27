@@ -190,11 +190,7 @@ public abstract class AbstractTransferOperation
         }
 
         transferContext.publishGroupUpdated(
-                group,
-                repository,
-                bucket,
-                prefix,
-                group.getOperation() == TransferType.MOVE || group.getOperation() == TransferType.MOVE_GROUP || group.getOperation() == TransferType.RENAME || group.getOperation() == TransferType.RENAME_GROUP);
+                group);
     }
     
     protected void checkCancelled(

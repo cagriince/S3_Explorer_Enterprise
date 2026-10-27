@@ -268,11 +268,7 @@ public final class BulkDownloadProducer
     private void publishGroupUpdated() {
 
         context.publishGroupUpdated(
-                group,
-                repositoryId,
-                bucket,
-                sourcePrefix,
-                false);
+                group);
     }
 
     @Override

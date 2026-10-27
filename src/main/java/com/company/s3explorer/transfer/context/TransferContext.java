@@ -102,30 +102,20 @@ public class TransferContext {
     }
 
     public void publishGroupUpdated(
-            TransferGroup group,
-            String repositoryId,
-            String bucket,
-            String prefix,
-            boolean sourceRefreshRequired) {
+            TransferGroup group) {
 
         eventBus.publishGroupUpdated(
-                group,
-                repositoryId,
-                bucket,
-                prefix,
-                sourceRefreshRequired);
+                group);
     }
     
     public void publishGroupCompleted(
             TransferGroup group,
-            String repositoryId,
             String bucket,
             String prefix,
             boolean sourceRefreshRequired) {
 
         eventBus.publishGroupCompleted(
                 group,
-                repositoryId,
                 bucket,
                 prefix,
                 sourceRefreshRequired);

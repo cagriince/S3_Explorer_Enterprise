@@ -69,11 +69,7 @@ public class TransferEventBus {
      * throughout preparing, executing and finishing.
      */
     public void publishGroupUpdated(
-            TransferGroup group,
-            String repository,
-            String bucket,
-            String prefix,
-            boolean sourceRefreshRequired) {
+            TransferGroup group) {
 
         if (group == null) {
             return;
@@ -81,11 +77,7 @@ public class TransferEventBus {
 
         TransferGroupUpdatedEvent event =
                 new TransferGroupUpdatedEvent(
-                        group,
-                        repository,
-                        bucket,
-                        prefix,
-                        sourceRefreshRequired);
+                        group);
 
         log.debug(
                 "[EVENT BUS] publishGroupUpdated listeners={} group={} queued={} running={} completed={} failed={} cancelled={} skipped={} productionCompleted={} activeProducers={}",
@@ -117,7 +109,6 @@ public class TransferEventBus {
      */
     public void publishGroupCompleted(
             TransferGroup group,
-            String repository,
             String bucket,
             String prefix,
             boolean sourceRefreshRequired) {
@@ -125,7 +116,6 @@ public class TransferEventBus {
         TransferGroupCompletedEvent event =
                 new TransferGroupCompletedEvent(
                         group,
-                        repository,
                         bucket,
                         prefix,
                         sourceRefreshRequired);

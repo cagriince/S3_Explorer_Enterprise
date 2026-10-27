@@ -390,8 +390,7 @@ public class TransferTableModel
                             group.getFailedCount(),
                             group.getCancelled(),
                             group.getSkipped(),
-                            group.getDetected(),
-                            group.isPreparing());
+                            group.getDetected());
 
             case 4 ->
                     getGroupStatus(
@@ -626,8 +625,7 @@ public class TransferTableModel
                 int failed,
                 int cancelled,
                 int skipped,
-                long detected,
-                boolean preparing) {
+                long detected) {
 
             this.completed =
                     Math.max(

@@ -14,7 +14,6 @@ import com.company.s3explorer.ui.explorer.RefreshTreeNode;
 import com.company.s3explorer.ui.explorer.RefreshTreeOperation;
 import com.company.s3explorer.util.S3Util;
 
-import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.UUID;
@@ -189,17 +188,12 @@ public class TransferManager {
 
         configureGroupCompletion(
                 group,
-                repositoryId,
                 bucket,
                 targetPrefix,
                 false);
 
         transferContext.publishGroupUpdated(
-                group,
-                repositoryId,
-                bucket,
-                targetPrefix,
-                false);
+                group);
 
         try {
             for (int i = 0; i < localFiles.size(); i++) {
@@ -294,17 +288,12 @@ public class TransferManager {
 
         configureGroupCompletion(
                 group,
-                repositoryId,
                 bucket,
                 targetPrefix,
                 false);
 
         transferContext.publishGroupUpdated(
-                group,
-                repositoryId,
-                bucket,
-                targetPrefix,
-                false);
+                group);
 
         try {
             for (int i = 0; i < localFiles.size(); i++) {
@@ -509,17 +498,12 @@ public class TransferManager {
 
         configureGroupCompletion(
                 group,
-                repositoryId,
                 bucket,
                 sourcePrefix,
                 false);
 
         transferContext.publishGroupUpdated(
-                group,
-                repositoryId,
-                bucket,
-                sourcePrefix,
-                false);
+                group);
 
         return group;
     }
@@ -582,17 +566,12 @@ public class TransferManager {
 
         configureGroupCompletion(
                 group,
-                repositoryId,
                 bucket,
                 firstKey,
                 false);
 
         transferContext.publishGroupUpdated(
-                group,
-                repositoryId,
-                bucket,
-                firstKey,
-                false);
+                group);
 
         submitGroupProducer(
                 group,
@@ -675,17 +654,12 @@ public class TransferManager {
 
         configureGroupCompletion(
                 group,
-                repositoryId,
                 bucket,
                 firstKey,
                 false);
 
         transferContext.publishGroupUpdated(
-                group,
-                repositoryId,
-                bucket,
-                firstKey,
-                false);
+                group);
 
         submitGroupProducer(
                 group,
@@ -921,7 +895,6 @@ public class TransferManager {
 
         configureGroupCompletion(
                 group,
-                repositoryId,
                 bucket,
                 keySource,
                 true);
@@ -998,17 +971,12 @@ public class TransferManager {
 
         configureGroupCompletion(
                 group,
-                repositoryId,
                 bucket,
                 prefix,
                 true);
 
         transferContext.publishGroupUpdated(
-                group,
-                repositoryId,
-                bucket,
-                prefix,
-                false);
+                group);
 
         submitGroupProducer(
                 group,
@@ -1036,11 +1004,7 @@ public class TransferManager {
         }
 
         transferContext.publishGroupUpdated(
-                group,
-                repositoryId,
-                bucket,
-                prefix,
-                false);
+                group);
 
         submitGroupProducer(
                 group,
@@ -1080,17 +1044,12 @@ public class TransferManager {
 
         configureGroupCompletion(
                 group,
-                repositoryId,
                 bucket,
                 prefix,
                 false);
 
         transferContext.publishGroupUpdated(
-                group,
-                repositoryId,
-                bucket,
-                prefix,
-                false);
+                group);
 
         submitGroupProducer(
                 group,
@@ -1138,17 +1097,12 @@ public class TransferManager {
 
         configureGroupCompletion(
                 group,
-                repositoryId,
                 bucket,
                 prefix,
                 false);
 
         transferContext.publishGroupUpdated(
-                group,
-                repositoryId,
-                bucket,
-                prefix,
-                false);
+                group);
 
         submitGroupProducer(
                 group,
@@ -1195,17 +1149,12 @@ public class TransferManager {
 
         configureGroupCompletion(
                 group,
-                repositoryId,
                 bucket,
                 targetPrefix,
                 false);
 
         transferContext.publishGroupUpdated(
-                group,
-                repositoryId,
-                bucket,
-                targetPrefix,
-                false);
+                group);
 
         submitGroupProducer(
                 group,
@@ -1272,17 +1221,12 @@ public class TransferManager {
          */
         configureGroupCompletion(
                 group,
-                repositoryId,
                 sourceBucket,
                 sourcePrefix,
                 false);
 
         transferContext.publishGroupUpdated(
-                group,
-                repositoryId,
-                sourceBucket,
-                sourcePrefix,
-                false);
+                group);
 
         submitGroupProducer(
                 group,
@@ -1352,17 +1296,12 @@ public class TransferManager {
          */
         configureGroupCompletion(
                 group,
-                repositoryId,
                 sourceBucket,
                 sourcePrefix,
                 true);
 
         transferContext.publishGroupUpdated(
-                group,
-                repositoryId,
-                sourceBucket,
-                sourcePrefix,
-                true);
+                group);
 
         submitGroupProducer(
                 group,
@@ -1397,17 +1336,12 @@ public class TransferManager {
 
         configureGroupCompletion(
                 group,
-                repositoryId,
                 bucket,
                 prefix,
                 true);
 
         transferContext.publishGroupUpdated(
-                group,
-                repositoryId,
-                bucket,
-                prefix,
-                true);
+                group);
 
         submitGroupProducer(
                 group,
@@ -1468,7 +1402,6 @@ public class TransferManager {
      */
     public void configureGroupCompletion(
             TransferGroup group,
-            String repositoryId,
             String bucket,
             String prefix,
             boolean sourceRefreshRequired) {
@@ -1504,7 +1437,6 @@ public class TransferManager {
 
                     transferContext.publishGroupCompleted(
                             group,
-                            repositoryId,
                             bucket,
                             prefix,
                             sourceRefreshRequired);
