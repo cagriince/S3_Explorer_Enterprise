@@ -94,7 +94,6 @@ public class ExplorerPanel extends JPanel {
     private int pendingDeleteSelectionViewRow = -1;
     private final Set<String> pendingFolderDeleteKeys = ConcurrentHashMap.newKeySet();
     
-    private String pendingFileTableRenameOldKey;
     private String pendingFileTableSelectionKey;
     private List<String> pendingFileTableSelectionKeys;
     private boolean restoreFileTableFocus;
@@ -573,8 +572,6 @@ public class ExplorerPanel extends JPanel {
                         transferManager,
                         this::exists,
                         this::updateActionStates,
-                        value ->
-                                pendingFileTableRenameOldKey = value,
                         value ->
                                 pendingFileTableSelectionKey = value,
                         value ->

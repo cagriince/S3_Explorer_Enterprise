@@ -25,9 +25,6 @@ public class ExplorerRenameController {
             updateActionStates;
 
     private final Consumer<String>
-            pendingRenameOldKeyConsumer;
-
-    private final Consumer<String>
             pendingSelectionKeyConsumer;
 
     private final Consumer<Boolean>
@@ -38,7 +35,6 @@ public class ExplorerRenameController {
             TransferManager transferManager,
             Predicate<String> existsPredicate,
             Runnable updateActionStates,
-            Consumer<String> pendingRenameOldKeyConsumer,
             Consumer<String> pendingSelectionKeyConsumer,
             Consumer<Boolean> restoreFocusConsumer) {
 
@@ -53,9 +49,6 @@ public class ExplorerRenameController {
 
         this.updateActionStates =
                 updateActionStates;
-
-        this.pendingRenameOldKeyConsumer =
-                pendingRenameOldKeyConsumer;
 
         this.pendingSelectionKeyConsumer =
                 pendingSelectionKeyConsumer;
@@ -201,13 +194,6 @@ public class ExplorerRenameController {
             return;
         }
 
-        /*
-         * The refresh following the rename must select
-         * the newly created item.
-         */
-        pendingRenameOldKeyConsumer.accept(
-                oldKey);
-
         pendingSelectionKeyConsumer.accept(
                 newKey);
 
@@ -244,9 +230,6 @@ public class ExplorerRenameController {
             }
 
         } catch (Exception ex) {
-
-            pendingRenameOldKeyConsumer.accept(
-                    null);
 
             pendingSelectionKeyConsumer.accept(
                     null);
