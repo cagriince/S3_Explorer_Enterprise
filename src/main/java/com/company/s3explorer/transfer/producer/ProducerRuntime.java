@@ -50,10 +50,6 @@ public class ProducerRuntime {
         this.status = status;
     }
 
-    public long getDiscoveredCount() {
-        return discoveredCount;
-    }
-
     public void incrementDiscovered() {
 
         discoveredCount++;
