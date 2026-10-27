@@ -271,16 +271,9 @@ public class TransferGroup {
         return detected.get();
     }
 
-
-    public long getDetectedBytes() {
-        return detectedBytes.get();
-    }
-
-
     public void producerStarted() {
         activeProducers.incrementAndGet();
     }
-
 
     public void producerFinished() {
 
@@ -493,13 +486,6 @@ public class TransferGroup {
                 && queued.get() == 0
                 && running.get() == 0;
     }
-
-    public boolean isFailed() {
-
-        return productionFailed.get()
-                || failed.get() > 0;
-    }
-
 
     public boolean isFullySuccessful() {
 

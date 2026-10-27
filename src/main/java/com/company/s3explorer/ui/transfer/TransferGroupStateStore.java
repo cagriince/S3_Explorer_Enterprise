@@ -166,12 +166,6 @@ public class TransferGroupStateStore {
 
         private TransferGroup group;
 
-        private String repository;
-        private String bucket;
-        private String prefix;
-
-        private boolean sourceRefreshRequired;
-
         private boolean finished;
 
         /*
@@ -195,18 +189,6 @@ public class TransferGroupStateStore {
 
             this.group =
                     event.getGroup();
-
-            this.repository =
-                    event.getRepository();
-
-            this.bucket =
-                    event.getBucket();
-
-            this.prefix =
-                    event.getPrefix();
-
-            this.sourceRefreshRequired =
-                    event.isSourceRefreshRequired();
 
             this.finished =
                     this.finished
@@ -245,18 +227,6 @@ public class TransferGroupStateStore {
 
             this.group =
                     event.getGroup();
-
-            this.repository =
-                    event.getRepository();
-
-            this.bucket =
-                    event.getBucket();
-
-            this.prefix =
-                    event.getPrefix();
-
-            this.sourceRefreshRequired =
-                    event.isSourceRefreshRequired();
 
             this.finished = true;
 
