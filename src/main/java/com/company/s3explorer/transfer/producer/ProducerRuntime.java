@@ -40,10 +40,6 @@ public class ProducerRuntime {
     private final AtomicBoolean cancelledBeforeStart =
             new AtomicBoolean(false);
 
-    public TransferStatus getStatus() {
-        return status;
-    }
-
     public void setStatus(
             TransferStatus status) {
 
