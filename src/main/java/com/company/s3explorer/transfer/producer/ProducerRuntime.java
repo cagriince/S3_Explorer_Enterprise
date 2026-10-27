@@ -49,11 +49,6 @@ public class ProducerRuntime {
                 true);
     }
 
-    public boolean isExecutionStarted() {
-
-        return executionStarted.get();
-    }
-
     /**
      * Producer henüz başlamadıysa cancellation lifecycle'ını
      * ilk yapan taraf true alır.
@@ -69,10 +64,5 @@ public class ProducerRuntime {
         return cancelledBeforeStart.compareAndSet(
                 false,
                 true);
-    }
-
-    public boolean isCancelledBeforeStart() {
-
-        return cancelledBeforeStart.get();
     }
 }
