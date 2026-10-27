@@ -47,9 +47,6 @@ public final class FileTableSortSpec {
 
         turkishCollator.setStrength(Collator.PRIMARY);
 
-        long[] cacheMissCount = {0};
-        long[] keyCreationNanos = {0};
-
         /*
          * Reuse character-level collation keys across comparisons.
          * This avoids creating a full CollationKey for every
@@ -100,9 +97,7 @@ public final class FileTableSortSpec {
         return new MeasuredComparator(
                 primaryComparator,
                 secondaryComparator,
-                ascending,
-                cacheMissCount,
-                keyCreationNanos);
+                ascending);
     }
 
     private static final class MeasuredComparator
@@ -112,9 +107,6 @@ public final class FileTableSortSpec {
         private final Comparator<S3Object> secondaryComparator;
         private final boolean ascending;
 
-        private final long[] cacheMissCount;
-        private final long[] keyCreationNanos;
-
         private long primaryComparisonCount;
         private long primaryEqualComparisonCount;
         private long secondaryComparisonCount;
@@ -123,15 +115,11 @@ public final class FileTableSortSpec {
         private MeasuredComparator(
                 Comparator<S3Object> primaryComparator,
                 Comparator<S3Object> secondaryComparator,
-                boolean ascending,
-                long[] cacheMissCount,
-                long[] keyCreationNanos) {
+                boolean ascending) {
 
             this.primaryComparator = primaryComparator;
             this.secondaryComparator = secondaryComparator;
             this.ascending = ascending;
-            this.cacheMissCount = cacheMissCount;
-            this.keyCreationNanos = keyCreationNanos;
         }
 
         @Override
