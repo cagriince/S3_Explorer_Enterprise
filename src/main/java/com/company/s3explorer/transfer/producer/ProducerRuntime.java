@@ -4,8 +4,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ProducerRuntime {
 
-    private volatile long discoveredCount;
-
     private volatile boolean cancelRequested;
 
     private volatile long lastUiPublishTime;
@@ -30,9 +28,6 @@ public class ProducerRuntime {
             new AtomicBoolean(false);
 
     public void incrementDiscovered() {
-
-        discoveredCount++;
-
         if (shouldPublishUi(100)
                 && progressCallback != null) {
 
