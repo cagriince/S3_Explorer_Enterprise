@@ -2,7 +2,6 @@ package com.company.s3explorer.ui.explorer;
 
 import com.company.s3explorer.service.*;
 
-import java.text.CollationKey;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -25,9 +24,6 @@ import java.util.function.Supplier;
 public final class ExplorerContentLoader {
 
     private final Supplier<S3ExplorerService> serviceSupplier;
-
-    private final Map<String, CollationKey>
-            collationKeyCache;
 
     /**
      * Identical concurrent requests share the same future.
@@ -63,15 +59,8 @@ public final class ExplorerContentLoader {
                 Objects.requireNonNull(
                         serviceSupplier,
                         "serviceSupplier");
-
-        this.collationKeyCache =
-                new ConcurrentHashMap<>();
     }
 
-    public void clearCollationKeyCache() {
-        collationKeyCache.clear();
-    }
-    
     /**
      * Loads without a progress listener.
      */

@@ -1315,8 +1315,6 @@ public class ExplorerPanel extends JPanel {
                     currentFileBucket = null;
                     currentFilePrefix = null;
 
-                    contentLoader.clearCollationKeyCache();
-
                     JOptionPane.showMessageDialog(
                             this,
                             S3ErrorResolver.getUserMessage(ex),
@@ -2225,8 +2223,6 @@ public class ExplorerPanel extends JPanel {
 
         currentFileBucket = null;
         currentFilePrefix = null;
-
-        contentLoader.clearCollationKeyCache();
 
         treeController.clearState();
 
