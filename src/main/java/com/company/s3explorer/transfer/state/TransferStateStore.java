@@ -302,12 +302,6 @@ public class TransferStateStore {
         }
     }
     
-    public synchronized TransferRuntime get(
-            UUID id) {
-
-        return runtimes.get(id);
-    }
-
     public synchronized List<TransferRuntime> snapshot(
             View view) {
 
@@ -543,15 +537,6 @@ public class TransferStateStore {
 
         deque.remove(id);
         deque.addFirst(id);
-    }
-
-    private void removeFromAllOrders(
-            UUID id) {
-
-        allOrder.remove(id);
-        queuedOrder.remove(id);
-        runningOrder.remove(id);
-        finishedOrder.remove(id);
     }
 
     public enum View {

@@ -235,57 +235,6 @@ public class TransferManager {
         }
     }
 
-    public void submitUpload(
-            String repositoryId,
-            String bucket,
-            String key,
-            Path localFile,
-            long size,
-            boolean overwrite) {
-
-        submit(
-                TransferTask.upload()
-                        .targetRepositoryId(repositoryId)
-                        .targetBucket(bucket)
-                        .targetObjectKey(key)
-                        .localPath(localFile)
-                        .size(size)
-                        .overwrite(overwrite)
-                        .affectsObjectList(true)
-                        .affectsFolderTree(false)
-                        .build()
-        );
-    }
-
-    public void submitUploadEncrypted(
-            String repositoryId,
-            String bucket,
-            String key,
-            Path localFile,
-            long size,
-            EncryptionConfig encryptionConfig,
-            boolean overwrite) {
-
-        if (encryptionConfig == null) {
-            throw new IllegalArgumentException(
-                    "Encryption configuration is not available.");
-        }
-
-        submit(
-                TransferTask.upload()
-                        .targetRepositoryId(repositoryId)
-                        .targetBucket(bucket)
-                        .targetObjectKey(key)
-                        .localPath(localFile)
-                        .size(size)
-                        .encryptionConfig(encryptionConfig)
-                        .overwrite(overwrite)
-                        .affectsObjectList(true)
-                        .affectsFolderTree(false)
-                        .build()
-        );
-    }
-
     public TransferGroup submitUploadEncryptedGroup(
             String repositoryId,
             String bucket,

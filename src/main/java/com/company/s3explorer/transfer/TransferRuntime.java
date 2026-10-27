@@ -68,10 +68,6 @@ public class TransferRuntime {
         this.endTime = endTime;
     }
 
-    public Throwable getException() {
-        return exception;
-    }
-
     public void setException(Throwable exception) {
         this.exception = exception;
     }

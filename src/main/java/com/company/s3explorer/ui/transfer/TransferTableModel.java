@@ -621,8 +621,6 @@ public class TransferTableModel
 
         private final long detected;
 
-        private final boolean preparing;
-
         private GroupProgress(
                 int completed,
                 int failed,
@@ -655,9 +653,6 @@ public class TransferTableModel
                     Math.max(
                             0L,
                             detected);
-
-            this.preparing =
-                    preparing;
         }
 
         public int getPercent() {

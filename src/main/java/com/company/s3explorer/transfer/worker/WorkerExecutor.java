@@ -171,14 +171,6 @@ public class WorkerExecutor
          */
     }
 
-    public int getThreadCount() {
-        return targetThreadCount;
-    }
-
-    public int getActiveWorkerCount() {
-        return activeWorkerCount.get();
-    }
-
     @Override
     public void close() {
 
