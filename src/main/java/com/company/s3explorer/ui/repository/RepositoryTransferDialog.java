@@ -3,7 +3,6 @@ package com.company.s3explorer.ui.repository;
 
 import com.company.s3explorer.repository.RepositoryBackupService;
 import com.company.s3explorer.repository.RepositoryDefinition;
-import com.company.s3explorer.repository.RepositoryEnvironment;
 import com.company.s3explorer.repository.RepositoryManager;
 
 import javax.swing.*;

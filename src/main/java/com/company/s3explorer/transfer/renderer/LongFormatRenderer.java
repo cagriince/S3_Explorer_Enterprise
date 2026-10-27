@@ -1,6 +1,5 @@
 package com.company.s3explorer.transfer.renderer;
 
-import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.JTable;
 import javax.swing.JLabel;
 import java.text.NumberFormat;

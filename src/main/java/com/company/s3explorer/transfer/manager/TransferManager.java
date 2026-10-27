@@ -240,22 +240,6 @@ public class TransferManager {
             String bucket,
             String key,
             Path localFile,
-            long size) {
-
-        submitUpload(
-                repositoryId,
-                bucket,
-                key,
-                localFile,
-                size,
-                false);
-    }
-
-    public void submitUpload(
-            String repositoryId,
-            String bucket,
-            String key,
-            Path localFile,
             long size,
             boolean overwrite) {
 
@@ -271,24 +255,6 @@ public class TransferManager {
                         .affectsFolderTree(false)
                         .build()
         );
-    }
-
-    public void submitUploadEncrypted(
-            String repositoryId,
-            String bucket,
-            String key,
-            Path localFile,
-            long size,
-            EncryptionConfig encryptionConfig) {
-
-        submitUploadEncrypted(
-                repositoryId,
-                bucket,
-                key,
-                localFile,
-                size,
-                encryptionConfig,
-                false);
     }
 
     public void submitUploadEncrypted(
@@ -849,38 +815,6 @@ public class TransferManager {
             String targetBucket,
             String keyTarget,
             long size,
-            boolean overwrite) {
-
-        submit(
-                TransferTask.copy()
-                        .repositoryId(
-                                repositoryId)
-                        .bucket(
-                                bucket)
-                        .objectKey(
-                                keySource)
-                        .targetRepositoryId(
-                                targetRepositoryId)
-                        .targetBucket(
-                                targetBucket)
-                        .targetObjectKey(
-                                keyTarget)
-                        .size(size)
-                        .overwrite(overwrite)
-                        .affectsObjectList(true)
-                        .affectsFolderTree(false)
-                        .build()
-              );
-    }
-
-    public void submitCopy(
-            String repositoryId,
-            String bucket,
-            String keySource,
-            String targetRepositoryId,
-            String targetBucket,
-            String keyTarget,
-            long size,
             boolean overwrite,
             TransferGroup group) {
 
@@ -942,38 +876,6 @@ public class TransferManager {
                         .build();
 
         submit(task);
-    }
-
-    public void submitMove(
-            String repositoryId,
-            String bucket,
-            String keySource,
-            String targetRepositoryId,
-            String targetBucket,
-            String keyTarget,
-            long size,
-            boolean overwrite) {
-
-        submit(
-                TransferTask.move()
-                        .repositoryId(
-                                repositoryId)
-                        .bucket(
-                                bucket)
-                        .objectKey(
-                                keySource)
-                        .targetRepositoryId(
-                                targetRepositoryId)
-                        .targetBucket(
-                                targetBucket)
-                        .targetObjectKey(
-                                keyTarget)
-                        .size(size)
-                        .overwrite(overwrite)
-                        .affectsObjectList(true)
-                        .affectsFolderTree(true)
-                        .build()
-              );
     }
 
     public void submitMove(
@@ -1317,8 +1219,7 @@ public class TransferManager {
             String repositoryId,
             String bucket,
             String targetPrefix,
-            Path folder)
-            throws IOException {
+            Path folder) {
 
         String displayName =
                 folder.getFileName() != null
@@ -1739,40 +1640,6 @@ public class TransferManager {
                 targetPrefix);
     }
 
-    private TransferGroup createFolderOperationGroup(
-            TransferType operation,
-            String sourceRepository,
-            String sourceBucket,
-            String sourcePrefix,
-            String targetRepository,
-            String targetBucket,
-            String targetPrefix) {
-
-        String displayName =
-                S3Util.extractFolderName(
-                        sourcePrefix);
-
-        if (displayName == null
-                || displayName.isBlank()) {
-
-            displayName = sourcePrefix;
-        }
-
-        return new TransferGroup(
-                UUID.randomUUID(),
-                displayName,
-                operation,
-                sourcePrefix,
-                targetPrefix,
-                sourceRepository,
-                sourceBucket,
-                sourcePrefix,
-                targetRepository,
-                targetBucket,
-                targetPrefix,
-                true);
-    }
-
     private String buildGroupLocation(
             String repositoryId,
             String bucket,
@@ -1810,5 +1677,39 @@ public class TransferManager {
         }
 
         return value.toString();
+    }
+
+    private TransferGroup createFolderOperationGroup(
+            TransferType operation,
+            String sourceRepository,
+            String sourceBucket,
+            String sourcePrefix,
+            String targetRepository,
+            String targetBucket,
+            String targetPrefix) {
+
+        String displayName =
+                S3Util.extractFolderName(
+                        sourcePrefix);
+
+        if (displayName == null
+                || displayName.isBlank()) {
+
+            displayName = sourcePrefix;
+        }
+
+        return new TransferGroup(
+                UUID.randomUUID(),
+                displayName,
+                operation,
+                sourcePrefix,
+                targetPrefix,
+                sourceRepository,
+                sourceBucket,
+                sourcePrefix,
+                targetRepository,
+                targetBucket,
+                targetPrefix,
+                true);
     }
 }

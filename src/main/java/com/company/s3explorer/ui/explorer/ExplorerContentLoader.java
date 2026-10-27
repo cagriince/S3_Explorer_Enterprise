@@ -36,13 +36,6 @@ public final class ExplorerContentLoader {
             inFlightLoads =
             new ConcurrentHashMap<>();
 
-    /**
-     * Completed, non-limited content.
-     *
-     * We intentionally keep the cache scoped to one bucket/prefix.
-     */
-    private volatile LimitedFolderContent cachedContent;
-
     private volatile FolderContentSnapshot cachedSnapshot;
 
     private volatile String cachedBucket;
@@ -56,9 +49,6 @@ public final class ExplorerContentLoader {
      */
     private final Map<String, CompletableFuture<FolderContentSnapshot>>
             inFlightSnapshots = new ConcurrentHashMap<>();
-
-    long primaryEqualComparisons = -1;
-    long secondaryNonZeroComparisons = -1;
 
     /**
      * Changes whenever the cached snapshot is invalidated.
@@ -366,7 +356,6 @@ public final class ExplorerContentLoader {
                     && Objects.equals(cachedPrefix, prefix)) {
 
                 cachedSnapshot = null;
-                cachedContent = null;
                 cachedBucket = null;
                 cachedPrefix = null;
             }
@@ -491,7 +480,7 @@ public final class ExplorerContentLoader {
                     java.util.Comparator<
                             software.amazon.awssdk.services.s3.model.S3Object>
                             fileComparator =
-                            sortSpec.createFileComparator(collationKeyCache);
+                            sortSpec.createFileComparator();
 
                     stableComparator = (left, right) -> {
                         int comparison = fileComparator.compare(
@@ -671,77 +660,6 @@ public final class ExplorerContentLoader {
 
         return displayName;
     }
-
-    /**
-     * Adds a folder to the cached snapshot if the snapshot matches
-     * the folder's parent listing.
-     *
-     * @return true if the cached snapshot was updated.
-     */
-    public synchronized boolean addFolderToSnapshot(
-            String bucket,
-            String parentPrefix,
-            String folderKey,
-            boolean flatBrowsing) {
-
-        FolderContentSnapshot snapshot =
-                getCachedSnapshot(bucket, parentPrefix, flatBrowsing);
-
-        if (snapshot == null
-                || folderKey == null
-                || folderKey.isBlank()) {
-            return false;
-        }
-
-        if (snapshot.folders().contains(folderKey)) {
-            return true;
-        }
-
-        List<String> folders =
-                new java.util.ArrayList<>(snapshot.folders());
-
-        folders.add(folderKey);
-
-        cachedSnapshot = new FolderContentSnapshot(
-                folders,
-                snapshot.files());
-
-        return true;
-    }
-
-    /**
-     * Adds or replaces an uploaded object in the cached snapshot.
-     *
-     * @return true if the cached snapshot was updated.
-     */
-    public synchronized boolean upsertObjectInSnapshot(
-            String bucket,
-            String prefix,
-            boolean flatBrowsing,
-            software.amazon.awssdk.services.s3.model.S3Object object) {
-
-        FolderContentSnapshot snapshot =
-                getCachedSnapshot(bucket, prefix, flatBrowsing);
-
-        if (snapshot == null || object == null || object.key() == null) {
-            return false;
-        }
-
-        List<software.amazon.awssdk.services.s3.model.S3Object> files =
-                new java.util.ArrayList<>(snapshot.files());
-
-        files.removeIf(existing ->
-                Objects.equals(existing.key(), object.key()));
-
-        files.add(object);
-
-        cachedSnapshot = new FolderContentSnapshot(
-                snapshot.folders(),
-                files);
-
-        return true;
-    }
-
 
     private record IndexedFile(
             int sourceIndex,

@@ -20,21 +20,6 @@ public final class FileTableSortSpec {
         LAST_MODIFIED
     }
 
-    public interface ComparisonMetrics {
-
-        long getPrimaryComparisonCount();
-
-        long getPrimaryEqualComparisonCount();
-
-        long getSecondaryComparisonCount();
-
-        long getSecondaryNonZeroComparisonCount();
-
-        long getCollationKeyCacheMissCount();
-
-        long getCollationKeyCreationNanos();
-    }
-
     private final Column column;
     private final boolean ascending;
 
@@ -55,8 +40,7 @@ public final class FileTableSortSpec {
     }
 
 
-    public Comparator<S3Object> createFileComparator(
-            Map<String, CollationKey> collationKeyCache) {
+    public Comparator<S3Object> createFileComparator() {
 
         Collator turkishCollator =
                 Collator.getInstance(new Locale("tr", "TR"));
@@ -122,7 +106,7 @@ public final class FileTableSortSpec {
     }
 
     private static final class MeasuredComparator
-            implements Comparator<S3Object>, ComparisonMetrics {
+            implements Comparator<S3Object> {
 
         private final Comparator<S3Object> primaryComparator;
         private final Comparator<S3Object> secondaryComparator;
@@ -182,36 +166,6 @@ public final class FileTableSortSpec {
             return ascending
                     ? Integer.signum(result)
                     : -Integer.signum(result);
-        }
-
-        @Override
-        public long getPrimaryComparisonCount() {
-            return primaryComparisonCount;
-        }
-
-        @Override
-        public long getPrimaryEqualComparisonCount() {
-            return primaryEqualComparisonCount;
-        }
-
-        @Override
-        public long getSecondaryComparisonCount() {
-            return secondaryComparisonCount;
-        }
-
-        @Override
-        public long getSecondaryNonZeroComparisonCount() {
-            return secondaryNonZeroComparisonCount;
-        }
-
-        @Override
-        public long getCollationKeyCacheMissCount() {
-            return cacheMissCount[0];
-        }
-
-        @Override
-        public long getCollationKeyCreationNanos() {
-            return keyCreationNanos[0];
         }
     }
 

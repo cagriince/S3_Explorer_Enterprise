@@ -229,7 +229,6 @@ public class ExplorerPanel extends JPanel {
                 uploadEncryptedAction,
                 newFolderAction,
                 refreshAction,
-                manageRepositoryAction,
                 backAction,
                 forwardAction,
                 reloadFolderAction,
@@ -1581,17 +1580,6 @@ public class ExplorerPanel extends JPanel {
 
                     return null;
                 });
-    }
-
-    private void loadFiles(
-            String bucket,
-            String prefix) {
-
-        loadFiles(
-                bucket,
-                prefix,
-                false,
-                false);
     }
 
     private void loadFiles(

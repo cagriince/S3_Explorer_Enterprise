@@ -1,7 +1,5 @@
 package com.company.s3explorer.ui.explorer;
 
-import com.company.s3explorer.ui.icons.FileIconRegistry;
-
 import javax.swing.table.AbstractTableModel;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -275,13 +273,6 @@ public class FileTableModel extends AbstractTableModel {
         return false;
     }
     
-    public void clearAndRepaint() {
-
-        files.clear();
-
-        fireTableDataChanged();
-    }
-
     public S3FileItem getItem(
             int row) {
 

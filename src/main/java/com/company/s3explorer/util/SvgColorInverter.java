@@ -41,7 +41,7 @@ public class SvgColorInverter {
         return String.format("%02X%02X%02X", r, g, b);
     }
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) {
         String folderPath = "E:\\SIL"; // Kendi klasör yolunuzu yazın
 
         try (Stream<Path> paths = Files.list(Paths.get(folderPath))) {

@@ -28,7 +28,6 @@ public class RepositoryPanel extends JPanel {
     private RepositoryTableModel tableModel;
 
     private JButton editBtn;
-    private JButton deleteBtn;
     private JButton testBtn;
     private JButton moreBtn;
 
@@ -244,10 +243,6 @@ public class RepositoryPanel extends JPanel {
 
         if (testBtn != null) {
             testBtn.setEnabled(oneSelected && !testRunning);
-        }
-
-        if (deleteBtn != null) {
-            deleteBtn.setEnabled(selectedCount > 0);
         }
     }
 

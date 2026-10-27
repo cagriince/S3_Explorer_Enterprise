@@ -11,15 +11,16 @@ import com.company.s3explorer.util.S3Util;
 
 import javax.swing.*;
 import javax.swing.border.BevelBorder;
-import javax.swing.event.*;
+import javax.swing.event.PopupMenuEvent;
+import javax.swing.event.PopupMenuListener;
+import javax.swing.event.TreeExpansionEvent;
+import javax.swing.event.TreeWillExpandListener;
 import javax.swing.table.TableColumn;
 import javax.swing.tree.DefaultTreeCellRenderer;
 import javax.swing.tree.DefaultTreeModel;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.util.List;
-import java.util.Locale;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 
@@ -52,7 +53,6 @@ public final class ExplorerView {
     private final Action uploadEncryptedAction;
     private final Action newFolderAction;
     private final Action refreshAction;
-    private final Action manageRepositoryAction;
     private final Action propertiesAction;
     private final Action backAction;
     private final Action forwardAction;
@@ -124,7 +124,6 @@ public final class ExplorerView {
             Action uploadEncryptedAction,
             Action newFolderAction,
             Action refreshAction,
-            Action manageRepositoryAction,
             Action backAction,
             Action forwardAction,
             Action reloadFolderAction,
@@ -153,7 +152,6 @@ public final class ExplorerView {
         this.uploadEncryptedAction = uploadEncryptedAction;
         this.newFolderAction = newFolderAction;
         this.refreshAction = refreshAction;
-        this.manageRepositoryAction = manageRepositoryAction;
         this.backAction = backAction;
         this.forwardAction = forwardAction;
         this.reloadFolderAction = reloadFolderAction;
@@ -815,6 +813,7 @@ public final class ExplorerView {
     public JComboBox<UITheme> getThemeCombo() { return themeCombo; }
     public JComboBox<Integer> getFileTableRowLimitCombo() { return fileTableRowLimitCombo; }
     public JPanel getBreadcrumbPanel() { return breadcrumbPanel; }
+
     public JButton getBackNavigationButton() {
         return backNavigationButton;
     }

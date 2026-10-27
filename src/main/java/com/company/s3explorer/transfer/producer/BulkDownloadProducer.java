@@ -60,8 +60,7 @@ public final class BulkDownloadProducer
 
     @Override
     public void produce(
-            ProducerRuntime runtime)
-            throws IOException {
+            ProducerRuntime runtime) {
 
         group.producerStarted();
 

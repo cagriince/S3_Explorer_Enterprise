@@ -6,7 +6,7 @@ import com.company.s3explorer.transfer.context.TransferContext;
 public class DeleteOperation extends AbstractTransferOperation {
 
     @Override
-    protected void doExecute(TransferRuntime runtime, TransferContext transferContext) throws Exception {
+    protected void doExecute(TransferRuntime runtime, TransferContext transferContext) {
         updateProgressPercent(runtime, transferContext, 10);
 
         try {

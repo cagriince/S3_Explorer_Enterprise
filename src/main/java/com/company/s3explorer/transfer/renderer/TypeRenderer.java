@@ -3,8 +3,6 @@ package com.company.s3explorer.transfer.renderer;
 import com.company.s3explorer.transfer.TransferType;
 import com.company.s3explorer.ui.icons.IconProvider;
 
-import javax.swing.table.DefaultTableCellRenderer;
-
 /**
 
  * Combined Transfer tablosundaki Process kolonunu render eder.

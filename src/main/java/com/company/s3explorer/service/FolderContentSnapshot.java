@@ -24,12 +24,4 @@ public record FolderContentSnapshot(
                 ? List.of()
                 : List.copyOf(files);
     }
-
-    public int fileCount() {
-        return files.size();
-    }
-
-    public int folderCount() {
-        return folders.size();
-    }
 }

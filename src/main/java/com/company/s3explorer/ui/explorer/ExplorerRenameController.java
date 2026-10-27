@@ -8,7 +8,6 @@ import org.slf4j.LoggerFactory;
 import javax.swing.*;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
-import java.util.function.Supplier;
 
 public class ExplorerRenameController {
 

@@ -4,7 +4,6 @@ import com.company.s3explorer.transfer.TransferRuntime;
 import com.company.s3explorer.ui.transfer.TransferTableModel;
 
 import javax.swing.*;
-import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.*;
 
 public class TransferProgressRenderer

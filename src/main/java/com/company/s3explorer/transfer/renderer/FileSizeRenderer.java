@@ -4,7 +4,6 @@ import com.company.s3explorer.util.SizeFormatter;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
-import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.*;
 
 public class FileSizeRenderer

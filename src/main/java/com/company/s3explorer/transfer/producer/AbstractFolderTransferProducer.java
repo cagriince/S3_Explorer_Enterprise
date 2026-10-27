@@ -66,8 +66,7 @@ public abstract class AbstractFolderTransferProducer
 
     @Override
     public void produce(
-            ProducerRuntime runtime)
-            throws IOException {
+            ProducerRuntime runtime) {
 
         group.producerStarted();
 

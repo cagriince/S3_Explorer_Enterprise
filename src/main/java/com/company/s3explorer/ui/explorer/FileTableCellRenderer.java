@@ -2,7 +2,6 @@ package com.company.s3explorer.ui.explorer;
 
 import com.company.s3explorer.transfer.renderer.PaddedTableCellRenderer;
 import com.company.s3explorer.ui.icons.IconProvider;
-import com.company.s3explorer.util.S3Util;
 
 import javax.swing.*;
 import java.awt.*;

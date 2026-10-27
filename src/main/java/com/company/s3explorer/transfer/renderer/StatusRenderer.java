@@ -2,7 +2,6 @@ package com.company.s3explorer.transfer.renderer;
 
 import com.company.s3explorer.transfer.TransferStatus;
 
-import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.*;
 
 public class StatusRenderer extends PaddedTableCellRenderer {

@@ -68,28 +68,6 @@ public class S3ExplorerService {
             Map<String, CollationKey> collationKeyCache,
             FolderDiscoveryListener discoveryListener,
             FolderContentMode contentMode,
-            boolean flatBrowsing) {
-
-        return listFolderWithLimit(
-                bucket,
-                prefix,
-                fileLimit,
-                sortSpec,
-                collationKeyCache,
-                discoveryListener,
-                contentMode,
-                flatBrowsing,
-                FileTableFilter.noFilter());
-    }
-
-    public LimitedFolderContent listFolderWithLimit(
-            String bucket,
-            String prefix,
-            int fileLimit,
-            FileTableSortSpec sortSpec,
-            Map<String, CollationKey> collationKeyCache,
-            FolderDiscoveryListener discoveryListener,
-            FolderContentMode contentMode,
             boolean flatBrowsing,
             FileTableFilter filter) {
 
@@ -120,8 +98,7 @@ public class S3ExplorerService {
                         && filter.includesFiles()
                         ? new BoundedSortedFileCollection(
                         fileLimit,
-                        sortSpec.createFileComparator(
-                                collationKeyCache))
+                        sortSpec.createFileComparator())
                         : null;
 
         long matchingFileCount = 0;
@@ -422,26 +399,6 @@ public class S3ExplorerService {
                         .build();
 
         client.copyObject(request);
-    }
-
-
-    public void copyObjectBetweenRepositories(
-            String sourceBucket,
-            String sourceKey,
-            S3Client targetRepositoryClient,
-            String targetBucket,
-            String targetKey,
-            TransferProgressListener listener) throws Exception {
-
-        copyObjectBetweenRepositories(
-                sourceBucket,
-                sourceKey,
-                targetRepositoryClient,
-                targetBucket,
-                targetKey,
-                listener,
-                false,
-                CrossRepositoryEncryptionOptions.none());
     }
 
     public void copyObjectBetweenRepositories(
@@ -872,21 +829,6 @@ public class S3ExplorerService {
         }
     }
 
-
-    public void uploadFile(
-            String bucket,
-            String objectKey,
-            Path file,
-            TransferProgressListener listener) throws IOException {
-
-        uploadFile(
-                bucket,
-                objectKey,
-                file,
-                false,
-                listener);
-    }
-
     public void uploadFile(
             String bucket,
             String objectKey,
@@ -914,22 +856,6 @@ public class S3ExplorerService {
                             .build(),
                     RequestBody.fromInputStream(in, totalBytes));
         }
-    }
-
-    public void uploadEncryptedFile(
-            String bucket,
-            String objectKey,
-            Path file,
-            EncryptionConfig encryptionConfig,
-            TransferProgressListener listener) throws Exception {
-
-        uploadEncryptedFile(
-                bucket,
-                objectKey,
-                file,
-                encryptionConfig,
-                false,
-                listener);
     }
 
     public void uploadEncryptedFile(

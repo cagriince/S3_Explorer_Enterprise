@@ -4,7 +4,6 @@ package com.company.s3explorer.ui.explorer;
 import com.company.s3explorer.util.S3Util;
 
 import javax.swing.SortOrder;
-import javax.swing.RowSorter;
 import javax.swing.table.TableRowSorter;
 import java.text.CollationKey;
 import java.text.Collator;
