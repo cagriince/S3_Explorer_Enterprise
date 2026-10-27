@@ -21,9 +21,6 @@ public class IconProvider {
     public static ImageIcon ICON_REPOSITORY = null;
     public static final ImageIcon ICON_REPOSITORY_NORMAL = loadIcon("db");
     public static final ImageIcon ICON_REPOSITORY_REVERSE = loadIcon("db-reverse");
-    public static ImageIcon ICON_BUCKET = null;
-    public static final ImageIcon ICON_BUCKET_NORMAL = loadIcon("hdd");
-    public static final ImageIcon ICON_BUCKET_REVERSE = loadIcon("hdd-reverse");
 
     public static ImageIcon ICON_CHECK_ALL = null;
     public static final ImageIcon ICON_CHECK_ALL_NORMAL = loadIcon("check-all");
@@ -157,7 +154,6 @@ public class IconProvider {
         ICON_DOWNLOAD_DECRYPTED = normal ? ICON_DOWNLOAD_DECRYPTED_NORMAL : ICON_DOWNLOAD_DECRYPTED_REVERSE;
         ICON_CREATE_FOLDER = normal ? ICON_CREATE_FOLDER_NORMAL : ICON_CREATE_FOLDER_REVERSE;
         ICON_REPOSITORY = normal ? ICON_REPOSITORY_NORMAL : ICON_REPOSITORY_REVERSE;
-        ICON_BUCKET = normal ? ICON_BUCKET_NORMAL : ICON_BUCKET_REVERSE;
         ICON_SETTINGS = normal ? ICON_SETTINGS_NORMAL : ICON_SETTINGS_REVERSE;
         ICON_CANCEL = normal ? ICON_CANCEL_NORMAL : ICON_CANCEL_REVERSE;
         ICON_CANCEL_ALL = normal ? ICON_CANCEL_ALL_NORMAL : ICON_CANCEL_ALL_REVERSE;
