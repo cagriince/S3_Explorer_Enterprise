@@ -65,8 +65,7 @@ public class ProducerExecutor
             FolderTransferProducer producer) {
 
         ProducerRuntime runtime =
-                new ProducerRuntime(
-                        producer.getDescription());
+                new ProducerRuntime();
 
         runtime.setProgressCallback(
                 () -> eventBus.publishProducer(runtime));

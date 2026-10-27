@@ -7,8 +7,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ProducerRuntime {
 
-    private final String description;
-
     private volatile TransferStatus status =
             TransferStatus.QUEUED;
 
@@ -41,16 +39,6 @@ public class ProducerRuntime {
      */
     private final AtomicBoolean cancelledBeforeStart =
             new AtomicBoolean(false);
-
-    public ProducerRuntime(
-            String description) {
-
-        this.description = description;
-    }
-
-    public String getDescription() {
-        return description;
-    }
 
     public TransferStatus getStatus() {
         return status;
