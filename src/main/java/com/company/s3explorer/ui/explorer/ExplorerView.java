@@ -23,6 +23,7 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
+import java.util.List;
 
 /**
  * Swing view for the explorer. It owns explorer UI components and wiring
