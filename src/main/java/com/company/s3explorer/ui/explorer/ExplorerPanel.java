@@ -159,7 +159,6 @@ public class ExplorerPanel extends JPanel {
     private Action uploadEncryptedAction;
     private Action newFolderAction;
     private Action refreshAction;
-    private Action manageRepositoryAction;
     private Action backAction;
     private Action forwardAction;
     private Action reloadFolderAction;
@@ -356,7 +355,6 @@ public class ExplorerPanel extends JPanel {
     }
 
     private void createActions() {
-        manageRepositoryAction = new ExplorerAction("Repository Manager", this::showRepositoryManager);
         refreshAction = new ExplorerAction("Reload Bucket", this::loadBucketsAsync);
         uploadAction = new ExplorerAction("Upload", this::uploadFile);
         uploadEncryptedAction = new ExplorerAction("Upload Encrypted", this::uploadFileEncrypted);
