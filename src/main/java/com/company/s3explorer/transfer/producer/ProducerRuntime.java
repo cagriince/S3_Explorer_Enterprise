@@ -7,8 +7,6 @@ public class ProducerRuntime {
 
     private volatile long discoveredCount;
 
-    private volatile String message = "";
-
     private volatile Instant startTime;
     private volatile Instant endTime;
 
@@ -44,12 +42,6 @@ public class ProducerRuntime {
 
             progressCallback.run();
         }
-    }
-
-    public void setMessage(
-            String message) {
-
-        this.message = message;
     }
 
     public void setStartTime(

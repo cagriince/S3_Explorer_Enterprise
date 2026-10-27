@@ -1,6 +1,5 @@
 package com.company.s3explorer.transfer.producer;
 
-import com.company.s3explorer.transfer.TransferStatus;
 import com.company.s3explorer.transfer.event.TransferEventBus;
 
 import java.time.Instant;
@@ -116,9 +115,6 @@ public class ProducerExecutor
              */
             runtime.requestCancel();
 
-            runtime.setMessage(
-                    "Producer cancelled");
-
             runtime.forceNextUiPublish();
 
             eventBus.publishProducer(runtime);
@@ -170,9 +166,6 @@ public class ProducerExecutor
                  */
                 runtime.requestCancel();
 
-                runtime.setMessage(
-                        "Producer cancelled");
-
                 runtime.forceNextUiPublish();
 
                 eventBus.publishProducer(runtime);
@@ -221,52 +214,14 @@ public class ProducerExecutor
         eventBus.publishProducer(runtime);
 
         try {
-
             producer.produce(runtime);
-
-            if (runtime.isCancelRequested()
-                    || Thread.currentThread().isInterrupted()) {
-
-                runtime.setMessage(
-                        "Producer cancelled");
-            } else {
-                runtime.setMessage(
-                        "Folder preparation completed");
-            }
-
-        }
-        catch (ProducerCancelledException ex) {
-
-            runtime.setMessage(
-                    "Producer cancelled");
         }
         catch (Exception ex) {
-
-            /*
-             * Cancel All sırasında producer interrupt edilmişse
-             * FAILED olarak göstermiyoruz.
-             */
-            if (runtime.isCancelRequested()
-                    || Thread.currentThread().isInterrupted()) {
-
-                runtime.setMessage(
-                        "Producer cancelled");
-            } else {
-
-                runtime.setMessage(
-                        ex.getMessage());
-            }
-
         }
         finally {
-
-            runtime.setEndTime(
-                    Instant.now());
-
+            runtime.setEndTime(Instant.now());
             runtime.forceNextUiPublish();
-
             eventBus.publishProducer(runtime);
-
             runningProducers.remove(runtime);
         }
     }
