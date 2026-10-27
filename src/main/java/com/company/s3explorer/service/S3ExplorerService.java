@@ -44,7 +44,6 @@ public class S3ExplorerService {
             String prefix,
             int fileLimit,
             FileTableSortSpec sortSpec,
-            Map<String, CollationKey> collationKeyCache,
             FolderDiscoveryListener discoveryListener,
             FolderContentMode contentMode) {
 
@@ -53,7 +52,6 @@ public class S3ExplorerService {
                 prefix,
                 fileLimit,
                 sortSpec,
-                collationKeyCache,
                 discoveryListener,
                 contentMode,
                 false,
@@ -65,7 +63,6 @@ public class S3ExplorerService {
             String prefix,
             int fileLimit,
             FileTableSortSpec sortSpec,
-            Map<String, CollationKey> collationKeyCache,
             FolderDiscoveryListener discoveryListener,
             FolderContentMode contentMode,
             boolean flatBrowsing,

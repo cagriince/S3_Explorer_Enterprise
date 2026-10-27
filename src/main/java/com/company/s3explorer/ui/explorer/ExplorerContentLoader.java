@@ -120,7 +120,6 @@ public final class ExplorerContentLoader {
                                     prefix,
                                     1,
                                     FileTableSortSpec.defaultSpec(),
-                                    collationKeyCache,
                                     discoveryListener,
                                     FolderContentMode.FOLDERS_ONLY);
                         },
