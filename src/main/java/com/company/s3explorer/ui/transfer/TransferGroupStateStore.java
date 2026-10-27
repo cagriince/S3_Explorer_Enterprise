@@ -292,40 +292,6 @@ public class TransferGroupStateStore {
 
         }
 
-        public UUID getId() {
-
-            return group != null
-                    ? group.getId()
-                    : null;
-
-        }
-
-        public String getDisplayName() {
-
-            return group != null
-                    ? group.getDisplayName()
-                    : "";
-
-        }
-
-        public String getRepository() {
-
-            return repository;
-
-        }
-
-        public String getBucket() {
-
-            return bucket;
-
-        }
-
-        public String getPrefix() {
-
-            return prefix;
-
-        }
-
         public boolean isPreparing() {
 
             return !finished
@@ -355,48 +321,11 @@ public class TransferGroupStateStore {
 
         }
 
-        public boolean isSuccessful() {
-
-            return group != null
-                    && group.isFullySuccessful();
-    
-
-        }
-
-        public boolean isFailed() {
-
-    
-            return group != null
-                    && group.isFailed();
-    
-
-        }
-
         public long getDetected() {
 
     
             return group != null
                     ? group.getDetected()
-                    : 0;
-    
-
-        }
-
-        public int getQueued() {
-
-    
-            return group != null
-                    ? group.getQueued()
-                    : 0;
-    
-
-        }
-
-        public int getRunningCount() {
-
-    
-            return group != null
-                    ? group.getRunning()
                     : 0;
     
 
@@ -438,24 +367,6 @@ public class TransferGroupStateStore {
             return group != null
                     ? group.getSkipped()
                     : 0;
-    
-
-        }
-
-        public long getDetectedBytes() {
-
-    
-            return group != null
-                    ? group.getDetectedBytes()
-                    : 0;
-    
-
-        }
-
-        public boolean isSourceRefreshRequired() {
-
-    
-            return sourceRefreshRequired;
     
 
         }
