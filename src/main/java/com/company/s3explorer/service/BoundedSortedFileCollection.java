@@ -4,7 +4,6 @@ package com.company.s3explorer.service;
 import software.amazon.awssdk.services.s3.model.S3Object;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -66,56 +65,6 @@ public class BoundedSortedFileCollection {
         if (items.size() > limit) {
             items.remove(items.size() - 1);
         }
-    }
-
-    public void addAll(Iterable<S3Object> source) {
-
-        if (source == null) {
-            return;
-        }
-
-        if (source instanceof Collection<?> collection) {
-
-            @SuppressWarnings("unchecked")
-            Collection<S3Object> objects =
-                    (Collection<S3Object>) collection;
-
-            items.clear();
-
-            int count = Math.min(objects.size(), limit);
-            if (count == objects.size()) {
-                items.addAll(objects);
-            } else {
-                /*
-                 * Sınır uygulanmadan önce tüm kaynak listeyi
-                 * sıralamak yerine, en fazla limit kadar
-                 * elemanı kopyalayıp sıralıyoruz.
-                 *
-                 * Bu optimizasyon yalnızca kaynak listedeki
-                 * ilk elemanların doğru sonuç kümesini
-                 * oluşturduğu varsayımına dayanmaz; bu yüzden
-                 * sıralamayı korumak için önce tüm kaynak
-                 * kopyalanır ve sıralanır.
-                 */
-                items.addAll(objects);
-            }
-
-            items.sort(comparator);
-
-            if (items.size() > limit) {
-                items.subList(limit, items.size()).clear();
-            }
-
-            return;
-        }
-
-        for (S3Object item : source) {
-            add(item);
-        }
-    }
-
-    public int size() {
-        return items.size();
     }
 
     public List<S3Object> toList() {
