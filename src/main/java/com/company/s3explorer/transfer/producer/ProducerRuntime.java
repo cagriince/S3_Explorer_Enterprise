@@ -1,14 +1,10 @@
 package com.company.s3explorer.transfer.producer;
 
-import java.time.Instant;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ProducerRuntime {
 
     private volatile long discoveredCount;
-
-    private volatile Instant startTime;
-    private volatile Instant endTime;
 
     private volatile boolean cancelRequested;
 
@@ -42,18 +38,6 @@ public class ProducerRuntime {
 
             progressCallback.run();
         }
-    }
-
-    public void setStartTime(
-            Instant startTime) {
-
-        this.startTime = startTime;
-    }
-
-    public void setEndTime(
-            Instant endTime) {
-
-        this.endTime = endTime;
     }
 
     public boolean isCancelRequested() {

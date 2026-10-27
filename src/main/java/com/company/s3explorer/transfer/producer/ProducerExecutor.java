@@ -2,7 +2,6 @@ package com.company.s3explorer.transfer.producer;
 
 import com.company.s3explorer.transfer.event.TransferEventBus;
 
-import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -208,9 +207,6 @@ public class ProducerExecutor
             return;
         }
 
-        runtime.setStartTime(
-                Instant.now());
-
         eventBus.publishProducer(runtime);
 
         try {
@@ -219,7 +215,6 @@ public class ProducerExecutor
         catch (Exception ex) {
         }
         finally {
-            runtime.setEndTime(Instant.now());
             runtime.forceNextUiPublish();
             eventBus.publishProducer(runtime);
             runningProducers.remove(runtime);
