@@ -237,21 +237,13 @@ public class TransferPanel
                 new JScrollPane(
                         runningTable));
 
-        /*
-         * Finished
-         *
-         * Unified table:
-         *
-         *   [Group rows]
-         *   [Individual transfer rows]
-         */
         tabs.addTab(
-                "Finished",
+                "Completed",
                 new JScrollPane(
                         finishedTable));
-        
+
         tabs.addTab(
-                "All",
+                "Groups",
                 new JScrollPane(
                         allTable));
 
@@ -875,72 +867,38 @@ public class TransferPanel
         long queued =
                 stateStore.getQueuedCount();
 
-        /*
-         * Running:
-         *
-         * Tablo en fazla 1000 kayıt gösterir.
-         * Tab başlığında ise gerçek toplam sayı gösterilir.
-         *
-         * Group + individual transfer kayıtları birlikte sayılır.
-         */
-        long runningGroups =
-                groupStateStore.runningSnapshot().size();
-
-        long runningTransfers =
+        long running =
                 stateStore.getRunningCount();
 
-        long running =
-                runningGroups
-                        + runningTransfers;
-
-        /*
-         * Finished:
-         *
-         * Tablo en fazla 1000 kayıt gösterir.
-         * Tab başlığında gerçek toplam sayı gösterilir.
-         *
-         * Group + individual transfer kayıtları birlikte sayılır.
-         */
-        long finishedGroups =
-                groupStateStore.finishedSnapshot().size();
-
-        long finishedTransfers =
+        long completed =
                 stateStore.getFinishedCount();
 
-        long finished =
-                finishedGroups
-                        + finishedTransfers;
-
-        /*
-         * All:
-         *
-         * All tabında da gerçek toplam sayı gösterilir.
-         */
-        long allGroups =
+        long groups =
                 groupStateStore.snapshot().size();
-
-        long allTransfers =
-                stateStore.getTotalCount();
-
-        long all =
-                allGroups
-                        + allTransfers;
 
         tabs.setTitleAt(
                 0,
-                "Queued (" + S3Util.formatWithThousandSeparator(queued) + ")");
+                "Queued (" +
+                        S3Util.formatWithThousandSeparator(queued) +
+                        ")");
 
         tabs.setTitleAt(
                 1,
-                "Running (" + S3Util.formatWithThousandSeparator(running) + ")");
+                "Running (" +
+                        S3Util.formatWithThousandSeparator(running) +
+                        ")");
 
         tabs.setTitleAt(
                 2,
-                "Finished (" + S3Util.formatWithThousandSeparator(finished) + ")");
+                "Completed (" +
+                        S3Util.formatWithThousandSeparator(completed) +
+                        ")");
 
         tabs.setTitleAt(
                 3,
-                "All (" + S3Util.formatWithThousandSeparator(all) + ")");
+                "Groups (" +
+                        S3Util.formatWithThousandSeparator(groups) +
+                        ")");
     }
 
     private void updateButtons() {
