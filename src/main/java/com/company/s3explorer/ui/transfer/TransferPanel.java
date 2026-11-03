@@ -147,8 +147,7 @@ public class TransferPanel
         /*
          * Queued
          *
-         * Queued hâlâ yalnızca TransferRuntime
-         * kayıtlarını gösteriyor.
+         * Bağımsız ve gruplara ait bekleyen dosya işlemleri.
          */
         queuedTable =
                 createTable(
@@ -158,8 +157,7 @@ public class TransferPanel
         /*
          * Running
          *
-         * Group + individual TransferRuntime
-         * kayıtlarını birlikte gösterir.
+         * Bağımsız ve gruplara ait çalışan dosya işlemleri.
          */
         runningTable =
                 createTable(
@@ -167,10 +165,10 @@ public class TransferPanel
         allTables.add(runningTable);
 
         /*
-         * Finished
+         * Completed
          *
-         * Group + individual TransferRuntime
-         * kayıtlarını birlikte gösterir.
+         * Tamamlanan, başarısız olan ve iptal edilen
+         * dosya işlemleri.
          */
         finishedTable =
                 createTable(
@@ -178,18 +176,14 @@ public class TransferPanel
         allTables.add(finishedTable);
 
         /*
-         * All
+         * Groups
          *
-         * Group + individual TransferRuntime
-         * kayıtlarını birlikte gösterir.
+         * Bütün grup işlemleri.
          */
         allTable =
                 createTable(
                         allModel);
         allTables.add(allTable);
-
-        tabs =
-                new JTabbedPane();
 
         /*
          * UI yenilemesi yalnızca son snapshot'ı
@@ -996,7 +990,7 @@ public class TransferPanel
         }
 
         boolean groupCancellationAllowed =
-                table == runningTable || table == allTable;
+                table == allTable;
 
         for (int viewRow : selectedRows) {
 
@@ -1141,7 +1135,7 @@ public class TransferPanel
         }
 
         boolean groupCancellationAllowed =
-                table == runningTable || table == allTable;
+                table == allTable;
 
         for (int viewRow : selectedRows) {
 
