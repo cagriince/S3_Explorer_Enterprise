@@ -9,7 +9,6 @@ import com.company.s3explorer.util.S3Util;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.S3Object;
 
-import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.CancellationException;
@@ -27,7 +26,6 @@ public final class BulkDownloadProducer
     private final Path localFolder;
     private final EncryptionConfig encryptionConfig;
     private final TransferGroup group;
-    private final String sourcePrefix;
 
     private volatile long lastGroupUpdateTime;
 
@@ -39,8 +37,7 @@ public final class BulkDownloadProducer
             List<String> objectKeys,
             Path localFolder,
             EncryptionConfig encryptionConfig,
-            TransferGroup group,
-            String sourcePrefix) {
+            TransferGroup group) {
 
         this.context = context;
         this.queue = queue;
@@ -50,7 +47,6 @@ public final class BulkDownloadProducer
         this.localFolder = localFolder;
         this.encryptionConfig = encryptionConfig;
         this.group = group;
-        this.sourcePrefix = sourcePrefix;
     }
 
     @Override

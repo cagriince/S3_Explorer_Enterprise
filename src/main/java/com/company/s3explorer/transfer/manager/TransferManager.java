@@ -583,8 +583,7 @@ public class TransferManager {
                         objectKeys,
                         localFolder,
                         null,
-                        group,
-                        firstKey)
+                        group)
         );
         
         return group;
@@ -671,8 +670,7 @@ public class TransferManager {
                         objectKeys,
                         localFolder,
                         encryptionConfig,
-                        group,
-                        firstKey)
+                        group)
         );
 
         return group;

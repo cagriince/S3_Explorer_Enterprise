@@ -1,6 +1,5 @@
 package com.company.s3explorer.transfer.producer;
 
-import com.company.s3explorer.transfer.TransferType;
 import com.company.s3explorer.transfer.context.TransferContext;
 import com.company.s3explorer.transfer.model.TransferGroup;
 import com.company.s3explorer.transfer.model.TransferTask;
@@ -9,7 +8,6 @@ import com.company.s3explorer.util.S3Util;
 
 import software.amazon.awssdk.services.s3.model.S3Object;
 
-import java.io.IOException;
 import java.util.UUID;
 
 public abstract class AbstractFolderTransferProducer
