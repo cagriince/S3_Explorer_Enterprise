@@ -152,7 +152,7 @@ public final class ExplorerFileOperationController {
                 item.getSize(),
                 group);
     }
-    
+
     public void downloadDecrypted(
             S3FileItem item,
             Path destination,
@@ -201,8 +201,10 @@ public final class ExplorerFileOperationController {
 
         if (item == null
                 || item.isParentFolder()
+                || item.isFolder()
                 || destination == null
-                || encryptionConfig == null) {
+                || encryptionConfig == null
+                || group == null) {
             return;
         }
 
@@ -213,48 +215,14 @@ public final class ExplorerFileOperationController {
             return;
         }
 
-        if (item.isFolder()) {
-
-            if (group == null) {
-
-                transferManager.submitFolderDownloadDecrypted(
-                        item.getRepositoryId(),
-                        bucket,
-                        item.getKey(),
-                        destination,
-                        encryptionConfig);
-
-            } else {
-
-                throw new IllegalArgumentException(
-                        "Grouped folder download is not supported " +
-                                "by this operation");
-            }
-
-        } else {
-
-            if (group == null) {
-
-                transferManager.submitDownloadDecrypted(
-                        item.getRepositoryId(),
-                        bucket,
-                        item.getKey(),
-                        destination,
-                        item.getSize(),
-                        encryptionConfig);
-
-            } else {
-
-                transferManager.submitDownloadDecrypted(
-                        item.getRepositoryId(),
-                        bucket,
-                        item.getKey(),
-                        destination,
-                        item.getSize(),
-                        encryptionConfig,
-                        group);
-            }
-        }
+        transferManager.submitDownloadDecrypted(
+                item.getRepositoryId(),
+                bucket,
+                item.getKey(),
+                destination,
+                item.getSize(),
+                encryptionConfig,
+                group);
     }
 
     public void copy(
