@@ -51,7 +51,7 @@ public class PropertiesDialog extends JDialog {
         setLocationRelativeTo(owner);
         setSize(
                 300,
-                350);
+                360);
     }
 
     private PropertiesDialog(Window owner) {

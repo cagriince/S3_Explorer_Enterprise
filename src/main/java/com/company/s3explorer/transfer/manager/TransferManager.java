@@ -1348,12 +1348,9 @@ public class TransferManager {
     }
 
     public void close() {
-
         cancellationExecutor.shutdownNow();
-
-        producerExecutor.close();
     }
-
+    
     private ProducerRuntime submitGroupProducer(
             TransferGroup group,
             FolderTransferProducer producer) {
