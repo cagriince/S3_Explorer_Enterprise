@@ -47,9 +47,8 @@ public class TransferEngine
 
         transferManager =
                 new TransferManager(
-                        clientManager,
+                        context,
                         queue,
-                        eventBus,
                         producerExecutor);
     }
 

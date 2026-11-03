@@ -2,10 +2,8 @@ package com.company.s3explorer.transfer.manager;
 
 import com.company.s3explorer.security.CrossRepositoryEncryptionOptions;
 import com.company.s3explorer.security.EncryptionConfig;
-import com.company.s3explorer.service.S3ClientManager;
 import com.company.s3explorer.transfer.TransferType;
 import com.company.s3explorer.transfer.context.TransferContext;
-import com.company.s3explorer.transfer.event.TransferEventBus;
 import com.company.s3explorer.transfer.model.TransferGroup;
 import com.company.s3explorer.transfer.model.TransferTask;
 import com.company.s3explorer.transfer.producer.*;
@@ -32,18 +30,13 @@ public class TransferManager {
             new ConcurrentHashMap<>();
 
     public TransferManager(
-            S3ClientManager clientManager,
+            TransferContext transferContext,
             TransferQueue queue,
-            TransferEventBus eventBus,
             ProducerExecutor producerExecutor) {
 
         this.queue = queue;
         this.producerExecutor = producerExecutor;
-
-        transferContext =
-                new TransferContext(
-                        clientManager,
-                        eventBus);
+        this.transferContext = transferContext;
 
         cancellationExecutor =
                 Executors.newSingleThreadExecutor(
