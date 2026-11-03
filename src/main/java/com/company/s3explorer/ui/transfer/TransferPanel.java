@@ -558,12 +558,12 @@ public class TransferPanel
                             runningTable,
                             runningModel);
 
-            List<String> finishedSelection =
+            List<String> completedSelection =
                     captureSelection(
                             completedTable,
                             completedModel);
 
-            List<String> allSelection =
+            List<String> groupsSelection =
                     captureSelection(
                             groupsTable,
                             groupsModel);
@@ -592,12 +592,12 @@ public class TransferPanel
             restoreSelection(
                     completedTable,
                     completedModel,
-                    finishedSelection);
+                    completedSelection);
 
             restoreSelection(
                     groupsTable,
                     groupsModel,
-                    allSelection);
+                    groupsSelection);
 
         } finally {
 
