@@ -148,8 +148,7 @@ public abstract class AbstractTransferOperation
 
             if (group != null) {
 
-                group.failed(
-                        runtime.getTask());
+                group.failed();
 
                 publishGroupUpdated(
                         group,

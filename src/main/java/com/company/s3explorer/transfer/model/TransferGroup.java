@@ -344,11 +344,6 @@ public class TransferGroup {
         fireCompletionIfNecessary();
     }
 
-
-    public void failed(TransferTask task) {
-        failed();
-    }
-
     /**
      * Queue'dan henüz çalışmaya başlamamış bir task
      * cancellation nedeniyle çıkarıldı.
