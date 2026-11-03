@@ -3,9 +3,7 @@ package com.company.s3explorer.transfer.model;
 import com.company.s3explorer.security.CrossRepositoryEncryptionOptions;
 import com.company.s3explorer.transfer.TransferType;
 
-import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -77,10 +75,6 @@ public class TransferGroup {
     private final AtomicInteger failed = new AtomicInteger();
     private final AtomicInteger cancelled = new AtomicInteger();
     private final AtomicInteger skipped = new AtomicInteger();
-
-    /* Failed task details */
-    private final List<TransferTask> failedTasks =
-            new CopyOnWriteArrayList<>();
 
     /* Producer state */
     private final AtomicInteger activeProducers =
@@ -352,12 +346,7 @@ public class TransferGroup {
 
 
     public void failed(TransferTask task) {
-
         failed();
-
-        if (task != null) {
-            failedTasks.add(task);
-        }
     }
 
     /**
