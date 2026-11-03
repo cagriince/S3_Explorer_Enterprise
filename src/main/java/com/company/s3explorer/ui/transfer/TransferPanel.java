@@ -36,13 +36,13 @@ public class TransferPanel
 
     private TransferTableModel queuedModel;
     private TransferTableModel runningModel;
-    private TransferTableModel finishedModel;
-    private TransferTableModel allModel;
+    private TransferTableModel completedModel;
+    private TransferTableModel groupsModel;
     
     private JTable queuedTable;
     private JTable runningTable;
-    private JTable finishedTable;
-    private JTable allTable;
+    private JTable completedTable;
+    private JTable groupsTable;
     private List<JTable> allTables;
 
     private JTabbedPane tabs;
@@ -89,8 +89,8 @@ public class TransferPanel
     private void createModel() {
         queuedModel = new TransferTableModel();
         runningModel = new TransferTableModel();
-        finishedModel = new TransferTableModel();
-        allModel = new TransferTableModel();
+        completedModel = new TransferTableModel();
+        groupsModel = new TransferTableModel();
     }
 
     private void createComponents() {
@@ -170,20 +170,20 @@ public class TransferPanel
          * Tamamlanan, başarısız olan ve iptal edilen
          * dosya işlemleri.
          */
-        finishedTable =
+        completedTable =
                 createTable(
-                        finishedModel);
-        allTables.add(finishedTable);
+                        completedModel);
+        allTables.add(completedTable);
 
         /*
          * Groups
          *
          * Bütün grup işlemleri.
          */
-        allTable =
+        groupsTable =
                 createTable(
-                        allModel);
-        allTables.add(allTable);
+                        groupsModel);
+        allTables.add(groupsTable);
 
         /*
          * UI yenilemesi yalnızca son snapshot'ı
@@ -234,12 +234,12 @@ public class TransferPanel
         tabs.addTab(
                 "Completed",
                 new JScrollPane(
-                        finishedTable));
+                        completedTable));
 
         tabs.addTab(
                 "Groups",
                 new JScrollPane(
-                        allTable));
+                        groupsTable));
 
         /*
          * Varsayılan olarak Running sekmesini göster.
@@ -277,10 +277,10 @@ public class TransferPanel
                 runningTable);
 
         registerSelectionListener(
-                finishedTable);
+                completedTable);
 
         registerSelectionListener(
-                allTable);
+                groupsTable);
 
         tabs.addChangeListener(
                 e -> updateButtons());
@@ -560,13 +560,13 @@ public class TransferPanel
 
             List<String> finishedSelection =
                     captureSelection(
-                            finishedTable,
-                            finishedModel);
+                            completedTable,
+                            completedModel);
 
             List<String> allSelection =
                     captureSelection(
-                            allTable,
-                            allModel);
+                            groupsTable,
+                            groupsModel);
 
             queuedModel.setSnapshot(
                     stateStore.snapshot(
@@ -576,11 +576,11 @@ public class TransferPanel
                     stateStore.snapshot(
                             TransferStateStore.View.RUNNING));
 
-            finishedModel.setSnapshot(
+            completedModel.setSnapshot(
                     stateStore.snapshot(
                             TransferStateStore.View.FINISHED));
 
-            allModel.setSnapshot(
+            groupsModel.setSnapshot(
                     groupStateStore.snapshot(),
                     List.of());
 
@@ -590,13 +590,13 @@ public class TransferPanel
                     runningSelection);
 
             restoreSelection(
-                    finishedTable,
-                    finishedModel,
+                    completedTable,
+                    completedModel,
                     finishedSelection);
 
             restoreSelection(
-                    allTable,
-                    allModel,
+                    groupsTable,
+                    groupsModel,
                     allSelection);
 
         } finally {
@@ -958,10 +958,10 @@ public class TransferPanel
                     runningTable;
 
             case 2 ->
-                    finishedTable;
+                    completedTable;
 
             case 3 ->
-                    allTable;
+                    groupsTable;
 
             default ->
                     null;
@@ -990,7 +990,7 @@ public class TransferPanel
         }
 
         boolean groupCancellationAllowed =
-                table == allTable;
+                table == groupsTable;
 
         for (int viewRow : selectedRows) {
 
@@ -1135,7 +1135,7 @@ public class TransferPanel
         }
 
         boolean groupCancellationAllowed =
-                table == allTable;
+                table == groupsTable;
 
         for (int viewRow : selectedRows) {
 
@@ -1191,12 +1191,12 @@ public class TransferPanel
             return runningModel;
         }
 
-        if (table == finishedTable) {
-            return finishedModel;
+        if (table == completedTable) {
+            return completedModel;
         }
 
-        if (table == allTable) {
-            return allModel;
+        if (table == groupsTable) {
+            return groupsModel;
         }
 
         return null;
