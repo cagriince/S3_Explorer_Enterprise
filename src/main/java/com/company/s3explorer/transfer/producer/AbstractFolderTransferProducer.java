@@ -163,7 +163,7 @@ public abstract class AbstractFolderTransferProducer
         TransferTask task =
                 createTask(object);
 
-        group.detected(object.size());
+        group.detected();
 
         queue.add(task);
 

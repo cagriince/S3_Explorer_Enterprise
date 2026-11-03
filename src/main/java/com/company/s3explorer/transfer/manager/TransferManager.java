@@ -1469,10 +1469,7 @@ public class TransferManager {
          * Folder producer'lar kendi discovery lifecycle'larında
          * detected() çağrısını zaten yapıyor.
          */
-        group.detected(
-                Math.max(
-                        0L,
-                        task.getSize()));
+        group.detected();
 
         queue.add(task);
     }

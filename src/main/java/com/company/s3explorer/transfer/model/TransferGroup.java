@@ -251,7 +251,7 @@ public class TransferGroup {
     // PRODUCER / DISCOVERY
     // ---------------------------------------------------------------------
 
-    public void detected(long size) {
+    public void detected() {
         detected.incrementAndGet();
     }
     

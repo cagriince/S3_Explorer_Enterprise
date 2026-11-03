@@ -119,10 +119,7 @@ public class FolderUploadProducer
                         .group(group)
                         .build();
 
-        group.detected(
-                Math.max(
-                        0L,
-                        task.getSize()));
+        group.detected();
 
         queue.add(task);
     }

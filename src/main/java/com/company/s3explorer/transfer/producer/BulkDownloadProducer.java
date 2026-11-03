@@ -141,10 +141,7 @@ public final class BulkDownloadProducer
                         target,
                         head.contentLength());
 
-        group.detected(
-                Math.max(
-                        0L,
-                        head.contentLength()));
+        group.detected();
 
         queue.add(task);
 
@@ -203,10 +200,7 @@ public final class BulkDownloadProducer
                         target,
                         object.size());
 
-        group.detected(
-                Math.max(
-                        0L,
-                        object.size()));
+        group.detected();
 
         queue.add(task);
 
