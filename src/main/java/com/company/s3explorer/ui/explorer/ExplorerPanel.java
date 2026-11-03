@@ -2785,7 +2785,7 @@ public class ExplorerPanel extends JPanel {
                         "sourceIsFolder={}",
                 group.getDisplayName(),
                 group.getOperation(),
-                event.isSuccessful(),
+                group.isFullySuccessful(),
                 event.isSourceRefreshRequired(),
                 group.isSourceFolder());
 

@@ -37,8 +37,4 @@ public class TransferGroupCompletedEvent {
     public boolean isSourceRefreshRequired() {
         return sourceRefreshRequired;
     }
-
-    public boolean isSuccessful() {
-        return group.isFullySuccessful();
-    }
 }
