@@ -3,7 +3,6 @@ package com.company.s3explorer.ui.transfer;
 import com.company.s3explorer.transfer.TransferRuntime;
 import com.company.s3explorer.transfer.event.TransferEventBus;
 import com.company.s3explorer.transfer.event.TransferGroupCompletedEvent;
-import com.company.s3explorer.transfer.event.TransferGroupUpdatedEvent;
 import com.company.s3explorer.transfer.event.TransferListener;
 import com.company.s3explorer.transfer.manager.TransferManager;
 import com.company.s3explorer.transfer.model.TransferGroup;
@@ -59,7 +58,7 @@ public class TransferPanel
 
     private final java.util.concurrent.ConcurrentHashMap<
             UUID,
-            TransferGroupUpdatedEvent> pendingGroupUpdates =
+            TransferGroup> pendingGroupUpdates =
             new java.util.concurrent.ConcurrentHashMap<>();
 
     private final java.util.concurrent.atomic.AtomicBoolean
@@ -353,18 +352,17 @@ public class TransferPanel
         stateStore.markAllQueuedCancelled(
                 runtimes);
     }
-    
+
     @Override
     public void onTransferGroupUpdated(
-            TransferGroupUpdatedEvent event) {
+            TransferGroup group) {
 
-        if (event == null
-                || event.getGroup() == null) {
+        if (group == null
+                || group.getId() == null) {
             return;
         }
 
-        UUID groupId =
-                event.getGroup().getId();
+        UUID groupId = group.getId();
 
         /*
          * Aynı group için yalnızca en son update'i tut.
@@ -374,7 +372,7 @@ public class TransferPanel
          */
         pendingGroupUpdates.put(
                 groupId,
-                event);
+                group);
 
         /*
          * EDT'de zaten bir group refresh bekliyorsa
@@ -390,7 +388,6 @@ public class TransferPanel
         SwingUtilities.invokeLater(
                 this::processPendingGroupUpdates);
     }
-
 
     /*
      * Final logical group completion.
@@ -437,7 +434,7 @@ public class TransferPanel
              *
              * sırası korunur.
              */
-            TransferGroupUpdatedEvent pending =
+            TransferGroup pending =
                     pendingGroupUpdates.remove(
                             groupId);
 
@@ -466,45 +463,44 @@ public class TransferPanel
 
         try {
 
-            List<TransferGroupUpdatedEvent> updates =
+            List<TransferGroup> updates =
                     new ArrayList<>();
 
             /*
-             * Bekleyen event'leri tek tek güvenli şekilde
+             * Bekleyen group'ları tek tek güvenli şekilde
              * kuyruktan çıkar.
              *
-             * Event bu sırada başka bir thread tarafından
-             * güncellenmişse remove(key, value) eski event'i
-             * silmez. Yeni event kuyrukta kalır.
+             * Group bu sırada başka bir thread tarafından
+             * güncellenmişse remove(key, value) eski kaydı
+             * silmez. Yeni kayıt kuyrukta kalır.
              */
             for (UUID groupId : pendingGroupUpdates.keySet()) {
 
-                TransferGroupUpdatedEvent event =
+                TransferGroup group =
                         pendingGroupUpdates.get(groupId);
 
-                if (event == null) {
+                if (group == null) {
                     continue;
                 }
 
                 if (pendingGroupUpdates.remove(
                         groupId,
-                        event)) {
+                        group)) {
 
-                    updates.add(event);
+                    updates.add(group);
                 }
             }
 
             /*
-             * Kuyruktan güvenli şekilde alınan event'leri işle.
+             * Kuyruktan güvenli şekilde alınan group'ları işle.
              */
-            for (TransferGroupUpdatedEvent event : updates) {
+            for (TransferGroup group : updates) {
 
-                if (event == null
-                        || event.getGroup() == null) {
+                if (group == null) {
                     continue;
                 }
 
-                groupStateStore.upsert(event);
+                groupStateStore.upsert(group);
             }
 
             refreshVisibleTables();
@@ -516,7 +512,7 @@ public class TransferPanel
             groupUpdateRefreshScheduled.set(false);
 
             /*
-             * İşlem sırasında yeni event geldiyse
+             * İşlem sırasında yeni update geldiyse
              * tekrar tek bir EDT işi oluştur.
              */
             if (!pendingGroupUpdates.isEmpty()
