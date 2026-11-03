@@ -1,6 +1,5 @@
 package com.company.s3explorer.transfer;
 
-import com.company.s3explorer.transfer.model.TransferProgress;
 import com.company.s3explorer.transfer.model.TransferTask;
 
 import java.time.Duration;
@@ -11,9 +10,11 @@ public class TransferRuntime {
     private final TransferTask task;
     private TransferStatus status = TransferStatus.QUEUED;
     private String message = "";
-    private final TransferProgress progress = new TransferProgress();
-    private volatile boolean cancelRequested;
 
+    private long transferredBytes;
+    private long totalBytes;
+
+    private volatile boolean cancelRequested;
     private volatile Instant startTime;
     private volatile Instant endTime;
     private volatile long lastUiPublishTime;
@@ -67,23 +68,31 @@ public class TransferRuntime {
     }
 
     public void updateProgress(long transferred, long total) {
-        progress.update(transferred, total);
+        this.transferredBytes = transferred;
+        this.totalBytes = total;
     }
 
     public void progressCompleted() {
-        progress.complete();
+        transferredBytes = totalBytes;
     }
 
     public int getPercent() {
-        return progress.getPercent();
+        if (totalBytes == 0) {
+            return 0;
+        }
+
+        return (int) ((transferredBytes * 100) / totalBytes);
     }
 
     public long getElapsedTime() {
-        if (this.startTime ==null) {
-            // not started yet,in queue
+        if (this.startTime == null) {
             return 0;
         }
-        return Duration.between(this.startTime, this.endTime != null ? this.endTime : Instant.now()).toMillis();
+
+        return Duration.between(
+                this.startTime,
+                this.endTime != null ? this.endTime : Instant.now()
+        ).toMillis();
     }
 
     /**
