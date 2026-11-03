@@ -1376,6 +1376,12 @@ public class TransferManager {
                 group.getId(),
                 runtime);
 
+        if (group.isFinished()) {
+            groupProducers.remove(
+                    group.getId(),
+                    runtime);
+        }
+
         return runtime;
     }
     
@@ -1404,7 +1410,7 @@ public class TransferManager {
 
         group.setCompletionCallback(
                 () -> {
-
+                    groupProducers.remove(group.getId());
                     System.out.println(
                             "[TRANSFER GROUP CALLBACK] " +
                                     "group=" +
