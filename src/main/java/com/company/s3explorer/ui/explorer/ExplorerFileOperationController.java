@@ -131,7 +131,9 @@ public final class ExplorerFileOperationController {
 
         if (item == null
                 || item.isParentFolder()
-                || destination == null) {
+                || item.isFolder()
+                || destination == null
+                || group == null) {
             return;
         }
 
@@ -142,45 +144,13 @@ public final class ExplorerFileOperationController {
             return;
         }
 
-        if (item.isFolder()) {
-
-            if (group == null) {
-
-                transferManager.submitFolderDownload(
-                        item.getRepositoryId(),
-                        bucket,
-                        item.getKey(),
-                        destination);
-
-            } else {
-
-                throw new IllegalArgumentException(
-                        "Grouped folder download is not supported " +
-                                "by this operation");
-            }
-
-        } else {
-
-            if (group == null) {
-
-                transferManager.submitDownload(
-                        item.getRepositoryId(),
-                        bucket,
-                        item.getKey(),
-                        destination,
-                        item.getSize());
-
-            } else {
-
-                transferManager.submitDownload(
-                        item.getRepositoryId(),
-                        bucket,
-                        item.getKey(),
-                        destination,
-                        item.getSize(),
-                        group);
-            }
-        }
+        transferManager.submitDownload(
+                item.getRepositoryId(),
+                bucket,
+                item.getKey(),
+                destination,
+                item.getSize(),
+                group);
     }
     
     public void downloadDecrypted(
