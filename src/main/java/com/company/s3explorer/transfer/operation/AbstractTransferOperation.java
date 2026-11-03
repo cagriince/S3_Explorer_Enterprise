@@ -215,7 +215,7 @@ public abstract class AbstractTransferOperation
 
             if (runtime.shouldPublishUi(100)) {
 
-                transferContext.publishProgress(
+                transferContext.publish(
                         runtime);
             }
         };
@@ -229,7 +229,7 @@ public abstract class AbstractTransferOperation
 
         runtime.forceNextUiPublish();
 
-        transferContext.publishProgress(
+        transferContext.publish(
                 runtime);
     }
 
@@ -246,7 +246,7 @@ public abstract class AbstractTransferOperation
 
         if (runtime.shouldPublishUi(100)) {
 
-            transferContext.publishProgress(
+            transferContext.publish(
                     runtime);
         }
     }

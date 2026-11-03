@@ -93,12 +93,6 @@ public class TransferContext {
         publish(runtime);
     }
 
-    public void publishProgress(
-            TransferRuntime runtime) {
-
-        eventBus.publish(runtime);
-    }
-
     public void publishGroupUpdated(
             TransferGroup group) {
 
