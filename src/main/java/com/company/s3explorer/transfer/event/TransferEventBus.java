@@ -65,7 +65,7 @@ public class TransferEventBus {
 
     /**
      * Publishes the current state of a logical transfer group.
-     * This event represents the same logical operation
+     * This represents the same logical operation
      * throughout preparing, executing and finishing.
      */
     public void publishGroupUpdated(
@@ -74,10 +74,6 @@ public class TransferEventBus {
         if (group == null) {
             return;
         }
-
-        TransferGroupUpdatedEvent event =
-                new TransferGroupUpdatedEvent(
-                        group);
 
         log.debug(
                 "[EVENT BUS] publishGroupUpdated listeners={} group={} queued={} running={} completed={} failed={} cancelled={} skipped={} productionCompleted={} activeProducers={}",
@@ -96,7 +92,7 @@ public class TransferEventBus {
                 listeners) {
 
             listener.onTransferGroupUpdated(
-                    event);
+                    group);
         }
     }
 

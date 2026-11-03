@@ -1,9 +1,10 @@
 package com.company.s3explorer.transfer.event;
 
-import java.util.List;
-
 import com.company.s3explorer.transfer.TransferRuntime;
+import com.company.s3explorer.transfer.model.TransferGroup;
 import com.company.s3explorer.transfer.producer.ProducerRuntime;
+
+import java.util.List;
 
 public interface TransferListener {
 
@@ -19,7 +20,7 @@ public interface TransferListener {
     }
 
     default void onTransferGroupUpdated(
-            TransferGroupUpdatedEvent event) {
+            TransferGroup group) {
     }
 
     default void onTransferGroupCompleted(
