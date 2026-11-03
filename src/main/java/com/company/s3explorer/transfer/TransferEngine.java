@@ -69,9 +69,8 @@ public class TransferEngine
 
     @Override
     public void close() {
-
+        transferManager.close();
         producerExecutor.close();
-
         workerExecutor.close();
     }
 }
