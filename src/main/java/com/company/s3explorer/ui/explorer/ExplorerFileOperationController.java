@@ -67,7 +67,9 @@ public final class ExplorerFileOperationController {
             TransferGroup group) {
 
         if (item == null
-                || item.isParentFolder()) {
+                || item.isParentFolder()
+                || item.isFolder()
+                || group == null) {
             return;
         }
 
@@ -78,42 +80,12 @@ public final class ExplorerFileOperationController {
             return;
         }
 
-        if (item.isFolder()) {
-
-            if (group == null) {
-
-                transferManager.submitFolderDelete(
-                        item.getRepositoryId(),
-                        bucket,
-                        item.getKey());
-
-            } else {
-
-                throw new IllegalArgumentException(
-                        "Grouped folder delete is not supported " +
-                                "by this operation");
-            }
-
-        } else {
-
-            if (group == null) {
-
-                transferManager.submitDelete(
-                        item.getRepositoryId(),
-                        bucket,
-                        item.getKey(),
-                        item.getSize());
-
-            } else {
-
-                transferManager.submitDelete(
-                        item.getRepositoryId(),
-                        bucket,
-                        item.getKey(),
-                        item.getSize(),
-                        group);
-            }
-        }
+        transferManager.submitDelete(
+                item.getRepositoryId(),
+                bucket,
+                item.getKey(),
+                item.getSize(),
+                group);
     }
    
     public void download(
