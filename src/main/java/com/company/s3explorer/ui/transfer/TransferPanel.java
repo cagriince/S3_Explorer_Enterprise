@@ -587,19 +587,16 @@ public class TransferPanel
                             TransferStateStore.View.QUEUED));
 
             runningModel.setSnapshot(
-                    groupStateStore.runningSnapshot(),
                     stateStore.snapshot(
                             TransferStateStore.View.RUNNING));
 
             finishedModel.setSnapshot(
-                    groupStateStore.finishedSnapshot(),
                     stateStore.snapshot(
                             TransferStateStore.View.FINISHED));
 
             allModel.setSnapshot(
                     groupStateStore.snapshot(),
-                    stateStore.snapshot(
-                            TransferStateStore.View.ALL));
+                    List.of());
 
             restoreSelection(
                     runningTable,
