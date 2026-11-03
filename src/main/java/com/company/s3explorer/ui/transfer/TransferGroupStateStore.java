@@ -1,7 +1,6 @@
 package com.company.s3explorer.ui.transfer;
 
 import com.company.s3explorer.transfer.event.TransferGroupCompletedEvent;
-import com.company.s3explorer.transfer.event.TransferGroupUpdatedEvent;
 import com.company.s3explorer.transfer.model.TransferGroup;
 
 import java.time.Duration;
@@ -36,16 +35,12 @@ public class TransferGroupStateStore {
      * Group event'ini store'a ekler veya mevcut kaydı günceller.
      */
     public synchronized void upsert(
-            TransferGroupUpdatedEvent event) {
+            TransferGroup group) {
 
-        if (event == null
-                || event.getGroup() == null
-                || event.getGroup().getId() == null) {
+        if (group == null
+                || group.getId() == null) {
             return;
         }
-
-        TransferGroup group =
-                event.getGroup();
 
         GroupRecord record =
                 groups.computeIfAbsent(
@@ -65,7 +60,7 @@ public class TransferGroupStateStore {
             return;
         }
 
-        record.update(event);
+        record.update(group);
     }
 
     /**
@@ -185,14 +180,13 @@ public class TransferGroupStateStore {
         }
 
         private void update(
-                TransferGroupUpdatedEvent event) {
+                TransferGroup group) {
 
-            this.group =
-                    event.getGroup();
+            this.group = group;
 
             this.finished =
                     this.finished
-                            || event.isFinished();
+                            || group.isFinished();
 
             /*
              * İlk group update'i lifecycle başlangıcıdır.
@@ -207,7 +201,7 @@ public class TransferGroupStateStore {
             }
 
             /*
-             * Event Finished olarak geldiyse endTime'ı
+             * Group Finished olarak geldiyse endTime'ı
              * yalnızca ilk kez set et.
              *
              * Normal lifecycle'da gerçek completion event'i
@@ -219,7 +213,6 @@ public class TransferGroupStateStore {
                 this.endTime =
                         Instant.now();
             }
-
         }
 
         private void complete(
