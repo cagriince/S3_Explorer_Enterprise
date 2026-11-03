@@ -69,7 +69,6 @@ public class TransferGroup {
 
     /* Discovery / preparation */
     private final AtomicLong detected = new AtomicLong();
-    private final AtomicLong detectedBytes = new AtomicLong();
 
     /* Task states */
     private final AtomicInteger queued = new AtomicInteger();
@@ -259,12 +258,7 @@ public class TransferGroup {
     // ---------------------------------------------------------------------
 
     public void detected(long size) {
-
         detected.incrementAndGet();
-
-        if (size > 0) {
-            detectedBytes.addAndGet(size);
-        }
     }
     
     public long getDetected() {
