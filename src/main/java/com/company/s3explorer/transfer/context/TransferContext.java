@@ -84,8 +84,6 @@ public class TransferContext {
         runtime.setEndTime(
                 Instant.now());
 
-        runtime.setException(ex);
-
         runtime.setMessage(
                 S3ErrorResolver.getUserMessage(ex));
 

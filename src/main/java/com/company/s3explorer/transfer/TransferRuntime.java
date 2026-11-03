@@ -18,8 +18,6 @@ public class TransferRuntime {
     private volatile Instant endTime;
     private volatile long lastUiPublishTime;
 
-    private Throwable exception;
-
     public TransferRuntime(TransferTask task) {
         this.task = task;
     }
@@ -66,10 +64,6 @@ public class TransferRuntime {
 
     public void setEndTime(Instant endTime) {
         this.endTime = endTime;
-    }
-
-    public void setException(Throwable exception) {
-        this.exception = exception;
     }
 
     public void updateProgress(long transferred, long total) {
