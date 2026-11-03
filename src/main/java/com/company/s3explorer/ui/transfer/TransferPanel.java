@@ -94,8 +94,11 @@ public class TransferPanel
     }
 
     private void createComponents() {
+        tabs = new JTabbedPane();
+
         allTables = new ArrayList<>();
 
+        // Metodun geri kalanı aynı kalacak.
         cancelButton =
                 new JButton();
 
