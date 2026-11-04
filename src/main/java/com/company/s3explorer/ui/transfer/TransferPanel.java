@@ -238,13 +238,45 @@ public class TransferPanel
             JTable table) {
 
         table.getSelectionModel()
-                .addListSelectionListener(
-                        e -> {
+                .addListSelectionListener(e -> {
 
-                            if (!e.getValueIsAdjusting()) {
-                                updateButtons();
-                            }
-                        });
+                    if (!e.getValueIsAdjusting()) {
+                        updateButtons();
+                    }
+                });
+
+        table.addMouseListener(
+                new java.awt.event.MouseAdapter() {
+
+                    @Override
+                    public void mouseClicked(
+                            java.awt.event.MouseEvent e) {
+
+                        if (e.getClickCount() != 2
+                                || !SwingUtilities.isLeftMouseButton(e)) {
+                            return;
+                        }
+
+                        int viewRow =
+                                table.rowAtPoint(e.getPoint());
+
+                        if (viewRow < 0) {
+                            return;
+                        }
+
+                        /*
+                         * Çift tıklanan satırı tek seçim yap.
+                         *
+                         * Böylece önceden başka satırlar seçili olsa
+                         * bile yalnızca çift tıklanan kayıt açılır.
+                         */
+                        table.setRowSelectionInterval(
+                                viewRow,
+                                viewRow);
+
+                        openSelectedLogFile();
+                    }
+                });
     }
     
     /*
