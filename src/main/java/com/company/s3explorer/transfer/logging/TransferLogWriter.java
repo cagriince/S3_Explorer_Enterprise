@@ -207,6 +207,39 @@ public class TransferLogWriter implements AutoCloseable {
                 id -> resolveGroupFile(id));
     }
 
+    /**
+     * Returns the log file assigned to the given transfer task.
+     *
+     * Does not create or resolve a new file path.
+     */
+    public Path getLogFile(TransferRuntime runtime) {
+
+        if (runtime == null
+                || runtime.getTask() == null
+                || runtime.getTask().getId() == null) {
+            return null;
+        }
+
+        return taskFiles.get(
+                runtime.getTask().getId());
+    }
+
+    /**
+     * Returns the log file assigned to the given transfer group.
+     *
+     * Does not create or resolve a new file path.
+     */
+    public Path getGroupLogFile(TransferGroup group) {
+
+        if (group == null
+                || group.getId() == null) {
+            return null;
+        }
+
+        return groupFiles.get(
+                group.getId());
+    }
+    
     // ---------------------------------------------------------------------
     // RECORDING
     // ---------------------------------------------------------------------
