@@ -1,3 +1,4 @@
+
 <?xml version="1.0" encoding="UTF-8"?>
 
 <configuration>
@@ -18,7 +19,7 @@
     <appender name="FILE"
               class="ch.qos.logback.core.rolling.RollingFileAppender">
 
-        <file>${LOG_DIR}/s3-explorer.log</file>
+        <file>${LOG_DIR}/gib-s3-explorer.log</file>
 
         <rollingPolicy
                 class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
@@ -41,10 +42,12 @@
 
     </appender>
 
-    <!-- Normal çalışma -->
-    <root level="INFO">
+    <!-- Application logs -->
+    <logger name="com.company.s3explorer" level="ERROR"/>
+
+    <!-- Third-party libraries -->
+    <root level="WARN">
         <appender-ref ref="CONSOLE"/>
-        <!--<appender-ref ref="FILE"/>-->
     </root>
 
 </configuration>
