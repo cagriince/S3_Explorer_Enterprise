@@ -863,7 +863,7 @@ public class TransferManager {
         submit(task);
     }
 
-    public TransferGroup submitRename(
+    public void submitRename(
             String repositoryId,
             String bucket,
             String keySource,
@@ -872,23 +872,6 @@ public class TransferManager {
             String keyTarget,
             long size,
             boolean overwrite) {
-
-        TransferGroup group =
-                createOperationGroup(
-                        TransferType.RENAME,
-                        S3Util.extractFileName(keySource),
-                        repositoryId,
-                        bucket,
-                        keySource,
-                        targetRepositoryId,
-                        targetBucket,
-                        keyTarget);
-
-        configureGroupCompletion(
-                group,
-                bucket,
-                keySource,
-                true);
 
         TransferTask task =
                 TransferTask.rename()
@@ -908,18 +891,11 @@ public class TransferManager {
                         .overwrite(overwrite)
                         .affectsObjectList(true)
                         .affectsFolderTree(false)
-                        .group(group)
                         .build();
 
-        submitGroupedTask(
-                task,
-                group);
-
-        group.markProductionCompleted();
-
-        return group;
+        submit(task);
     }
-    
+
     public void submitCreateFolder(
             String repositoryId,
             String bucket,
