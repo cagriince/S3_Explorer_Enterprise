@@ -140,7 +140,7 @@ public class TransferPanel
                 e -> clearFinishedTransfers());
 
         openLogFileButton.addActionListener(
-                e -> openSelectedGroupLogFile());
+                e -> openSelectedLogFile());
 
         setButtonIcons();
 
@@ -869,7 +869,7 @@ public class TransferPanel
         clearButton.setEnabled(hasFinished);
 
         openLogFileButton.setEnabled(
-                hasSelectedFinishedGroup());
+                getSelectedLogFile() != null);
     }
 
     private JTable getSelectedTable() {
@@ -1207,71 +1207,78 @@ public class TransferPanel
         }
     }
 
-    private TransferGroupStateStore.GroupRecord
-    getSelectedFinishedGroup() {
+    private Path getSelectedLogFile() {
 
-        if (tabs.getSelectedComponent() == null
-                || tabs.getSelectedIndex() != 3) {
+        JTable table = getSelectedTable();
+
+        if (table == null) {
             return null;
         }
 
         int[] selectedRows =
-                groupsTable.getSelectedRows();
+                table.getSelectedRows();
 
         if (selectedRows.length != 1) {
             return null;
         }
 
+        TransferTableModel model =
+                getModelForTable(table);
+
+        if (model == null) {
+            return null;
+        }
+
         int modelRow =
-                groupsTable.convertRowIndexToModel(
+                table.convertRowIndexToModel(
                         selectedRows[0]);
 
-        if (!groupsModel.isGroupRow(modelRow)) {
+        /*
+         * GROUP ROW
+         */
+        if (model.isGroupRow(modelRow)) {
+
+            if (table != groupsTable) {
+                return null;
+            }
+
+            TransferGroupStateStore.GroupRecord record =
+                    model.getGroup(modelRow);
+
+            if (record == null
+                    || !record.isFinished()
+                    || record.getGroup() == null) {
+                return null;
+            }
+
+            return logWriter.getGroupLogFile(
+                    record.getGroup());
+        }
+
+        /*
+         * FILE TRANSFER ROW
+         */
+        TransferRuntime runtime =
+                model.getRuntime(modelRow);
+
+        if (runtime == null
+                || runtime.getTask() == null
+                || runtime.getTask().getId() == null
+                || runtime.getStatus() == null
+                || !runtime.getStatus().isFinished()) {
             return null;
         }
 
-        TransferGroupStateStore.GroupRecord record =
-                groupsModel.getGroup(modelRow);
-
-        if (record == null
-                || !record.isFinished()
-                || record.getGroup() == null
-                || record.getGroup().getId() == null
-                || record.getStartTime() == null) {
-
-            return null;
-        }
-
-        return record;
+        return logWriter.getLogFile(runtime);
     }
 
-    private boolean hasSelectedFinishedGroup() {
+    private void openSelectedLogFile() {
 
-        return getSelectedFinishedGroup() != null;
-    }
+        Path logFile = getSelectedLogFile();
 
-    private void openSelectedGroupLogFile() {
-
-        TransferGroupStateStore.GroupRecord record =
-                getSelectedFinishedGroup();
-
-        if (record == null) {
+        if (logFile == null) {
             return;
         }
-
-        TransferGroup group =
-                record.getGroup();
-
-        Path logFile =
-                Path.of(
-                        "logs",
-                        "transfers",
-                        LOG_DATE_FORMAT.format(
-                                record.getStartTime()
-                                        .atZone(ZoneId.systemDefault())
-                                        .toLocalDate()),
-                        group.getId() + ".csv"
-                );
 
         if (!Files.isRegularFile(logFile)) {
 
