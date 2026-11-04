@@ -2675,13 +2675,26 @@ public class ExplorerPanel extends JPanel {
              * RENAME
              * ---------------------------------------------------------
              */
-            if (task.getType() == TransferType.RENAME
-                    || task.getType() == TransferType.RENAME_GROUP) {
+            if (task.getType() == TransferType.RENAME) {
 
                 log.debug(
                         "[EXPLORER TRANSFER EVENT] "
-                                + "rename task - incremental group completion "
-                                + "will update Explorer. "
+                                + "single file rename completed; "
+                                + "scheduling current table refresh. "
+                                + "objectKey={} targetKey={}",
+                        task.getObjectKey(),
+                        task.getTargetObjectKey());
+
+                refreshScheduler.scheduleCurrentTableRefresh();
+
+                return;
+            }
+
+            if (task.getType() == TransferType.RENAME_GROUP) {
+
+                log.debug(
+                        "[EXPLORER TRANSFER EVENT] "
+                                + "rename group task completed. "
                                 + "type={} objectKey={}",
                         task.getType(),
                         task.getObjectKey());
