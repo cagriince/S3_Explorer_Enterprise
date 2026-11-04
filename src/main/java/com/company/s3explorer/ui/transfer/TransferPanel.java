@@ -17,12 +17,17 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 
 public class TransferPanel
         extends JPanel
         implements TransferListener {
 
     private static final int UI_VISIBLE_LIMIT = 1000;
+    private static final DateTimeFormatter LOG_DATE_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE;
 
     private final TransferEventBus eventBus;
     private final TransferManager transferManager;
@@ -33,6 +38,7 @@ public class TransferPanel
     private JButton cancelButton;
     private JButton cancelAllButton;
     private JButton clearButton;
+    private JButton openLogFileButton;
 
     private TransferTableModel queuedModel;
     private TransferTableModel runningModel;
@@ -94,47 +100,31 @@ public class TransferPanel
     }
 
     private void createComponents() {
+
         tabs = new JTabbedPane();
 
         allTables = new ArrayList<>();
 
-        // Metodun geri kalanı aynı kalacak.
-        cancelButton =
-                new JButton();
+        cancelButton = new JButton();
+        cancelButton.setToolTipText("Cancel Selected");
+        cancelButton.setPreferredSize(new Dimension(30, 30));
 
-        cancelButton.setToolTipText(
-                "Cancel Selected");
+        cancelAllButton = new JButton();
+        cancelAllButton.setToolTipText("Cancel All");
+        cancelAllButton.setPreferredSize(new Dimension(30, 30));
 
-        cancelButton.setPreferredSize(
-                new Dimension(
-                        30,
-                        30));
+        clearButton = new JButton();
+        clearButton.setToolTipText("Clear Logs");
+        clearButton.setPreferredSize(new Dimension(30, 30));
 
-        cancelAllButton =
-                new JButton();
-
-        cancelAllButton.setToolTipText(
-                "Cancel All");
-
-        cancelAllButton.setPreferredSize(
-                new Dimension(
-                        30,
-                        30));
-
-        clearButton =
-                new JButton();
-
-        clearButton.setToolTipText(
-                "Clear Logs");
-
-        clearButton.setPreferredSize(
-                new Dimension(
-                        30,
-                        30));
+        openLogFileButton = new JButton();
+        openLogFileButton.setToolTipText("Open Log File");
+        openLogFileButton.setPreferredSize(new Dimension(30, 30));
 
         cancelButton.setEnabled(false);
         cancelAllButton.setEnabled(false);
         clearButton.setEnabled(false);
+        openLogFileButton.setEnabled(false);
 
         cancelButton.addActionListener(
                 e -> cancelSelectedTransfers());
@@ -145,59 +135,26 @@ public class TransferPanel
         clearButton.addActionListener(
                 e -> clearFinishedTransfers());
 
+        openLogFileButton.addActionListener(
+                e -> openSelectedGroupLogFile());
+
         setButtonIcons();
 
-        /*
-         * Queued
-         *
-         * Bağımsız ve gruplara ait bekleyen dosya işlemleri.
-         */
-        queuedTable =
-                createTable(
-                        queuedModel);
+        queuedTable = createTable(queuedModel);
         allTables.add(queuedTable);
 
-        /*
-         * Running
-         *
-         * Bağımsız ve gruplara ait çalışan dosya işlemleri.
-         */
-        runningTable =
-                createTable(
-                        runningModel);
+        runningTable = createTable(runningModel);
         allTables.add(runningTable);
 
-        /*
-         * Completed
-         *
-         * Tamamlanan, başarısız olan ve iptal edilen
-         * dosya işlemleri.
-         */
-        completedTable =
-                createTable(
-                        completedModel);
+        completedTable = createTable(completedModel);
         allTables.add(completedTable);
 
-        /*
-         * Groups
-         *
-         * Bütün grup işlemleri.
-         */
-        groupsTable =
-                createTable(
-                        groupsModel);
+        groupsTable = createTable(groupsModel);
         allTables.add(groupsTable);
 
-        /*
-         * UI yenilemesi yalnızca son snapshot'ı
-         * almak için kullanılıyor.
-         *
-         * Transfer event'leri burada işlenmiyor.
-         */
-        refreshTimer =
-                new Timer(
-                        100,
-                        e -> refreshFromStateStore());
+        refreshTimer = new Timer(
+                100,
+                e -> refreshFromStateStore());
 
         refreshTimer.start();
     }
@@ -205,13 +162,10 @@ public class TransferPanel
     private void layoutComponents() {
 
         JPanel toolbar =
-                new JPanel(
-                        new FlowLayout());
+                new JPanel(new FlowLayout());
 
         toolbar.setPreferredSize(
-                new Dimension(
-                        50,
-                        0));
+                new Dimension(50, 0));
 
         toolbar.setBorder(
                 BorderFactory.createEmptyBorder(
@@ -223,50 +177,37 @@ public class TransferPanel
         toolbar.add(cancelButton);
         toolbar.add(cancelAllButton);
         toolbar.add(clearButton);
+        toolbar.add(openLogFileButton);
 
         tabs.addTab(
                 "Queued",
-                new JScrollPane(
-                        queuedTable));
+                new JScrollPane(queuedTable));
 
         tabs.addTab(
                 "Running",
-                new JScrollPane(
-                        runningTable));
+                new JScrollPane(runningTable));
 
         tabs.addTab(
                 "Completed",
-                new JScrollPane(
-                        completedTable));
+                new JScrollPane(completedTable));
 
         tabs.addTab(
                 "Groups",
-                new JScrollPane(
-                        groupsTable));
+                new JScrollPane(groupsTable));
 
-        /*
-         * Varsayılan olarak Running sekmesini göster.
-         */
         tabs.setSelectedIndex(1);
 
         JPanel contentPanel =
-                new JPanel(
-                        new BorderLayout());
+                new JPanel(new BorderLayout());
 
         contentPanel.add(
                 tabs,
                 BorderLayout.CENTER);
 
-        setLayout(
-                new BorderLayout());
+        setLayout(new BorderLayout());
 
-        add(
-                toolbar,
-                BorderLayout.WEST);
-
-        add(
-                contentPanel,
-                BorderLayout.CENTER);
+        add(toolbar, BorderLayout.WEST);
+        add(contentPanel, BorderLayout.CENTER);
     }
 
     private void registerListeners() {
@@ -900,33 +841,18 @@ public class TransferPanel
 
     private void updateButtons() {
 
-        /*
-         * JTable snapshot refresh'i sırasında
-         * selection geçici olarak boşalabilir.
-         *
-         * Bu sırada butonların enabled durumunu
-         * değiştirmiyoruz.
-         *
-         * Refresh tamamlandığında refreshVisibleTables()
-         * zaten updateButtons() çağıracaktır.
-         */
         if (refreshingTables) {
             return;
         }
 
-        JTable table =
-                getSelectedTable();
+        JTable table = getSelectedTable();
 
         boolean cancelEnabled =
-                hasCancelableSelection(
-                        table);
+                hasCancelableSelection(table);
 
         boolean hasActive =
                 stateStore.getQueuedCount() > 0
                         || stateStore.getRunningCount() > 0;
-
-        boolean cancelAllEnabled =
-                hasActive;
 
         boolean hasFinished =
                 stateStore.getFinishedCount() > 0
@@ -934,17 +860,12 @@ public class TransferPanel
                         .finishedSnapshot()
                         .isEmpty();
 
-        boolean clearEnabled =
-                hasFinished;
+        cancelButton.setEnabled(cancelEnabled);
+        cancelAllButton.setEnabled(hasActive);
+        clearButton.setEnabled(hasFinished);
 
-        cancelButton.setEnabled(
-                cancelEnabled);
-
-        cancelAllButton.setEnabled(
-                cancelAllEnabled);
-
-        clearButton.setEnabled(
-                clearEnabled);
+        openLogFileButton.setEnabled(
+                hasSelectedFinishedGroup());
     }
 
     private JTable getSelectedTable() {
@@ -1215,6 +1136,9 @@ public class TransferPanel
 
         clearButton.setIcon(
                 IconProvider.ICON_DELETE);
+
+        openLogFileButton.setIcon(
+                IconProvider.ICON_OPEN_LOG);
     }
 
     private void configureTable(
@@ -1276,6 +1200,113 @@ public class TransferPanel
                 //table.setSelectionBackground(new Color(53, 222, 163));
                 table.setSelectionBackground(new Color(57, 105, 138));
             }
+        }
+    }
+
+    private TransferGroupStateStore.GroupRecord
+    getSelectedFinishedGroup() {
+
+        if (tabs.getSelectedComponent() == null
+                || tabs.getSelectedIndex() != 3) {
+            return null;
+        }
+
+        int[] selectedRows =
+                groupsTable.getSelectedRows();
+
+        if (selectedRows.length != 1) {
+            return null;
+        }
+
+        int modelRow =
+                groupsTable.convertRowIndexToModel(
+                        selectedRows[0]);
+
+        if (!groupsModel.isGroupRow(modelRow)) {
+            return null;
+        }
+
+        TransferGroupStateStore.GroupRecord record =
+                groupsModel.getGroup(modelRow);
+
+        if (record == null
+                || !record.isFinished()
+                || record.getGroup() == null
+                || record.getGroup().getId() == null
+                || record.getStartTime() == null) {
+
+            return null;
+        }
+
+        return record;
+    }
+
+    private boolean hasSelectedFinishedGroup() {
+
+        return getSelectedFinishedGroup() != null;
+    }
+
+    private void openSelectedGroupLogFile() {
+
+        TransferGroupStateStore.GroupRecord record =
+                getSelectedFinishedGroup();
+
+        if (record == null) {
+            return;
+        }
+
+        TransferGroup group =
+                record.getGroup();
+
+        Path logFile =
+                Path.of(
+                        "logs",
+                        "transfers",
+                        LOG_DATE_FORMAT.format(
+                                record.getStartTime()
+                                        .atZone(ZoneId.systemDefault())
+                                        .toLocalDate()),
+                        group.getId() + ".csv"
+                );
+
+        if (!Files.isRegularFile(logFile)) {
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Log file not found:\n" + logFile,
+                    "Open Log File",
+                    JOptionPane.INFORMATION_MESSAGE);
+
+            return;
+        }
+
+        if (!Desktop.isDesktopSupported()
+                || !Desktop.getDesktop().isSupported(
+                Desktop.Action.OPEN)) {
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Opening files with the default application "
+                            + "is not supported on this system.",
+                    "Open Log File",
+                    JOptionPane.ERROR_MESSAGE);
+
+            return;
+        }
+
+        try {
+
+            Desktop.getDesktop().open(
+                    logFile.toFile());
+
+        } catch (Exception ex) {
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Could not open log file:\n"
+                            + ex.getMessage(),
+                    "Open Log File",
+                    JOptionPane.ERROR_MESSAGE);
         }
     }
 }
