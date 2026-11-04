@@ -15,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -35,10 +36,8 @@ public class TransferLogWriter implements AutoCloseable {
             LoggerFactory.getLogger(TransferLogWriter.class);
 
     private static final List<String> HEADERS = List.of(
-            "Group ID",
             "Group Name",
             "Operation",
-            "Task ID",
             "Source",
             "Target",
             "Size",
@@ -53,6 +52,11 @@ public class TransferLogWriter implements AutoCloseable {
 
     private static final DateTimeFormatter DATE_FORMAT =
             DateTimeFormatter.ISO_LOCAL_DATE;
+
+    private static final DateTimeFormatter TIMESTAMP_FORMAT =
+            DateTimeFormatter
+                    .ofPattern("yyyy-MM-dd HH:mm:ss.SSS")
+                    .withZone(ZoneId.systemDefault());
 
     private static final long FLUSH_INTERVAL_MILLIS = 500;
 
@@ -382,10 +386,10 @@ public class TransferLogWriter implements AutoCloseable {
                         : runtime.getStatus().name(),
                 runtime.getStartTime() == null
                         ? ""
-                        : runtime.getStartTime().toString(),
+                        : TIMESTAMP_FORMAT.format(runtime.getStartTime()),
                 runtime.getEndTime() == null
                         ? ""
-                        : runtime.getEndTime().toString(),
+                        : TIMESTAMP_FORMAT.format(runtime.getEndTime()),
                 Long.toString(runtime.getElapsedTime()),
                 nullToEmpty(runtime.getMessage())
         );
@@ -703,12 +707,11 @@ public class TransferLogWriter implements AutoCloseable {
             return;
         }
 
-        /*
-         * Özet satırları da aynı 12 sütun yapısında tutulur.
-         *
-         * İlk sütun: SUMMARY / alan adı
-         * İkinci sütun: değer
-         */
+        // Summary öncesinde görsel boş satır.
+        fileRecords.put(
+                summaryRowId(summary.groupId(), "spacer"),
+                summaryRow("", ""));
+
         fileRecords.put(
                 summaryRowId(summary.groupId(), "section"),
                 summaryRow("SUMMARY", ""));
@@ -824,6 +827,11 @@ public class TransferLogWriter implements AutoCloseable {
 
                 List<String> row = rows.get(i);
 
+                // Summary öncesindeki boş satırı atla.
+                if (row.size() == 1 && row.get(0).isEmpty()) {
+                    continue;
+                }
+
                 if (row.size() != COLUMN_COUNT) {
                     throw new IOException(
                             "Invalid CSV column count in "
@@ -834,34 +842,21 @@ public class TransferLogWriter implements AutoCloseable {
 
                 LogEntry entry = fromCsvRow(row);
 
+                UUID rowId = UUID.nameUUIDFromBytes(
+                        (file.toString() + ":ROW:" + i)
+                                .getBytes(StandardCharsets.UTF_8));
+
+                fileRecords.put(rowId, entry);
+
                 /*
-                 * Task satırları UUID taşır.
-                 * SUMMARY satırları ise özel anahtar kullanır.
+                 * Gerçek görev satırları Operation ve Status alanlarına
+                 * sahiptir. Summary satırları görev olarak sayılmaz.
                  */
-                try {
-                    UUID taskId = UUID.fromString(entry.taskId());
+                if (!entry.operation().isBlank()
+                        && !entry.status().isBlank()
+                        && !entry.groupName().isBlank()) {
 
-                    fileRecords.put(taskId, entry);
-
-                    if (!entry.groupId().isBlank()) {
-                        taskIds.add(taskId);
-                    }
-
-                } catch (IllegalArgumentException ex) {
-
-                    if (!entry.taskId().isBlank()) {
-                        throw new IOException(
-                                "Invalid task ID in " + file,
-                                ex);
-                    }
-
-                    UUID summaryId = UUID.nameUUIDFromBytes(
-                            (entry.groupId()
-                                    + ":EXISTING_SUMMARY:"
-                                    + i)
-                                    .getBytes(StandardCharsets.UTF_8));
-
-                    fileRecords.put(summaryId, entry);
+                    taskIds.add(rowId);
                 }
             }
         }
@@ -874,8 +869,10 @@ public class TransferLogWriter implements AutoCloseable {
     private LogEntry fromCsvRow(List<String> row) {
 
         return new LogEntry(
+                "",
                 row.get(0),
                 row.get(1),
+                "",
                 row.get(2),
                 row.get(3),
                 row.get(4),
@@ -883,9 +880,7 @@ public class TransferLogWriter implements AutoCloseable {
                 row.get(6),
                 row.get(7),
                 row.get(8),
-                row.get(9),
-                row.get(10),
-                row.get(11)
+                row.get(9)
         );
     }
 
@@ -1080,6 +1075,12 @@ public class TransferLogWriter implements AutoCloseable {
             content.append("\r\n");
 
             for (LogEntry entry : fileRecords.values()) {
+
+                if (isBlankEntry(entry)) {
+                    content.append("\r\n");
+                    continue;
+                }
+
                 content.append(toCsvRow(entry));
                 content.append("\r\n");
             }
@@ -1113,14 +1114,28 @@ public class TransferLogWriter implements AutoCloseable {
         }
     }
 
+    private boolean isBlankEntry(LogEntry entry) {
+
+        return entry.groupId().isBlank()
+                && entry.groupName().isBlank()
+                && entry.operation().isBlank()
+                && entry.taskId().isBlank()
+                && entry.source().isBlank()
+                && entry.target().isBlank()
+                && entry.size().isBlank()
+                && entry.status().isBlank()
+                && entry.startTime().isBlank()
+                && entry.endTime().isBlank()
+                && entry.duration().isBlank()
+                && entry.message().isBlank();
+    }
+
     private String toCsvRow(LogEntry entry) {
 
         return String.join(
                 ";",
-                escape(entry.groupId()),
                 escape(entry.groupName()),
                 escape(entry.operation()),
-                escape(entry.taskId()),
                 escape(entry.source()),
                 escape(entry.target()),
                 escape(entry.size()),
