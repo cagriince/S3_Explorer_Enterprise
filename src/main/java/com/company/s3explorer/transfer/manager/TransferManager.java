@@ -101,13 +101,11 @@ public class TransferManager {
 
         return cancelled;
     }
-    
+
+
     public void cancelAll() {
 
         cancellationExecutor.submit(() -> {
-
-            System.out.println(
-                    "[CANCEL ALL START]");
 
             queue.beginCancelAll();
 
@@ -121,9 +119,6 @@ public class TransferManager {
             finally {
 
                 queue.endCancelAll();
-
-                System.out.println(
-                        "[CANCEL ALL FINISHED]");
             }
         });
     }
@@ -1384,26 +1379,6 @@ public class TransferManager {
         group.setCompletionCallback(
                 () -> {
                     groupProducers.remove(group.getId());
-                    System.out.println(
-                            "[TRANSFER GROUP CALLBACK] " +
-                                    "group=" +
-                                    group.getDisplayName() +
-                                    " finished=" +
-                                    group.isFinished() +
-                                    " successful=" +
-                                    group.isFullySuccessful() +
-                                    " queued=" +
-                                    group.getQueued() +
-                                    " running=" +
-                                    group.getRunning() +
-                                    " completed=" +
-                                    group.getCompleted() +
-                                    " failed=" +
-                                    group.getFailed() +
-                                    " cancelled=" +
-                                    group.getCancelled() +
-                                    " sourceRefreshRequired=" +
-                                    sourceRefreshRequired);
 
                     transferContext.publishGroupCompleted(
                             group,

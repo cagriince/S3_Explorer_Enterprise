@@ -48,11 +48,6 @@ public abstract class AbstractTransferOperation
 
             checkCancelled(runtime);
 
-            log.debug(
-                    "[OPERATION BEFORE COMPLETE] {} key={}",
-                    runtime.getTask().getId(),
-                    runtime.getTask().getObjectKey());
-
             /*
              * Önce task'ın COMPLETED event'ini yayınla.
              *
@@ -77,10 +72,6 @@ public abstract class AbstractTransferOperation
              */
             transferContext.publishCompleted(
                     runtime);
-
-            log.debug(
-                    "[OPERATION PUBLISHED COMPLETED] {}",
-                    runtime.getTask().getId());
 
             /*
              * Artık Explorer task'ı collector'a almış durumda.

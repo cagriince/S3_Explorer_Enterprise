@@ -137,12 +137,6 @@ public class WorkerExecutor
         this.targetThreadCount =
                 newCount;
 
-        System.out.println(
-                "[WORKER POOL] thread count "
-                        + oldCount
-                        + " -> "
-                        + newCount);
-
         /*
          * Thread sayısı artırılıyorsa hemen worker ekle.
          */
