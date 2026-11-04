@@ -88,6 +88,16 @@ public class TransferLogWriter implements AutoCloseable {
     private final Map<Path, Set<UUID>> groupTaskIds =
             new LinkedHashMap<>();
 
+    /*
+     * Her grup için gerçekten TransferRuntime oluşturulmuş
+     * görevlerin UUID listesi.
+     *
+     * register() farklı worker thread'lerinden çağrılabileceği
+     * için ConcurrentHashMap ve concurrent Set kullanılır.
+     */
+    private final Map<Path, Set<UUID>> registeredGroupTaskIds =
+            new ConcurrentHashMap<>();
+
     private final Map<Path, GroupSummary> pendingGroupSummaries =
             new LinkedHashMap<>();
 
@@ -150,15 +160,27 @@ public class TransferLogWriter implements AutoCloseable {
 
         UUID taskId = task.getId();
 
-        taskFiles.computeIfAbsent(
+        Path file = taskFiles.computeIfAbsent(
                 taskId,
                 id -> resolveFile(task));
 
         TransferGroup group = task.getGroup();
 
-        if (group != null && group.getId() != null) {
-            registerGroup(group);
+        if (group == null || group.getId() == null) {
+            return;
         }
+
+        registerGroup(group);
+
+        /*
+         * Bu görev için gerçekten TransferRuntime oluşturuldu.
+         * Grup özeti hazırlanırken bu görev de beklenmelidir.
+         */
+        registeredGroupTaskIds
+                .computeIfAbsent(
+                        file,
+                        ignored -> ConcurrentHashMap.newKeySet())
+                .add(taskId);
     }
 
     /**
@@ -208,21 +230,20 @@ public class TransferLogWriter implements AutoCloseable {
             return;
         }
 
+        /*
+         * Görevin dosya yolunu ve grup kaydını garanti altına al.
+         */
+        register(runtime);
+
         UUID taskId = task.getId();
 
-        /*
-         * Normal akışta register() daha önce çağrılmıştır.
-         * Yine de kayıt kaçırılmışsa terminal tarihte
-         * güvenli bir varsayılan yol oluşturulur.
-         */
-        Path file = taskFiles.computeIfAbsent(
-                taskId,
-                id -> resolveFile(task));
+        Path file = taskFiles.get(taskId);
 
-        TransferGroup group = task.getGroup();
-
-        if (group != null && group.getId() != null) {
-            registerGroup(group);
+        if (file == null) {
+            log.error(
+                    "Could not resolve transfer log file for task {}.",
+                    taskId);
+            return;
         }
 
         LogEntry entry = createEntry(runtime, task);
@@ -603,12 +624,22 @@ public class TransferLogWriter implements AutoCloseable {
                         file,
                         ignored -> new LinkedHashSet<>());
 
-        long expectedTerminalCount =
-                summary.completed()
-                        + summary.failed()
-                        + summary.cancelled();
+        Set<UUID> registeredTaskIds =
+                registeredGroupTaskIds.get(file);
 
-        if (taskIds.size() < expectedTerminalCount) {
+        int expectedTaskCount =
+                registeredTaskIds == null
+                        ? 0
+                        : registeredTaskIds.size();
+
+        /*
+         * Yalnızca gerçekten TransferRuntime oluşturulmuş
+         * görevlerin terminal kayıtlarını bekle.
+         *
+         * Kuyruğa hiç alınmamış ve yalnızca grup sayacında
+         * cancelled olarak bulunan görevler beklenmez.
+         */
+        if (taskIds.size() < expectedTaskCount) {
             return;
         }
 
@@ -654,9 +685,10 @@ public class TransferLogWriter implements AutoCloseable {
         dirtyFiles.add(file);
 
         log.info(
-                "Transfer group log completed. Group ID: {}, Tasks: {}",
+                "Transfer group log completed. Group ID: {}, Registered Tasks: {}, Terminal Records: {}",
                 summary.groupId(),
-                expectedTerminalCount);
+                expectedTaskCount,
+                taskIds.size());
     }
 
     private void appendSummary(
