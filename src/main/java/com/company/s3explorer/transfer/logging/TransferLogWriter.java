@@ -748,7 +748,7 @@ public class TransferLogWriter implements AutoCloseable {
 
         fileRecords.put(
                 summaryRowId(summary.groupId(), "error"),
-                summaryRow("Production Error",
+                summaryRow("Error Message",
                         nullToEmpty(summary.errorMessage())));
 
         String result;
@@ -780,9 +780,9 @@ public class TransferLogWriter implements AutoCloseable {
             String value) {
 
         return new LogEntry(
+                "",
                 label,
                 value,
-                "",
                 "",
                 "",
                 "",
