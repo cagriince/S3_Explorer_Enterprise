@@ -1,9 +1,12 @@
+
 package com.company.s3explorer.transfer;
 
 import com.company.s3explorer.service.S3ClientManager;
 import com.company.s3explorer.transfer.context.TransferContext;
 import com.company.s3explorer.transfer.event.TransferEventBus;
 import com.company.s3explorer.transfer.factory.TransferOperationFactory;
+import com.company.s3explorer.transfer.logging.TransferLogListener;
+import com.company.s3explorer.transfer.logging.TransferLogWriter;
 import com.company.s3explorer.transfer.manager.TransferManager;
 import com.company.s3explorer.transfer.producer.ProducerExecutor;
 import com.company.s3explorer.transfer.queue.TransferQueue;
@@ -17,6 +20,8 @@ public class TransferEngine
     private final ProducerExecutor producerExecutor;
     private final WorkerExecutor workerExecutor;
     private final TransferManager transferManager;
+
+    private final TransferLogWriter logWriter;
 
     public TransferEngine(
             S3ClientManager clientManager,
@@ -50,6 +55,12 @@ public class TransferEngine
                         context,
                         queue,
                         producerExecutor);
+
+        logWriter =
+                new TransferLogWriter();
+
+        eventBus.subscribe(
+                new TransferLogListener(logWriter));
     }
 
     public TransferManager getTransferManager() {
@@ -69,8 +80,18 @@ public class TransferEngine
 
     @Override
     public void close() {
+
         transferManager.close();
         producerExecutor.close();
         workerExecutor.close();
+
+        /*
+         * Writer en son kapatılır.
+         *
+         * Böylece producer ve worker tarafındaki
+         * son transfer olaylarının log kuyruğuna
+         * ulaşması için fırsat verilir.
+         */
+        logWriter.close();
     }
 }
