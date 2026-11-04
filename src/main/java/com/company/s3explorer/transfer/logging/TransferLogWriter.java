@@ -215,35 +215,59 @@ public class TransferLogWriter implements AutoCloseable {
 
     private String buildSource(TransferTask task) {
 
-        if (task.getLocalPath() != null) {
-            return task.getLocalPath().toString();
+        if (task == null || task.getType() == null) {
+            return "";
         }
 
-        return joinLocation(
-                task.getRepositoryId(),
-                task.getBucket(),
-                task.getObjectKey());
+        return switch (task.getType()) {
+            case UPLOAD -> task.getLocalPath() == null
+                    ? ""
+                    : task.getLocalPath().toString();
+
+            case DOWNLOAD,
+                 DELETE,
+                 COPY,
+                 MOVE,
+                 RENAME,
+                 CREATE_FOLDER -> joinLocation(
+                    task.getRepositoryId(),
+                    task.getBucket(),
+                    task.getObjectKey());
+
+            default -> "";
+        };
     }
 
     private String buildTarget(TransferTask task) {
 
-        if (task.getTargetRepositoryId() != null
-                || task.getTargetBucket() != null
-                || task.getTargetObjectKey() != null) {
+        if (task == null || task.getType() == null) {
+            return "";
+        }
 
-            return joinLocation(
+        return switch (task.getType()) {
+            case UPLOAD,
+                 COPY,
+                 MOVE,
+                 RENAME -> joinLocation(
                     task.getTargetRepositoryId(),
                     task.getTargetBucket(),
                     task.getTargetObjectKey());
-        }
 
-        if (task.getLocalPath() != null) {
-            return task.getLocalPath().toString();
-        }
+            case DOWNLOAD -> task.getLocalPath() == null
+                    ? ""
+                    : task.getLocalPath().toString();
 
-        return "";
+            case CREATE_FOLDER -> joinLocation(
+                    task.getRepositoryId(),
+                    task.getBucket(),
+                    task.getObjectKey());
+
+            case DELETE -> "";
+
+            default -> "";
+        };
     }
-
+    
     private String joinLocation(String... parts) {
 
         List<String> values = new ArrayList<>();
