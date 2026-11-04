@@ -4,6 +4,7 @@ import com.company.s3explorer.transfer.TransferRuntime;
 import com.company.s3explorer.transfer.event.TransferEventBus;
 import com.company.s3explorer.transfer.event.TransferGroupCompletedEvent;
 import com.company.s3explorer.transfer.event.TransferListener;
+import com.company.s3explorer.transfer.logging.TransferLogWriter;
 import com.company.s3explorer.transfer.manager.TransferManager;
 import com.company.s3explorer.transfer.model.TransferGroup;
 import com.company.s3explorer.transfer.renderer.*;
@@ -31,6 +32,7 @@ public class TransferPanel
 
     private final TransferEventBus eventBus;
     private final TransferManager transferManager;
+    private final TransferLogWriter logWriter;
 
     private final TransferStateStore stateStore =
             new TransferStateStore(UI_VISIBLE_LIMIT);
@@ -70,13 +72,15 @@ public class TransferPanel
     private final java.util.concurrent.atomic.AtomicBoolean
             groupUpdateRefreshScheduled =
             new java.util.concurrent.atomic.AtomicBoolean(false);
-    
+
     public TransferPanel(
             TransferEventBus eventBus,
-            TransferManager transferManager) {
+            TransferManager transferManager,
+            TransferLogWriter logWriter) {
 
         this.eventBus = eventBus;
         this.transferManager = transferManager;
+        this.logWriter = logWriter;
 
         initialize();
     }

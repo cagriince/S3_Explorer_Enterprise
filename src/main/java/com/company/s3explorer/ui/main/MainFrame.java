@@ -165,15 +165,32 @@ public class MainFrame extends JFrame {
     }
 
     private void buildDependencies() {
-        activeRepositoryContext = new ActiveRepositoryContext();
-        repositoryManager = new RepositoryManager();
-        clientFactory = new S3ClientFactory();
-        clientManager = new S3ClientManager(repositoryManager, clientFactory, activeRepositoryContext);
+
+        activeRepositoryContext =
+                new ActiveRepositoryContext();
+
+        repositoryManager =
+                new RepositoryManager();
+
+        clientFactory =
+                new S3ClientFactory();
+
+        clientManager =
+                new S3ClientManager(
+                        repositoryManager,
+                        clientFactory,
+                        activeRepositoryContext);
+
         transferEngine =
                 new TransferEngine(
                         clientManager,
                         settings.getTransferThreadCount());
-        transferPanel = new TransferPanel(transferEngine.getEventBus(), transferEngine.getTransferManager());
+
+        transferPanel =
+                new TransferPanel(
+                        transferEngine.getEventBus(),
+                        transferEngine.getTransferManager(),
+                        transferEngine.getLogWriter());
 
         explorerPanel =
                 new ExplorerPanel(

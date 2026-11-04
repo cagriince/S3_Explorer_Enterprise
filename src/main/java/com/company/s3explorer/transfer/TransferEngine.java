@@ -71,6 +71,10 @@ public class TransferEngine
         return eventBus;
     }
 
+    public TransferLogWriter getLogWriter() {
+        return logWriter;
+    }
+
     public void setThreadCount(
             int threadCount) {
 

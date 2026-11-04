@@ -239,7 +239,7 @@ public class TransferLogWriter implements AutoCloseable {
         return groupFiles.get(
                 group.getId());
     }
-    
+
     // ---------------------------------------------------------------------
     // RECORDING
     // ---------------------------------------------------------------------
