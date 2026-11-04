@@ -62,54 +62,48 @@ public class FileTableRowSorter
 
     @Override
     public void toggleSortOrder(int column) {
-        long startNanos = System.nanoTime();
 
-        try {
-            if (column == FileTableModel.COL_FOLDER) {
-                super.toggleSortOrder(column);
-                return;
-            }
-
-            List<? extends SortKey> currentKeys =
-                    getRequestedSortKeys();
-
-            SortOrder newOrder = SortOrder.ASCENDING;
-
-            for (SortKey key : currentKeys) {
-                if (key.getColumn() == column) {
-                    newOrder =
-                            key.getSortOrder() == SortOrder.ASCENDING
-                                    ? SortOrder.DESCENDING
-                                    : SortOrder.ASCENDING;
-                    break;
-                }
-            }
-
-            List<SortKey> newKeys = new ArrayList<>();
-
-            // Keep folders before files.
-            newKeys.add(
-                    new SortKey(
-                            FileTableModel.COL_FOLDER,
-                            SortOrder.ASCENDING));
-
-            // Record the requested sort without sorting current rows.
-            newKeys.add(new SortKey(column, newOrder));
-
-            pendingSortKeys = List.copyOf(newKeys);
-
-        } finally {
-            long elapsedMillis =
-                    (System.nanoTime() - startNanos) / 1_000_000;
-
-            System.out.printf(
-                    "[SORT TIMING] sort request recorded: "
-                            + "column=%d, rows=%d, elapsed=%d ms, pending=%s%n",
-                    column,
-                    getModel().getRowCount(),
-                    elapsedMillis,
-                    pendingSortKeys != null);
+        if (column == FileTableModel.COL_FOLDER) {
+            super.toggleSortOrder(column);
+            return;
         }
+
+        List<? extends SortKey> currentKeys =
+                getRequestedSortKeys();
+
+        SortOrder newOrder =
+                SortOrder.ASCENDING;
+
+        for (SortKey key : currentKeys) {
+
+            if (key.getColumn() == column) {
+
+                newOrder =
+                        key.getSortOrder() == SortOrder.ASCENDING
+                                ? SortOrder.DESCENDING
+                                : SortOrder.ASCENDING;
+
+                break;
+            }
+        }
+
+        List<SortKey> newKeys =
+                new ArrayList<>();
+
+        // Keep folders before files.
+        newKeys.add(
+                new SortKey(
+                        FileTableModel.COL_FOLDER,
+                        SortOrder.ASCENDING));
+
+        // Record the requested sort without sorting current rows.
+        newKeys.add(
+                new SortKey(
+                        column,
+                        newOrder));
+
+        pendingSortKeys =
+                List.copyOf(newKeys);
     }
 
     /**
@@ -172,32 +166,22 @@ public class FileTableRowSorter
 
     @Override
     public void allRowsChanged() {
-        long startNanos = System.nanoTime();
+        /*
+         * If a sort request is pending, the model has now changed.
+         * Apply the requested sort to the new rows directly instead
+         * of sorting once with the old keys and then sorting again.
+         */
+        if (pendingSortKeys != null) {
 
-        try {
-            /*
-             * If a sort request is pending, the model has now changed.
-             * Apply the requested sort to the new rows directly instead
-             * of sorting once with the old keys and then sorting again.
-             */
-            if (pendingSortKeys != null) {
-                List<SortKey> keysToApply = pendingSortKeys;
-                pendingSortKeys = null;
+            List<SortKey> keysToApply =
+                    pendingSortKeys;
 
-                setSortKeys(keysToApply);
-                return;
-            }
+            pendingSortKeys = null;
 
-            super.allRowsChanged();
-
-        } finally {
-            long elapsedMillis =
-                    (System.nanoTime() - startNanos) / 1_000_000;
-
-            System.out.printf(
-                    "[SORT TIMING] allRowsChanged: rows=%d, elapsed=%d ms%n",
-                    getModel().getRowCount(),
-                    elapsedMillis);
+            setSortKeys(keysToApply);
+            return;
         }
+
+        super.allRowsChanged();
     }
 }

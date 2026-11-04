@@ -242,12 +242,6 @@ public final class ExplorerContentLoader {
                                                 cachedFlatBrowsing = flatBrowsing;
                                             }
                                         }
-                                    } else {
-                                        System.err.printf(
-                                                "[SNAPSHOT CACHE] discarded stale scan "
-                                                        + "bucket=%s prefix=%s%n",
-                                                bucket,
-                                                prefix);
                                     }
 
                                     return snapshot;
@@ -355,18 +349,12 @@ public final class ExplorerContentLoader {
          */
         inFlightSnapshots.keySet().removeIf(
                 key -> key.startsWith(keyPrefix));
-
-        System.err.printf(
-                "[SNAPSHOT CACHE] invalidated bucket=%s prefix=%s%n",
-                bucket,
-                prefix);
     }
 
     /**
      * Creates a display-limited result from a complete
      * cached result without making another S3 request.
      */
-
     private LimitedFolderContent createDisplayContent(
             FolderContentSnapshot snapshot,
             int fileLimit,
@@ -375,29 +363,25 @@ public final class ExplorerContentLoader {
             String prefix,
             boolean flatBrowsing) {
 
-        long totalStart = System.nanoTime();
-
         // Filter folders.
-        long folderScanStart = System.nanoTime();
-
-        List<String> matchingFolders = new java.util.ArrayList<>();
+        List<String> matchingFolders =
+                new java.util.ArrayList<>();
 
         if (filter.includesFolders()) {
             for (String folderKey : snapshot.folders()) {
-                String displayName = getFilterDisplayName(
-                        folderKey,
-                        prefix,
-                        true,
-                        flatBrowsing);
+
+                String displayName =
+                        getFilterDisplayName(
+                                folderKey,
+                                prefix,
+                                true,
+                                flatBrowsing);
 
                 if (filter.matchesText(displayName)) {
                     matchingFolders.add(folderKey);
                 }
             }
         }
-
-        long folderScanNanos =
-                System.nanoTime() - folderScanStart;
 
         /*
          * Keep only the first fileLimit matching files until the limit
@@ -408,8 +392,6 @@ public final class ExplorerContentLoader {
          * The source index is used as a tie-breaker to preserve the
          * stable ordering of files that compare as equal.
          */
-        long fileScanStart = System.nanoTime();
-
         List<IndexedFile> selectedFiles =
                 new java.util.ArrayList<>(
                         Math.min(snapshot.files().size(), fileLimit));
@@ -420,10 +402,8 @@ public final class ExplorerContentLoader {
 
         long matchingFileCount = 0;
 
-        long comparatorNanos = 0;
-        long selectionAndSortNanos = 0;
-
         if (filter.includesFiles()) {
+
             List<software.amazon.awssdk.services.s3.model.S3Object>
                     sourceFiles = snapshot.files();
 
@@ -434,11 +414,12 @@ public final class ExplorerContentLoader {
                 software.amazon.awssdk.services.s3.model.S3Object object =
                         sourceFiles.get(sourceIndex);
 
-                String displayName = getFilterDisplayName(
-                        object.key(),
-                        prefix,
-                        false,
-                        flatBrowsing);
+                String displayName =
+                        getFilterDisplayName(
+                                object.key(),
+                                prefix,
+                                false,
+                                flatBrowsing);
 
                 if (!filter.matchesText(displayName)) {
                     continue;
@@ -463,7 +444,6 @@ public final class ExplorerContentLoader {
                  * candidate currently retained.
                  */
                 if (bestFiles == null) {
-                    long comparatorStart = System.nanoTime();
 
                     java.util.Comparator<
                             software.amazon.awssdk.services.s3.model.S3Object>
@@ -471,9 +451,11 @@ public final class ExplorerContentLoader {
                             sortSpec.createFileComparator();
 
                     stableComparator = (left, right) -> {
-                        int comparison = fileComparator.compare(
-                                left.object(),
-                                right.object());
+
+                        int comparison =
+                                fileComparator.compare(
+                                        left.object(),
+                                        right.object());
 
                         if (comparison != 0) {
                             return comparison;
@@ -484,25 +466,17 @@ public final class ExplorerContentLoader {
                                 right.sourceIndex());
                     };
 
-                    comparatorNanos +=
-                            System.nanoTime() - comparatorStart;
-
-                    long selectionStart = System.nanoTime();
-
-                    bestFiles = new java.util.PriorityQueue<>(
-                            fileLimit,
-                            stableComparator.reversed());
+                    bestFiles =
+                            new java.util.PriorityQueue<>(
+                                    fileLimit,
+                                    stableComparator.reversed());
 
                     bestFiles.addAll(selectedFiles);
                     selectedFiles.clear();
-
-                    selectionAndSortNanos +=
-                            System.nanoTime() - selectionStart;
                 }
 
-                long selectionStart = System.nanoTime();
-
-                IndexedFile worstCandidate = bestFiles.peek();
+                IndexedFile worstCandidate =
+                        bestFiles.peek();
 
                 if (stableComparator.compare(
                         candidate,
@@ -511,14 +485,8 @@ public final class ExplorerContentLoader {
                     bestFiles.poll();
                     bestFiles.offer(candidate);
                 }
-
-                selectionAndSortNanos +=
-                        System.nanoTime() - selectionStart;
             }
         }
-
-        long fileScanNanos =
-                System.nanoTime() - fileScanStart;
 
         boolean fileLimitReached =
                 matchingFileCount > fileLimit;
@@ -528,8 +496,6 @@ public final class ExplorerContentLoader {
          * into their final display order. Otherwise, preserve the source
          * order as before; the JTable sorter handles the visible order.
          */
-        long finalSortStart = System.nanoTime();
-
         List<software.amazon.awssdk.services.s3.model.S3Object>
                 matchingFiles =
                 new java.util.ArrayList<>(
@@ -538,10 +504,13 @@ public final class ExplorerContentLoader {
                                 : bestFiles.size());
 
         if (bestFiles == null) {
+
             for (IndexedFile indexedFile : selectedFiles) {
                 matchingFiles.add(indexedFile.object());
             }
+
         } else {
+
             List<IndexedFile> sortedFiles =
                     new java.util.ArrayList<>(bestFiles);
 
@@ -552,61 +521,11 @@ public final class ExplorerContentLoader {
             }
         }
 
-        selectionAndSortNanos +=
-                System.nanoTime() - finalSortStart;
-
-        long resultStart = System.nanoTime();
-
-        LimitedFolderContent result =
-                new LimitedFolderContent(
-                        matchingFolders,
-                        matchingFiles,
-                        fileLimitReached,
-                        matchingFileCount);
-
-        long resultNanos =
-                System.nanoTime() - resultStart;
-
-        long totalNanos =
-                System.nanoTime() - totalStart;
-
-        System.err.printf(
-                "[SNAPSHOT PROFILE] "
-                        + "folderScan=%d ms, "
-                        + "fileScan=%d ms, "
-                        + "comparatorBuild=%d ms, "
-                        + "sort=%d ms, "
-                        + "sortSkipped=%s, "
-                        + "trim=0 ms, "
-                        + "resultCreation=%d ms, "
-                        + "total=%d ms, "
-                        + "snapshotFiles=%d, "
-                        + "matchingFiles=%d, "
-                        + "displayedFiles=%d, "
-                        + "snapshotFolders=%d, "
-                        + "displayedFolders=%d, "
-                        + "filterType=%s, "
-                        + "filterText=%s, "
-                        + "sortColumn=%s, "
-                        + "ascending=%s%n",
-                TimeUnit.NANOSECONDS.toMillis(folderScanNanos),
-                TimeUnit.NANOSECONDS.toMillis(fileScanNanos),
-                TimeUnit.NANOSECONDS.toMillis(comparatorNanos),
-                TimeUnit.NANOSECONDS.toMillis(selectionAndSortNanos),
-                !fileLimitReached,
-                TimeUnit.NANOSECONDS.toMillis(resultNanos),
-                TimeUnit.NANOSECONDS.toMillis(totalNanos),
-                snapshot.files().size(),
-                matchingFileCount,
-                result.files().size(),
-                snapshot.folders().size(),
-                result.folders().size(),
-                filter.itemType(),
-                filter.text(),
-                sortSpec.getColumn(),
-                sortSpec.isAscending());
-
-        return result;
+        return new LimitedFolderContent(
+                matchingFolders,
+                matchingFiles,
+                fileLimitReached,
+                matchingFileCount);
     }
 
     private String getFilterDisplayName(
