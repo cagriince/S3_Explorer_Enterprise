@@ -1,6 +1,8 @@
+
 package com.company.s3explorer.transfer.logging;
 
 import com.company.s3explorer.transfer.TransferRuntime;
+import com.company.s3explorer.transfer.TransferStatus;
 import com.company.s3explorer.transfer.model.TransferGroup;
 import com.company.s3explorer.transfer.model.TransferTask;
 import org.slf4j.Logger;
@@ -16,8 +18,10 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
@@ -45,6 +49,8 @@ public class TransferLogWriter implements AutoCloseable {
             "Message"
     );
 
+    private static final int COLUMN_COUNT = HEADERS.size();
+
     private static final DateTimeFormatter DATE_FORMAT =
             DateTimeFormatter.ISO_LOCAL_DATE;
 
@@ -52,31 +58,47 @@ public class TransferLogWriter implements AutoCloseable {
 
     private final Path rootDirectory;
 
-    private final BlockingQueue<LogEntryWithPath> queue =
+    private final BlockingQueue<WriterCommand> queue =
             new LinkedBlockingQueue<>();
 
     /*
-     * Bir görevin ilk kaydedildiği dosya sabit kalır.
+     * Task ID -> CSV path.
      *
-     * Böylece gece yarısını geçen görevler sonraki
-     * günün dosyasına taşınmaz.
+     * QUEUED aşamasında atanır. Görev gece yarısını
+     * geçerek tamamlansa bile ilk tarih dosyasında kalır.
      */
     private final Map<UUID, Path> taskFiles =
             new ConcurrentHashMap<>();
 
     /*
-     * Dosyaların bellekte tutulan son durumları.
+     * Group ID -> CSV path.
      *
-     * Her dosya için Task ID -> CSV kaydı.
+     * Grup için ilk kayıt anında atanır.
+     */
+    private final Map<UUID, Path> groupFiles =
+            new ConcurrentHashMap<>();
+
+    /*
+     * Aşağıdaki koleksiyonlar yalnızca writer thread
+     * tarafından kullanılır.
      */
     private final Map<Path, LinkedHashMap<UUID, LogEntry>> records =
             new LinkedHashMap<>();
 
-    private final Map<Path, Boolean> loadedFiles =
+    private final Map<Path, Set<UUID>> groupTaskIds =
             new LinkedHashMap<>();
 
-    private final Map<Path, Boolean> dirtyFiles =
+    private final Map<Path, GroupSummary> pendingGroupSummaries =
             new LinkedHashMap<>();
+
+    private final Set<Path> finalizedGroupFiles =
+            new LinkedHashSet<>();
+
+    private final Set<Path> loadedFiles =
+            new LinkedHashSet<>();
+
+    private final Set<Path> dirtyFiles =
+            new LinkedHashSet<>();
 
     private final AtomicBoolean closed =
             new AtomicBoolean(false);
@@ -104,13 +126,17 @@ public class TransferLogWriter implements AutoCloseable {
         writerThread.start();
     }
 
+    // ---------------------------------------------------------------------
+    // REGISTRATION
+    // ---------------------------------------------------------------------
+
     /**
-     * Transfer durum güncellemesini kayıt kuyruğuna ekler.
+     * Görevin ilk görüldüğü anda dosya yolunu belirler.
      *
-     * Runtime ve Task nesnelerinin değişebilir alanları
-     * burada okunarak değişmez bir LogEntry oluşturulur.
+     * Bu metot CSV kaydı oluşturmaz.
+     * QUEUED olayında çağrılması amaçlanmıştır.
      */
-    public void record(TransferRuntime runtime) {
+    public void register(TransferRuntime runtime) {
 
         if (runtime == null || closed.get()) {
             return;
@@ -124,23 +150,89 @@ public class TransferLogWriter implements AutoCloseable {
 
         UUID taskId = task.getId();
 
+        taskFiles.computeIfAbsent(
+                taskId,
+                id -> resolveFile(task));
+
+        TransferGroup group = task.getGroup();
+
+        if (group != null && group.getId() != null) {
+            registerGroup(group);
+        }
+    }
+
+    /**
+     * Görev üretimi başlamadan önce grup için tarih
+     * dosyasının sabitlenmesini sağlar.
+     *
+     * Özellikle hiç dosya üretmeyen gruplarda da
+     * grup dosyasının doğru tarihte oluşmasını sağlar.
+     */
+    public void registerGroup(TransferGroup group) {
+
+        if (group == null
+                || group.getId() == null
+                || closed.get()) {
+            return;
+        }
+
+        groupFiles.computeIfAbsent(
+                group.getId(),
+                id -> resolveGroupFile(id));
+    }
+
+    // ---------------------------------------------------------------------
+    // RECORDING
+    // ---------------------------------------------------------------------
+
+    /**
+     * Yalnızca terminal durumdaki görevler kaydedilir.
+     *
+     * QUEUED ve RUNNING olayları CSV'ye yazılmaz.
+     */
+    public void record(TransferRuntime runtime) {
+
+        if (runtime == null || closed.get()) {
+            return;
+        }
+
+        TransferStatus status = runtime.getStatus();
+
+        if (status == null || !status.isFinished()) {
+            return;
+        }
+
+        TransferTask task = runtime.getTask();
+
+        if (task == null || task.getId() == null) {
+            return;
+        }
+
+        UUID taskId = task.getId();
+
+        /*
+         * Normal akışta register() daha önce çağrılmıştır.
+         * Yine de kayıt kaçırılmışsa terminal tarihte
+         * güvenli bir varsayılan yol oluşturulur.
+         */
         Path file = taskFiles.computeIfAbsent(
                 taskId,
                 id -> resolveFile(task));
 
-        LogEntry entry = createEntry(
-                runtime,
-                task);
+        TransferGroup group = task.getGroup();
+
+        if (group != null && group.getId() != null) {
+            registerGroup(group);
+        }
+
+        LogEntry entry = createEntry(runtime, task);
 
         queue.offer(
-                new LogEntryWithPath(
-                        file,
-                        entry));
+                new TaskResultCommand(file, entry));
     }
 
     /**
-     * Cancel All sırasında toplu olarak iptal edilen
-     * queued görevleri kayıt kuyruğuna ekler.
+     * Cancel All sırasında toplu iptal edilen görevler.
      */
     public void recordQueuedCancelled(
             List<TransferRuntime> runtimes) {
@@ -154,21 +246,86 @@ public class TransferLogWriter implements AutoCloseable {
         }
     }
 
-    private Path resolveFile(TransferTask task) {
+    /**
+     * Grup tamamlandığında çağrılır.
+     *
+     * Bu metot özeti doğrudan dosyaya yazmaz.
+     * Writer thread, terminal görev kayıtlarının tamamını
+     * işledikten sonra özeti dosyaya ekler.
+     */
+    public void recordGroupCompleted(TransferGroup group) {
 
-        LocalDate date = LocalDate.now();
+        if (group == null
+                || group.getId() == null
+                || closed.get()) {
+            return;
+        }
+
+        if (!group.isFinished()) {
+            log.warn(
+                    "Ignoring incomplete transfer group completion: {}",
+                    group.getId());
+            return;
+        }
+
+        registerGroup(group);
+
+        Path file = groupFiles.get(group.getId());
+
+        if (file == null) {
+            return;
+        }
+
+        GroupSummary summary = new GroupSummary(
+                group.getId().toString(),
+                nullToEmpty(group.getDisplayName()),
+                group.getDetected(),
+                group.getCompleted(),
+                group.getFailed(),
+                group.getCancelled(),
+                group.getSkipped(),
+                group.getErrorMessage(),
+                group.isFullySuccessful()
+        );
+
+        queue.offer(
+                new GroupCompletedCommand(file, summary));
+    }
+
+    // ---------------------------------------------------------------------
+    // FILE PATHS
+    // ---------------------------------------------------------------------
+
+    private Path resolveFile(TransferTask task) {
 
         TransferGroup group = task.getGroup();
 
-        String fileName =
-                group == null
-                        ? "individual.csv"
-                        : group.getId() + ".csv";
+        if (group == null || group.getId() == null) {
+            return resolveIndividualFile(LocalDate.now());
+        }
+
+        return groupFiles.computeIfAbsent(
+                group.getId(),
+                this::resolveGroupFile);
+    }
+
+    private Path resolveGroupFile(UUID groupId) {
+
+        return rootDirectory
+                .resolve(DATE_FORMAT.format(LocalDate.now()))
+                .resolve(groupId + ".csv");
+    }
+
+    private Path resolveIndividualFile(LocalDate date) {
 
         return rootDirectory
                 .resolve(DATE_FORMAT.format(date))
-                .resolve(fileName);
+                .resolve("individual.csv");
     }
+
+    // ---------------------------------------------------------------------
+    // ENTRY CREATION
+    // ---------------------------------------------------------------------
 
     private LogEntry createEntry(
             TransferRuntime runtime,
@@ -267,7 +424,7 @@ public class TransferLogWriter implements AutoCloseable {
             default -> "";
         };
     }
-    
+
     private String joinLocation(String... parts) {
 
         List<String> values = new ArrayList<>();
@@ -294,13 +451,12 @@ public class TransferLogWriter implements AutoCloseable {
         while (!closed.get() || !queue.isEmpty()) {
 
             try {
-                LogEntryWithPath item =
-                        queue.poll(
-                                FLUSH_INTERVAL_MILLIS,
-                                TimeUnit.MILLISECONDS);
+                WriterCommand command = queue.poll(
+                        FLUSH_INTERVAL_MILLIS,
+                        TimeUnit.MILLISECONDS);
 
-                if (item != null) {
-                    process(item);
+                if (command != null) {
+                    process(command);
                 }
 
                 drainQueue();
@@ -326,42 +482,282 @@ public class TransferLogWriter implements AutoCloseable {
 
     private void drainQueue() {
 
-        List<LogEntryWithPath> batch =
-                new ArrayList<>();
+        List<WriterCommand> batch = new ArrayList<>();
 
         queue.drainTo(batch);
 
-        for (LogEntryWithPath item : batch) {
-            process(item);
+        for (WriterCommand command : batch) {
+            process(command);
         }
     }
 
-    private void process(LogEntryWithPath item) {
+    private void process(WriterCommand command) {
+
+        if (command instanceof TaskResultCommand taskCommand) {
+            processTaskResult(taskCommand);
+            return;
+        }
+
+        if (command instanceof GroupCompletedCommand groupCommand) {
+            processGroupCompleted(groupCommand);
+        }
+    }
+
+    // ---------------------------------------------------------------------
+    // TASK RESULT PROCESSING
+    // ---------------------------------------------------------------------
+
+    private void processTaskResult(TaskResultCommand command) {
+
+        Path file = command.path();
+        LogEntry entry = command.entry();
 
         try {
-            loadFileIfNecessary(item.path());
+            loadFileIfNecessary(file);
 
             LinkedHashMap<UUID, LogEntry> fileRecords =
-                    records.get(item.path());
+                    records.get(file);
 
-            UUID taskId =
-                    UUID.fromString(item.entry().taskId());
+            UUID taskId = UUID.fromString(entry.taskId());
 
-            fileRecords.put(
-                    taskId,
-                    item.entry());
+            /*
+             * Aynı terminal olayın tekrar gelmesi durumunda
+             * aynı Task ID üzerine yazılır.
+             */
+            fileRecords.put(taskId, entry);
 
-            dirtyFiles.put(
-                    item.path(),
-                    true);
+            if (!entry.groupId().isBlank()) {
+
+                groupTaskIds
+                        .computeIfAbsent(
+                                file,
+                                ignored -> new LinkedHashSet<>())
+                        .add(taskId);
+
+            } else {
+                dirtyFiles.add(file);
+            }
+
+            /*
+             * Grup özeti daha önce geldiyse ve son görev
+             * kaydı şimdi işlendi ise grup dosyası tamamlanır.
+             */
+            tryFinalizeGroup(file);
 
         } catch (Exception ex) {
 
             log.error(
                     "Could not process transfer log entry for {}.",
-                    item.path(),
+                    file,
                     ex);
         }
+    }
+
+    // ---------------------------------------------------------------------
+    // GROUP SUMMARY PROCESSING
+    // ---------------------------------------------------------------------
+
+    private void processGroupCompleted(
+            GroupCompletedCommand command) {
+
+        Path file = command.path();
+
+        try {
+            loadFileIfNecessary(file);
+
+            if (finalizedGroupFiles.contains(file)) {
+                return;
+            }
+
+            pendingGroupSummaries.put(
+                    file,
+                    command.summary());
+
+            tryFinalizeGroup(file);
+
+        } catch (Exception ex) {
+
+            log.error(
+                    "Could not process group completion for {}.",
+                    file,
+                    ex);
+        }
+    }
+
+    /**
+     * Grup özeti ancak beklenen terminal görev sayısı
+     * kadar benzersiz görev kaydı işlendiğinde yazılır.
+     */
+    private void tryFinalizeGroup(Path file) {
+
+        GroupSummary summary =
+                pendingGroupSummaries.get(file);
+
+        if (summary == null
+                || finalizedGroupFiles.contains(file)) {
+            return;
+        }
+
+        Set<UUID> taskIds =
+                groupTaskIds.computeIfAbsent(
+                        file,
+                        ignored -> new LinkedHashSet<>());
+
+        long expectedTerminalCount =
+                summary.completed()
+                        + summary.failed()
+                        + summary.cancelled();
+
+        if (taskIds.size() < expectedTerminalCount) {
+            return;
+        }
+
+        LinkedHashMap<UUID, LogEntry> fileRecords =
+                records.get(file);
+
+        if (fileRecords == null) {
+            return;
+        }
+
+        /*
+         * Boyut yalnızca bu gruba ait görev kayıtlarından
+         * toplanır. Bilinmeyen / geçersiz değerler atlanır.
+         */
+        long totalSize = 0L;
+
+        for (UUID taskId : taskIds) {
+
+            LogEntry entry = fileRecords.get(taskId);
+
+            if (entry == null) {
+                continue;
+            }
+
+            try {
+                totalSize = Math.addExact(
+                        totalSize,
+                        Long.parseLong(entry.size()));
+
+            } catch (NumberFormatException
+                     | ArithmeticException ex) {
+
+                log.warn(
+                        "Could not include task size in group summary. Task ID: {}",
+                        taskId);
+            }
+        }
+
+        appendSummary(file, summary, totalSize);
+
+        finalizedGroupFiles.add(file);
+        pendingGroupSummaries.remove(file);
+        dirtyFiles.add(file);
+
+        log.info(
+                "Transfer group log completed. Group ID: {}, Tasks: {}",
+                summary.groupId(),
+                expectedTerminalCount);
+    }
+
+    private void appendSummary(
+            Path file,
+            GroupSummary summary,
+            long totalSize) {
+
+        LinkedHashMap<UUID, LogEntry> fileRecords =
+                records.get(file);
+
+        if (fileRecords == null) {
+            return;
+        }
+
+        /*
+         * Özet satırları da aynı 12 sütun yapısında tutulur.
+         *
+         * İlk sütun: SUMMARY / alan adı
+         * İkinci sütun: değer
+         */
+        fileRecords.put(
+                summaryRowId(summary.groupId(), "section"),
+                summaryRow("SUMMARY", ""));
+
+        fileRecords.put(
+                summaryRowId(summary.groupId(), "total"),
+                summaryRow("Total Tasks",
+                        Long.toString(summary.detected())));
+
+        fileRecords.put(
+                summaryRowId(summary.groupId(), "completed"),
+                summaryRow("Successful",
+                        Long.toString(summary.completed())));
+
+        fileRecords.put(
+                summaryRowId(summary.groupId(), "failed"),
+                summaryRow("Failed",
+                        Long.toString(summary.failed())));
+
+        fileRecords.put(
+                summaryRowId(summary.groupId(), "cancelled"),
+                summaryRow("Cancelled",
+                        Long.toString(summary.cancelled())));
+
+        fileRecords.put(
+                summaryRowId(summary.groupId(), "skipped"),
+                summaryRow("Skipped",
+                        Long.toString(summary.skipped())));
+
+        fileRecords.put(
+                summaryRowId(summary.groupId(), "size"),
+                summaryRow("Total Size",
+                        Long.toString(totalSize)));
+
+        fileRecords.put(
+                summaryRowId(summary.groupId(), "error"),
+                summaryRow("Production Error",
+                        nullToEmpty(summary.errorMessage())));
+
+        String result;
+
+        if (summary.fullySuccessful()) {
+            result = "SUCCESS";
+        } else if (summary.completed() > 0) {
+            result = "PARTIAL SUCCESS";
+        } else {
+            result = "FAILED";
+        }
+
+        fileRecords.put(
+                summaryRowId(summary.groupId(), "result"),
+                summaryRow("Result", result));
+    }
+
+    private UUID summaryRowId(
+            String groupId,
+            String key) {
+
+        return UUID.nameUUIDFromBytes(
+                (groupId + ":SUMMARY:" + key)
+                        .getBytes(StandardCharsets.UTF_8));
+    }
+
+    private LogEntry summaryRow(
+            String label,
+            String value) {
+
+        return new LogEntry(
+                label,
+                value,
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                ""
+        );
     }
 
     // ---------------------------------------------------------------------
@@ -371,53 +767,76 @@ public class TransferLogWriter implements AutoCloseable {
     private void loadFileIfNecessary(Path file)
             throws IOException {
 
-        if (loadedFiles.containsKey(file)) {
+        if (loadedFiles.contains(file)) {
             return;
         }
 
         LinkedHashMap<UUID, LogEntry> fileRecords =
                 new LinkedHashMap<>();
 
+        Set<UUID> taskIds =
+                new LinkedHashSet<>();
+
         if (Files.exists(file)) {
 
-            List<List<String>> rows =
-                    readCsv(file);
+            List<List<String>> rows = readCsv(file);
+
+            if (!rows.isEmpty()
+                    && !rows.get(0).equals(HEADERS)) {
+
+                throw new IOException(
+                        "Unexpected CSV header in " + file);
+            }
 
             for (int i = 1; i < rows.size(); i++) {
 
                 List<String> row = rows.get(i);
 
-                if (row.size() != HEADERS.size()) {
-                    continue;
+                if (row.size() != COLUMN_COUNT) {
+                    throw new IOException(
+                            "Invalid CSV column count in "
+                                    + file
+                                    + " at row "
+                                    + (i + 1));
                 }
 
+                LogEntry entry = fromCsvRow(row);
+
+                /*
+                 * Task satırları UUID taşır.
+                 * SUMMARY satırları ise özel anahtar kullanır.
+                 */
                 try {
-                    LogEntry entry =
-                            fromCsvRow(row);
+                    UUID taskId = UUID.fromString(entry.taskId());
 
-                    UUID taskId =
-                            UUID.fromString(entry.taskId());
+                    fileRecords.put(taskId, entry);
 
-                    fileRecords.put(
-                            taskId,
-                            entry);
+                    if (!entry.groupId().isBlank()) {
+                        taskIds.add(taskId);
+                    }
 
                 } catch (IllegalArgumentException ex) {
 
-                    log.warn(
-                            "Ignoring invalid transfer log row in {}.",
-                            file);
+                    if (!entry.taskId().isBlank()) {
+                        throw new IOException(
+                                "Invalid task ID in " + file,
+                                ex);
+                    }
+
+                    UUID summaryId = UUID.nameUUIDFromBytes(
+                            (entry.groupId()
+                                    + ":EXISTING_SUMMARY:"
+                                    + i)
+                                    .getBytes(StandardCharsets.UTF_8));
+
+                    fileRecords.put(summaryId, entry);
                 }
             }
         }
 
-        records.put(
-                file,
-                fileRecords);
-
-        loadedFiles.put(
-                file,
-                true);
+        records.put(file, fileRecords);
+        groupTaskIds.put(file, taskIds);
+        loadedFiles.add(file);
     }
 
     private LogEntry fromCsvRow(List<String> row) {
@@ -445,6 +864,9 @@ public class TransferLogWriter implements AutoCloseable {
      * - escaped quotes
      * - multiline fields
      * - CRLF / LF
+     *
+     * Hatalı quote yapısı tespit edilirse dosyanın
+     * bozuk veriyle yeniden yazılmasını önlemek için hata verir.
      */
     private List<List<String>> readCsv(Path file)
             throws IOException {
@@ -459,16 +881,12 @@ public class TransferLogWriter implements AutoCloseable {
             content = content.substring(1);
         }
 
-        List<List<String>> rows =
-                new ArrayList<>();
-
-        List<String> row =
-                new ArrayList<>();
-
-        StringBuilder field =
-                new StringBuilder();
+        List<List<String>> rows = new ArrayList<>();
+        List<String> row = new ArrayList<>();
+        StringBuilder field = new StringBuilder();
 
         boolean quoted = false;
+        boolean fieldClosed = false;
 
         for (int i = 0; i < content.length(); i++) {
 
@@ -486,6 +904,7 @@ public class TransferLogWriter implements AutoCloseable {
 
                     } else {
                         quoted = false;
+                        fieldClosed = true;
                     }
 
                 } else {
@@ -495,7 +914,42 @@ public class TransferLogWriter implements AutoCloseable {
                 continue;
             }
 
+            if (fieldClosed) {
+
+                if (c == ';') {
+                    row.add(field.toString());
+                    field.setLength(0);
+                    fieldClosed = false;
+
+                } else if (c == '\n' || c == '\r') {
+
+                    row.add(field.toString());
+                    field.setLength(0);
+                    fieldClosed = false;
+
+                    rows.add(row);
+                    row = new ArrayList<>();
+
+                    if (c == '\r'
+                            && i + 1 < content.length()
+                            && content.charAt(i + 1) == '\n') {
+                        i++;
+                    }
+
+                } else {
+                    throw new IOException(
+                            "Unexpected character after quoted CSV field.");
+                }
+
+                continue;
+            }
+
             if (c == '"') {
+
+                if (field.length() != 0) {
+                    throw new IOException(
+                            "Unexpected quote inside unquoted CSV field.");
+                }
 
                 quoted = true;
 
@@ -515,7 +969,6 @@ public class TransferLogWriter implements AutoCloseable {
                 if (c == '\r'
                         && i + 1 < content.length()
                         && content.charAt(i + 1) == '\n') {
-
                     i++;
                 }
 
@@ -524,13 +977,23 @@ public class TransferLogWriter implements AutoCloseable {
             }
         }
 
-        if (field.length() > 0
+        if (quoted) {
+            throw new IOException(
+                    "Unclosed quoted CSV field.");
+        }
+
+        if (fieldClosed
+                || field.length() > 0
                 || !row.isEmpty()) {
 
             row.add(field.toString());
             rows.add(row);
         }
 
+        /*
+         * Dosyanın sonunda bulunan tek satır sonu nedeniyle
+         * boş bir kayıt oluşturulmaz.
+         */
         return rows;
     }
 
@@ -540,21 +1003,19 @@ public class TransferLogWriter implements AutoCloseable {
 
     private void flushDirtyFiles() {
 
-        List<Path> files =
-                new ArrayList<>(dirtyFiles.keySet());
+        List<Path> files = new ArrayList<>(dirtyFiles);
 
         for (Path file : files) {
 
             try {
                 writeFile(file);
-
                 dirtyFiles.remove(file);
 
             } catch (IOException ex) {
 
                 /*
-                 * Dosya dirty olarak kalır.
-                 * Sonraki flush turunda tekrar denenir.
+                 * Dirty durum korunur.
+                 * Bir sonraki turda tekrar denenir.
                  */
                 log.error(
                         "Could not write transfer log file: {}",
@@ -574,34 +1035,25 @@ public class TransferLogWriter implements AutoCloseable {
             return;
         }
 
-        Files.createDirectories(
-                file.getParent());
+        Files.createDirectories(file.getParent());
 
-        Path temporaryFile =
-                file.resolveSibling(
-                        file.getFileName() + ".tmp");
+        Path temporaryFile = file.resolveSibling(
+                file.getFileName() + ".tmp");
 
         try {
 
-            StringBuilder content =
-                    new StringBuilder();
+            StringBuilder content = new StringBuilder();
 
-            content.append(
-                    String.join(";", HEADERS));
-
+            content.append(String.join(";", HEADERS));
             content.append("\r\n");
 
-            for (LogEntry entry :
-                    fileRecords.values()) {
-
-                content.append(
-                        toCsvRow(entry));
-
+            for (LogEntry entry : fileRecords.values()) {
+                content.append(toCsvRow(entry));
                 content.append("\r\n");
             }
 
             /*
-             * UTF-8 BOM, Excel uyumluluğu için.
+             * UTF-8 BOM: Excel uyumluluğu.
              */
             Files.writeString(
                     temporaryFile,
@@ -625,9 +1077,7 @@ public class TransferLogWriter implements AutoCloseable {
             }
 
         } finally {
-
-            Files.deleteIfExists(
-                    temporaryFile);
+            Files.deleteIfExists(temporaryFile);
         }
     }
 
@@ -686,11 +1136,9 @@ public class TransferLogWriter implements AutoCloseable {
 
         try {
 
-            writerThread.join(
-                    10_000);
+            writerThread.join(10_000);
 
             if (writerThread.isAlive()) {
-
                 log.error(
                         "Transfer log writer did not stop within 10 seconds.");
             }
@@ -709,9 +1157,29 @@ public class TransferLogWriter implements AutoCloseable {
     // INTERNAL DATA
     // ---------------------------------------------------------------------
 
-    private record LogEntryWithPath(
+    private interface WriterCommand {
+    }
+
+    private record TaskResultCommand(
             Path path,
-            LogEntry entry) {
+            LogEntry entry) implements WriterCommand {
+    }
+
+    private record GroupCompletedCommand(
+            Path path,
+            GroupSummary summary) implements WriterCommand {
+    }
+
+    private record GroupSummary(
+            String groupId,
+            String groupName,
+            long detected,
+            int completed,
+            int failed,
+            int cancelled,
+            int skipped,
+            String errorMessage,
+            boolean fullySuccessful) {
     }
 
     private record LogEntry(
