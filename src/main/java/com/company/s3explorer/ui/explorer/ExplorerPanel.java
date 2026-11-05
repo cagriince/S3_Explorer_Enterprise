@@ -280,11 +280,6 @@ public class ExplorerPanel extends JPanel {
 
         Consumer<Integer> fileTableRowLimitSelectionListener =
                 selectedLimit -> {
-
-                    log.debug(
-                            "[FILE TABLE LIMIT CHANGED] limit={}",
-                            selectedLimit);
-
                     reloadCurrentFileTable(true);
                 };
 
@@ -313,11 +308,6 @@ public class ExplorerPanel extends JPanel {
                     @Override
                     public void onTransferGroupCompleted(
                             TransferGroupCompletedEvent event) {
-
-                        log.info(
-                                "[EXPLORER LISTENER ENTERED] event={}",
-                                event);
-
                         ExplorerPanel.this
                                 .onTransferGroupCompleted(
                                         event);
@@ -683,14 +673,6 @@ public class ExplorerPanel extends JPanel {
                         && pendingNavigationTarget == null);
 
         updateEncryptionMenuVisibility();
-
-        log.debug(
-                "[ACTION STATES] folderSelected={} selectedRows={} "
-                        + "hasSelection={} hasClipboard={}",
-                folderSelected,
-                selectedRowCount,
-                hasSelection,
-                hasClipboard);
     }
 
     public void updatePopupUI() {
@@ -890,10 +872,6 @@ public class ExplorerPanel extends JPanel {
         if (selectedRepository == null
                 || selectedRepository ==
                 RepositoryDefinition.EMPTY_REPOSITORY) {
-
-            log.debug(
-                    "[BUCKET LOAD] no repository selected");
-
             return;
         }
 
@@ -909,11 +887,6 @@ public class ExplorerPanel extends JPanel {
                 || !Objects.equals(
                 activeRepository.getId(),
                 selectedRepository.getId())) {
-
-            log.debug(
-                    "[BUCKET LOAD] repository is no longer active: {}",
-                    selectedRepository.getId());
-
             return;
         }
 
@@ -943,12 +916,6 @@ public class ExplorerPanel extends JPanel {
                  */
                 if (operationId !=
                         operationGeneration.get()) {
-
-                    log.debug(
-                            "[BUCKET LOAD] cancelled before execution " +
-                                    "repository={}",
-                            selectedRepository.getId());
-
                     return;
                 }
 
@@ -960,15 +927,6 @@ public class ExplorerPanel extends JPanel {
                         || !Objects.equals(
                         currentRepository.getId(),
                         selectedRepository.getId())) {
-
-                    log.debug(
-                            "[BUCKET LOAD] active repository changed before S3 call " +
-                                    "selected={} active={}",
-                            selectedRepository.getId(),
-                            currentRepository == null
-                                    ? null
-                                    : currentRepository.getId());
-
                     return;
                 }
 
@@ -997,12 +955,6 @@ public class ExplorerPanel extends JPanel {
                  */
                 if (operationId !=
                         operationGeneration.get()) {
-
-                    log.debug(
-                            "[BUCKET LOAD] cancelled after repository lookup " +
-                                    "repository={}",
-                            selectedRepository.getId());
-
                     return;
                 }
 
@@ -1014,20 +966,8 @@ public class ExplorerPanel extends JPanel {
                         || !Objects.equals(
                         currentRepository.getId(),
                         repository.getId())) {
-
-                    log.debug(
-                            "[BUCKET LOAD] active repository changed before S3 call " +
-                                    "repository={}",
-                            repository.getId());
-
                     return;
                 }
-
-                log.debug(
-                        "[BUCKET LOAD START] repository={} previousBucket={} externalBuckets={}",
-                        repository.getId(),
-                        previousBucket,
-                        repository.getExternalBuckets());
 
                 /*
                  * Gerçek S3 bucket'larını al.
@@ -1043,12 +983,6 @@ public class ExplorerPanel extends JPanel {
                      */
                     if (operationId !=
                             operationGeneration.get()) {
-
-                        log.debug(
-                                "[BUCKET LOAD] cancelled before listBuckets " +
-                                        "repository={}",
-                                repository.getId());
-
                         return;
                     }
 
@@ -1066,12 +1000,6 @@ public class ExplorerPanel extends JPanel {
                          */
                         if (operationId !=
                                 operationGeneration.get()) {
-
-                            log.debug(
-                                    "[BUCKET LOAD] cancelled before external bucket access " +
-                                            "repository={}",
-                                    repository.getId());
-
                             return;
                         }
 
@@ -1103,12 +1031,6 @@ public class ExplorerPanel extends JPanel {
                  */
                 if (operationId !=
                         operationGeneration.get()) {
-
-                    log.debug(
-                            "[BUCKET LOAD] cancelled after S3 call " +
-                                    "repository={}",
-                            repository.getId());
-
                     return;
                 }
 
@@ -1120,12 +1042,6 @@ public class ExplorerPanel extends JPanel {
                         || !Objects.equals(
                         finalActiveRepository.getId(),
                         repository.getId())) {
-
-                    log.debug(
-                            "[BUCKET LOAD] active repository changed after S3 call " +
-                                    "repository={}",
-                            repository.getId());
-
                     return;
                 }
 
@@ -1224,13 +1140,6 @@ public class ExplorerPanel extends JPanel {
                                         view.getBucketCombo()
                                                 .getSelectedItem();
 
-                        log.debug(
-                                "[BUCKET LOAD RESULT] repository={} buckets={} previous={} selected={}",
-                                repository.getId(),
-                                allBuckets,
-                                previousBucket,
-                                selectedBucket);
-
                     } finally {
 
                         suppressBucketSelectionEvent = false;
@@ -1242,10 +1151,6 @@ public class ExplorerPanel extends JPanel {
                             previousBucket,
                             selectedBucket)
                             && !forceBucketReload) {
-
-                        log.debug(
-                                "[BUCKET LOAD] bucket unchanged={} - refreshing tree/table",
-                                selectedBucket);
 
                         hideOperationDialog(
                                 OperationDialogType.BUCKET);
@@ -1266,19 +1171,12 @@ public class ExplorerPanel extends JPanel {
                     forceBucketReload = false;
 
                     if (selectedBucket != null) {
-
-                        log.debug(
-                                "[BUCKET LOAD] bucket changed {} -> {} - loading explorer",
-                                previousBucket,
-                                selectedBucket);
-
                         loadRootFolders(
                                 selectedBucket);
                     }
                 });
 
             } catch (Exception ex) {
-
                 log.error(
                         "[BUCKET LOAD] failed: {}",
                         S3ErrorResolver.getDetailedMessage(ex),
