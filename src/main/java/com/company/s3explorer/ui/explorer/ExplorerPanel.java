@@ -1327,6 +1327,12 @@ public class ExplorerPanel extends JPanel {
                             updateActionStates();
                         }))
                 .exceptionally(ex -> {
+
+                    log.error(
+                            "[FOLDER LOAD] failed: {}",
+                            S3ErrorResolver.getDetailedMessage(ex),
+                            ex);
+
                     SwingUtilities.invokeLater(() -> {
 
                         if (operationId
@@ -1421,6 +1427,12 @@ public class ExplorerPanel extends JPanel {
                                     OperationDialogType.FILTER_REFRESH);
                         }))
                 .exceptionally(ex -> {
+
+                    log.error(
+                            "[FILE LOAD] failed: {}",
+                            S3ErrorResolver.getDetailedMessage(ex),
+                            ex);
+
                     SwingUtilities.invokeLater(() -> {
 
                         if (generation != fileLoadGeneration.get()) {
@@ -1692,6 +1704,14 @@ public class ExplorerPanel extends JPanel {
                     });
                 })
                 .exceptionally(ex -> {
+
+                    log.error(
+                            "[FILE LOAD] failed: generation={}, bucket={}, prefix={}, error={}",
+                            generation,
+                            bucket,
+                            prefix,
+                            S3ErrorResolver.getDetailedMessage(ex),
+                            ex);
 
                     SwingUtilities.invokeLater(() -> {
 
