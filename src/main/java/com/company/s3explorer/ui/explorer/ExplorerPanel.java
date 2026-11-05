@@ -3248,12 +3248,6 @@ public class ExplorerPanel extends JPanel {
                                 ? sourcePrefix
                                 : sourcePrefix + "/";
 
-                log.info(
-                        "[EXPLORER GROUP DELETE TREE REFRESH] "
-                                + "group={} prefix={}",
-                        group.getDisplayName(),
-                        folderPrefix);
-
                 refreshScheduler.scheduleRefresh(
                         List.of(
                                 new RefreshTreeNode(
