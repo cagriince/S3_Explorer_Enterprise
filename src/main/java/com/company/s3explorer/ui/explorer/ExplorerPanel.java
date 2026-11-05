@@ -2619,13 +2619,6 @@ public class ExplorerPanel extends JPanel {
                                 view.getFileTableModel()
                                         .removeFileByKey(
                                                 task.getObjectKey());
-
-                        log.info(
-                                "[FILE TABLE GROUP DELETE REMOVE] " +
-                                        "key={} removed={} group={}",
-                                task.getObjectKey(),
-                                removed,
-                                group.getDisplayName());
                     }
 
                     continue;
@@ -2722,12 +2715,6 @@ public class ExplorerPanel extends JPanel {
 
                                 boolean added =
                                         view.getFileTableModel().addFile(item);
-
-                                log.info(
-                                        "[FILE TABLE GROUP INSERT] target={}/{} flat=true added={}",
-                                        targetBucket,
-                                        targetKey,
-                                        added);
                             }
 
                         } else if (Objects.equals(currentPrefix, targetParentPrefix)) {
@@ -2747,13 +2734,6 @@ public class ExplorerPanel extends JPanel {
 
                             boolean added =
                                     view.getFileTableModel().addFile(item);
-
-                            log.info(
-                                    "[FILE TABLE GROUP INSERT] target={}/{} flat=false added={}",
-                                    targetBucket,
-                                    targetKey,
-                                    added);
-
                         } else if (targetKey.startsWith(effectivePrefix)
                                 && targetKey.length() > effectivePrefix.length()) {
 
@@ -2807,13 +2787,6 @@ public class ExplorerPanel extends JPanel {
                                 view.getFileTableModel()
                                         .removeFileByKey(
                                                 task.getObjectKey());
-
-                        log.info(
-                                "[FILE TABLE GROUP MOVE REMOVE] " +
-                                        "key={} removed={} group={}",
-                                task.getObjectKey(),
-                                removed,
-                                group.getDisplayName());
                     }
                 }
             }
@@ -2856,12 +2829,6 @@ public class ExplorerPanel extends JPanel {
                                         .removeFilesByKeyPrefix(
                                                 sourcePrefix,
                                                 flatBrowsingEnabled);
-
-                        log.info(
-                                "[FILE TABLE DELETE FOLDER] prefix={} flat={} removed={}",
-                                sourcePrefix,
-                                flatBrowsingEnabled,
-                                removedCount);
                     }
                 }
             }
@@ -3485,15 +3452,7 @@ public class ExplorerPanel extends JPanel {
                     boolean removed =
                             view.getFileTableModel()
                                     .removeFileByKey(sourceKey);
-
-                    log.info(
-                            "[FILE TABLE GROUP MOVE REMOVE] "
-                                    + "source={} removed={} group={}",
-                            sourceKey,
-                            removed,
-                            group.getDisplayName());
                 }
-
             } else {
 
                 /*
