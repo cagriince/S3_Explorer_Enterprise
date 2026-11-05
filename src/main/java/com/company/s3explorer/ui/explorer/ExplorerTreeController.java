@@ -316,13 +316,6 @@ public final class ExplorerTreeController {
         treeModel.nodesWereInserted(
                 parentNode,
                 new int[]{insertIndex});
-
-        log.info(
-                "[TREE NODE INSERT] parent={} child={} index={} childCount={}",
-                parentPrefix,
-                childPrefix,
-                insertIndex,
-                parentNode.getChildCount());
     }
 
     private void removeNodeIncrementally(
@@ -382,13 +375,6 @@ public final class ExplorerTreeController {
                 parentNode,
                 new int[]{index},
                 new Object[]{node});
-
-        log.info(
-                "[TREE NODE REMOVE] parent={} child={} index={} childCount={}",
-                getParentPrefix(childPrefix),
-                childPrefix,
-                index,
-                parentNode.getChildCount());
     }
     
     private void loadChildren(
@@ -455,11 +441,7 @@ public final class ExplorerTreeController {
                         S3TreeNode.LOADING,
                         bucket,
                         prefix));
-        log.info(
-                "[TREE MODEL RELOAD] parent={} childCount={} selectedPath={}",
-                parentNode.getFullPrefix(),
-                parentNode.getChildCount(),
-                folderTree.getSelectionPath());
+
         treeModel.reload(parentNode);
 
         ExecutorService currentPool =
@@ -552,12 +534,6 @@ public final class ExplorerTreeController {
                             TreePath selectionBeforeReload =
                                     folderTree.getSelectionPath();
 
-                            log.info(
-                                    "[TREE MODEL RELOAD] parent={} childCount={} selectedPath={}",
-                                    parentNode.getFullPrefix(),
-                                    parentNode.getChildCount(),
-                                    selectionBeforeReload);
-
                             treeModel.reload(parentNode);
 
                             if (selectionBeforeReload != null) {
@@ -615,13 +591,6 @@ public final class ExplorerTreeController {
                 restoredPath);
 
         folderTree.scrollPathToVisible(
-                restoredPath);
-
-        log.info(
-                "[TREE SELECTION RESTORE] prefix={} selected={} path={}",
-                restoredNode.getFullPrefix(),
-                folderTree.isPathSelected(
-                        restoredPath),
                 restoredPath);
     }
     
@@ -888,22 +857,6 @@ public final class ExplorerTreeController {
          */
         treeModel.nodeChanged(node);
 
-        /*
-         * Expansion state ve subtree yapısını
-         * kontrol amaçlı logla.
-         */
-        log.info(
-                "[TREE RENAME PRESERVED] source={} target={} " +
-                        "oldIndex={} newIndex={} reordered={} " +
-                        "childCount={} subtreeSize={}",
-                sourcePrefix,
-                targetPrefix,
-                oldIndex,
-                newIndex,
-                newIndex != oldIndex,
-                node.getChildCount(),
-                subtree.size());
-
         return true;
     }
 
@@ -986,10 +939,6 @@ public final class ExplorerTreeController {
                 parent,
                 new int[]{index},
                 new Object[]{node});
-
-        log.info(
-                "[TREE NODE REMOVED] prefix={}",
-                prefix);
     }
 
     public S3TreeNode findNodeByPrefix(
@@ -1075,11 +1024,6 @@ public final class ExplorerTreeController {
         TreePath path =
                 new TreePath(node.getPath());
 
-        log.info(
-                "[TREE SELECT NODE] prefix={} path={}",
-                node.getFullPrefix(),
-                path);
-
         ensurePathVisibleAndSelected(
                 node,
                 path);
@@ -1093,22 +1037,11 @@ public final class ExplorerTreeController {
 
         if (parentPath != null
                 && !folderTree.isExpanded(parentPath)) {
-
-            log.info(
-                    "[TREE SELECT NODE] expanding parentPath={}",
-                    parentPath);
-
             folderTree.expandPath(parentPath);
         }
 
         folderTree.setSelectionPath(path);
         folderTree.scrollPathToVisible(path);
-
-        log.info(
-                "[TREE SELECT NODE FINAL] prefix={} selected={} path={}",
-                node.getFullPrefix(),
-                folderTree.isPathSelected(path),
-                path);
     }
     
     private S3TreeNode findNearestExistingNode(
@@ -1199,11 +1132,6 @@ public final class ExplorerTreeController {
                 findNodeByPrefix(prefix);
 
         if (existing != null) {
-
-            log.info(
-                    "[TREE NAVIGATION] target already exists prefix={}",
-                    prefix);
-
             return CompletableFuture.completedFuture(
                     existing);
         }
@@ -1264,11 +1192,6 @@ public final class ExplorerTreeController {
 
         String parentPrefix =
                 parent.getFullPrefix();
-
-        log.info(
-                "[TREE NAVIGATION LOAD] parent={} target={}",
-                parentPrefix,
-                targetPrefix);
 
         /*
          * Parent'ın doğrudan çocuklarını yükle.
@@ -1405,17 +1328,9 @@ public final class ExplorerTreeController {
             return;
         }
 
-        log.info(
-                "[TREE NAVIGATION] selectPrefix target={}",
-                prefix);
-
         S3TreeNode existing = findNodeByPrefix(prefix);
 
         if (existing != null) {
-            log.info(
-                    "[TREE NAVIGATION] target already exists prefix={}",
-                    prefix);
-
             selectNode(existing);
 
             if (completion != null) {
@@ -1454,10 +1369,6 @@ public final class ExplorerTreeController {
 
                             return;
                         }
-
-                        log.info(
-                                "[TREE NAVIGATION] selecting prefix={}",
-                                node.getFullPrefix());
 
                         selectNode(node);
 
