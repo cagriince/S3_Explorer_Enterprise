@@ -6446,13 +6446,7 @@ public class ExplorerPanel extends JPanel {
             SwingUtilities.invokeLater(() -> {
 
                 if (restorePendingPasteSelection()) {
-
                     restoreFileTableFocus();
-
-                    log.info(
-                            "[FILE TABLE COPY SELECTION] " +
-                                    "paste selection restored incrementally key={}",
-                            objectKey);
                 }
             });
 
