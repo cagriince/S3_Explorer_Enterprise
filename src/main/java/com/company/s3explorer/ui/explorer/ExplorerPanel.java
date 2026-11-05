@@ -1871,13 +1871,6 @@ public class ExplorerPanel extends JPanel {
             String prefix =
                     selectedNode.getFullPrefix();
 
-            log.info(
-                    "[TREE SELECTION] bucket={} prefix={} node={} currentFilePrefix={}",
-                    bucket,
-                    prefix,
-                    selectedNode,
-                    currentFilePrefix);
-
             /*
              * ---------------------------------------------------------
              * TREE MODEL REFRESH GUARD
@@ -1915,14 +1908,6 @@ public class ExplorerPanel extends JPanel {
                     && Objects.equals(
                     currentFilePrefix,
                     prefix)) {
-
-                log.info(
-                        "[TREE SELECTION SKIP] " +
-                                "same prefix already displayed; " +
-                                "bucket={} prefix={}",
-                        bucket,
-                        prefix);
-
                 return;
             }
 
@@ -1967,14 +1952,6 @@ public class ExplorerPanel extends JPanel {
                         && Objects.equals(
                         currentFilePrefix,
                         prefix)) {
-
-                    log.info(
-                            "[TREE SELECTION SKIP] " +
-                                    "same prefix already displayed after EDT; " +
-                                    "bucket={} prefix={}",
-                            bucket,
-                            prefix);
-
                     return;
                 }
 
@@ -2102,11 +2079,6 @@ public class ExplorerPanel extends JPanel {
 
     private void openSelectedFileItem() {
 
-        log.info(
-                "[FILE TABLE OPEN] invoked selectedRow={} rowCount={}",
-                view.getFileTable().getSelectedRow(),
-                view.getFileTable().getSelectedRowCount());
-
         S3FileItem item =
                 getSelectedFileItem();
 
@@ -2115,13 +2087,6 @@ public class ExplorerPanel extends JPanel {
                     "[FILE TABLE OPEN] selected item is NULL");
             return;
         }
-
-        log.info(
-                "[FILE TABLE OPEN] item name={} key={} folder={} parent={}",
-                item.getName(),
-                item.getKey(),
-                item.isFolder(),
-                item.isParentFolder());
 
         if (item.isFolder()) {
             navigateToFolder(item);
@@ -2188,11 +2153,6 @@ public class ExplorerPanel extends JPanel {
             restoreFileTableFocus =
                     true;
 
-            log.info(
-                    "[PARENT NAV] FILE TABLE parent item restore selection key={} parentPrefix={}",
-                    pendingFileTableSelectionKey,
-                    targetPrefix);
-
         } else {
 
             targetPrefix =
@@ -2203,15 +2163,10 @@ public class ExplorerPanel extends JPanel {
             return;
         }
 
-        log.info(
-                "[FILE TABLE NAVIGATION] bucket={} targetPrefix={}",
-                bucket,
-                targetPrefix);
-
         treeController.selectPrefix(
                 targetPrefix);
     }
-    
+
     private void startDownload(
             S3FileItem item,
             Path destination) {
@@ -4838,17 +4793,12 @@ public class ExplorerPanel extends JPanel {
 
     private void goToParentFolder() {
 
-        log.info("[PARENT NAV] ENTER");
-
         String currentPrefix =
                 currentFilePrefix;
 
         if (currentPrefix == null
                 || currentPrefix.isBlank()
                 || S3TreeNode.ROOT_PREFIX.equals(currentPrefix)) {
-
-            log.info(
-                    "[PARENT NAV] already at root");
 
             return;
         }
@@ -4881,19 +4831,10 @@ public class ExplorerPanel extends JPanel {
         restoreFileTableFocus =
                 true;
 
-        log.info(
-                "[PARENT NAV] restore selection key={} parentPrefix={}",
-                pendingFileTableSelectionKey,
-                parentPrefix);
-
-        log.info(
-                "[PARENT NAV] navigating to parent={}",
-                parentPrefix);
-
         treeController.selectPrefix(
                 parentPrefix);
     }
-    
+
     private String getParentPrefix(String prefix) {
 
         if (prefix == null || prefix.isBlank()) {
