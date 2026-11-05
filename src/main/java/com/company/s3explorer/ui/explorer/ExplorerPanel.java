@@ -2327,18 +2327,6 @@ public class ExplorerPanel extends JPanel {
                 contentLoader.invalidate(
                         currentBucket,
                         currentPrefix);
-
-                log.info(
-                        "[SNAPSHOT INVALIDATE] type={} "
-                                + "currentBucket={} currentPrefix={} "
-                                + "sourceBucket={} targetBucket={} key={} targetKey={}",
-                        completedTask.getType(),
-                        currentBucket,
-                        currentPrefix,
-                        completedTask.getBucket(),
-                        completedTask.getTargetBucket(),
-                        completedTask.getObjectKey(),
-                        completedTask.getTargetObjectKey());
             }
         }
 
@@ -2347,21 +2335,11 @@ public class ExplorerPanel extends JPanel {
          * GROUP TASK RESULT COLLECTOR
          * ---------------------------------------------------------
          *
-         * Çoklu COPY / MOVE / DELETE işlemlerinde
-         * TransferGroup başarılı task'ları kendi içinde
-         * saklamıyor.
+         * Collect completed tasks before entering the EDT.
          *
-         * Bu nedenle tamamlanan task'ı burada, EDT'ye
-         * geçmeden önce topluyoruz.
-         *
-         * ÖNEMLİ:
-         *
-         * Group completion callback'i, son task'ın
-         * SwingUtilities.invokeLater() içindeki kodu
-         * çalışmadan önce gelebilir.
-         *
-         * Bu yüzden collector kesinlikle invokeLater()
-         * dışında olmalıdır.
+         * Group completion callback may arrive before the last task's
+         * invokeLater() block is executed. Therefore, collection must
+         * remain outside invokeLater().
          */
         TransferGroup taskGroup =
                 completedTask.getGroup();
@@ -2373,16 +2351,6 @@ public class ExplorerPanel extends JPanel {
                             taskGroup.getId(),
                             id -> new CopyOnWriteArrayList<>())
                     .add(completedTask);
-
-            log.debug(
-                    "[EXPLORER GROUP TASK COLLECT] " +
-                            "group={} task={} type={} collectedCount={}",
-                    taskGroup.getDisplayName(),
-                    completedTask.getObjectKey(),
-                    completedTask.getType(),
-                    completedGroupTasks
-                            .get(taskGroup.getId())
-                            .size());
         }
 
         SwingUtilities.invokeLater(() -> {
@@ -2401,15 +2369,7 @@ public class ExplorerPanel extends JPanel {
                         task.getGroup();
 
                 /*
-                 * -----------------------------------------------------
-                 * TEK DOSYA COPY
-                 * -----------------------------------------------------
-                 *
-                 * Tekli COPY artık group kullanmadığı normal akışta
-                 * buraya düşmeyecek.
-                 *
-                 * Eski group'lu tekli COPY için de güvenli fallback
-                 * olarak korunuyor.
+                 * Single-file COPY fallback for legacy grouped operations.
                  */
                 if (task.getType() == TransferType.COPY
                         && !group.isSourceFolder()
@@ -2417,13 +2377,6 @@ public class ExplorerPanel extends JPanel {
 
                     addCopiedFileToCurrentTable(task);
                 }
-
-                log.debug(
-                        "[EXPLORER REFRESH] grouped task completed; " +
-                                "refresh deferred until group completion. " +
-                                "task={} group={}",
-                        task.getObjectKey(),
-                        group.getDisplayName());
 
                 return;
             }
@@ -2435,28 +2388,12 @@ public class ExplorerPanel extends JPanel {
              */
             if (task.getType() == TransferType.RENAME) {
 
-                log.debug(
-                        "[EXPLORER TRANSFER EVENT] "
-                                + "single file rename completed; "
-                                + "scheduling current table refresh. "
-                                + "objectKey={} targetKey={}",
-                        task.getObjectKey(),
-                        task.getTargetObjectKey());
-
                 refreshScheduler.scheduleCurrentTableRefresh();
 
                 return;
             }
 
             if (task.getType() == TransferType.RENAME_GROUP) {
-
-                log.debug(
-                        "[EXPLORER TRANSFER EVENT] "
-                                + "rename group task completed. "
-                                + "type={} objectKey={}",
-                        task.getType(),
-                        task.getObjectKey());
-
                 return;
             }
 
@@ -2471,23 +2408,14 @@ public class ExplorerPanel extends JPanel {
             if (task.isAffectsObjectList()) {
 
                 /*
-                 * Tekli DELETE:
-                 *
-                 * Group kullanılmadığı için burada doğrudan
-                 * incremental remove yapılır.
+                 * Single DELETE:
+                 * Remove the row incrementally.
                  */
                 if (task.getType() == TransferType.DELETE) {
 
-                    boolean removed =
-                            view.getFileTableModel()
-                                    .removeFileByKey(
-                                            task.getObjectKey());
-
-                    log.info(
-                            "[FILE TABLE DELETE REMOVE] " +
-                                    "key={} removed={}",
-                            task.getObjectKey(),
-                            removed);
+                    view.getFileTableModel()
+                            .removeFileByKey(
+                                    task.getObjectKey());
 
                     return;
                 }
