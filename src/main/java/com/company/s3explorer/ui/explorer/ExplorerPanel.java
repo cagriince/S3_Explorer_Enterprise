@@ -2489,9 +2489,6 @@ public class ExplorerPanel extends JPanel {
                 && !group.isSourceFolder()) {
 
             if (completedTasks.isEmpty()) {
-                log.warn(
-                        "[UPLOAD GROUP COMPLETED] no completed tasks group={}",
-                        group.getDisplayName());
                 return;
             }
 
@@ -5497,10 +5494,6 @@ public class ExplorerPanel extends JPanel {
                 return;
             }
         }
-
-        log.warn(
-                "[FILE TABLE SELECTION RESTORE] key not found={}",
-                key);
     }
 
     private List<String> getSelectedFileTableKeys() {
@@ -5608,11 +5601,6 @@ public class ExplorerPanel extends JPanel {
                             firstViewRow,
                             0,
                             true));
-        } else {
-
-            log.warn(
-                    "[FILE TABLE SELECTION RESTORE] multiple no matching rows keys={}",
-                    keys);
         }
     }
 
