@@ -2223,13 +2223,7 @@ public class ExplorerPanel extends JPanel {
 
         restoreFileTableFocus = true;
 
-        log.info(
-                "[CREATE FOLDER] key={} restoreFocus={}",
-                folderKey,
-                restoreFileTableFocus);
-
         explorerPool.submit(() -> {
-
             try {
 
                 transferManager.submitCreateFolder(
@@ -3901,15 +3895,6 @@ public class ExplorerPanel extends JPanel {
                             navigationHistory.size() - 1));
         }
 
-        log.info(
-                "[HISTORY CLEANUP] repository={} bucket={} "
-                        + "deletedPrefix={} historySize={} index={}",
-                repositoryId,
-                bucket,
-                normalizedPrefix,
-                navigationHistory.size(),
-                navigationHistoryIndex);
-
         updateNavigationButtonStates();
     }
 
@@ -5141,10 +5126,6 @@ public class ExplorerPanel extends JPanel {
         if (oldPool != null) {
             oldPool.shutdown();
         }
-
-        log.info(
-                "[EXPLORER POOL] resized to {} threads",
-                threadCount);
     }
 
     public void shutdown() {
@@ -5448,14 +5429,6 @@ public class ExplorerPanel extends JPanel {
         SwingUtilities.invokeLater(() -> {
 
             if (view.getFileTable().hasFocus()) {
-
-                log.info(
-                        "[FILE TABLE FOCUS RESTORE] success attempt={} focusOwner={} tableFocus=true",
-                        attempt,
-                        KeyboardFocusManager
-                                .getCurrentKeyboardFocusManager()
-                                .getFocusOwner());
-
                 return;
             }
 
@@ -6134,11 +6107,6 @@ public class ExplorerPanel extends JPanel {
             return;
         }
 
-        log.info(
-                "[FILE TABLE ROW INSERT] key={} prefix={}",
-                folderKey,
-                currentFilePrefix);
-
         /*
          * CREATE_FOLDER işleminde oluşturulan klasörü
          * seç ve File Table focus'unu geri ver.
@@ -6321,13 +6289,6 @@ public class ExplorerPanel extends JPanel {
                 view.getFileTableModel()
                         .addFile(item);
 
-        log.info(
-                "[FILE TABLE UPLOAD INSERT] " +
-                        "key={} size={} added={}",
-                objectKey,
-                size,
-                added);
-
         if (!added) {
             return;
         }
@@ -6417,17 +6378,6 @@ public class ExplorerPanel extends JPanel {
         boolean added =
                 view.getFileTableModel()
                         .addFile(item);
-
-        log.info(
-                "[FILE TABLE COPY INSERT] " +
-                        "source={}/{} target={}/{} " +
-                        "size={} added={}",
-                task.getBucket(),
-                task.getObjectKey(),
-                bucket,
-                objectKey,
-                task.getSize(),
-                added);
 
         if (!added) {
             return;
@@ -7958,17 +7908,11 @@ public class ExplorerPanel extends JPanel {
                                 objectKey);
 
                 if (conflictResult == 1) {
-                    log.info(
-                            "[UPLOAD GROUP] skipped existing object key={}",
-                            objectKey);
                     continue;
                 }
 
                 if (conflictResult != 0
                         && conflictResult != 3) {
-                    log.info(
-                            "[UPLOAD GROUP] selection cancelled at key={}",
-                            objectKey);
                     return;
                 }
 
@@ -8003,12 +7947,6 @@ public class ExplorerPanel extends JPanel {
                                 directory.getName()) + "/";
 
                 lastOpenedFolderToUpload = directory;
-
-                log.info(
-                        "[UPLOAD FOLDER] targetBucket={} targetPrefix={} selectionKey={}",
-                        bucket,
-                        prefix,
-                        folderKey);
 
                 transferManager.submitFolderUpload(
                         repositoryId,
@@ -8146,17 +8084,11 @@ public class ExplorerPanel extends JPanel {
                                 objectKey);
 
                 if (conflictResult == 1) {
-                    log.info(
-                            "[UPLOAD ENCRYPTED GROUP] skipped existing object key={}",
-                            objectKey);
                     continue;
                 }
 
                 if (conflictResult != 0
                         && conflictResult != 3) {
-                    log.info(
-                            "[UPLOAD ENCRYPTED GROUP] selection cancelled at key={}",
-                            objectKey);
                     return;
                 }
 
