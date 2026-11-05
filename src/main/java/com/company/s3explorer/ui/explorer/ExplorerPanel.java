@@ -3000,12 +3000,6 @@ public class ExplorerPanel extends JPanel {
             boolean sourceIsFolder =
                     group.isSourceFolder();
 
-            log.info(
-                    "[EXPLORER RENAME] source={} target={} folder={}",
-                    sourceKey,
-                    targetKey,
-                    sourceIsFolder);
-
             /*
              * -----------------------------------------------------
              * FILE TABLE - SOURCE
@@ -3040,13 +3034,6 @@ public class ExplorerPanel extends JPanel {
                                 view.getFileTableModel()
                                         .removeFileByKey(
                                                 sourceKey);
-
-                        log.info(
-                                "[FILE TABLE RENAME REMOVE] " +
-                                        "folder key={} removed={}",
-                                sourceKey,
-                                removed);
-
                     } else {
 
                         /*
@@ -3104,15 +3091,6 @@ public class ExplorerPanel extends JPanel {
                                                 .replaceFileByKey(
                                                         sourceKey,
                                                         renamedItem);
-
-                                log.info(
-                                        "[FILE TABLE RENAME REPLACE] " +
-                                                "source={} target={} " +
-                                                "replaced={} row={}",
-                                        sourceKey,
-                                        targetKey,
-                                        replaced,
-                                        sourceRow);
                             }
                         }
                     }
@@ -3144,11 +3122,6 @@ public class ExplorerPanel extends JPanel {
 
                     addFolderToCurrentFileTable(
                             targetBucket,
-                            targetKey);
-
-                    log.info(
-                            "[FILE TABLE RENAME INSERT] " +
-                                    "folder key={}",
                             targetKey);
                 }
             }
@@ -3197,21 +3170,6 @@ public class ExplorerPanel extends JPanel {
                                             sourceKey,
                                             targetKey);
                 }
-
-                log.info(
-                        "[TREE RENAME PRESERVED] " +
-                                "source={} target={} success={}",
-                        sourceKey,
-                        targetKey,
-                        renamed);
-
-            } else {
-
-                log.debug(
-                        "[TREE RENAME SKIP] " +
-                                "file rename source={} target={}",
-                        sourceKey,
-                        targetKey);
             }
 
             /*
