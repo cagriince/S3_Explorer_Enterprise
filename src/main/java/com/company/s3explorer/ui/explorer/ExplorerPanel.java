@@ -3500,25 +3500,12 @@ public class ExplorerPanel extends JPanel {
 
             preservedFileTableSelectionKeys =
                     new ArrayList<>(currentSelectionKeys);
-
-            log.debug(
-                    "[FILE TABLE REFRESH] preserving selection keys={}",
-                    preservedFileTableSelectionKeys);
         }
 
         boolean restoreFocus =
                 table.hasFocus()
                         || restoreFileTableFocus
                         || forceFileTableFocusAfterRefresh;
-
-        log.debug(
-                "[FILE TABLE REFRESH] bucket={} prefix={} restoreFocus={} tableFocus={} deleteRestore={} preservedSelection={}",
-                bucket,
-                prefix,
-                restoreFocus,
-                table.hasFocus(),
-                restoreFileTableFocus,
-                preservedFileTableSelectionKeys);
 
         contentLoader.invalidate(
                 bucket,
