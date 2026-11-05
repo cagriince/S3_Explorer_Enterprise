@@ -108,25 +108,10 @@ public class ExplorerDeleteController {
             }
         }
 
-        log.info(
-                "[DELETE] trigger selectedRows={} " +
-                        "restoreFocus={} selectedViewRow={}",
-                table.getSelectedRowCount(),
-                restoreFocus,
-                table.getSelectedRow());
-
         deleteSelected();
     }
 
     public void deleteSelected() {
-
-        log.info(
-                "[DELETE] invoked selectedRows={} " +
-                        "tableFocus={}",
-                view.getFileTable()
-                        .getSelectedRowCount(),
-                view.getFileTable()
-                        .hasFocus());
 
         List<S3FileItem> items =
                 getSelectedItems();
@@ -218,11 +203,6 @@ public class ExplorerDeleteController {
 
                 fileOperationController.delete(
                         item);
-
-                log.info(
-                        "[DELETE] submitted source={} group=NONE",
-                        item.getKey());
-
             } catch (Exception ex) {
 
                 log.error(
@@ -306,24 +286,10 @@ public class ExplorerDeleteController {
                             bucket,
                             item.getKey(),
                             group);
-
-                    log.info(
-                            "[DELETE GROUP] submitted folder " +
-                                    "source={} group={}",
-                            item.getKey(),
-                            group.getDisplayName());
-
                 } else {
-
                     fileOperationController.delete(
                             item,
                             group);
-
-                    log.info(
-                            "[DELETE GROUP] submitted file " +
-                                    "source={} group={}",
-                            item.getKey(),
-                            group.getDisplayName());
                 }
 
             } catch (Exception ex) {

@@ -263,11 +263,6 @@ public class ExplorerPasteController {
             // Do not paste an item onto itself.
             if (item.getBucket().equals(targetBucket)
                     && item.getKey().equals(targetSelectionKey)) {
-
-                log.info(
-                        "[PASTE] skipped self-target source={} target={}",
-                        item.getKey(),
-                        targetSelectionKey);
                 continue;
             }
 
@@ -284,17 +279,6 @@ public class ExplorerPasteController {
                         skippedCount++;
                     }
 
-                    log.info(
-                            operation == ExplorerClipboard.Operation.COPY
-                                    ? "[COPY] skipped by user source={} target={}"
-                                    : "[MOVE] skipped by user source={} target={}",
-                            item.getKey(),
-                            targetSubmissionKey);
-
-                    log.info(
-                            "[PASTE SELECTION] not selected key={} item={}",
-                            targetSelectionKey,
-                            item.getName());
                     continue;
                 }
 
@@ -381,19 +365,9 @@ public class ExplorerPasteController {
             if (submitted) {
                 selectionKeys.add(targetSelectionKey);
 
-                log.info(
-                        "[PASTE SELECTION] accepted key={} item={}",
-                        targetSelectionKey,
-                        item.getName());
-
                 if (item.isFolder()) {
                     folderProducerSubmitted = true;
                 }
-            } else {
-                log.info(
-                        "[PASTE SELECTION] not selected key={} item={}",
-                        targetSelectionKey,
-                        item.getName());
             }
         }
 
@@ -443,13 +417,6 @@ public class ExplorerPasteController {
                     group,
                     options);
 
-            log.info(
-                    "[COPY] submitted source={} target={} overwrite={} group={}",
-                    item.getKey(),
-                    targetKey,
-                    overwrite,
-                    group == null ? null : group.getDisplayName());
-
             return true;
 
         } catch (Exception ex) {
@@ -486,13 +453,6 @@ public class ExplorerPasteController {
                     overwrite,
                     group,
                     options);
-
-            log.info(
-                    "[MOVE] submitted source={} target={} overwrite={} group={}",
-                    item.getKey(),
-                    targetKey,
-                    overwrite,
-                    group == null ? null : group.getDisplayName());
 
             return true;
 
