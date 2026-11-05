@@ -3611,10 +3611,6 @@ public class ExplorerPanel extends JPanel {
             return;
         }
 
-        log.info(
-                "[NAVIGATION] prefix={}",
-                prefix);
-
         treeController.selectPrefix(prefix);
     }
 
