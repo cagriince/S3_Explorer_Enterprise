@@ -1474,7 +1474,6 @@ public class ExplorerPanel extends JPanel {
             boolean restoreFocus,
             boolean filterRefresh) {
 
-        // Capture the current location before updating it.
         final boolean sameLocation =
                 Objects.equals(currentFileBucket, bucket)
                         && Objects.equals(currentFilePrefix, prefix);
@@ -1519,20 +1518,6 @@ public class ExplorerPanel extends JPanel {
 
         final var filter =
                 getCurrentFileTableFilter();
-
-        log.info(
-                "[FILE LOAD TRACE] START generation={}, bucket={}, prefix={}, "
-                        + "sortColumn={}, ascending={}, fileLimit={}, "
-                        + "cachedSnapshot={}, discoveryInProgress={}, filterRefresh={}",
-                generation,
-                bucket,
-                prefix,
-                sortSpec.getColumn(),
-                sortSpec.isAscending(),
-                fileLimit,
-                cachedSnapshotAvailable,
-                discoveryInProgress,
-                filterRefresh);
 
         setFileTableLoading(true);
 
@@ -1630,23 +1615,8 @@ public class ExplorerPanel extends JPanel {
                      * preparation for this obsolete request.
                      */
                     if (generation != fileLoadGeneration.get()) {
-
-                        log.info(
-                                "[FILE LOAD TRACE] STALE_AFTER_CONTENT "
-                                        + "generation={}, currentGeneration={}, "
-                                        + "bucket={}, prefix={}, sortColumn={}, ascending={}",
-                                generation,
-                                fileLoadGeneration.get(),
-                                bucket,
-                                prefix,
-                                sortSpec.getColumn(),
-                                sortSpec.isAscending());
-
                         return null;
                     }
-
-                    long prepareStart =
-                            System.nanoTime();
 
                     List<S3FileItem> rows =
                             createFileTableRows(
@@ -1655,16 +1625,6 @@ public class ExplorerPanel extends JPanel {
                                     prefix,
                                     content,
                                     flatBrowsing);
-
-                    long prepareMillis =
-                            (System.nanoTime() - prepareStart) / 1_000_000;
-
-                    log.info(
-                            "[FILE TABLE TIMING] generation={}, "
-                                    + "row preparation: {} ms, rows={}",
-                            generation,
-                            prepareMillis,
-                            rows.size());
 
                     return new PreparedFileTable(
                             content,
@@ -1681,45 +1641,14 @@ public class ExplorerPanel extends JPanel {
                     SwingUtilities.invokeLater(() -> {
 
                         if (generation != fileLoadGeneration.get()) {
-
-                            log.info(
-                                    "[FILE LOAD TRACE] STALE_BEFORE_APPLY "
-                                            + "generation={}, currentGeneration={}, "
-                                            + "bucket={}, prefix={}",
-                                    generation,
-                                    fileLoadGeneration.get(),
-                                    bucket,
-                                    prefix);
-
                             return;
                         }
-
-                        long applyStart =
-                                System.nanoTime();
 
                         applyPreparedFileTableRows(
                                 prepared.rows(),
                                 prepared.content(),
                                 bucket,
                                 prefix);
-
-                        long applyMillis =
-                                (System.nanoTime() - applyStart) / 1_000_000;
-
-                        log.info(
-                                "[FILE TABLE TIMING] generation={}, "
-                                        + "model apply: {} ms, rows={}",
-                                generation,
-                                applyMillis,
-                                prepared.rows().size());
-
-                        log.info(
-                                "[FILE LOAD TRACE] APPLIED generation={}, "
-                                        + "bucket={}, prefix={}, rows={}",
-                                generation,
-                                bucket,
-                                prefix,
-                                prepared.rows().size());
 
                         setFileTableLoading(false);
 
@@ -1754,10 +1683,6 @@ public class ExplorerPanel extends JPanel {
                                         preservedKeys);
 
                                 preservedFileTableSelectionKeys = null;
-
-                                log.debug(
-                                        "[FILE TABLE SELECTION] restored preserved selection keys={}",
-                                        preservedKeys);
                             }
                         }
 
@@ -1779,8 +1704,7 @@ public class ExplorerPanel extends JPanel {
                 .exceptionally(ex -> {
 
                     log.error(
-                            "[FILE LOAD TRACE] FAILED generation={}, "
-                                    + "bucket={}, prefix={}, error={}",
+                            "[FILE LOAD] failed: generation={}, bucket={}, prefix={}, error={}",
                             generation,
                             bucket,
                             prefix,
