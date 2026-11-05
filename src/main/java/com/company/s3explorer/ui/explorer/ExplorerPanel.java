@@ -1355,6 +1355,7 @@ public class ExplorerPanel extends JPanel {
                 });
     }
 
+
     private void loadFiles(
             String bucket,
             String prefix,
@@ -1389,7 +1390,6 @@ public class ExplorerPanel extends JPanel {
 
         CompletableFuture
                 .supplyAsync(() -> {
-                    long prepareStart = System.nanoTime();
 
                     List<S3FileItem> rows =
                             createFileTableRows(
@@ -1399,17 +1399,10 @@ public class ExplorerPanel extends JPanel {
                                     content,
                                     flatBrowsing);
 
-                    long prepareMillis =
-                            (System.nanoTime() - prepareStart) / 1_000_000;
-
-                    log.info(
-                            "[FILE TABLE TIMING] row preparation: {} ms, rows={}",
-                            prepareMillis,
-                            rows.size());
-
                     return new PreparedFileTable(
                             content,
                             rows);
+
                 }, explorerPool)
                 .thenAccept(prepared ->
                         SwingUtilities.invokeLater(() -> {
@@ -1418,21 +1411,11 @@ public class ExplorerPanel extends JPanel {
                                 return;
                             }
 
-                            long applyStart = System.nanoTime();
-
                             applyPreparedFileTableRows(
                                     prepared.rows(),
                                     prepared.content(),
                                     bucket,
                                     prefix);
-
-                            long applyMillis =
-                                    (System.nanoTime() - applyStart) / 1_000_000;
-
-                            log.info(
-                                    "[FILE TABLE TIMING] model apply: {} ms, rows={}",
-                                    applyMillis,
-                                    prepared.rows().size());
 
                             setFileTableLoading(false);
 
@@ -1484,8 +1467,6 @@ public class ExplorerPanel extends JPanel {
                 restoreFocus,
                 false);
     }
-
-
 
     private void loadFiles(
             String bucket,
