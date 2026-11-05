@@ -75,19 +75,6 @@ public class TransferEventBus {
             return;
         }
 
-        log.debug(
-                "[EVENT BUS] publishGroupUpdated listeners={} group={} queued={} running={} completed={} failed={} cancelled={} skipped={} productionCompleted={} activeProducers={}",
-                listeners.size(),
-                group.getDisplayName(),
-                group.getQueued(),
-                group.getRunning(),
-                group.getCompleted(),
-                group.getFailed(),
-                group.getCancelled(),
-                group.getSkipped(),
-                group.isProductionCompleted(),
-                group.getActiveProducers());
-
         for (TransferListener listener :
                 listeners) {
 
@@ -116,20 +103,8 @@ public class TransferEventBus {
                         prefix,
                         sourceRefreshRequired);
 
-        log.debug(
-                "[EVENT BUS] publishGroupCompleted " +
-                        "listeners={} group={} " +
-                        "sourceRefreshRequired={}",
-                listeners.size(),
-                group.getDisplayName(),
-                sourceRefreshRequired);
-
         for (TransferListener listener :
                 listeners) {
-
-            log.debug(
-                    "[EVENT BUS] notifying {}",
-                    listener.getClass().getName());
 
             listener.onTransferGroupCompleted(
                     event);
