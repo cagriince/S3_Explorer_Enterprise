@@ -66,11 +66,6 @@ public class ExplorerRenameController {
                 table.getSelectedRowCount();
 
         if (selectedRowCount != 1) {
-
-            log.warn(
-                    "[RENAME] exactly one item must be selected selectedRows={}",
-                    selectedRowCount);
-
             return;
         }
 
@@ -91,10 +86,6 @@ public class ExplorerRenameController {
 
         if (item == null
                 || item.isParentFolder()) {
-
-            log.warn(
-                    "[RENAME] invalid selected item");
-
             return;
         }
 
@@ -162,12 +153,6 @@ public class ExplorerRenameController {
         }
 
         if (existsPredicate.test(newKey)) {
-
-            log.warn(
-                    "[RENAME] target already exists source={} target={}",
-                    oldKey,
-                    newKey);
-
             JOptionPane.showMessageDialog(
                     view.getFileTable(),
                     newName + " is already used.\n"

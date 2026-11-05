@@ -1930,13 +1930,6 @@ public class ExplorerPanel extends JPanel {
                 if (actualPath == null
                         || !actualPath.equals(
                         selectedPath)) {
-
-                    log.warn(
-                            "[TREE SELECTION] " +
-                                    "selection changed before processing " +
-                                    "prefix={}",
-                            prefix);
-
                     return;
                 }
 
@@ -2083,8 +2076,6 @@ public class ExplorerPanel extends JPanel {
                 getSelectedFileItem();
 
         if (item == null) {
-            log.warn(
-                    "[FILE TABLE OPEN] selected item is NULL");
             return;
         }
 
