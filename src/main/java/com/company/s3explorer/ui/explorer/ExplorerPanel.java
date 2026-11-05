@@ -6709,14 +6709,6 @@ public class ExplorerPanel extends JPanel {
         }
 
         if (!targetTreeRefreshes.isEmpty()) {
-
-            log.info(
-                    "[EXPLORER TARGET TREE REFRESH] "
-                            + "group={} operation={} prefixes={}",
-                    group.getDisplayName(),
-                    operation,
-                    targetTreeRefreshes);
-
             refreshScheduler.scheduleRefresh(
                     new ArrayList<>(targetTreeRefreshes));
         }
@@ -6730,14 +6722,6 @@ public class ExplorerPanel extends JPanel {
                 && Objects.equals(
                 currentPrefix,
                 getParentPrefix(targetPrefix))) {
-
-            log.info(
-                    "[EXPLORER UPLOAD TARGET TABLE REFRESH] "
-                            + "group={} bucket={} prefix={} targetPrefix={}",
-                    group.getDisplayName(),
-                    currentBucket,
-                    currentPrefix,
-                    targetPrefix);
 
             refreshScheduler.scheduleCurrentTableRefresh();
         }
