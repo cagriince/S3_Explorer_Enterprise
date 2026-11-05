@@ -2880,13 +2880,6 @@ public class ExplorerPanel extends JPanel {
                                     pendingDeleteSelectionViewRow,
                                     rowCount - 1);
 
-                    log.info(
-                            "[DELETE GROUP SELECTION RESTORE] " +
-                                    "pendingRow={} rowCount={} targetRow={}",
-                            pendingDeleteSelectionViewRow,
-                            rowCount,
-                            targetViewRow);
-
                     if (targetViewRow >= 0) {
 
                         JTable table =
@@ -2905,22 +2898,7 @@ public class ExplorerPanel extends JPanel {
                                         true));
 
                         restoreFileTableFocus();
-
-                        log.info(
-                                "[DELETE GROUP SELECTION RESTORE] " +
-                                        "success targetViewRow={} selectedRowCount={}",
-                                targetViewRow,
-                                table.getSelectedRowCount());
-
                     } else {
-
-                        /*
-                         * Tablo tamamen boşaldıysa selection yapılamaz.
-                         */
-                        log.info(
-                                "[DELETE GROUP SELECTION RESTORE] " +
-                                        "table empty; no selection");
-
                         restoreFileTableFocus();
                     }
 
@@ -2947,13 +2925,7 @@ public class ExplorerPanel extends JPanel {
                 SwingUtilities.invokeLater(() -> {
 
                     if (restorePendingPasteSelection()) {
-
                         restoreFileTableFocus();
-
-                        log.info(
-                                "[FILE TABLE GROUP SELECTION] " +
-                                        "restored keys={}",
-                                pendingFileTableSelectionKeys);
                     }
                 });
             }
