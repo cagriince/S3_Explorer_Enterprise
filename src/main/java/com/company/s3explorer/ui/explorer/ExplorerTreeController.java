@@ -1099,11 +1099,6 @@ public final class ExplorerTreeController {
                 findNearestExistingNode(prefix);
 
         if (parent == null) {
-
-            log.warn(
-                    "[TREE NAVIGATION] parent not found prefix={}",
-                    prefix);
-
             return CompletableFuture.completedFuture(
                     null);
         }
@@ -1178,12 +1173,6 @@ public final class ExplorerTreeController {
                                     targetPrefix);
 
                     if (next == null) {
-
-                        log.warn(
-                                "[TREE NAVIGATION] next node not found parent={} target={}",
-                                parentPrefix,
-                                targetPrefix);
-
                         return CompletableFuture.completedFuture(
                                 null);
                     }
@@ -1305,10 +1294,6 @@ public final class ExplorerTreeController {
                         }
 
                         if (node == null) {
-                            log.warn(
-                                    "[TREE NAVIGATION] target not found after loading prefix={}",
-                                    prefix);
-
                             if (completion != null) {
                                 completion.accept(false);
                             }
