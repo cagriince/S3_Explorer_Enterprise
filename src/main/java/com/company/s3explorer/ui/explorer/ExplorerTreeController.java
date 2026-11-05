@@ -169,21 +169,8 @@ public final class ExplorerTreeController {
         String prefix =
                 request.prefix();
 
-        log.debug(
-                "[EXPLORER TREE REFRESH] prefix={} operation={}",
-                prefix,
-                request.operation());
-
         S3TreeNode node =
                 nodeCache.get(prefix);
-
-        log.debug(
-                "[EXPLORER TREE REFRESH NODE] prefix={} node={} childCount={}",
-                prefix,
-                node,
-                node == null
-                        ? -1
-                        : node.getChildCount());
 
         if (request.operation()
                 == RefreshTreeOperation.ADD) {
@@ -199,8 +186,6 @@ public final class ExplorerTreeController {
         }
         
         if (node == null) {
-            log.debug(
-                    "[EXPLORER TREE REFRESH NODE] NODE NOT FOUND");
             return;
         }
 
@@ -212,11 +197,6 @@ public final class ExplorerTreeController {
 
         if (childPrefix == null
                 || childPrefix.isBlank()) {
-
-            log.debug(
-                    "[TREE ADD] invalid childPrefix={}",
-                    childPrefix);
-
             return;
         }
 
@@ -225,9 +205,6 @@ public final class ExplorerTreeController {
 
         if (bucket == null
                 || bucket.isBlank()) {
-
-            log.debug(
-                    "[TREE ADD] bucket unavailable");
             return;
         }
 
@@ -263,11 +240,6 @@ public final class ExplorerTreeController {
          * Aynı node zaten eklenmişse tekrar ekleme.
          */
         if (nodeCache.containsKey(childPrefix)) {
-
-            log.debug(
-                    "[TREE ADD] node already exists prefix={}",
-                    childPrefix);
-
             return;
         }
 
@@ -323,11 +295,6 @@ public final class ExplorerTreeController {
 
         if (childPrefix == null
                 || childPrefix.isBlank()) {
-
-            log.debug(
-                    "[TREE DELETE] invalid childPrefix={}",
-                    childPrefix);
-
             return;
         }
 
@@ -335,11 +302,6 @@ public final class ExplorerTreeController {
                 nodeCache.get(childPrefix);
 
         if (node == null) {
-
-            log.debug(
-                    "[TREE DELETE] node not found prefix={}",
-                    childPrefix);
-
             return;
         }
 
@@ -347,11 +309,6 @@ public final class ExplorerTreeController {
                 (MutableTreeNode) node.getParent();
 
         if (!(parent instanceof S3TreeNode parentNode)) {
-
-            log.debug(
-                    "[TREE DELETE] parent not found prefix={}",
-                    childPrefix);
-
             return;
         }
 
@@ -359,11 +316,6 @@ public final class ExplorerTreeController {
                 parentNode.getIndex(node);
 
         if (index < 0) {
-
-            log.debug(
-                    "[TREE DELETE] node index not found prefix={}",
-                    childPrefix);
-
             return;
         }
 
@@ -458,12 +410,6 @@ public final class ExplorerTreeController {
 
             return CompletableFuture.completedFuture(null);
         }
-
-        log.debug(
-                "[TREE LOAD] bucket={} prefix={} forceRefresh={}",
-                bucket,
-                prefix,
-                forceRefresh);
 
         return contentLoader.loadFolders(
                         currentPool,
