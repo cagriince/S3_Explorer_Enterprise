@@ -5530,12 +5530,6 @@ public class ExplorerPanel extends JPanel {
 
                 updateActionStates();
 
-                log.info(
-                        "[FILE TABLE SELECTION RESTORE] key={} viewRow={} modelRow={}",
-                        key,
-                        viewRow,
-                        modelRow);
-
                 return;
             }
         }
@@ -5650,13 +5644,6 @@ public class ExplorerPanel extends JPanel {
                             firstViewRow,
                             0,
                             true));
-
-            log.info(
-                    "[FILE TABLE SELECTION RESTORE] multiple success selectedCount={} firstViewRow={} keys={}",
-                    selectedCount,
-                    firstViewRow,
-                    keys);
-
         } else {
 
             log.warn(
@@ -6194,13 +6181,6 @@ public class ExplorerPanel extends JPanel {
 
                 table.requestFocusInWindow();
 
-                log.info(
-                        "[FILE TABLE SELECTION RESTORE] " +
-                                "key={} viewRow={} modelRow={}",
-                        folderKey,
-                        viewRow,
-                        modelRow);
-
                 pendingFileTableSelectionKey = null;
                 restoreFileTableFocus = false;
             });
@@ -6241,13 +6221,6 @@ public class ExplorerPanel extends JPanel {
                         true));
 
         table.requestFocusInWindow();
-
-        log.info(
-                "[DELETE SELECTION RESTORE] " +
-                        "deletedViewRow={} targetViewRow={} rowCount={}",
-                pendingDeleteSelectionViewRow,
-                targetViewRow,
-                rowCount);
 
         pendingDeleteSelectionViewRow = -1;
     }
