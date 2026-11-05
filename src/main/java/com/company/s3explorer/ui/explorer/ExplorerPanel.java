@@ -3327,17 +3327,6 @@ public class ExplorerPanel extends JPanel {
                                     new RefreshTreeNode(
                                             folderPrefix,
                                             RefreshTreeOperation.DELETE));
-
-                    log.info(
-                            "[EXPLORER SOURCE FOLDER TREE REFRESH] "
-                                    + "group={} operation={} sourceBucket={} "
-                                    + "sourcePrefix={} prefixes={}",
-                            group.getDisplayName(),
-                            group.getOperation(),
-                            sourceBucket,
-                            folderPrefix,
-                            sourceTreeRefreshes);
-
                     refreshScheduler.scheduleRefresh(sourceTreeRefreshes);
                 }
 
@@ -3408,11 +3397,6 @@ public class ExplorerPanel extends JPanel {
                             currentBucket,
                             sourceBucket)) {
 
-                        log.debug(
-                                "[EXPLORER SOURCE TREE REFRESH] "
-                                        + "prefix={} operation=DELETE",
-                                sourcePrefix);
-
                         refreshScheduler.scheduleRefresh(
                                 List.of(
                                         new RefreshTreeNode(
@@ -3432,27 +3416,12 @@ public class ExplorerPanel extends JPanel {
                                         .removeFileByKey(
                                                 sourcePrefix);
 
-                        log.info(
-                                "[FILE TABLE ROW REMOVE] "
-                                        + "key={} removed={}",
-                                sourcePrefix,
-                                removed);
-
                         if (removed
                                 && pendingDeleteSelectionViewRow >= 0) {
 
                             SwingUtilities.invokeLater(() -> {
-
-                                log.info(
-                                        "[DELETE SELECTION RESTORE TRIGGER] "
-                                                + "pendingRow={} rowCount={}",
-                                        pendingDeleteSelectionViewRow,
-                                        view.getFileTable().getRowCount());
-
                                 restoreFileTableSelectionAfterDelete();
-
                                 restoreFileTableFocus();
-
                                 pendingDeleteSelectionViewRow = -1;
                             });
                         }
@@ -3471,12 +3440,6 @@ public class ExplorerPanel extends JPanel {
                                 view.getFileTableModel()
                                         .removeFileByKey(
                                                 sourcePrefix);
-
-                        log.info(
-                                "[FILE TABLE ROW REMOVE] "
-                                        + "key={} removed={}",
-                                sourcePrefix,
-                                removed);
                     }
                 }
             }
