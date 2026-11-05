@@ -2476,18 +2476,6 @@ public class ExplorerPanel extends JPanel {
             return;
         }
 
-        log.debug(
-                "[EXPLORER GROUP COMPLETED] " +
-                        "group={} operation={} " +
-                        "successful={} " +
-                        "sourceRefreshRequired={} " +
-                        "sourceIsFolder={}",
-                group.getDisplayName(),
-                group.getOperation(),
-                group.isFullySuccessful(),
-                event.isSourceRefreshRequired(),
-                group.isSourceFolder());
-
         List<TransferTask> completedTasks =
                 completedGroupTasks.remove(
                         group.getId());
@@ -2497,34 +2485,11 @@ public class ExplorerPanel extends JPanel {
                     List.of();
         }
 
-        log.info(
-                "[EXPLORER GROUP TASKS] group={} collectedTasks={} detected={}",
-                group.getDisplayName(),
-                completedTasks.size(),
-                group.getDetected());
-        
         String currentBucket =
                 currentFileBucket;
 
         String currentPrefix =
                 currentFilePrefix;
-
-        log.info(
-                "[EXPLORER GROUP REFRESH STATE] " +
-                        "currentFileBucket={} " +
-                        "currentFilePrefix={} " +
-                        "currentBucket={} " +
-                        "currentPrefix={} " +
-                        "targetBucket={} " +
-                        "targetPrefix={} " +
-                        "sourceIsFolder={}",
-                currentFileBucket,
-                currentFilePrefix,
-                currentBucket,
-                currentPrefix,
-                group.getTargetBucket(),
-                group.getTargetPrefix(),
-                group.isSourceFolder());
 
         /*
          * ---------------------------------------------------------
@@ -2596,11 +2561,6 @@ public class ExplorerPanel extends JPanel {
                     addUploadedFileToCurrentFileTable(task);
                 }
 
-                log.info(
-                        "[UPLOAD GROUP TABLE UPDATE] group={} uploadedKeys={}",
-                        group.getDisplayName(),
-                        uploadedKeys);
-
                 /*
                  * Run selection after all row insertions and sorter
                  * updates have had an opportunity to complete.
@@ -2612,11 +2572,6 @@ public class ExplorerPanel extends JPanel {
 
                         restoreFileTableFocus = true;
                         restoreFileTableFocus();
-
-                        log.info(
-                                "[UPLOAD GROUP SELECTION RESTORE] group={} selectedKeys={}",
-                                group.getDisplayName(),
-                                uploadedKeys);
                     }
                 });
             });
