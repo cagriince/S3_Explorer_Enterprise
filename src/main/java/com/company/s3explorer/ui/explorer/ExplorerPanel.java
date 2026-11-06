@@ -54,7 +54,6 @@ public class ExplorerPanel extends JPanel {
 
     private static final Logger log = LoggerFactory.getLogger(ExplorerPanel.class);
 
-    private static final int OPERATION_DIALOG_DELAY_MS = 250;
     private static final DateTimeFormatter EXPORT_DATETIME_FORMATTER = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss");
     private ExplorerView view;
 
@@ -74,10 +73,6 @@ public class ExplorerPanel extends JPanel {
     private String currentFileBucket;
     private String currentFilePrefix;
     private final AtomicLong rootFolderLoadGeneration = new AtomicLong();
-
-    private OperationDialog bucketDialog;
-    private OperationDialog fileTableDialog;
-    private OperationDialog filterRefreshDialog;
 
     private enum OperationDialogType {
         BUCKET,
@@ -109,6 +104,7 @@ public class ExplorerPanel extends JPanel {
     private final TransferManager transferManager;
     private final RepositoryManager repositoryManager;
     private final S3ClientManager clientManager;
+    private final ExplorerOperationDialogManager operationDialogManager;
 
     private Consumer<UITheme> themeSelectionListener;
     private Consumer<RepositoryDefinition> repositorySelectionListener;
@@ -191,6 +187,7 @@ public class ExplorerPanel extends JPanel {
         this.transferManager = transferManager;
         this.repositoryManager = repositoryManager;
         this.clientManager = clientManager;
+        this.operationDialogManager = new ExplorerOperationDialogManager(this);
 
         this.themeManager =
                 new UIThemeManager(
@@ -1497,8 +1494,8 @@ public class ExplorerPanel extends JPanel {
 
         final boolean preparingDialogActive =
                 sameLocation
-                        && fileTableDialog != null
-                        && visibleOperationDialogs.contains(fileTableDialog);
+                        && operationDialogManager.isVisible(
+                        ExplorerOperationDialogManager.Type.FILE_TABLE);
 
         final long generation =
                 fileLoadGeneration.incrementAndGet();
@@ -5058,9 +5055,7 @@ public class ExplorerPanel extends JPanel {
 
         SwingUtilities.invokeLater(() -> {
 
-            if (generation !=
-                    fileDiscoveryGeneration.get()) {
-
+            if (generation != fileDiscoveryGeneration.get()) {
                 return;
             }
 
@@ -5071,32 +5066,30 @@ public class ExplorerPanel extends JPanel {
                             + S3Util.formatWithThousandSeparator(fileCount)
                             + " files discovered");
 
-            if (fileTableDialog != null) {
+            String message =
+                    "<html>"
+                            + "<b>Preparing file table...</b><br><br>"
+                            + "<table>"
+                            + "<tr><td><b>Bucket:</b></td><td>"
+                            + bucket
+                            + "</td></tr>"
+                            + "<tr><td><b>Folder:</b></td><td>"
+                            + (prefix == null || prefix.isBlank()
+                            ? "/"
+                            : prefix)
+                            + "</td></tr>"
+                            + "<tr><td><b>Folders found:</b></td><td>"
+                            + S3Util.formatWithThousandSeparator(folderCount)
+                            + "</td></tr>"
+                            + "<tr><td><b>Files found:</b></td><td>"
+                            + S3Util.formatWithThousandSeparator(fileCount)
+                            + "</td></tr>"
+                            + "</table>"
+                            + "</html>";
 
-                fileTableDialog.message.setText(
-                        "<html>"
-                                + "<b>Preparing file table...</b><br><br>"
-                                + "<table>"
-                                + "<tr><td><b>Bucket:</b></td><td>"
-                                + bucket
-                                + "</td></tr>"
-                                + "<tr><td><b>Folder:</b></td><td>"
-                                + (prefix == null || prefix.isBlank()
-                                ? "/"
-                                : prefix)
-                                + "</td></tr>"
-                                + "<tr><td><b>Folders found:</b></td><td>"
-                                + S3Util.formatWithThousandSeparator(folderCount)
-                                + "</td></tr>"
-                                + "<tr><td><b>Files found:</b></td><td>"
-                                + S3Util.formatWithThousandSeparator(fileCount)
-                                + "</td></tr></table>"
-                                + "</html>");
-
-                fileTableDialog.dialog.pack();
-
-                positionOperationDialogs();
-            }
+            operationDialogManager.updateMessage(
+                    ExplorerOperationDialogManager.Type.FILE_TABLE,
+                    message);
         });
     }
 
@@ -5246,84 +5239,10 @@ public class ExplorerPanel extends JPanel {
             OperationDialogType type,
             String message) {
 
-        SwingUtilities.invokeLater(() -> {
-
-            OperationDialog operationDialog;
-
-            switch (type) {
-
-                case BUCKET:
-
-                    if (bucketDialog == null) {
-                        bucketDialog =
-                                createOperationDialog(
-                                        "Bucket Loading");
-                    }
-
-                    operationDialog = bucketDialog;
-                    break;
-
-                case FILE_TABLE:
-
-                    if (fileTableDialog == null) {
-                        fileTableDialog =
-                                createOperationDialog(
-                                        "File Table");
-                    }
-
-                    operationDialog = fileTableDialog;
-                    break;
-
-                case FILTER_REFRESH:
-
-                    if (filterRefreshDialog == null) {
-                        filterRefreshDialog =
-                                createOperationDialog(
-                                        "Updating File Table",
-                                        new Dimension(320, 95));
-                    }
-
-                    operationDialog = filterRefreshDialog;
-                    break;
-
-                default:
-                    return;
-            }
-
-            operationDialog.message.setText(message);
-            operationDialog.dialog.pack();
-
-            if (operationDialog.showTimer != null) {
-                operationDialog.showTimer.stop();
-            }
-
-            if (!visibleOperationDialogs.contains(operationDialog)) {
-                visibleOperationDialogs.add(operationDialog);
-            }
-
-            operationDialog.dialog.setVisible(false);
-
-            operationDialog.showTimer =
-                    new Timer(
-                            OPERATION_DIALOG_DELAY_MS,
-                            e -> {
-
-                                if (!visibleOperationDialogs.contains(
-                                        operationDialog)) {
-
-                                    ((Timer) e.getSource()).stop();
-                                    return;
-                                }
-
-                                operationDialog.dialog.setVisible(true);
-                                positionOperationDialogs();
-
-                                ((Timer) e.getSource()).stop();
-                            });
-
-            operationDialog.showTimer.setRepeats(false);
-            operationDialog.showTimer.start();
-        });
+        operationDialogManager.show(
+                ExplorerOperationDialogManager.Type.valueOf(
+                        type.name()),
+                message);
     }
 
     private void positionOperationDialogs() {
@@ -5372,42 +5291,9 @@ public class ExplorerPanel extends JPanel {
     private void hideOperationDialog(
             OperationDialogType type) {
 
-        SwingUtilities.invokeLater(() -> {
-
-            OperationDialog operationDialog;
-
-            switch (type) {
-
-                case BUCKET:
-                    operationDialog = bucketDialog;
-                    break;
-
-                case FILE_TABLE:
-                    operationDialog = fileTableDialog;
-                    break;
-
-                case FILTER_REFRESH:
-                    operationDialog = filterRefreshDialog;
-                    break;
-
-                default:
-                    return;
-            }
-
-            if (operationDialog != null) {
-
-                if (operationDialog.showTimer != null) {
-                    operationDialog.showTimer.stop();
-                    operationDialog.showTimer = null;
-                }
-
-                operationDialog.dialog.setVisible(false);
-
-                visibleOperationDialogs.remove(operationDialog);
-            }
-
-            positionOperationDialogs();
-        });
+        operationDialogManager.hide(
+                ExplorerOperationDialogManager.Type.valueOf(
+                        type.name()));
     }
 
     private void restoreFileTableFocus() {
