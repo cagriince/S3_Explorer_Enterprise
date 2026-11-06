@@ -18,6 +18,7 @@ import java.util.function.Consumer;
 public class S3ExplorerService {
     private final S3FolderPropertiesService folderPropertiesService;
     private final S3FileTransferService fileTransferService;
+    private final S3ObjectOperationService objectOperationService;
     private final S3Client client;
 
     public S3ExplorerService(S3Client client) {
@@ -28,6 +29,9 @@ public class S3ExplorerService {
 
         this.fileTransferService =
                 new S3FileTransferService(client);
+
+        this.objectOperationService =
+                new S3ObjectOperationService(client);
     }
 
     public S3Client getClient() {
@@ -369,20 +373,17 @@ public class S3ExplorerService {
     // OBJECT OPERATIONS
     // ----------------------------------------------------------------------
 
-    public void copyObject(String sourceBucket, String sourceKey, String targetBucket, String targetKey) {
-        if (objectExists(targetBucket, targetKey)) {
-            throw new RuntimeException("Already exists: " + targetBucket + "/" + targetKey);
-        }
+    public void copyObject(
+            String sourceBucket,
+            String sourceKey,
+            String targetBucket,
+            String targetKey) {
 
-        CopyObjectRequest request =
-                CopyObjectRequest.builder()
-                        .sourceBucket(sourceBucket)
-                        .sourceKey(sourceKey)
-                        .destinationBucket(targetBucket)
-                        .destinationKey(targetKey)
-                        .build();
-
-        client.copyObject(request);
+        objectOperationService.copyObject(
+                sourceBucket,
+                sourceKey,
+                targetBucket,
+                targetKey);
     }
 
     public void copyObjectOverwrite(
@@ -391,15 +392,11 @@ public class S3ExplorerService {
             String targetBucket,
             String targetKey) {
 
-        CopyObjectRequest request =
-                CopyObjectRequest.builder()
-                        .sourceBucket(sourceBucket)
-                        .sourceKey(sourceKey)
-                        .destinationBucket(targetBucket)
-                        .destinationKey(targetKey)
-                        .build();
-
-        client.copyObject(request);
+        objectOperationService.copyObjectOverwrite(
+                sourceBucket,
+                sourceKey,
+                targetBucket,
+                targetKey);
     }
 
     public void copyObjectBetweenRepositories(
@@ -412,294 +409,66 @@ public class S3ExplorerService {
             boolean overwrite,
             CrossRepositoryEncryptionOptions options) throws Exception {
 
-        if (options == null) {
-            options = CrossRepositoryEncryptionOptions.none();
-        }
-
-        if (!overwrite
-                && objectExists(
+        objectOperationService.copyObjectBetweenRepositories(
+                sourceBucket,
+                sourceKey,
                 targetRepositoryClient,
                 targetBucket,
-                targetKey)) {
-
-            throw new RuntimeException(
-                    "Already exists: " + targetBucket + "/" + targetKey);
-        }
-
-        HeadObjectResponse head =
-                getObject(sourceBucket, sourceKey);
-
-        long sourceSize = head.contentLength();
-
-        try (InputStream raw = client.getObject(
-                GetObjectRequest.builder()
-                        .bucket(sourceBucket)
-                        .key(sourceKey)
-                        .build())) {
-
-            InputStream source =
-                    new ProgressInputStream(
-                            raw,
-                            sourceSize,
-                            listener);
-
-            /*
-             * Dönüşümler sıralı uygulanır:
-             *
-             * S3 source -> optional decrypt -> optional encrypt -> target
-             *
-             * CipherInputStream akışı zincirler; ara plaintext dosyası
-             * oluşturulmaz.
-             */
-            if (options.isDecryptSource()) {
-                source = new CipherInputStream(
-                        source,
-                        options.getSourceEncryptionConfig()
-                                .createCipher(Cipher.DECRYPT_MODE));
-            }
-
-            if (options.isEncryptTarget()) {
-                source = new CipherInputStream(
-                        source,
-                        options.getTargetEncryptionConfig()
-                                .createCipher(Cipher.ENCRYPT_MODE));
-            }
-
-            if (!options.isDecryptSource()
-                    && !options.isEncryptTarget()) {
-
-                targetRepositoryClient.putObject(
-                        PutObjectRequest.builder()
-                                .bucket(targetBucket)
-                                .key(targetKey)
-                                .build(),
-                        RequestBody.fromInputStream(
-                                source,
-                                sourceSize));
-
-                return;
-            }
-
-            uploadTransformedStream(
-                    targetRepositoryClient,
-                    targetBucket,
-                    targetKey,
-                    source);
-        }
+                targetKey,
+                listener,
+                overwrite,
+                options);
     }
 
-    private void uploadTransformedStream(
-            S3Client targetClient,
+    public void deleteObject(
             String bucket,
-            String key,
-            InputStream transformedStream) throws IOException {
+            String objectKey) {
 
-        final int partSize = 8 * 1024 * 1024;
-
-        CreateMultipartUploadResponse initiated =
-                targetClient.createMultipartUpload(
-                        CreateMultipartUploadRequest.builder()
-                                .bucket(bucket)
-                                .key(key)
-                                .build());
-
-        String uploadId = initiated.uploadId();
-
-        List<CompletedPart> completedParts =
-                new ArrayList<>();
-
-        boolean completed = false;
-
-        try (InputStream input = transformedStream) {
-
-            int partNumber = 1;
-
-            while (true) {
-
-                byte[] buffer = new byte[partSize];
-                int count = 0;
-
-                while (count < buffer.length) {
-
-                    int read = input.read(
-                            buffer,
-                            count,
-                            buffer.length - count);
-
-                    if (read < 0) {
-                        break;
-                    }
-
-                    if (read == 0) {
-                        continue;
-                    }
-
-                    count += read;
-                }
-
-                if (count == 0) {
-                    break;
-                }
-
-                if (partNumber > 10000) {
-                    throw new IOException(
-                            "The object exceeds the supported multipart upload part count.");
-                }
-
-                byte[] partBytes =
-                        count == buffer.length
-                                ? buffer
-                                : Arrays.copyOf(buffer, count);
-
-                UploadPartResponse uploaded =
-                        targetClient.uploadPart(
-                                UploadPartRequest.builder()
-                                        .bucket(bucket)
-                                        .key(key)
-                                        .uploadId(uploadId)
-                                        .partNumber(partNumber)
-                                        .contentLength((long) count)
-                                        .build(),
-                                RequestBody.fromBytes(partBytes));
-
-                completedParts.add(
-                        CompletedPart.builder()
-                                .partNumber(partNumber)
-                                .eTag(uploaded.eTag())
-                                .build());
-
-                partNumber++;
-            }
-
-            if (completedParts.isEmpty()) {
-
-                targetClient.abortMultipartUpload(
-                        AbortMultipartUploadRequest.builder()
-                                .bucket(bucket)
-                                .key(key)
-                                .uploadId(uploadId)
-                                .build());
-
-                completed = true;
-
-                targetClient.putObject(
-                        PutObjectRequest.builder()
-                                .bucket(bucket)
-                                .key(key)
-                                .build(),
-                        RequestBody.empty());
-
-                return;
-            }
-
-            targetClient.completeMultipartUpload(
-                    CompleteMultipartUploadRequest.builder()
-                            .bucket(bucket)
-                            .key(key)
-                            .uploadId(uploadId)
-                            .multipartUpload(
-                                    CompletedMultipartUpload.builder()
-                                            .parts(completedParts)
-                                            .build())
-                            .build());
-
-            completed = true;
-
-        } finally {
-
-            if (!completed) {
-                try {
-                    targetClient.abortMultipartUpload(
-                            AbortMultipartUploadRequest.builder()
-                                    .bucket(bucket)
-                                    .key(key)
-                                    .uploadId(uploadId)
-                                    .build());
-                } catch (Exception abortException) {
-                    // Preserve the original upload exception.
-                }
-            }
-        }
+        objectOperationService.deleteObject(
+                bucket,
+                objectKey);
     }
 
-    public void deleteObject(String bucket, String objectKey) {
-        DeleteObjectRequest request =
-                DeleteObjectRequest.builder()
-                        .bucket(bucket)
-                        .key(objectKey)
-                        .build();
-        client.deleteObject(request);
-    }
+    public void createFolder(
+            String bucket,
+            String folderPrefix) {
 
-    public void createFolder(String bucket, String folderPrefix) {
-        if (!folderPrefix.endsWith("/")) {
-            folderPrefix += "/";
-        }
-
-        if (folderExists(bucket, folderPrefix)) {
-            throw new RuntimeException("Already exists: " + folderPrefix);
-        }
-
-        PutObjectRequest request =
-                PutObjectRequest.builder()
-                        .bucket(bucket)
-                        .key(folderPrefix)
-                        .contentLength(0L)
-                        .build();
-
-        client.putObject(
-                request,
-                RequestBody.empty());
+        objectOperationService.createFolder(
+                bucket,
+                folderPrefix);
     }
 
     // ----------------------------------------------------------------------
     // EXISTS
     // ----------------------------------------------------------------------
 
-    public boolean objectExists(String bucket, String key) {
-        return objectExists(client, bucket, key);
+    public boolean objectExists(
+            String bucket,
+            String key) {
+
+        return objectOperationService.objectExists(
+                bucket,
+                key);
     }
 
-    public boolean objectExists(S3Client client, String bucket, String key) {
-        try {
-            HeadObjectRequest request =
-                    HeadObjectRequest.builder()
-                            .bucket(bucket)
-                            .key(key)
-                            .build();
+    public boolean objectExists(
+            S3Client client,
+            String bucket,
+            String key) {
 
-            client.headObject(request);
-            return true;
-        } catch (NoSuchKeyException e) {
-            return false;
-        } catch (S3Exception e) {
-            if (e.statusCode() == 404) {
-                return false;
-            }
-
-            throw e;
-        }
+        return objectOperationService.objectExists(
+                client,
+                bucket,
+                key);
     }
 
-    private boolean hasObjectsWithPrefix(String bucket, String prefix) {
-        ListObjectsV2Request request =
-                ListObjectsV2Request.builder()
-                        .bucket(bucket)
-                        .prefix(prefix)
-                        .maxKeys(1)
-                        .build();
+    public boolean folderExists(
+            String bucket,
+            String fullPrefix) {
 
-        ListObjectsV2Response response = client.listObjectsV2(request);
-
-        return !response.contents().isEmpty();
-    }
-
-    public boolean folderExists(String bucket, String fullPrefix) {
-        if (!fullPrefix.endsWith("/")) {
-            fullPrefix += "/";
-        }
-
-        return objectExists(bucket, fullPrefix) || hasObjectsWithPrefix(bucket, fullPrefix);
+        return objectOperationService.folderExists(
+                bucket,
+                fullPrefix);
     }
 
     // ----------------------------------------------------------------------
@@ -771,18 +540,7 @@ public class S3ExplorerService {
     public void testBucketAccess(
             String bucket) {
 
-        if (bucket == null
-                || bucket.isBlank()) {
-
-            throw new IllegalArgumentException(
-                    "Bucket name is required");
-        }
-
-        client.listObjectsV2(
-                ListObjectsV2Request.builder()
-                        .bucket(bucket)
-                        .maxKeys(1)
-                        .build());
+        objectOperationService.testBucketAccess(bucket);
     }
 
     public FolderProperties calculateFolderProperties(
