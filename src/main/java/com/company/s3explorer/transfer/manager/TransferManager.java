@@ -131,90 +131,14 @@ public class TransferManager {
             java.util.List<String> objectKeys,
             java.util.List<Boolean> overwrites) {
 
-        if (localFiles == null
-                || objectKeys == null
-                || overwrites == null
-                || localFiles.isEmpty()
-                || localFiles.size() != objectKeys.size()
-                || localFiles.size() != overwrites.size()) {
-            throw new IllegalArgumentException(
-                    "Upload group arguments are invalid.");
-        }
-
-
-        String displayName =
-                S3Util.getOperationGroupNameFromNames(
-                        localFiles.stream()
-                                .map(path ->
-                                        path.getFileName() != null
-                                                ? path.getFileName().toString()
-                                                : path.toString())
-                                .toList());
-
-        String source =
-                localFiles.get(0).getParent() != null
-                        ? localFiles.get(0).getParent().toString()
-                        : localFiles.get(0).toString();
-
-        TransferGroup group =
-                new TransferGroup(
-                        UUID.randomUUID(),
-                        displayName,
-                        TransferType.UPLOAD_GROUP,
-                        source,
-                        buildGroupLocation(
-                                repositoryId,
-                                bucket,
-                                targetPrefix),
-                        null,
-                        null,
-                        null,
-                        repositoryId,
-                        bucket,
-                        targetPrefix,
-                        false);
-
-        configureGroupCompletion(
-                group,
+        return submitUploadGroupInternal(
+                repositoryId,
                 bucket,
                 targetPrefix,
-                false);
-
-        transferContext.publishGroupUpdated(
-                group);
-
-        try {
-            for (int i = 0; i < localFiles.size(); i++) {
-                Path localFile = localFiles.get(i);
-                String objectKey = objectKeys.get(i);
-                boolean overwrite = overwrites.get(i);
-
-                TransferTask task =
-                        TransferTask.upload()
-                                .targetRepositoryId(repositoryId)
-                                .targetBucket(bucket)
-                                .targetObjectKey(objectKey)
-                                .localPath(localFile)
-                                .size(java.nio.file.Files.size(localFile))
-                                .overwrite(overwrite)
-                                .affectsObjectList(true)
-                                .affectsFolderTree(false)
-                                .group(group)
-                                .build();
-
-                submitGroupedTask(task, group);
-            }
-
-            group.markProductionCompleted();
-            return group;
-
-        } catch (Exception ex) {
-            group.setErrorMessage(ex.getMessage());
-            group.markProductionFailed();
-            throw new IllegalStateException(
-                    "Unable to submit upload group.",
-                    ex);
-        }
+                localFiles,
+                objectKeys,
+                overwrites,
+                null);
     }
 
     public TransferGroup submitUploadEncryptedGroup(
@@ -231,16 +155,35 @@ public class TransferManager {
                     "Encryption configuration is not available.");
         }
 
+        return submitUploadGroupInternal(
+                repositoryId,
+                bucket,
+                targetPrefix,
+                localFiles,
+                objectKeys,
+                overwrites,
+                encryptionConfig);
+    }
+
+    private TransferGroup submitUploadGroupInternal(
+            String repositoryId,
+            String bucket,
+            String targetPrefix,
+            java.util.List<Path> localFiles,
+            java.util.List<String> objectKeys,
+            java.util.List<Boolean> overwrites,
+            EncryptionConfig encryptionConfig) {
+
         if (localFiles == null
                 || objectKeys == null
                 || overwrites == null
                 || localFiles.isEmpty()
                 || localFiles.size() != objectKeys.size()
                 || localFiles.size() != overwrites.size()) {
+
             throw new IllegalArgumentException(
                     "Upload group arguments are invalid.");
         }
-
 
         String displayName =
                 S3Util.getOperationGroupNameFromNames(
@@ -280,44 +223,61 @@ public class TransferManager {
                 targetPrefix,
                 false);
 
-        transferContext.publishGroupUpdated(
-                group);
+        transferContext.publishGroupUpdated(group);
 
         try {
+
             for (int i = 0; i < localFiles.size(); i++) {
+
                 Path localFile = localFiles.get(i);
                 String objectKey = objectKeys.get(i);
                 boolean overwrite = overwrites.get(i);
 
-                TransferTask task =
+                TransferTask.Builder taskBuilder =
                         TransferTask.upload()
                                 .targetRepositoryId(repositoryId)
                                 .targetBucket(bucket)
                                 .targetObjectKey(objectKey)
                                 .localPath(localFile)
                                 .size(java.nio.file.Files.size(localFile))
-                                .encryptionConfig(encryptionConfig)
                                 .overwrite(overwrite)
                                 .affectsObjectList(true)
                                 .affectsFolderTree(false)
-                                .group(group)
-                                .build();
+                                .group(group);
 
-                submitGroupedTask(task, group);
+                if (encryptionConfig != null) {
+                    taskBuilder.encryptionConfig(
+                            encryptionConfig);
+                }
+
+                TransferTask task =
+                        taskBuilder.build();
+
+                submitGroupedTask(
+                        task,
+                        group);
             }
 
             group.markProductionCompleted();
+
             return group;
 
         } catch (Exception ex) {
+
             group.setErrorMessage(ex.getMessage());
             group.markProductionFailed();
+
+            String message =
+                    encryptionConfig == null
+                            ? "Unable to submit upload group."
+                            : "Unable to submit encrypted upload group.";
+
             throw new IllegalStateException(
-                    "Unable to submit encrypted upload group.",
+                    message,
                     ex);
         }
     }
-
+    
     public void submitDownload(
             String repositoryId,
             String bucket,
