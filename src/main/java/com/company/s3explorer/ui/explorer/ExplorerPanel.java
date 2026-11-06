@@ -2483,79 +2483,9 @@ public class ExplorerPanel extends JPanel {
          * File upload groups insert every successfully completed
          * task, then restore the complete multi-selection.
          */
-        if (group.getOperation() == TransferType.UPLOAD_GROUP
-                && !group.isSourceFolder()) {
-
-            if (completedTasks.isEmpty()) {
-                return;
-            }
-
-            /*
-             * A grouped upload must not use the old single-key
-             * selection mechanism.
-             */
-            pendingFileTableSelectionKey = null;
-            restoreFileTableFocus = false;
-
-            List<TransferTask> uploadTasks =
-                    new ArrayList<>(completedTasks);
-
-            SwingUtilities.invokeLater(() -> {
-
-                List<String> uploadedKeys =
-                        new ArrayList<>();
-
-                for (TransferTask task : uploadTasks) {
-                    if (task == null
-                            || task.getType() != TransferType.UPLOAD) {
-                        continue;
-                    }
-
-                    String targetBucket =
-                            task.getTargetBucket();
-
-                    String targetKey =
-                            task.getTargetObjectKey();
-
-                    if (targetBucket == null
-                            || targetKey == null
-                            || targetKey.isBlank()) {
-                        continue;
-                    }
-
-                    /*
-                     * Only select keys belonging to the current table.
-                     */
-                    if (Objects.equals(currentFileBucket, targetBucket)
-                            && Objects.equals(
-                            currentFilePrefix,
-                            getParentPrefix(targetKey))) {
-
-                        uploadedKeys.add(targetKey);
-                    }
-
-                    /*
-                     * This method inserts the row only when its
-                     * target folder matches the currently open table.
-                     */
-                    addUploadedFileToCurrentFileTable(task);
-                }
-
-                /*
-                 * Run selection after all row insertions and sorter
-                 * updates have had an opportunity to complete.
-                 */
-                SwingUtilities.invokeLater(() -> {
-                    if (!uploadedKeys.isEmpty()) {
-                        restoreFileTableSelectionByKeys(
-                                uploadedKeys);
-
-                        restoreFileTableFocus = true;
-                        restoreFileTableFocus();
-                    }
-                });
-            });
-
+        if (handleCompletedUploadGroup(
+                group,
+                completedTasks)) {
             return;
         }
 
@@ -7923,5 +7853,90 @@ public class ExplorerPanel extends JPanel {
         }
 
         reloadCurrentFileTable();
+    }
+
+    private boolean handleCompletedUploadGroup(
+            TransferGroup group,
+            List<TransferTask> completedTasks) {
+
+        if (group.getOperation() != TransferType.UPLOAD_GROUP
+                || group.isSourceFolder()) {
+            return false;
+        }
+
+        if (completedTasks.isEmpty()) {
+            return true;
+        }
+
+        /*
+         * A grouped upload must not use the old single-key
+         * selection mechanism.
+         */
+        pendingFileTableSelectionKey = null;
+        restoreFileTableFocus = false;
+
+        List<TransferTask> uploadTasks =
+                new ArrayList<>(completedTasks);
+
+        SwingUtilities.invokeLater(() -> {
+
+            List<String> uploadedKeys =
+                    new ArrayList<>();
+
+            for (TransferTask task : uploadTasks) {
+
+                if (task == null
+                        || task.getType() != TransferType.UPLOAD) {
+                    continue;
+                }
+
+                String targetBucket =
+                        task.getTargetBucket();
+
+                String targetKey =
+                        task.getTargetObjectKey();
+
+                if (targetBucket == null
+                        || targetKey == null
+                        || targetKey.isBlank()) {
+                    continue;
+                }
+
+                /*
+                 * Only select keys belonging to the current table.
+                 */
+                if (Objects.equals(currentFileBucket, targetBucket)
+                        && Objects.equals(
+                        currentFilePrefix,
+                        getParentPrefix(targetKey))) {
+
+                    uploadedKeys.add(targetKey);
+                }
+
+                /*
+                 * Insert the row only when its target folder
+                 * matches the currently open table.
+                 */
+                addUploadedFileToCurrentFileTable(task);
+            }
+
+            /*
+             * Restore selection after all row insertions
+             * and sorter updates have had an opportunity to complete.
+             */
+            SwingUtilities.invokeLater(() -> {
+
+                if (!uploadedKeys.isEmpty()) {
+
+                    restoreFileTableSelectionByKeys(
+                            uploadedKeys);
+
+                    restoreFileTableFocus = true;
+                    restoreFileTableFocus();
+                }
+            });
+        });
+
+        return true;
     }
 }
