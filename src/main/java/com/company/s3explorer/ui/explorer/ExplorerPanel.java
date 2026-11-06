@@ -2499,357 +2499,8 @@ public class ExplorerPanel extends JPanel {
          *
          * File Table reload edilmez.
          */
-        if (!completedTasks.isEmpty()
-                && (group.getOperation() == TransferType.COPY_GROUP
-                || group.getOperation() == TransferType.MOVE_GROUP
-                || group.getOperation() == TransferType.DELETE_GROUP)) {
+        handleCompletedMultiFileGroup(event, completedTasks, group, currentBucket, currentPrefix);
 
-            for (TransferTask task : completedTasks) {
-
-                if (task == null) {
-                    continue;
-                }
-
-                /*
-                 * -----------------------------------------------------
-                 * MULTI DELETE
-                 * -----------------------------------------------------
-                 */
-                if (task.getType() == TransferType.DELETE) {
-
-                    if (Objects.equals(
-                            currentBucket,
-                            task.getBucket())
-                            && Objects.equals(
-                            currentPrefix,
-                            getParentPrefix(
-                                    task.getObjectKey()))) {
-
-                        boolean removed =
-                                view.getFileTableModel()
-                                        .removeFileByKey(
-                                                task.getObjectKey());
-                    }
-
-                    continue;
-                }
-
-                /*
-                 * -----------------------------------------------------
-                 * MULTI COPY / MOVE - TARGET
-                 * -----------------------------------------------------
-                 */
-                if (task.getType() == TransferType.COPY
-                        || task.getType() == TransferType.MOVE) {
-
-                    String targetBucket =
-                            task.getTargetBucket();
-
-                    String targetKey =
-                            task.getTargetObjectKey();
-
-                    if (targetBucket == null
-                            || targetKey == null
-                            || targetKey.isBlank()) {
-
-                        continue;
-                    }
-
-                    String targetParentPrefix =
-                            getParentPrefix(targetKey);
-
-                    if (Objects.equals(currentBucket, targetBucket)) {
-
-                        boolean targetIsFolder = targetKey.endsWith("/");
-                        String effectivePrefix =
-                                currentPrefix == null ? "" : currentPrefix;
-
-                        if (flatBrowsingEnabled) {
-
-                            /*
-                             * Flat modda, etkin klasörün altındaki bütün
-                             * hedef nesneleri göreli yollarıyla ekle.
-                             */
-                            if (targetKey.startsWith(effectivePrefix)
-                                    && targetKey.length() > effectivePrefix.length()) {
-
-                                String relativeKey =
-                                        targetKey.substring(effectivePrefix.length());
-
-                                /*
-                                 * Dosya iç içe bir klasörün altındaysa,
-                                 * eksik üst klasör satırlarını da oluştur.
-                                 */
-                                int slashIndex = relativeKey.indexOf('/');
-
-                                while (slashIndex >= 0) {
-                                    String folderKey =
-                                            effectivePrefix
-                                                    + relativeKey.substring(0, slashIndex + 1);
-
-                                    if (!folderKey.equals(targetKey)) {
-                                        S3FileItem folderItem =
-                                                new S3FileItem(
-                                                        task.getTargetRepositoryId(),
-                                                        targetBucket,
-                                                        folderKey,
-                                                        0,
-                                                        null,
-                                                        null,
-                                                        true,
-                                                        getFlatDisplayName(
-                                                                folderKey,
-                                                                effectivePrefix,
-                                                                true));
-
-                                        view.getFileTableModel().addFile(folderItem);
-                                    }
-
-                                    slashIndex =
-                                            relativeKey.indexOf('/', slashIndex + 1);
-                                }
-
-                                S3FileItem item =
-                                        new S3FileItem(
-                                                task.getTargetRepositoryId(),
-                                                targetBucket,
-                                                targetKey,
-                                                task.getSize(),
-                                                null,
-                                                null,
-                                                targetIsFolder,
-                                                getFlatDisplayName(
-                                                        targetKey,
-                                                        effectivePrefix,
-                                                        targetIsFolder));
-
-                                boolean added =
-                                        view.getFileTableModel().addFile(item);
-                            }
-
-                        } else if (Objects.equals(currentPrefix, targetParentPrefix)) {
-
-                            /*
-                             * Normal modda yalnızca doğrudan alt öğeleri göster.
-                             */
-                            S3FileItem item =
-                                    new S3FileItem(
-                                            task.getTargetRepositoryId(),
-                                            targetBucket,
-                                            targetKey,
-                                            task.getSize(),
-                                            null,
-                                            null,
-                                            targetIsFolder);
-
-                            boolean added =
-                                    view.getFileTableModel().addFile(item);
-                        } else if (targetKey.startsWith(effectivePrefix)
-                                && targetKey.length() > effectivePrefix.length()) {
-
-                            /*
-                             * Normal modda iç içe dosyaları ayrı ayrı gösterme.
-                             * Bunun yerine ilk alt klasör satırını oluştur.
-                             */
-                            String relativeKey =
-                                    targetKey.substring(effectivePrefix.length());
-
-                            int slashIndex = relativeKey.indexOf('/');
-
-                            if (slashIndex >= 0) {
-                                String folderKey =
-                                        effectivePrefix
-                                                + relativeKey.substring(0, slashIndex + 1);
-
-                                S3FileItem folderItem =
-                                        new S3FileItem(
-                                                task.getTargetRepositoryId(),
-                                                targetBucket,
-                                                folderKey,
-                                                0,
-                                                null,
-                                                null,
-                                                true);
-
-                                view.getFileTableModel().addFile(folderItem);
-                            }
-                        }
-                    }
-
-                    /*
-                     * -------------------------------------------------
-                     * MULTI MOVE - SOURCE
-                     * -------------------------------------------------
-                     *
-                     * MOVE'd edilen kaynak File Table'da açıksa
-                     * kaynak satırı da incremental kaldır.
-                     */
-                    if (task.getType() == TransferType.MOVE
-                            && Objects.equals(
-                            currentBucket,
-                            task.getBucket())
-                            && Objects.equals(
-                            currentPrefix,
-                            getParentPrefix(
-                                    task.getObjectKey()))) {
-
-                        boolean removed =
-                                view.getFileTableModel()
-                                        .removeFileByKey(
-                                                task.getObjectKey());
-                    }
-                }
-            }
-
-            /*
-             * Klasör silindiğinde, içindeki dosyaların DELETE task'ları
-             * klasörün kendi satırını kaldırmak için yeterli olmayabilir.
-             * Kaynak klasör satırını ayrıca kaldır.
-             */
-            if (group.getOperation() == TransferType.DELETE_GROUP
-                    && group.isSourceFolder()) {
-
-                String sourceBucket = group.getSourceBucket();
-                String sourcePrefix = group.getSourcePrefix();
-
-                if (sourcePrefix == null || sourcePrefix.isBlank()) {
-                    sourcePrefix = event.getPrefix();
-                }
-
-                if (sourceBucket == null) {
-                    sourceBucket = event.getBucket();
-                }
-
-                if (sourcePrefix != null
-                        && !sourcePrefix.isBlank()
-                        && Objects.equals(currentBucket, sourceBucket)) {
-
-                    boolean folderIsVisible =
-                            flatBrowsingEnabled
-                                    ? currentPrefix != null
-                                    && sourcePrefix.startsWith(currentPrefix)
-                                    && !sourcePrefix.equals(currentPrefix)
-                                    : Objects.equals(
-                                    currentPrefix,
-                                    getParentPrefix(sourcePrefix));
-
-                    if (folderIsVisible) {
-                        int removedCount =
-                                view.getFileTableModel()
-                                        .removeFilesByKeyPrefix(
-                                                sourcePrefix,
-                                                flatBrowsingEnabled);
-                    }
-                }
-            }
-
-            /*
-             * ---------------------------------------------------------
-             * MULTI DELETE SELECTION RESTORE
-             * ---------------------------------------------------------
-             *
-             * DELETE group tamamlandığında bütün silinen satırlar
-             * incremental olarak File Table'dan kaldırılmış olur.
-             *
-             * Silme öncesinde pendingDeleteSelectionViewRow ile
-             * ilk seçili satırın view index'i saklanmıştır.
-             *
-             * Şimdi:
-             *
-             *     1. bütün silinen satırlar kaldırıldı
-             *     2. yeni rowCount hesaplanır
-             *     3. mümkünse aynı view row seçilir
-             *     4. eğer o satır artık mevcut değilse son satır seçilir
-             *
-             * Böylece:
-             *
-             *     [1] [2] [3] [4] [5]
-             *          ^^^^^^^^^^^^^
-             *          DELETE
-             *
-             * sonrasında:
-             *
-             *     [1] [5]
-             *          ^
-             *          selection
-             *
-             * veya silinenlerin arasında başka satırlar varsa
-             * mümkün olduğunca eski konuma yakın satır seçilir.
-             */
-            if (group.getOperation()
-                    == TransferType.DELETE_GROUP
-                    && pendingDeleteSelectionViewRow >= 0) {
-
-                SwingUtilities.invokeLater(() -> {
-
-                    int rowCount =
-                            view.getFileTable().getRowCount();
-
-                    int targetViewRow =
-                            Math.min(
-                                    pendingDeleteSelectionViewRow,
-                                    rowCount - 1);
-
-                    if (targetViewRow >= 0) {
-
-                        JTable table =
-                                view.getFileTable();
-
-                        table.clearSelection();
-
-                        table.setRowSelectionInterval(
-                                targetViewRow,
-                                targetViewRow);
-
-                        table.scrollRectToVisible(
-                                table.getCellRect(
-                                        targetViewRow,
-                                        0,
-                                        true));
-
-                        restoreFileTableFocus();
-                    } else {
-                        restoreFileTableFocus();
-                    }
-
-                    pendingDeleteSelectionViewRow = -1;
-
-                    updateActionStates();
-                });
-            }
-            
-            /*
-             * ---------------------------------------------------------
-             * GROUP SELECTION RESTORE
-             * ---------------------------------------------------------
-             *
-             * Bütün task'lar File Table'a eklendikten sonra
-             * selection yalnızca BİR KEZ restore edilir.
-             *
-             * Böylece ilk kopyalanan dosyada selection restore edilip
-             * sonraki dosyaların akışı bozulmaz.
-             */
-            if (pendingFileTableSelectionKeys != null
-                    && !pendingFileTableSelectionKeys.isEmpty()) {
-
-                SwingUtilities.invokeLater(() -> {
-
-                    if (restorePendingPasteSelection()) {
-                        restoreFileTableFocus();
-                    }
-                });
-            }
-
-            /*
-             * ---------------------------------------------------------
-             * GROUP FILE OPERATION TAMAMLANDI
-             * ---------------------------------------------------------
-             *
-             * Tree tarafındaki mevcut group refresh mekanizmasının
-             * devam etmesine izin ver.
-             */
-        }
-        
         /*
          * =========================================================
          * RENAME
@@ -3374,7 +3025,360 @@ public class ExplorerPanel extends JPanel {
                 currentPrefix);
 
     }
-    
+
+    private void handleCompletedMultiFileGroup(TransferGroupCompletedEvent event, List<TransferTask> completedTasks, TransferGroup group, String currentBucket, String currentPrefix) {
+        if (!completedTasks.isEmpty()
+                && (group.getOperation() == TransferType.COPY_GROUP
+                || group.getOperation() == TransferType.MOVE_GROUP
+                || group.getOperation() == TransferType.DELETE_GROUP)) {
+
+            for (TransferTask task : completedTasks) {
+
+                if (task == null) {
+                    continue;
+                }
+
+                /*
+                 * -----------------------------------------------------
+                 * MULTI DELETE
+                 * -----------------------------------------------------
+                 */
+                if (task.getType() == TransferType.DELETE) {
+
+                    if (Objects.equals(
+                            currentBucket,
+                            task.getBucket())
+                            && Objects.equals(
+                            currentPrefix,
+                            getParentPrefix(
+                                    task.getObjectKey()))) {
+
+                        boolean removed =
+                                view.getFileTableModel()
+                                        .removeFileByKey(
+                                                task.getObjectKey());
+                    }
+
+                    continue;
+                }
+
+                /*
+                 * -----------------------------------------------------
+                 * MULTI COPY / MOVE - TARGET
+                 * -----------------------------------------------------
+                 */
+                if (task.getType() == TransferType.COPY
+                        || task.getType() == TransferType.MOVE) {
+
+                    String targetBucket =
+                            task.getTargetBucket();
+
+                    String targetKey =
+                            task.getTargetObjectKey();
+
+                    if (targetBucket == null
+                            || targetKey == null
+                            || targetKey.isBlank()) {
+
+                        continue;
+                    }
+
+                    String targetParentPrefix =
+                            getParentPrefix(targetKey);
+
+                    if (Objects.equals(currentBucket, targetBucket)) {
+
+                        boolean targetIsFolder = targetKey.endsWith("/");
+                        String effectivePrefix =
+                                currentPrefix == null ? "" : currentPrefix;
+
+                        if (flatBrowsingEnabled) {
+
+                            /*
+                             * Flat modda, etkin klasörün altındaki bütün
+                             * hedef nesneleri göreli yollarıyla ekle.
+                             */
+                            if (targetKey.startsWith(effectivePrefix)
+                                    && targetKey.length() > effectivePrefix.length()) {
+
+                                String relativeKey =
+                                        targetKey.substring(effectivePrefix.length());
+
+                                /*
+                                 * Dosya iç içe bir klasörün altındaysa,
+                                 * eksik üst klasör satırlarını da oluştur.
+                                 */
+                                int slashIndex = relativeKey.indexOf('/');
+
+                                while (slashIndex >= 0) {
+                                    String folderKey =
+                                            effectivePrefix
+                                                    + relativeKey.substring(0, slashIndex + 1);
+
+                                    if (!folderKey.equals(targetKey)) {
+                                        S3FileItem folderItem =
+                                                new S3FileItem(
+                                                        task.getTargetRepositoryId(),
+                                                        targetBucket,
+                                                        folderKey,
+                                                        0,
+                                                        null,
+                                                        null,
+                                                        true,
+                                                        getFlatDisplayName(
+                                                                folderKey,
+                                                                effectivePrefix,
+                                                                true));
+
+                                        view.getFileTableModel().addFile(folderItem);
+                                    }
+
+                                    slashIndex =
+                                            relativeKey.indexOf('/', slashIndex + 1);
+                                }
+
+                                S3FileItem item =
+                                        new S3FileItem(
+                                                task.getTargetRepositoryId(),
+                                                targetBucket,
+                                                targetKey,
+                                                task.getSize(),
+                                                null,
+                                                null,
+                                                targetIsFolder,
+                                                getFlatDisplayName(
+                                                        targetKey,
+                                                        effectivePrefix,
+                                                        targetIsFolder));
+
+                                boolean added =
+                                        view.getFileTableModel().addFile(item);
+                            }
+
+                        } else if (Objects.equals(currentPrefix, targetParentPrefix)) {
+
+                            /*
+                             * Normal modda yalnızca doğrudan alt öğeleri göster.
+                             */
+                            S3FileItem item =
+                                    new S3FileItem(
+                                            task.getTargetRepositoryId(),
+                                            targetBucket,
+                                            targetKey,
+                                            task.getSize(),
+                                            null,
+                                            null,
+                                            targetIsFolder);
+
+                            boolean added =
+                                    view.getFileTableModel().addFile(item);
+                        } else if (targetKey.startsWith(effectivePrefix)
+                                && targetKey.length() > effectivePrefix.length()) {
+
+                            /*
+                             * Normal modda iç içe dosyaları ayrı ayrı gösterme.
+                             * Bunun yerine ilk alt klasör satırını oluştur.
+                             */
+                            String relativeKey =
+                                    targetKey.substring(effectivePrefix.length());
+
+                            int slashIndex = relativeKey.indexOf('/');
+
+                            if (slashIndex >= 0) {
+                                String folderKey =
+                                        effectivePrefix
+                                                + relativeKey.substring(0, slashIndex + 1);
+
+                                S3FileItem folderItem =
+                                        new S3FileItem(
+                                                task.getTargetRepositoryId(),
+                                                targetBucket,
+                                                folderKey,
+                                                0,
+                                                null,
+                                                null,
+                                                true);
+
+                                view.getFileTableModel().addFile(folderItem);
+                            }
+                        }
+                    }
+
+                    /*
+                     * -------------------------------------------------
+                     * MULTI MOVE - SOURCE
+                     * -------------------------------------------------
+                     *
+                     * MOVE'd edilen kaynak File Table'da açıksa
+                     * kaynak satırı da incremental kaldır.
+                     */
+                    if (task.getType() == TransferType.MOVE
+                            && Objects.equals(
+                            currentBucket,
+                            task.getBucket())
+                            && Objects.equals(
+                            currentPrefix,
+                            getParentPrefix(
+                                    task.getObjectKey()))) {
+
+                        boolean removed =
+                                view.getFileTableModel()
+                                        .removeFileByKey(
+                                                task.getObjectKey());
+                    }
+                }
+            }
+
+            /*
+             * Klasör silindiğinde, içindeki dosyaların DELETE task'ları
+             * klasörün kendi satırını kaldırmak için yeterli olmayabilir.
+             * Kaynak klasör satırını ayrıca kaldır.
+             */
+            if (group.getOperation() == TransferType.DELETE_GROUP
+                    && group.isSourceFolder()) {
+
+                String sourceBucket = group.getSourceBucket();
+                String sourcePrefix = group.getSourcePrefix();
+
+                if (sourcePrefix == null || sourcePrefix.isBlank()) {
+                    sourcePrefix = event.getPrefix();
+                }
+
+                if (sourceBucket == null) {
+                    sourceBucket = event.getBucket();
+                }
+
+                if (sourcePrefix != null
+                        && !sourcePrefix.isBlank()
+                        && Objects.equals(currentBucket, sourceBucket)) {
+
+                    boolean folderIsVisible =
+                            flatBrowsingEnabled
+                                    ? currentPrefix != null
+                                    && sourcePrefix.startsWith(currentPrefix)
+                                    && !sourcePrefix.equals(currentPrefix)
+                                    : Objects.equals(
+                                    currentPrefix,
+                                    getParentPrefix(sourcePrefix));
+
+                    if (folderIsVisible) {
+                        int removedCount =
+                                view.getFileTableModel()
+                                        .removeFilesByKeyPrefix(
+                                                sourcePrefix,
+                                                flatBrowsingEnabled);
+                    }
+                }
+            }
+
+            /*
+             * ---------------------------------------------------------
+             * MULTI DELETE SELECTION RESTORE
+             * ---------------------------------------------------------
+             *
+             * DELETE group tamamlandığında bütün silinen satırlar
+             * incremental olarak File Table'dan kaldırılmış olur.
+             *
+             * Silme öncesinde pendingDeleteSelectionViewRow ile
+             * ilk seçili satırın view index'i saklanmıştır.
+             *
+             * Şimdi:
+             *
+             *     1. bütün silinen satırlar kaldırıldı
+             *     2. yeni rowCount hesaplanır
+             *     3. mümkünse aynı view row seçilir
+             *     4. eğer o satır artık mevcut değilse son satır seçilir
+             *
+             * Böylece:
+             *
+             *     [1] [2] [3] [4] [5]
+             *          ^^^^^^^^^^^^^
+             *          DELETE
+             *
+             * sonrasında:
+             *
+             *     [1] [5]
+             *          ^
+             *          selection
+             *
+             * veya silinenlerin arasında başka satırlar varsa
+             * mümkün olduğunca eski konuma yakın satır seçilir.
+             */
+            if (group.getOperation()
+                    == TransferType.DELETE_GROUP
+                    && pendingDeleteSelectionViewRow >= 0) {
+
+                SwingUtilities.invokeLater(() -> {
+
+                    int rowCount =
+                            view.getFileTable().getRowCount();
+
+                    int targetViewRow =
+                            Math.min(
+                                    pendingDeleteSelectionViewRow,
+                                    rowCount - 1);
+
+                    if (targetViewRow >= 0) {
+
+                        JTable table =
+                                view.getFileTable();
+
+                        table.clearSelection();
+
+                        table.setRowSelectionInterval(
+                                targetViewRow,
+                                targetViewRow);
+
+                        table.scrollRectToVisible(
+                                table.getCellRect(
+                                        targetViewRow,
+                                        0,
+                                        true));
+
+                        restoreFileTableFocus();
+                    } else {
+                        restoreFileTableFocus();
+                    }
+
+                    pendingDeleteSelectionViewRow = -1;
+
+                    updateActionStates();
+                });
+            }
+
+            /*
+             * ---------------------------------------------------------
+             * GROUP SELECTION RESTORE
+             * ---------------------------------------------------------
+             *
+             * Bütün task'lar File Table'a eklendikten sonra
+             * selection yalnızca BİR KEZ restore edilir.
+             *
+             * Böylece ilk kopyalanan dosyada selection restore edilip
+             * sonraki dosyaların akışı bozulmaz.
+             */
+            if (pendingFileTableSelectionKeys != null
+                    && !pendingFileTableSelectionKeys.isEmpty()) {
+
+                SwingUtilities.invokeLater(() -> {
+
+                    if (restorePendingPasteSelection()) {
+                        restoreFileTableFocus();
+                    }
+                });
+            }
+
+            /*
+             * ---------------------------------------------------------
+             * GROUP FILE OPERATION TAMAMLANDI
+             * ---------------------------------------------------------
+             *
+             * Tree tarafındaki mevcut group refresh mekanizmasının
+             * devam etmesine izin ver.
+             */
+        }
+    }
+
     private void refreshCurrentTable() {
 
         String bucket =
