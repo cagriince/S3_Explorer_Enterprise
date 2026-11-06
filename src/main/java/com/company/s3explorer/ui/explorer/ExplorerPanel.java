@@ -2778,44 +2778,7 @@ public class ExplorerPanel extends JPanel {
          * DELETE GROUP - FOLDER TREE + FILE TABLE
          * =========================================================
          */
-        if (group.getOperation() == TransferType.DELETE_GROUP
-                && event.isSourceRefreshRequired()) {
-
-            String sourceBucket =
-                    group.getSourceBucket();
-
-            String sourcePrefix =
-                    group.getSourcePrefix();
-
-            if (sourcePrefix == null || sourcePrefix.isBlank()) {
-                sourcePrefix = event.getPrefix();
-            }
-
-            if (sourceBucket == null) {
-                sourceBucket = event.getBucket();
-            }
-
-            if (sourcePrefix != null
-                    && !sourcePrefix.isBlank()
-                    && Objects.equals(currentBucket, sourceBucket)) {
-
-                /*
-                 * Folder Tree'den klasörün kendisini kaldır.
-                 * İçerikteki DELETE task'larının objectKey değerlerine
-                 * bağımlı değiliz.
-                 */
-                String folderPrefix =
-                        sourcePrefix.endsWith("/")
-                                ? sourcePrefix
-                                : sourcePrefix + "/";
-
-                refreshScheduler.scheduleRefresh(
-                        List.of(
-                                new RefreshTreeNode(
-                                        folderPrefix,
-                                        RefreshTreeOperation.DELETE)));
-            }
-        }
+        refreshDeletedGroupTree(event, group, currentBucket);
 
         /*
          * =========================================================
@@ -3024,6 +2987,47 @@ public class ExplorerPanel extends JPanel {
                 currentBucket,
                 currentPrefix);
 
+    }
+
+    private void refreshDeletedGroupTree(TransferGroupCompletedEvent event, TransferGroup group, String currentBucket) {
+        if (group.getOperation() == TransferType.DELETE_GROUP
+                && event.isSourceRefreshRequired()) {
+
+            String sourceBucket =
+                    group.getSourceBucket();
+
+            String sourcePrefix =
+                    group.getSourcePrefix();
+
+            if (sourcePrefix == null || sourcePrefix.isBlank()) {
+                sourcePrefix = event.getPrefix();
+            }
+
+            if (sourceBucket == null) {
+                sourceBucket = event.getBucket();
+            }
+
+            if (sourcePrefix != null
+                    && !sourcePrefix.isBlank()
+                    && Objects.equals(currentBucket, sourceBucket)) {
+
+                /*
+                 * Folder Tree'den klasörün kendisini kaldır.
+                 * İçerikteki DELETE task'larının objectKey değerlerine
+                 * bağımlı değiliz.
+                 */
+                String folderPrefix =
+                        sourcePrefix.endsWith("/")
+                                ? sourcePrefix
+                                : sourcePrefix + "/";
+
+                refreshScheduler.scheduleRefresh(
+                        List.of(
+                                new RefreshTreeNode(
+                                        folderPrefix,
+                                        RefreshTreeOperation.DELETE)));
+            }
+        }
     }
 
     private void handleCompletedMultiFileGroup(TransferGroupCompletedEvent event, List<TransferTask> completedTasks, TransferGroup group, String currentBucket, String currentPrefix) {
