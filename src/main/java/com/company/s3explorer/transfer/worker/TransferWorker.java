@@ -6,12 +6,14 @@ import com.company.s3explorer.transfer.factory.TransferOperationFactory;
 import com.company.s3explorer.transfer.model.TransferGroup;
 import com.company.s3explorer.transfer.operation.TransferOperation;
 import com.company.s3explorer.transfer.queue.TransferQueue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.CancellationException;
 import java.util.function.BooleanSupplier;
 
 public class TransferWorker implements Runnable {
-
+    private static final Logger log = LoggerFactory.getLogger(TransferWorker.class);
     private final TransferQueue queue;
     private final TransferContext context;
     private final TransferOperationFactory operationFactory;
@@ -179,7 +181,11 @@ public class TransferWorker implements Runnable {
             }
             else {
 
-                ex.printStackTrace();
+                log.error(
+                        "Transfer failed: taskId={}, type={}",
+                        runtime.getTask().getId(),
+                        runtime.getTask().getType(),
+                        ex);
 
                 context.publishFailed(
                         runtime,

@@ -11,6 +11,8 @@ import com.company.s3explorer.transfer.renderer.*;
 import com.company.s3explorer.transfer.state.TransferStateStore;
 import com.company.s3explorer.ui.icons.IconProvider;
 import com.company.s3explorer.util.S3Util;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import java.awt.*;
@@ -26,6 +28,8 @@ import java.time.format.DateTimeFormatter;
 public class TransferPanel
         extends JPanel
         implements TransferListener {
+
+    private static final Logger log = LoggerFactory.getLogger(TransferPanel.class);
 
     private static final int UI_VISIBLE_LIMIT = 1000;
     private static final DateTimeFormatter LOG_DATE_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE;
@@ -1044,7 +1048,9 @@ public class TransferPanel
                                     clearButton.setEnabled(
                                             true);
 
-                                    error.printStackTrace();
+                                    log.error(
+                                            "Failed to clear finished transfer logs.",
+                                            error);
 
                                     JOptionPane.showMessageDialog(
                                             this,
@@ -1074,7 +1080,6 @@ public class TransferPanel
                             });
                         });
     }
-
 
     private boolean hasCancelableSelection(JTable table) {
 

@@ -4,6 +4,8 @@ import com.company.s3explorer.application.ActiveRepositoryContext;
 import com.company.s3explorer.repository.RepositoryChangeEvent;
 import com.company.s3explorer.repository.RepositoryDefinition;
 import com.company.s3explorer.repository.RepositoryManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.s3.S3Client;
 
 import java.util.HashMap;
@@ -12,6 +14,8 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 public class S3ClientManager implements AutoCloseable {
+    private static final Logger log =
+            LoggerFactory.getLogger(S3ClientManager.class);
 
     private final Map<RepositoryDefinition, S3Client> clientMap;
 
@@ -182,7 +186,9 @@ public class S3ClientManager implements AutoCloseable {
 
             } catch (Exception ex) {
 
-                ex.printStackTrace();
+                log.error(
+                        "Failed to close S3 client while invalidating repository clients.",
+                        ex);
             }
         }
 
