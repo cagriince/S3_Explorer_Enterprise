@@ -80,8 +80,6 @@ public class ExplorerPanel extends JPanel {
         FILTER_REFRESH
     }
 
-    private final List<OperationDialog> visibleOperationDialogs = new ArrayList<>();
-
     private File lastOpenedFolderToUpload;
     private File lastOpenedFolderToDownload;
     private File lastOpenedFolderToExport;
@@ -5125,116 +5123,6 @@ public class ExplorerPanel extends JPanel {
         }
     }
 
-    private OperationDialog createOperationDialog(
-            String title) {
-
-        return createOperationDialog(
-                title,
-                new Dimension(450, 150));
-    }
-
-    private OperationDialog createOperationDialog(
-            String title,
-            Dimension minimumSize) {
-
-        Window owner =
-                SwingUtilities.getWindowAncestor(this);
-
-        JDialog dialog =
-                new JDialog(
-                        owner,
-                        title,
-                        Dialog.ModalityType.MODELESS);
-
-        dialog.setDefaultCloseOperation(
-                WindowConstants.HIDE_ON_CLOSE);
-
-        dialog.setResizable(false);
-
-        JPanel panel =
-                new JPanel(
-                        new BorderLayout(15, 15));
-
-        panel.setBorder(
-                new EmptyBorder(
-                        14,
-                        18,
-                        14,
-                        18));
-
-        JLabel message =
-                new JLabel("Preparing file table...");
-
-        panel.add(
-                message,
-                BorderLayout.CENTER);
-
-        JButton hideButton =
-                new JButton("Hide");
-
-        hideButton.addActionListener(
-                e -> dialog.setVisible(false));
-
-        dialog.getRootPane()
-                .getInputMap(
-                        JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT)
-                .put(
-                        KeyStroke.getKeyStroke(
-                                KeyEvent.VK_ESCAPE,
-                                0),
-                        "hideOperationDialog");
-
-        dialog.getRootPane()
-                .getActionMap()
-                .put(
-                        "hideOperationDialog",
-                        new AbstractAction() {
-                            @Override
-                            public void actionPerformed(
-                                    ActionEvent e) {
-
-                                dialog.setVisible(false);
-                            }
-                        });
-
-        JPanel buttonPanel =
-                new JPanel(
-                        new FlowLayout(
-                                FlowLayout.RIGHT,
-                                0,
-                                0));
-
-        buttonPanel.add(hideButton);
-
-        panel.add(
-                buttonPanel,
-                BorderLayout.SOUTH);
-
-        dialog.setContentPane(panel);
-
-        dialog.setMinimumSize(minimumSize);
-
-        return new OperationDialog(
-                dialog,
-                message);
-    }
-
-    private static final class OperationDialog {
-
-        private final JDialog dialog;
-        private final JLabel message;
-
-        private Timer showTimer;
-
-        private OperationDialog(
-                JDialog dialog,
-                JLabel message) {
-
-            this.dialog = dialog;
-            this.message = message;
-        }
-    }
-
     private void showOperationDialog(
             OperationDialogType type,
             String message) {
@@ -5243,49 +5131,6 @@ public class ExplorerPanel extends JPanel {
                 ExplorerOperationDialogManager.Type.valueOf(
                         type.name()),
                 message);
-    }
-
-    private void positionOperationDialogs() {
-
-        Window owner =
-                SwingUtilities.getWindowAncestor(this);
-
-        if (owner == null) {
-            return;
-        }
-
-        int centerX =
-                owner.getX()
-                        + (owner.getWidth() / 2);
-
-        int currentY =
-                owner.getY()
-                        + (owner.getHeight() * 30 / 100);
-
-        int gap = 12;
-
-        for (OperationDialog operationDialog :
-                visibleOperationDialogs) {
-
-            if (operationDialog == null
-                    || !operationDialog.dialog.isVisible()) {
-
-                continue;
-            }
-
-            int x =
-                    centerX
-                            - operationDialog.dialog
-                            .getWidth() / 2;
-
-            operationDialog.dialog.setLocation(
-                    x,
-                    currentY);
-
-            currentY +=
-                    operationDialog.dialog.getHeight()
-                            + gap;
-        }
     }
 
     private void hideOperationDialog(
