@@ -277,7 +277,7 @@ public class TransferManager {
                     ex);
         }
     }
-    
+
     public void submitDownload(
             String repositoryId,
             String bucket,
@@ -939,52 +939,19 @@ public class TransferManager {
                         group)
                            );
     }
-    
+
     public void submitFolderDownload(
             String repositoryId,
             String bucket,
             String prefix,
             Path localFolder) {
 
-        TransferGroup group =
-                new TransferGroup(
-                        UUID.randomUUID(),
-                        S3Util.extractFolderName(prefix),
-                        TransferType.DOWNLOAD_GROUP,
-                        buildGroupLocation(
-                                repositoryId,
-                                bucket,
-                                prefix),
-                        localFolder.toString(),
-                        repositoryId,
-                        bucket,
-                        prefix,
-                        null,
-                        null,
-                        localFolder.toString(),
-                        true);
-
-        configureGroupCompletion(
-                group,
+        submitFolderDownloadInternal(
+                repositoryId,
                 bucket,
                 prefix,
-                false);
-
-        transferContext.publishGroupUpdated(
-                group);
-
-        submitGroupProducer(
-                group,
-                new FolderDownloadProducer(
-                        transferContext,
-                        queue,
-                        repositoryId,
-                        bucket,
-                        prefix,
-                        localFolder,
-                        null,
-                        group)
-        );
+                localFolder,
+                null);
     }
 
     public void submitFolderDownloadDecrypted(
@@ -998,6 +965,21 @@ public class TransferManager {
             throw new IllegalArgumentException(
                     "Encryption configuration is not available.");
         }
+
+        submitFolderDownloadInternal(
+                repositoryId,
+                bucket,
+                prefix,
+                localFolder,
+                encryptionConfig);
+    }
+
+    private void submitFolderDownloadInternal(
+            String repositoryId,
+            String bucket,
+            String prefix,
+            Path localFolder,
+            EncryptionConfig encryptionConfig) {
 
         TransferGroup group =
                 new TransferGroup(
@@ -1039,7 +1021,7 @@ public class TransferManager {
                         group)
         );
     }
-
+    
     public void submitFolderUpload(
             String repositoryId,
             String bucket,
