@@ -455,86 +455,20 @@ public class TransferManager {
 
         return group;
     }
-    
+
     public TransferGroup submitBulkDownload(
             String repositoryId,
             String bucket,
             java.util.List<String> objectKeys,
             Path localFolder) {
 
-        if (objectKeys == null || objectKeys.isEmpty()) {
-            throw new IllegalArgumentException(
-                    "Object key list must not be empty.");
-        }
-
-        if (localFolder == null) {
-            throw new IllegalArgumentException(
-                    "Local folder must not be null.");
-        }
-
-        String firstKey = objectKeys.stream()
-                .filter(key ->
-                        key != null
-                                && !key.isBlank())
-                .findFirst()
-                .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "Object key list must contain at least one valid key."));
-
-        String displayName =
-                S3Util.isFolder(firstKey)
-                        ? S3Util.extractFolderName(firstKey)
-                        : S3Util.extractFileName(firstKey);
-
-        if (displayName == null
-                || displayName.isBlank()) {
-
-            displayName = firstKey;
-        }
-
-        if (objectKeys.stream()
-                .filter(key ->
-                        key != null
-                                && !key.isBlank())
-                .count() > 1) {
-
-            displayName += " and others";
-        }
-
-        TransferGroup group =
-                createOperationGroup(
-                        TransferType.DOWNLOAD_GROUP,
-                        displayName,
-                        repositoryId,
-                        bucket,
-                        firstKey,
-                        null,
-                        null,
-                        localFolder.toString());
-
-        configureGroupCompletion(
-                group,
+        return submitBulkDownloadInternal(
+                repositoryId,
                 bucket,
-                firstKey,
+                objectKeys,
+                localFolder,
+                null,
                 false);
-
-        transferContext.publishGroupUpdated(
-                group);
-
-        submitGroupProducer(
-                group,
-                new BulkDownloadProducer(
-                        transferContext,
-                        queue,
-                        repositoryId,
-                        bucket,
-                        objectKeys,
-                        localFolder,
-                        null,
-                        group)
-        );
-        
-        return group;
     }
 
     public TransferGroup submitBulkDownloadDecrypted(
@@ -544,6 +478,23 @@ public class TransferManager {
             Path localFolder,
             EncryptionConfig encryptionConfig) {
 
+        return submitBulkDownloadInternal(
+                repositoryId,
+                bucket,
+                objectKeys,
+                localFolder,
+                encryptionConfig,
+                true);
+    }
+
+    private TransferGroup submitBulkDownloadInternal(
+            String repositoryId,
+            String bucket,
+            java.util.List<String> objectKeys,
+            Path localFolder,
+            EncryptionConfig encryptionConfig,
+            boolean encrypted) {
+
         if (objectKeys == null || objectKeys.isEmpty()) {
             throw new IllegalArgumentException(
                     "Object key list must not be empty.");
@@ -554,28 +505,27 @@ public class TransferManager {
                     "Local folder must not be null.");
         }
 
-        if (encryptionConfig == null) {
+        if (encrypted && encryptionConfig == null) {
             throw new IllegalArgumentException(
                     "Encryption configuration is not available.");
         }
 
-        String firstKey = objectKeys.stream()
-                .filter(key ->
-                        key != null
-                                && !key.isBlank())
-                .findFirst()
-                .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "Object key list must contain at least one valid key."));
+        String firstKey =
+                objectKeys.stream()
+                        .filter(key ->
+                                key != null
+                                        && !key.isBlank())
+                        .findFirst()
+                        .orElseThrow(() ->
+                                new IllegalArgumentException(
+                                        "Object key list must contain at least one valid key."));
 
         String displayName =
                 S3Util.isFolder(firstKey)
                         ? S3Util.extractFolderName(firstKey)
                         : S3Util.extractFileName(firstKey);
 
-        if (displayName == null
-                || displayName.isBlank()) {
-
+        if (displayName == null || displayName.isBlank()) {
             displayName = firstKey;
         }
 
@@ -605,8 +555,7 @@ public class TransferManager {
                 firstKey,
                 false);
 
-        transferContext.publishGroupUpdated(
-                group);
+        transferContext.publishGroupUpdated(group);
 
         submitGroupProducer(
                 group,
@@ -623,7 +572,7 @@ public class TransferManager {
 
         return group;
     }
-    
+
     public void submitDelete(
             String repositoryId,
             String bucket,
@@ -1021,7 +970,7 @@ public class TransferManager {
                         group)
         );
     }
-    
+
     public void submitFolderUpload(
             String repositoryId,
             String bucket,
