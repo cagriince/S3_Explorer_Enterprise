@@ -317,7 +317,7 @@ public class TransferManager {
                 null,
                 group);
     }
-    
+
     public void submitDownloadDecrypted(
             String repositoryId,
             String bucket,
@@ -567,21 +567,14 @@ public class TransferManager {
             String key,
             long size) {
 
-        submit(
-                TransferTask.delete()
-                        .repositoryId(
-                                repositoryId)
-                        .bucket(
-                                bucket)
-                        .objectKey(
-                                key)
-                        .size(size)
-                        .affectsObjectList(true)
-                        .affectsFolderTree(false)
-                        .build()
-        );
+        submitDeleteInternal(
+                repositoryId,
+                bucket,
+                key,
+                size,
+                null);
     }
-    
+
     public void submitDelete(
             String repositoryId,
             String bucket,
@@ -594,23 +587,44 @@ public class TransferManager {
                     "Transfer group must not be null");
         }
 
-        TransferTask task =
+        submitDeleteInternal(
+                repositoryId,
+                bucket,
+                key,
+                size,
+                group);
+    }
+
+    private void submitDeleteInternal(
+            String repositoryId,
+            String bucket,
+            String key,
+            long size,
+            TransferGroup group) {
+
+        TransferTask.Builder taskBuilder =
                 TransferTask.delete()
-                        .repositoryId(
-                                repositoryId)
-                        .bucket(
-                                bucket)
-                        .objectKey(
-                                key)
+                        .repositoryId(repositoryId)
+                        .bucket(bucket)
+                        .objectKey(key)
                         .size(size)
                         .affectsObjectList(true)
-                        .affectsFolderTree(false)
-                        .group(group)
-                        .build();
+                        .affectsFolderTree(false);
 
-        submitGroupedTask(
-                task,
-                group);
+        if (group != null) {
+            taskBuilder.group(group);
+        }
+
+        TransferTask task =
+                taskBuilder.build();
+
+        if (group != null) {
+            submitGroupedTask(
+                    task,
+                    group);
+        } else {
+            submit(task);
+        }
     }
 
     public void submitCopy(
