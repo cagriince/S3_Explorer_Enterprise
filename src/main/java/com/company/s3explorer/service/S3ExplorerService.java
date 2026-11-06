@@ -2,7 +2,6 @@ package com.company.s3explorer.service;
 
 import com.company.s3explorer.security.CrossRepositoryEncryptionOptions;
 import com.company.s3explorer.security.EncryptionConfig;
-import com.company.s3explorer.util.S3Util;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
@@ -12,20 +11,23 @@ import javax.crypto.Cipher;
 import javax.crypto.CipherInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.function.Consumer;
 
 public class S3ExplorerService {
     private final S3FolderPropertiesService folderPropertiesService;
+    private final S3FileTransferService fileTransferService;
     private final S3Client client;
 
     public S3ExplorerService(S3Client client) {
         this.client = client;
+
         this.folderPropertiesService =
                 new S3FolderPropertiesService(client);
+
+        this.fileTransferService =
+                new S3FileTransferService(client);
     }
 
     public S3Client getClient() {
@@ -711,44 +713,11 @@ public class S3ExplorerService {
             TransferProgressListener listener)
             throws IOException {
 
-        if (S3Util.isFolder(objectKey)) {
-            try {
-                Files.createDirectories(target);
-            } catch (IOException e) {
-                //throw new RuntimeException(e);
-            }
-
-            listener.update(100, 100);
-            return;
-        }
-
-        HeadObjectResponse head =
-                getObject(
-                        bucket,
-                        objectKey);
-
-        long totalBytes =
-                head.contentLength();
-
-        Files.createDirectories(
-                target.getParent());
-
-        try (InputStream raw =
-                     client.getObject(
-                             GetObjectRequest.builder()
-                                     .bucket(bucket)
-                                     .key(objectKey)
-                                     .build());
-             InputStream in =
-                     new ProgressInputStream(
-                             raw,
-                             totalBytes,
-                             listener);
-             OutputStream out =
-                     Files.newOutputStream(target)) {
-
-            in.transferTo(out);
-        }
+        fileTransferService.downloadFile(
+                bucket,
+                objectKey,
+                target,
+                listener);
     }
 
     public void downloadDecryptedFile(
@@ -759,73 +728,12 @@ public class S3ExplorerService {
             TransferProgressListener listener)
             throws IOException {
 
-        if (S3Util.isFolder(objectKey)) {
-            try {
-                Files.createDirectories(target);
-            } catch (IOException e) {
-                //throw new RuntimeException(e);
-            }
-
-            listener.update(100, 100);
-            return;
-        }
-
-        if (encryptionConfig == null) {
-            throw new IllegalArgumentException(
-                    "Encryption configuration is not available.");
-        }
-
-        Cipher cipher;
-
-        try {
-            cipher = encryptionConfig.createCipher(
-                    Cipher.DECRYPT_MODE);
-        } catch (Exception ex) {
-            throw new IOException(
-                    "Failed to initialize decryption.",
-                    ex);
-        }
-
-        HeadObjectResponse head =
-                getObject(bucket, objectKey);
-
-        long encryptedSize =
-                head.contentLength();
-
-        Files.createDirectories(
-                target.getParent());
-
-        try (InputStream raw =
-                     client.getObject(
-                             GetObjectRequest.builder()
-                                     .bucket(bucket)
-                                     .key(objectKey)
-                                     .build());
-             CipherInputStream decryptedInput =
-                     new CipherInputStream(
-                             raw,
-                             cipher);
-             OutputStream output =
-                     Files.newOutputStream(target)) {
-
-            byte[] buffer = new byte[8192];
-            long processed = 0;
-            int read;
-
-            while ((read = decryptedInput.read(buffer)) != -1) {
-
-                output.write(
-                        buffer,
-                        0,
-                        read);
-
-                processed += read;
-
-                listener.update(
-                        processed,
-                        encryptedSize);
-            }
-        }
+        fileTransferService.downloadDecryptedFile(
+                bucket,
+                objectKey,
+                target,
+                encryptionConfig,
+                listener);
     }
 
     public void uploadFile(
@@ -835,26 +743,12 @@ public class S3ExplorerService {
             boolean overwrite,
             TransferProgressListener listener) throws IOException {
 
-        if (!overwrite && objectExists(bucket, objectKey)) {
-            throw new RuntimeException(
-                    "Already exists: " + bucket + "/" + objectKey);
-        }
-
-        long totalBytes = Files.size(file);
-
-        try (InputStream in =
-                     new ProgressInputStream(
-                             Files.newInputStream(file),
-                             totalBytes,
-                             listener)) {
-
-            client.putObject(
-                    PutObjectRequest.builder()
-                            .bucket(bucket)
-                            .key(objectKey)
-                            .build(),
-                    RequestBody.fromInputStream(in, totalBytes));
-        }
+        fileTransferService.uploadFile(
+                bucket,
+                objectKey,
+                file,
+                overwrite,
+                listener);
     }
 
     public void uploadEncryptedFile(
@@ -865,42 +759,13 @@ public class S3ExplorerService {
             boolean overwrite,
             TransferProgressListener listener) throws Exception {
 
-        if (!overwrite && objectExists(bucket, objectKey)) {
-            throw new RuntimeException(
-                    "Already exists: " + bucket + "/" + objectKey);
-        }
-
-        if (encryptionConfig == null) {
-            throw new IllegalArgumentException(
-                    "Encryption configuration is not available.");
-        }
-
-        Cipher cipher =
-                encryptionConfig.createCipher(Cipher.ENCRYPT_MODE);
-
-        long plainSize = Files.size(file);
-
-        long encryptedSize =
-                cipher.getOutputSize(Math.toIntExact(plainSize));
-
-        try (InputStream fileInput = Files.newInputStream(file);
-             CipherInputStream encryptedInput =
-                     new CipherInputStream(fileInput, cipher);
-             InputStream progressInput =
-                     new ProgressInputStream(
-                             encryptedInput,
-                             encryptedSize,
-                             listener)) {
-
-            client.putObject(
-                    PutObjectRequest.builder()
-                            .bucket(bucket)
-                            .key(objectKey)
-                            .build(),
-                    RequestBody.fromInputStream(
-                            progressInput,
-                            encryptedSize));
-        }
+        fileTransferService.uploadEncryptedFile(
+                bucket,
+                objectKey,
+                file,
+                encryptionConfig,
+                overwrite,
+                listener);
     }
 
     public void testBucketAccess(
