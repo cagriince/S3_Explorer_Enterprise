@@ -285,27 +285,39 @@ public class TransferManager {
             Path localFile,
             long size) {
 
-        Path target =
-                localFile.resolve(
-                        S3Util.extractFileName(key));
-
-        submit(
-                TransferTask.download()
-                        .repositoryId(
-                                repositoryId)
-                        .bucket(
-                                bucket)
-                        .objectKey(
-                                key)
-                        .localPath(
-                                target)
-                        .size(size)
-                        .affectsObjectList(false)
-                        .affectsFolderTree(false)
-                        .build()
-        );
+        submitDownloadInternal(
+                repositoryId,
+                bucket,
+                key,
+                localFile,
+                size,
+                null,
+                null);
     }
 
+    public void submitDownload(
+            String repositoryId,
+            String bucket,
+            String key,
+            Path localFile,
+            long size,
+            TransferGroup group) {
+
+        if (group == null) {
+            throw new IllegalArgumentException(
+                    "Transfer group must not be null");
+        }
+
+        submitDownloadInternal(
+                repositoryId,
+                bucket,
+                key,
+                localFile,
+                size,
+                null,
+                group);
+    }
+    
     public void submitDownloadDecrypted(
             String repositoryId,
             String bucket,
@@ -319,27 +331,14 @@ public class TransferManager {
                     "Encryption configuration is not available.");
         }
 
-        Path target =
-                localFile.resolve(
-                        S3Util.extractFileName(key));
-
-        submit(
-                TransferTask.download()
-                        .repositoryId(
-                                repositoryId)
-                        .bucket(
-                                bucket)
-                        .objectKey(
-                                key)
-                        .localPath(
-                                target)
-                        .size(size)
-                        .encryptionConfig(
-                                encryptionConfig)
-                        .affectsObjectList(false)
-                        .affectsFolderTree(false)
-                        .build()
-        );
+        submitDownloadInternal(
+                repositoryId,
+                bucket,
+                key,
+                localFile,
+                size,
+                encryptionConfig,
+                null);
     }
 
     public void submitDownloadDecrypted(
@@ -361,69 +360,58 @@ public class TransferManager {
                     "Transfer group must not be null");
         }
 
-        Path target =
-                localFile.resolve(
-                        S3Util.extractFileName(key));
-
-        TransferTask task =
-                TransferTask.download()
-                        .repositoryId(
-                                repositoryId)
-                        .bucket(
-                                bucket)
-                        .objectKey(
-                                key)
-                        .localPath(
-                                target)
-                        .size(size)
-                        .encryptionConfig(
-                                encryptionConfig)
-                        .affectsObjectList(false)
-                        .affectsFolderTree(false)
-                        .group(group)
-                        .build();
-
-        submitGroupedTask(
-                task,
+        submitDownloadInternal(
+                repositoryId,
+                bucket,
+                key,
+                localFile,
+                size,
+                encryptionConfig,
                 group);
     }
-    
-    public void submitDownload(
+
+    private void submitDownloadInternal(
             String repositoryId,
             String bucket,
             String key,
             Path localFile,
             long size,
+            EncryptionConfig encryptionConfig,
             TransferGroup group) {
-
-        if (group == null) {
-            throw new IllegalArgumentException(
-                    "Transfer group must not be null");
-        }
 
         Path target =
                 localFile.resolve(
                         S3Util.extractFileName(key));
 
-        TransferTask task =
+        TransferTask.Builder taskBuilder =
                 TransferTask.download()
-                        .repositoryId(
-                                repositoryId)
-                        .bucket(
-                                bucket)
-                        .objectKey(
-                                key)
-                        .localPath(
-                                target)
+                        .repositoryId(repositoryId)
+                        .bucket(bucket)
+                        .objectKey(key)
+                        .localPath(target)
                         .size(size)
                         .affectsObjectList(false)
-                        .affectsFolderTree(false)
-                        .group(group)
-                        .build();
+                        .affectsFolderTree(false);
 
-        submitGroupedTask(
-                task,
-                group);
+        if (encryptionConfig != null) {
+            taskBuilder.encryptionConfig(
+                    encryptionConfig);
+        }
+
+        if (group != null) {
+            taskBuilder.group(group);
+        }
+
+        TransferTask task =
+                taskBuilder.build();
+
+        if (group != null) {
+            submitGroupedTask(
+                    task,
+                    group);
+        } else {
+            submit(task);
+        }
     }
 
     public TransferGroup createDownloadGroup(
