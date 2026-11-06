@@ -931,25 +931,6 @@ public class S3ExplorerService {
                 progressConsumer);
     }
 
-    private void addParentFolders(
-            String rootPrefix,
-            String key,
-            Set<String> folders) {
-
-        int index = key.lastIndexOf('/');
-
-        while (index >= 0) {
-
-            String folder = key.substring(0, index + 1);
-
-            if (folder.length() > rootPrefix.length()) {
-                folders.add(folder);
-            }
-
-            index = key.lastIndexOf('/', index - 1);
-        }
-    }
-
     public FolderContentSnapshot listFolderSnapshot(
             String bucket,
             String prefix,
