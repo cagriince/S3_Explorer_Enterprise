@@ -19,10 +19,13 @@ import java.util.*;
 import java.util.function.Consumer;
 
 public class S3ExplorerService {
+    private final S3FolderPropertiesService folderPropertiesService;
     private final S3Client client;
 
     public S3ExplorerService(S3Client client) {
         this.client = client;
+        this.folderPropertiesService =
+                new S3FolderPropertiesService(client);
     }
 
     public S3Client getClient() {
@@ -922,52 +925,10 @@ public class S3ExplorerService {
             String prefix,
             Consumer<FolderProperties> progressConsumer) {
 
-        Set<String> folders = new HashSet<>();
-        if (prefix != null && !prefix.isBlank()) {
-            folders.add(prefix);
-        }
-
-        long fileCount = 0;
-        long totalSize = 0;
-
-        for (ListObjectsV2Response page : client.listObjectsV2Paginator(
-                ListObjectsV2Request.builder()
-                        .bucket(bucket)
-                        .prefix(prefix)
-                        .build())) {
-
-            for (S3Object object : page.contents()) {
-                String key = object.key();
-
-                if (key.endsWith("/")) {
-                    folders.add(key);
-                } else {
-                    fileCount++;
-                    totalSize += object.size();
-                    addParentFolders(prefix, key, folders);
-                }
-
-                if (progressConsumer != null && fileCount % 250 == 0) {
-                    progressConsumer.accept(
-                            new FolderProperties(
-                                    folders.size(),
-                                    fileCount,
-                                    totalSize));
-                }
-            }
-        }
-
-        FolderProperties result =
-                new FolderProperties(
-                        folders.size(),
-                        fileCount,
-                        totalSize);
-
-        if (progressConsumer != null) {
-            progressConsumer.accept(result);
-        }
-
-        return result;
+        return folderPropertiesService.calculateFolderProperties(
+                bucket,
+                prefix,
+                progressConsumer);
     }
 
     private void addParentFolders(
