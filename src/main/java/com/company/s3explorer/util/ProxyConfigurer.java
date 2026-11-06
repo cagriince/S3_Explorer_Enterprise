@@ -1,6 +1,8 @@
 package com.company.s3explorer.util;
 
 import com.company.s3explorer.config.ProxySettings;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.InputStream;
 import java.net.*;
@@ -9,6 +11,9 @@ import java.util.Locale;
 import java.util.Scanner;
 
 public class ProxyConfigurer {
+
+    private static final Logger log = LoggerFactory.getLogger(ProxyConfigurer.class);
+
     public static void configureSystemProxies(ProxySettings proxySettings) {
         String osName = System.getProperty("os.name").toLowerCase(Locale.ENGLISH);
 
@@ -42,30 +47,57 @@ public class ProxyConfigurer {
         // ancak alt seviye soketler Windows tarafından manipüle edilmez.
         // System.setProperty("java.net.useSystemProxies", "true");
 
-        // 2. Windows'tan 'nonProxyHosts' / 'NO_PROXY' değerini çek
-        String nonProxyHosts = getWindowsNonProxyHosts();
+        // 2. Windows'tan nonProxyHosts / NO_PROXY değerini çek
+        String nonProxyHosts =
+                getWindowsNonProxyHosts();
 
-        if (nonProxyHosts != null && !nonProxyHosts.isBlank()) {
-            System.setProperty("http.nonProxyHosts", nonProxyHosts);
-            System.out.println("[Windows Proxy] http.nonProxyHosts set edildi: " + nonProxyHosts);
+        if (nonProxyHosts != null
+                && !nonProxyHosts.isBlank()) {
+
+            System.setProperty(
+                    "http.nonProxyHosts",
+                    nonProxyHosts);
         }
 
         // 3. Etkin Proxy Adresini Algıla ve Set Et
         try {
-            List<Proxy> proxies = ProxySelector.getDefault().select(new URI("http://www.google.com"));
+
+            List<Proxy> proxies =
+                    ProxySelector.getDefault()
+                            .select(new URI("http://www.google.com"));
+
             for (Proxy proxy : proxies) {
+
                 if (proxy.type() == Proxy.Type.HTTP) {
-                    InetSocketAddress addr = (InetSocketAddress) proxy.address();
-                    System.setProperty("http.proxyHost", addr.getHostString());
-                    System.setProperty("http.proxyPort", String.valueOf(addr.getPort()));
-                    System.setProperty("https.proxyHost", addr.getHostString());
-                    System.setProperty("https.proxyPort", String.valueOf(addr.getPort()));
-                    System.out.println("[Windows Proxy] Aktif Proxy: " + addr);
+
+                    InetSocketAddress addr =
+                            (InetSocketAddress) proxy.address();
+
+                    System.setProperty(
+                            "http.proxyHost",
+                            addr.getHostString());
+
+                    System.setProperty(
+                            "http.proxyPort",
+                            String.valueOf(addr.getPort()));
+
+                    System.setProperty(
+                            "https.proxyHost",
+                            addr.getHostString());
+
+                    System.setProperty(
+                            "https.proxyPort",
+                            String.valueOf(addr.getPort()));
+
                     break;
                 }
             }
-        } catch (Exception e) {
-            System.err.println("[Windows Proxy] Proxy adresi sorgulanırken hata: " + e.getMessage());
+
+        } catch (Exception ex) {
+
+            log.error(
+                    "Failed to detect Windows system proxy settings.",
+                    ex);
         }
     }
 
@@ -103,28 +135,44 @@ public class ProxyConfigurer {
      * Windows Registry üzerinden 'ProxyOverride' değerini okur.
      */
     private static String readWindowsRegistryProxyOverride() {
+
         try {
-            Process process = new ProcessBuilder(
-                    "reg", "query",
-                    "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings",
-                    "/v", "ProxyOverride"
-            ).start();
+
+            Process process =
+                    new ProcessBuilder(
+                            "reg",
+                            "query",
+                            "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings",
+                            "/v",
+                            "ProxyOverride"
+                    ).start();
 
             try (InputStream is = process.getInputStream();
                  Scanner scanner = new Scanner(is)) {
+
                 while (scanner.hasNextLine()) {
+
                     String line = scanner.nextLine();
+
                     if (line.contains("ProxyOverride")) {
-                        String[] parts = line.split("REG_SZ");
+
+                        String[] parts =
+                                line.split("REG_SZ");
+
                         if (parts.length > 1) {
                             return parts[1].trim();
                         }
                     }
                 }
             }
-        } catch (Exception e) {
-            System.err.println("[Windows Registry] ProxyOverride okuma hatası: " + e.getMessage());
+
+        } catch (Exception ex) {
+
+            log.error(
+                    "Failed to read ProxyOverride from Windows Registry.",
+                    ex);
         }
+
         return null;
     }
 
@@ -182,23 +230,43 @@ public class ProxyConfigurer {
      * LINUX / MACOS: Ortam değişkenlerini (http_proxy, NO_PROXY) okur ve dönüştürür.
      */
     private static void configureUnixProxies() {
+
         // 1. HTTP / HTTPS Proxy
-        String httpProxy = getEnvValue("http_proxy", "HTTP_PROXY");
-        if (httpProxy != null && !httpProxy.isBlank()) {
-            setProxyUrlProperties(httpProxy, "http");
+        String httpProxy =
+                getEnvValue("http_proxy", "HTTP_PROXY");
+
+        if (httpProxy != null
+                && !httpProxy.isBlank()) {
+
+            setProxyUrlProperties(
+                    httpProxy,
+                    "http");
         }
 
-        String httpsProxy = getEnvValue("https_proxy", "HTTPS_PROXY");
-        if (httpsProxy != null && !httpsProxy.isBlank()) {
-            setProxyUrlProperties(httpsProxy, "https");
+        String httpsProxy =
+                getEnvValue("https_proxy", "HTTPS_PROXY");
+
+        if (httpsProxy != null
+                && !httpsProxy.isBlank()) {
+
+            setProxyUrlProperties(
+                    httpsProxy,
+                    "https");
         }
 
         // 2. NO_PROXY (Bypass Listesi)
-        String noProxy = getEnvValue("no_proxy", "NO_PROXY");
-        if (noProxy != null && !noProxy.isBlank()) {
-            String javaNonProxy = convertNoProxyToJavaFormat(noProxy);
-            System.setProperty("http.nonProxyHosts", javaNonProxy);
-            System.out.println("[Unix Proxy] http.nonProxyHosts set edildi: " + javaNonProxy);
+        String noProxy =
+                getEnvValue("no_proxy", "NO_PROXY");
+
+        if (noProxy != null
+                && !noProxy.isBlank()) {
+
+            String javaNonProxy =
+                    convertNoProxyToJavaFormat(noProxy);
+
+            System.setProperty(
+                    "http.nonProxyHosts",
+                    javaNonProxy);
         }
     }
 
@@ -235,40 +303,78 @@ public class ProxyConfigurer {
         Authenticator.setDefault(null);
     }
 
-    private static void setProxyUrlProperties(String proxyUrlString, String protocol) {
+    private static void setProxyUrlProperties(
+            String proxyUrlString,
+            String protocol) {
+
         try {
-            if (!proxyUrlString.startsWith("http://") && !proxyUrlString.startsWith("https://")) {
-                proxyUrlString = "http://" + proxyUrlString;
+
+            if (!proxyUrlString.startsWith("http://")
+                    && !proxyUrlString.startsWith("https://")) {
+
+                proxyUrlString =
+                        "http://" + proxyUrlString;
             }
 
-            URI uri = new URI(proxyUrlString);
+            URI uri =
+                    new URI(proxyUrlString);
+
             if (uri.getHost() != null) {
-                System.setProperty(protocol + ".proxyHost", uri.getHost());
-                System.out.println("[Unix Proxy] " + protocol + ".proxyHost set edildi: " + uri.getHost());
+
+                System.setProperty(
+                        protocol + ".proxyHost",
+                        uri.getHost());
             }
 
-            int port = uri.getPort() != -1 ? uri.getPort() : (protocol.equalsIgnoreCase("https") ? 443 : 80);
-            System.setProperty(protocol + ".proxyPort", String.valueOf(port));
-            System.out.println("[Unix Proxy] " + protocol + ".proxyPort set edildi: " + String.valueOf(port));
+            int port =
+                    uri.getPort() != -1
+                            ? uri.getPort()
+                            : (protocol.equalsIgnoreCase("https")
+                            ? 443
+                            : 80);
+
+            System.setProperty(
+                    protocol + ".proxyPort",
+                    String.valueOf(port));
 
             // Basic Auth varsa Authenticator set eder
             if (uri.getUserInfo() != null) {
-                String[] userInfo = uri.getUserInfo().split(":", 2);
-                String user = userInfo[0];
-                String pass = userInfo.length > 1 ? userInfo[1] : "";
 
-                Authenticator.setDefault(new Authenticator() {
-                    @Override
-                    protected PasswordAuthentication getPasswordAuthentication() {
-                        if (getRequestorType() == RequestorType.PROXY) {
-                            return new PasswordAuthentication(user, pass.toCharArray());
-                        }
-                        return super.getPasswordAuthentication();
-                    }
-                });
+                String[] userInfo =
+                        uri.getUserInfo().split(":", 2);
+
+                String user =
+                        userInfo[0];
+
+                String pass =
+                        userInfo.length > 1
+                                ? userInfo[1]
+                                : "";
+
+                Authenticator.setDefault(
+                        new Authenticator() {
+                            @Override
+                            protected PasswordAuthentication getPasswordAuthentication() {
+
+                                if (getRequestorType()
+                                        == RequestorType.PROXY) {
+
+                                    return new PasswordAuthentication(
+                                            user,
+                                            pass.toCharArray());
+                                }
+
+                                return super.getPasswordAuthentication();
+                            }
+                        });
             }
-        } catch (Exception e) {
-            System.err.println("[" + protocol + " Proxy] Hata: " + e.getMessage());
+
+        } catch (Exception ex) {
+
+            log.error(
+                    "Failed to configure {} proxy from environment settings.",
+                    protocol,
+                    ex);
         }
     }
 
