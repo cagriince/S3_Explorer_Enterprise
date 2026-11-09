@@ -3170,112 +3170,116 @@ public class ExplorerPanel extends JPanel {
                 }
             }
 
-            /*
-             * ---------------------------------------------------------
-             * MULTI DELETE SELECTION RESTORE
-             * ---------------------------------------------------------
-             *
-             * DELETE group tamamlandığında bütün silinen satırlar
-             * incremental olarak File Table'dan kaldırılmış olur.
-             *
-             * Silme öncesinde pendingDeleteSelectionViewRow ile
-             * ilk seçili satırın view index'i saklanmıştır.
-             *
-             * Şimdi:
-             *
-             *     1. bütün silinen satırlar kaldırıldı
-             *     2. yeni rowCount hesaplanır
-             *     3. mümkünse aynı view row seçilir
-             *     4. eğer o satır artık mevcut değilse son satır seçilir
-             *
-             * Böylece:
-             *
-             *     [1] [2] [3] [4] [5]
-             *          ^^^^^^^^^^^^^
-             *          DELETE
-             *
-             * sonrasında:
-             *
-             *     [1] [5]
-             *          ^
-             *          selection
-             *
-             * veya silinenlerin arasında başka satırlar varsa
-             * mümkün olduğunca eski konuma yakın satır seçilir.
-             */
-            if (group.getOperation()
-                    == TransferType.DELETE_GROUP
-                    && pendingDeleteSelectionViewRow >= 0) {
-
-                SwingUtilities.invokeLater(() -> {
-
-                    int rowCount =
-                            view.getFileTable().getRowCount();
-
-                    int targetViewRow =
-                            Math.min(
-                                    pendingDeleteSelectionViewRow,
-                                    rowCount - 1);
-
-                    if (targetViewRow >= 0) {
-
-                        JTable table =
-                                view.getFileTable();
-
-                        table.clearSelection();
-
-                        table.setRowSelectionInterval(
-                                targetViewRow,
-                                targetViewRow);
-
-                        table.scrollRectToVisible(
-                                table.getCellRect(
-                                        targetViewRow,
-                                        0,
-                                        true));
-
-                        restoreFileTableFocus();
-                    } else {
-                        restoreFileTableFocus();
-                    }
-
-                    pendingDeleteSelectionViewRow = -1;
-
-                    updateActionStates();
-                });
-            }
-
-            /*
-             * ---------------------------------------------------------
-             * GROUP SELECTION RESTORE
-             * ---------------------------------------------------------
-             *
-             * Bütün task'lar File Table'a eklendikten sonra
-             * selection yalnızca BİR KEZ restore edilir.
-             *
-             * Böylece ilk kopyalanan dosyada selection restore edilip
-             * sonraki dosyaların akışı bozulmaz.
-             */
-            if (pendingFileTableSelectionKeys != null
-                    && !pendingFileTableSelectionKeys.isEmpty()) {
-
-                SwingUtilities.invokeLater(() -> {
-
-                    if (restorePendingPasteSelection()) {
-                        restoreFileTableFocus();
-                    }
-                });
-            }
-
-            /*
-             * ---------------------------------------------------------
-             * GROUP FILE OPERATION TAMAMLANDI
-             * ---------------------------------------------------------
-             *
-             * Tree tarafındaki mevcut group refresh mekanizmasının
-             * devam etmesine izin ver.
-             */
+            restoreCompletedMultiFileSelection(group);
         }
+    }
+
+    private void restoreCompletedMultiFileSelection(TransferGroup group) {
+        /*
+         * ---------------------------------------------------------
+         * MULTI DELETE SELECTION RESTORE
+         * ---------------------------------------------------------
+         *
+         * DELETE group tamamlandığında bütün silinen satırlar
+         * incremental olarak File Table'dan kaldırılmış olur.
+         *
+         * Silme öncesinde pendingDeleteSelectionViewRow ile
+         * ilk seçili satırın view index'i saklanmıştır.
+         *
+         * Şimdi:
+         *
+         *     1. bütün silinen satırlar kaldırıldı
+         *     2. yeni rowCount hesaplanır
+         *     3. mümkünse aynı view row seçilir
+         *     4. eğer o satır artık mevcut değilse son satır seçilir
+         *
+         * Böylece:
+         *
+         *     [1] [2] [3] [4] [5]
+         *          ^^^^^^^^^^^^^
+         *          DELETE
+         *
+         * sonrasında:
+         *
+         *     [1] [5]
+         *          ^
+         *          selection
+         *
+         * veya silinenlerin arasında başka satırlar varsa
+         * mümkün olduğunca eski konuma yakın satır seçilir.
+         */
+        if (group.getOperation()
+                == TransferType.DELETE_GROUP
+                && pendingDeleteSelectionViewRow >= 0) {
+
+            SwingUtilities.invokeLater(() -> {
+
+                int rowCount =
+                        view.getFileTable().getRowCount();
+
+                int targetViewRow =
+                        Math.min(
+                                pendingDeleteSelectionViewRow,
+                                rowCount - 1);
+
+                if (targetViewRow >= 0) {
+
+                    JTable table =
+                            view.getFileTable();
+
+                    table.clearSelection();
+
+                    table.setRowSelectionInterval(
+                            targetViewRow,
+                            targetViewRow);
+
+                    table.scrollRectToVisible(
+                            table.getCellRect(
+                                    targetViewRow,
+                                    0,
+                                    true));
+
+                    restoreFileTableFocus();
+                } else {
+                    restoreFileTableFocus();
+                }
+
+                pendingDeleteSelectionViewRow = -1;
+
+                updateActionStates();
+            });
+        }
+
+        /*
+         * ---------------------------------------------------------
+         * GROUP SELECTION RESTORE
+         * ---------------------------------------------------------
+         *
+         * Bütün task'lar File Table'a eklendikten sonra
+         * selection yalnızca BİR KEZ restore edilir.
+         *
+         * Böylece ilk kopyalanan dosyada selection restore edilip
+         * sonraki dosyaların akışı bozulmaz.
+         */
+        if (pendingFileTableSelectionKeys != null
+                && !pendingFileTableSelectionKeys.isEmpty()) {
+
+            SwingUtilities.invokeLater(() -> {
+
+                if (restorePendingPasteSelection()) {
+                    restoreFileTableFocus();
+                }
+            });
+        }
+
+        /*
+         * ---------------------------------------------------------
+         * GROUP FILE OPERATION TAMAMLANDI
+         * ---------------------------------------------------------
+         *
+         * Tree tarafındaki mevcut group refresh mekanizmasının
+         * devam etmesine izin ver.
+         */
     }
 
     private void addCompletedMultiFileTarget(String currentPrefix, TransferTask task, String targetKey, String targetBucket, String targetParentPrefix) {
