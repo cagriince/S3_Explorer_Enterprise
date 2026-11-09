@@ -3097,16 +3097,11 @@ public class ExplorerPanel extends JPanel {
                      * MOVE'd edilen kaynak File Table'da açıksa
                      * kaynak satırı da incremental kaldır.
                      */
-                    if (task.getType() == TransferType.MOVE
-                            && Objects.equals(
-                            currentBucket,
-                            task.getBucket())
-                            && Objects.equals(
-                            currentPrefix,
-                            getParentPrefix(
-                                    task.getObjectKey()))) {
-
-                        removeCompletedMultiFileMoveSource(task);
+                    if (task.getType() == TransferType.MOVE) {
+                        removeCompletedMultiFileMoveSource(
+                                task,
+                                currentBucket,
+                                currentPrefix);
                     }
                 }
             }
@@ -3157,11 +3152,20 @@ public class ExplorerPanel extends JPanel {
         }
     }
 
-    private void removeCompletedMultiFileMoveSource(TransferTask task) {
-        boolean removed =
-                view.getFileTableModel()
-                        .removeFileByKey(
-                                task.getObjectKey());
+    private void removeCompletedMultiFileMoveSource(
+            TransferTask task,
+            String currentBucket,
+            String currentPrefix) {
+
+        if (Objects.equals(currentBucket, task.getBucket())
+                && Objects.equals(
+                currentPrefix,
+                getParentPrefix(task.getObjectKey()))) {
+
+            boolean removed =
+                    view.getFileTableModel()
+                            .removeFileByKey(task.getObjectKey());
+        }
     }
 
     private void removeCompletedMultiFileDelete(String currentBucket, String currentPrefix, TransferTask task) {
