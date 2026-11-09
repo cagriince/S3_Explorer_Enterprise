@@ -2541,6 +2541,70 @@ public class ExplorerPanel extends JPanel {
          * cache kayıtları ve expansion state korunur.
          * =========================================================
          */
+        if (handleCompletedRename(event, group, currentBucket, currentPrefix)) return;
+
+        /*
+         * =========================================================
+         * DELETE GROUP - FOLDER TREE + FILE TABLE
+         * =========================================================
+         */
+        refreshDeletedGroupTree(event, group, currentBucket);
+
+        /*
+         * =========================================================
+         * NORMAL SOURCE REFRESH
+         * =========================================================
+         *
+         * DELETE_GROUP buraya girmez.
+         */
+        /*
+         * =========================================================
+         * NORMAL SOURCE REFRESH
+         * =========================================================
+         *
+         * DELETE_GROUP kendi özel bloğunda işlenir.
+         *
+         * MOVE_GROUP'da ise source tarafını
+         * group.isSourceFolder() üzerinden belirleyemeyiz.
+         * Çünkü aynı group içinde:
+         *
+         *     klasör
+         *     klasör
+         *     dosya
+         *
+         * gibi karışık seçim olabilir.
+         *
+         * Bu nedenle tamamlanan task'ların kendisine bakıyoruz.
+         */
+        refreshCompletedGroupSource(event, group, currentBucket, completedTasks, currentPrefix);
+
+        /*
+         * =========================================================
+         * TARGET REFRESH
+         * =========================================================
+         *
+         * Buraya RENAME kesinlikle gelemez.
+         *
+         * Sadece:
+         *
+         *     COPY
+         *     MOVE
+         *     COPY_GROUP
+         *     MOVE_GROUP
+         *     UPLOAD_GROUP
+         *
+         * gibi operasyonlar hedef Tree'yi günceller.
+         * =========================================================
+         */
+        refreshGroupTargetViews(
+                group,
+                completedTasks,
+                currentBucket,
+                currentPrefix);
+
+    }
+
+    private boolean handleCompletedRename(TransferGroupCompletedEvent event, TransferGroup group, String currentBucket, String currentPrefix) {
         if (group.getOperation()
                 == TransferType.RENAME
                 || group.getOperation()
@@ -2770,68 +2834,9 @@ public class ExplorerPanel extends JPanel {
              *
              * Folder Tree'ye ADD olarak gönderilmemelidir.
              */
-            return;
+            return true;
         }
-
-        /*
-         * =========================================================
-         * DELETE GROUP - FOLDER TREE + FILE TABLE
-         * =========================================================
-         */
-        refreshDeletedGroupTree(event, group, currentBucket);
-
-        /*
-         * =========================================================
-         * NORMAL SOURCE REFRESH
-         * =========================================================
-         *
-         * DELETE_GROUP buraya girmez.
-         */
-        /*
-         * =========================================================
-         * NORMAL SOURCE REFRESH
-         * =========================================================
-         *
-         * DELETE_GROUP kendi özel bloğunda işlenir.
-         *
-         * MOVE_GROUP'da ise source tarafını
-         * group.isSourceFolder() üzerinden belirleyemeyiz.
-         * Çünkü aynı group içinde:
-         *
-         *     klasör
-         *     klasör
-         *     dosya
-         *
-         * gibi karışık seçim olabilir.
-         *
-         * Bu nedenle tamamlanan task'ların kendisine bakıyoruz.
-         */
-        refreshCompletedGroupSource(event, group, currentBucket, completedTasks, currentPrefix);
-
-        /*
-         * =========================================================
-         * TARGET REFRESH
-         * =========================================================
-         *
-         * Buraya RENAME kesinlikle gelemez.
-         *
-         * Sadece:
-         *
-         *     COPY
-         *     MOVE
-         *     COPY_GROUP
-         *     MOVE_GROUP
-         *     UPLOAD_GROUP
-         *
-         * gibi operasyonlar hedef Tree'yi günceller.
-         * =========================================================
-         */
-        refreshGroupTargetViews(
-                group,
-                completedTasks,
-                currentBucket,
-                currentPrefix);
-
+        return false;
     }
 
     private void refreshCompletedGroupSource(TransferGroupCompletedEvent event, TransferGroup group, String currentBucket, List<TransferTask> completedTasks, String currentPrefix) {
