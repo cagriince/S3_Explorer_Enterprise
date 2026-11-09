@@ -3057,21 +3057,7 @@ public class ExplorerPanel extends JPanel {
                  * -----------------------------------------------------
                  */
                 if (task.getType() == TransferType.DELETE) {
-
-                    if (Objects.equals(
-                            currentBucket,
-                            task.getBucket())
-                            && Objects.equals(
-                            currentPrefix,
-                            getParentPrefix(
-                                    task.getObjectKey()))) {
-
-                        boolean removed =
-                                view.getFileTableModel()
-                                        .removeFileByKey(
-                                                task.getObjectKey());
-                    }
-
+                    removeCompletedMultiFileDelete(currentBucket, currentPrefix, task);
                     continue;
                 }
 
@@ -3171,6 +3157,22 @@ public class ExplorerPanel extends JPanel {
             }
 
             restoreCompletedMultiFileSelection(group);
+        }
+    }
+
+    private void removeCompletedMultiFileDelete(String currentBucket, String currentPrefix, TransferTask task) {
+        if (Objects.equals(
+                currentBucket,
+                task.getBucket())
+                && Objects.equals(
+                currentPrefix,
+                getParentPrefix(
+                        task.getObjectKey()))) {
+
+            boolean removed =
+                    view.getFileTableModel()
+                            .removeFileByKey(
+                                    task.getObjectKey());
         }
     }
 
