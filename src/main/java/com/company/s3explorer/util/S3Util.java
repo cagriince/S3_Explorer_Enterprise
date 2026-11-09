@@ -2,6 +2,7 @@ package com.company.s3explorer.util;
 
 import com.company.s3explorer.transfer.TransferType;
 import com.company.s3explorer.ui.explorer.S3FileItem;
+import com.company.s3explorer.ui.explorer.S3TreeNode;
 import com.company.s3explorer.ui.main.MainFrame;
 import com.company.s3explorer.ui.theme.UIThemeManager;
 
@@ -452,5 +453,24 @@ public class S3Util {
                 + " and "
                 + remainingCount
                 + (remainingCount == 1 ? " other" : " others");
+    }
+
+    public static  String getParentPrefix(String prefix) {
+        if (prefix == null || prefix.isBlank()) {
+            return S3TreeNode.ROOT_PREFIX;
+        }
+
+        String normalized =
+                prefix.endsWith("/")
+                        ? prefix.substring(0, prefix.length() - 1)
+                        : prefix;
+
+        int index = normalized.lastIndexOf('/');
+
+        if (index < 0) {
+            return S3TreeNode.ROOT_PREFIX;
+        }
+
+        return normalized.substring(0, index + 1);
     }
 }

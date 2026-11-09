@@ -66,6 +66,7 @@ public class ExplorerPanel extends JPanel {
     private ExplorerPasteController pasteController;
     private ExplorerRenameController renameController;
     private ExplorerDeleteController deleteController;
+    private ExplorerTransferTargetRefreshController transferTargetRefreshController;
 
     private final AtomicLong fileLoadGeneration = new AtomicLong();
     private final AtomicLong fileDiscoveryGeneration = new AtomicLong();
@@ -268,6 +269,10 @@ public class ExplorerPanel extends JPanel {
                 new ExplorerRefreshScheduler(
                         treeController::refreshNode,
                         this::refreshCurrentTable);
+
+        transferTargetRefreshController =
+                new ExplorerTransferTargetRefreshController(
+                        refreshScheduler);
 
         bindEvents();
 
@@ -2529,7 +2534,7 @@ public class ExplorerPanel extends JPanel {
                     if (Objects.equals(currentFileBucket, targetBucket)
                             && Objects.equals(
                             currentFilePrefix,
-                            getParentPrefix(targetKey))) {
+                            S3Util.getParentPrefix(targetKey))) {
 
                         uploadedKeys.add(targetKey);
                     }
@@ -2592,7 +2597,7 @@ public class ExplorerPanel extends JPanel {
                             task.getBucket())
                             && Objects.equals(
                             currentPrefix,
-                            getParentPrefix(
+                            S3Util.getParentPrefix(
                                     task.getObjectKey()))) {
 
                         boolean removed =
@@ -2626,7 +2631,7 @@ public class ExplorerPanel extends JPanel {
                     }
 
                     String targetParentPrefix =
-                            getParentPrefix(targetKey);
+                            S3Util.getParentPrefix(targetKey);
 
                     if (Objects.equals(currentBucket, targetBucket)) {
 
@@ -2760,7 +2765,7 @@ public class ExplorerPanel extends JPanel {
                             task.getBucket())
                             && Objects.equals(
                             currentPrefix,
-                            getParentPrefix(
+                            S3Util.getParentPrefix(
                                     task.getObjectKey()))) {
 
                         boolean removed =
@@ -2801,7 +2806,7 @@ public class ExplorerPanel extends JPanel {
                                     && !sourcePrefix.equals(currentPrefix)
                                     : Objects.equals(
                                     currentPrefix,
-                                    getParentPrefix(sourcePrefix));
+                                    S3Util.getParentPrefix(sourcePrefix));
 
                     if (folderIsVisible) {
                         int removedCount =
@@ -2990,7 +2995,7 @@ public class ExplorerPanel extends JPanel {
                     sourceBucket)) {
 
                 String sourceParentPrefix =
-                        getParentPrefix(sourceKey);
+                        S3Util.getParentPrefix(sourceKey);
 
                 /*
                  * Kaynak item şu anda açık olan File Table'ın
@@ -3094,7 +3099,7 @@ public class ExplorerPanel extends JPanel {
                     targetBucket)) {
 
                 String targetParentPrefix =
-                        getParentPrefix(targetKey);
+                        S3Util.getParentPrefix(targetKey);
 
                 if (Objects.equals(
                         currentPrefix,
@@ -3338,7 +3343,7 @@ public class ExplorerPanel extends JPanel {
 
                     if (!Objects.equals(
                             currentPrefix,
-                            getParentPrefix(sourceKey))) {
+                            S3Util.getParentPrefix(sourceKey))) {
                         continue;
                     }
 
@@ -3365,7 +3370,7 @@ public class ExplorerPanel extends JPanel {
                 if (group.isSourceFolder()) {
 
                     String sourceParentPrefix =
-                            getParentPrefix(sourcePrefix);
+                            S3Util.getParentPrefix(sourcePrefix);
 
                     if (Objects.equals(
                             currentBucket,
@@ -3408,7 +3413,7 @@ public class ExplorerPanel extends JPanel {
                             sourceBucket)
                             && Objects.equals(
                             currentPrefix,
-                            getParentPrefix(sourcePrefix))) {
+                            S3Util.getParentPrefix(sourcePrefix))) {
 
                         boolean removed =
                                 view.getFileTableModel()
@@ -3437,7 +3442,7 @@ public class ExplorerPanel extends JPanel {
          * gibi operasyonlar hedef Tree'yi günceller.
          * =========================================================
          */
-        refreshGroupTargetViews(
+        transferTargetRefreshController.refreshGroupTargetViews(
                 group,
                 completedTasks,
                 currentBucket,
@@ -4516,26 +4521,6 @@ public class ExplorerPanel extends JPanel {
 
         treeController.selectPrefix(
                 parentPrefix);
-    }
-
-    private String getParentPrefix(String prefix) {
-
-        if (prefix == null || prefix.isBlank()) {
-            return S3TreeNode.ROOT_PREFIX;
-        }
-
-        String normalized =
-                prefix.endsWith("/")
-                        ? prefix.substring(0, prefix.length() - 1)
-                        : prefix;
-
-        int index = normalized.lastIndexOf('/');
-
-        if (index < 0) {
-            return S3TreeNode.ROOT_PREFIX;
-        }
-
-        return normalized.substring(0, index + 1);
     }
 
     private void onRepositoryChanged(
@@ -5781,7 +5766,7 @@ public class ExplorerPanel extends JPanel {
         }
 
         String parentPrefix =
-                getParentPrefix(folderKey);
+                S3Util.getParentPrefix(folderKey);
 
         if (!Objects.equals(
                 currentFilePrefix,
@@ -5930,7 +5915,7 @@ public class ExplorerPanel extends JPanel {
         }
 
         String parentPrefix =
-                getParentPrefix(objectKey);
+                S3Util.getParentPrefix(objectKey);
 
         /*
          * Upload edilen dosyanın parent klasörü
@@ -6057,7 +6042,7 @@ public class ExplorerPanel extends JPanel {
         }
 
         String parentPrefix =
-                getParentPrefix(objectKey);
+                S3Util.getParentPrefix(objectKey);
 
         if (!Objects.equals(
                 currentFileBucket,
@@ -6219,159 +6204,6 @@ public class ExplorerPanel extends JPanel {
             suppressRepositorySelectionEvent = false;
         }
     }
-
-    private void refreshGroupTargetViews(
-            TransferGroup group,
-            List<TransferTask> completedTasks,
-            String currentBucket,
-            String currentPrefix) {
-
-        if (group == null
-                || completedTasks == null
-                || completedTasks.isEmpty()) {
-            return;
-        }
-
-        TransferType operation = group.getOperation();
-
-        boolean isGroupCopyOrMove =
-                operation == TransferType.COPY_GROUP
-                        || operation == TransferType.MOVE_GROUP;
-
-        boolean isUploadGroup =
-                operation == TransferType.UPLOAD_GROUP;
-
-        boolean isTargetOperation =
-                operation == TransferType.COPY
-                        || operation == TransferType.MOVE
-                        || isGroupCopyOrMove
-                        || isUploadGroup;
-
-        if (!isTargetOperation) {
-            return;
-        }
-
-        String targetBucket = group.getTargetBucket();
-        String targetPrefix = group.getTargetPrefix();
-
-        if (targetBucket == null
-                || !Objects.equals(currentBucket, targetBucket)) {
-            return;
-        }
-
-        Set<RefreshTreeNode> targetTreeRefreshes =
-                new LinkedHashSet<>();
-
-        if (isGroupCopyOrMove) {
-
-            for (TransferTask task : completedTasks) {
-
-                if (task == null
-                        || !Objects.equals(
-                        targetBucket,
-                        task.getTargetBucket())) {
-                    continue;
-                }
-
-                Set<RefreshTreeNode> affectedPrefixes =
-                        task.getAffectedPrefixes();
-
-                if (affectedPrefixes != null) {
-
-                    for (RefreshTreeNode refreshNode : affectedPrefixes) {
-
-                        if (refreshNode == null
-                                || refreshNode.operation()
-                                != RefreshTreeOperation.ADD) {
-                            continue;
-                        }
-
-                        addFolderTreeRefresh(
-                                targetTreeRefreshes,
-                                refreshNode.prefix());
-                    }
-                }
-
-                String targetObjectKey =
-                        task.getTargetObjectKey();
-
-                if (targetObjectKey != null
-                        && targetObjectKey.endsWith("/")) {
-
-                    addFolderTreeRefresh(
-                            targetTreeRefreshes,
-                            targetObjectKey);
-                }
-            }
-
-        } else if (targetPrefix != null) {
-
-            if (isUploadGroup) {
-
-                /*
-                 * Folder upload:
-                 *
-                 * targetPrefix = SIL71/SIL1/
-                 *
-                 * Eklenecek düğüm yüklenen klasörün kendisidir.
-                 * Üst dizini (SIL71/) tekrar ADD etmemeliyiz.
-                 */
-                addFolderTreeRefresh(
-                        targetTreeRefreshes,
-                        targetPrefix);
-
-            } else {
-
-                /*
-                 * Tekli COPY/MOVE işlemlerindeki mevcut davranış.
-                 */
-                targetTreeRefreshes.add(
-                        new RefreshTreeNode(
-                                targetPrefix,
-                                RefreshTreeOperation.ADD));
-            }
-        }
-
-        if (!targetTreeRefreshes.isEmpty()) {
-            refreshScheduler.scheduleRefresh(
-                    new ArrayList<>(targetTreeRefreshes));
-        }
-
-         /*
-         * UPLOAD_GROUP:
-         * Yüklenen klasörün üst dizini açıksa File Table'ı yenile.
-         */
-        if (isUploadGroup
-                && targetPrefix != null
-                && Objects.equals(
-                currentPrefix,
-                getParentPrefix(targetPrefix))) {
-
-            refreshScheduler.scheduleCurrentTableRefresh();
-        }
-    }
-
-    private void addFolderTreeRefresh(
-            Set<RefreshTreeNode> refreshes,
-            String prefix) {
-
-        if (refreshes == null
-                || prefix == null
-                || prefix.isBlank()) {
-            return;
-        }
-
-        String normalizedPrefix = prefix.endsWith("/")
-                ? prefix
-                : prefix + "/";
-
-        refreshes.add(
-                new RefreshTreeNode(
-                        normalizedPrefix,
-                        RefreshTreeOperation.ADD));
-    }
-
-
 
     private void navigateToLocationPath(String enteredPath) {
         String bucket = getCurrentBucket();
@@ -6632,7 +6464,7 @@ public class ExplorerPanel extends JPanel {
                                 Objects.equals(tableBucket, bucket)
                                         && Objects.equals(
                                         tablePrefix,
-                                        getParentPrefix(prefix));
+                                        S3Util.getParentPrefix(prefix));
 
                         if (deletedFolderIsInCurrentTable) {
                             contentLoader.invalidate(
@@ -6649,7 +6481,7 @@ public class ExplorerPanel extends JPanel {
 
                         if (fallbackPrefix == null
                                 || Objects.equals(fallbackPrefix, prefix)) {
-                            fallbackPrefix = getParentPrefix(prefix);
+                            fallbackPrefix = S3Util.getParentPrefix(prefix);
                         }
 
                         if (fallbackPrefix != null
@@ -6744,7 +6576,7 @@ public class ExplorerPanel extends JPanel {
              * en üst seviyeyi ve mevcut en yakın üst klasörü bul.
              */
             String invalidPrefix = target.prefix();
-            String candidate = getParentPrefix(target.prefix());
+            String candidate = S3Util.getParentPrefix(target.prefix());
 
             while (candidate != null && !candidate.isBlank()) {
 
@@ -6758,7 +6590,7 @@ public class ExplorerPanel extends JPanel {
                 }
 
                 invalidPrefix = candidate;
-                candidate = getParentPrefix(candidate);
+                candidate = S3Util.getParentPrefix(candidate);
             }
 
             String fallbackPrefix =
@@ -6902,7 +6734,7 @@ public class ExplorerPanel extends JPanel {
         CompletableFuture.supplyAsync(() -> {
 
             String invalidPrefix = missingPrefix;
-            String candidate = getParentPrefix(missingPrefix);
+            String candidate = S3Util.getParentPrefix(missingPrefix);
 
             while (candidate != null && !candidate.isBlank()) {
 
@@ -6911,7 +6743,7 @@ public class ExplorerPanel extends JPanel {
                 }
 
                 invalidPrefix = candidate;
-                candidate = getParentPrefix(candidate);
+                candidate = S3Util.getParentPrefix(candidate);
             }
 
             String fallbackPrefix = candidate == null
