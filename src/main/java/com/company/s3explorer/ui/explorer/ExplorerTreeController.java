@@ -220,7 +220,7 @@ public final class ExplorerTreeController {
          *   -> A/
          */
         String parentPrefix =
-                getParentPrefix(childPrefix);
+                S3Util.getParentPrefix(childPrefix);
 
         S3TreeNode parentNode =
                 nodeCache.get(parentPrefix);
@@ -1411,33 +1411,5 @@ public final class ExplorerTreeController {
         }
 
         return parentNode.getChildCount();
-    }
-
-    private String getParentPrefix(
-            String prefix) {
-
-        if (prefix == null
-                || prefix.isBlank()) {
-
-            return S3TreeNode.ROOT_PREFIX;
-        }
-
-        String normalized =
-                prefix.endsWith("/")
-                        ? prefix.substring(
-                        0,
-                        prefix.length() - 1)
-                        : prefix;
-
-        int slashIndex =
-                normalized.lastIndexOf('/');
-
-        if (slashIndex < 0) {
-            return S3TreeNode.ROOT_PREFIX;
-        }
-
-        return normalized.substring(
-                0,
-                slashIndex + 1);
     }
 }
