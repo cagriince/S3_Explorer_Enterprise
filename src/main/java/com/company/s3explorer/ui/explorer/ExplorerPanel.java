@@ -2806,6 +2806,35 @@ public class ExplorerPanel extends JPanel {
          *
          * Bu nedenle tamamlanan task'ların kendisine bakıyoruz.
          */
+        refreshCompletedGroupSource(event, group, currentBucket, completedTasks, currentPrefix);
+
+        /*
+         * =========================================================
+         * TARGET REFRESH
+         * =========================================================
+         *
+         * Buraya RENAME kesinlikle gelemez.
+         *
+         * Sadece:
+         *
+         *     COPY
+         *     MOVE
+         *     COPY_GROUP
+         *     MOVE_GROUP
+         *     UPLOAD_GROUP
+         *
+         * gibi operasyonlar hedef Tree'yi günceller.
+         * =========================================================
+         */
+        refreshGroupTargetViews(
+                group,
+                completedTasks,
+                currentBucket,
+                currentPrefix);
+
+    }
+
+    private void refreshCompletedGroupSource(TransferGroupCompletedEvent event, TransferGroup group, String currentBucket, List<TransferTask> completedTasks, String currentPrefix) {
         if (event.isSourceRefreshRequired()
                 && group.getOperation()
                 != TransferType.DELETE_GROUP) {
@@ -2962,31 +2991,6 @@ public class ExplorerPanel extends JPanel {
                 }
             }
         }
-
-        /*
-         * =========================================================
-         * TARGET REFRESH
-         * =========================================================
-         *
-         * Buraya RENAME kesinlikle gelemez.
-         *
-         * Sadece:
-         *
-         *     COPY
-         *     MOVE
-         *     COPY_GROUP
-         *     MOVE_GROUP
-         *     UPLOAD_GROUP
-         *
-         * gibi operasyonlar hedef Tree'yi günceller.
-         * =========================================================
-         */
-        refreshGroupTargetViews(
-                group,
-                completedTasks,
-                currentBucket,
-                currentPrefix);
-
     }
 
     private void refreshDeletedGroupTree(TransferGroupCompletedEvent event, TransferGroup group, String currentBucket) {
