@@ -2455,6 +2455,7 @@ public class ExplorerPanel extends JPanel {
         });
     }
 
+
     private void onTransferGroupCompleted(
             TransferGroupCompletedEvent event) {
 
@@ -2566,6 +2567,9 @@ public class ExplorerPanel extends JPanel {
                     continue;
                 }
 
+                /*
+                 * MULTI DELETE
+                 */
                 if (task.getType() == TransferType.DELETE) {
 
                     if (Objects.equals(
@@ -2585,6 +2589,9 @@ public class ExplorerPanel extends JPanel {
                     continue;
                 }
 
+                /*
+                 * MULTI COPY / MOVE - TARGET
+                 */
                 if (task.getType() == TransferType.COPY
                         || task.getType() == TransferType.MOVE) {
 
@@ -2995,176 +3002,118 @@ public class ExplorerPanel extends JPanel {
          * SOURCE TREE REFRESH
          * =========================================================
          *
-         * Bu bölüm ExplorerTransferSourceTreeRefreshController
-         * entegrasyonuyla değiştirilecek.
-         *
-         * Mevcut kaynak refresh kodu aşağıda korunmuştur.
+         * Folder Tree kaynak refresh işlemleri ayrı controller'da.
+         * File Table işlemleri ExplorerPanel'de kalır.
          */
 
-        if (group.getOperation() == TransferType.DELETE_GROUP
-                && event.isSourceRefreshRequired()) {
+        transferSourceTreeRefreshController.refreshSourceTree(
+                group,
+                event,
+                currentBucket);
 
-            String sourceBucket =
-                    group.getSourceBucket();
+        /*
+         * =========================================================
+         * MOVE GROUP - FILE TABLE SOURCE
+         * =========================================================
+         *
+         * Folder Tree işlemi controller'a taşındı.
+         * Kaynak File Table satırlarının kaldırılması burada kalır.
+         */
+        if (event.isSourceRefreshRequired()
+                && group.getOperation() == TransferType.MOVE_GROUP) {
 
-            String sourcePrefix =
-                    group.getSourcePrefix();
+            for (TransferTask task : completedTasks) {
 
-            if (sourcePrefix == null || sourcePrefix.isBlank()) {
-                sourcePrefix = event.getPrefix();
-            }
+                if (task == null
+                        || task.getType()
+                        != TransferType.MOVE) {
+                    continue;
+                }
 
-            if (sourceBucket == null) {
-                sourceBucket = event.getBucket();
-            }
+                String sourceKey =
+                        task.getObjectKey();
 
-            if (sourcePrefix != null
-                    && !sourcePrefix.isBlank()
-                    && Objects.equals(currentBucket, sourceBucket)) {
+                if (sourceKey == null) {
+                    continue;
+                }
 
-                String folderPrefix =
-                        sourcePrefix.endsWith("/")
-                                ? sourcePrefix
-                                : sourcePrefix + "/";
+                if (!Objects.equals(
+                        currentBucket,
+                        task.getBucket())) {
+                    continue;
+                }
 
-                refreshScheduler.scheduleRefresh(
-                        List.of(
-                                new RefreshTreeNode(
-                                        folderPrefix,
-                                        RefreshTreeOperation.DELETE)));
+                if (!Objects.equals(
+                        currentPrefix,
+                        S3Util.getParentPrefix(sourceKey))) {
+                    continue;
+                }
+
+                boolean removed =
+                        view.getFileTableModel()
+                                .removeFileByKey(sourceKey);
             }
         }
 
+        /*
+         * =========================================================
+         * NORMAL / LEGACY SOURCE FILE TABLE REFRESH
+         * =========================================================
+         *
+         * Folder Tree refresh controller'a taşındı.
+         * File Table işlemleri burada korunuyor.
+         */
         if (event.isSourceRefreshRequired()
-                && group.getOperation()
-                != TransferType.DELETE_GROUP) {
+                && group.getOperation() != TransferType.DELETE_GROUP
+                && group.getOperation() != TransferType.MOVE_GROUP) {
 
-            if (group.getOperation() == TransferType.MOVE_GROUP) {
+            String sourceBucket =
+                    event.getBucket();
 
-                String sourceBucket = group.getSourceBucket();
-                String sourcePrefix = group.getSourcePrefix();
+            String sourcePrefix =
+                    event.getPrefix();
 
-                if (sourceBucket == null) {
-                    sourceBucket = event.getBucket();
-                }
+            if (group.isSourceFolder()) {
 
-                if (sourcePrefix == null || sourcePrefix.isBlank()) {
-                    sourcePrefix = event.getPrefix();
-                }
+                String sourceParentPrefix =
+                        S3Util.getParentPrefix(sourcePrefix);
 
-                if (sourcePrefix != null
-                        && !sourcePrefix.isBlank()
-                        && Objects.equals(currentBucket, sourceBucket)) {
-
-                    String folderPrefix = sourcePrefix.endsWith("/")
-                            ? sourcePrefix
-                            : sourcePrefix + "/";
-
-                    List<RefreshTreeNode> sourceTreeRefreshes =
-                            List.of(
-                                    new RefreshTreeNode(
-                                            folderPrefix,
-                                            RefreshTreeOperation.DELETE));
-
-                    refreshScheduler.scheduleRefresh(sourceTreeRefreshes);
-                }
-
-                /*
-                 * MOVE GROUP - FILE TABLE SOURCE
-                 */
-                for (TransferTask task : completedTasks) {
-
-                    if (task == null
-                            || task.getType()
-                            != TransferType.MOVE) {
-                        continue;
-                    }
-
-                    String sourceKey =
-                            task.getObjectKey();
-
-                    if (sourceKey == null) {
-                        continue;
-                    }
-
-                    if (!Objects.equals(
-                            currentBucket,
-                            task.getBucket())) {
-                        continue;
-                    }
-
-                    if (!Objects.equals(
-                            currentPrefix,
-                            S3Util.getParentPrefix(sourceKey))) {
-                        continue;
-                    }
+                if (Objects.equals(
+                        currentBucket,
+                        sourceBucket)
+                        && Objects.equals(
+                        currentPrefix,
+                        sourceParentPrefix)) {
 
                     boolean removed =
                             view.getFileTableModel()
-                                    .removeFileByKey(sourceKey);
+                                    .removeFileByKey(
+                                            sourcePrefix);
+
+                    if (removed
+                            && pendingDeleteSelectionViewRow >= 0) {
+
+                        SwingUtilities.invokeLater(() -> {
+                            restoreFileTableSelectionAfterDelete();
+                            restoreFileTableFocus();
+                            pendingDeleteSelectionViewRow = -1;
+                        });
+                    }
                 }
 
             } else {
 
-                String sourceBucket =
-                        event.getBucket();
+                if (Objects.equals(
+                        currentBucket,
+                        sourceBucket)
+                        && Objects.equals(
+                        currentPrefix,
+                        S3Util.getParentPrefix(sourcePrefix))) {
 
-                String sourcePrefix =
-                        event.getPrefix();
-
-                if (group.isSourceFolder()) {
-
-                    String sourceParentPrefix =
-                            S3Util.getParentPrefix(sourcePrefix);
-
-                    if (Objects.equals(
-                            currentBucket,
-                            sourceBucket)) {
-
-                        refreshScheduler.scheduleRefresh(
-                                List.of(
-                                        new RefreshTreeNode(
-                                                sourcePrefix,
-                                                RefreshTreeOperation.DELETE)));
-                    }
-
-                    if (Objects.equals(
-                            currentBucket,
-                            sourceBucket)
-                            && Objects.equals(
-                            currentPrefix,
-                            sourceParentPrefix)) {
-
-                        boolean removed =
-                                view.getFileTableModel()
-                                        .removeFileByKey(
-                                                sourcePrefix);
-
-                        if (removed
-                                && pendingDeleteSelectionViewRow >= 0) {
-
-                            SwingUtilities.invokeLater(() -> {
-                                restoreFileTableSelectionAfterDelete();
-                                restoreFileTableFocus();
-                                pendingDeleteSelectionViewRow = -1;
-                            });
-                        }
-                    }
-
-                } else {
-
-                    if (Objects.equals(
-                            currentBucket,
-                            sourceBucket)
-                            && Objects.equals(
-                            currentPrefix,
-                            S3Util.getParentPrefix(sourcePrefix))) {
-
-                        boolean removed =
-                                view.getFileTableModel()
-                                        .removeFileByKey(
-                                                sourcePrefix);
-                    }
+                    boolean removed =
+                            view.getFileTableModel()
+                                    .removeFileByKey(
+                                            sourcePrefix);
                 }
             }
         }
@@ -3180,7 +3129,7 @@ public class ExplorerPanel extends JPanel {
                 currentBucket,
                 currentPrefix);
     }
-    
+
     private void refreshCurrentTable() {
 
         String bucket =
