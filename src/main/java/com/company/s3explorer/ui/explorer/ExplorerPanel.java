@@ -67,6 +67,7 @@ public class ExplorerPanel extends JPanel {
     private ExplorerRenameController renameController;
     private ExplorerDeleteController deleteController;
     private ExplorerTransferTargetRefreshController transferTargetRefreshController;
+    private ExplorerTransferSourceTreeRefreshController transferSourceTreeRefreshController;
 
     private final AtomicLong fileLoadGeneration = new AtomicLong();
     private final AtomicLong fileDiscoveryGeneration = new AtomicLong();
@@ -272,6 +273,10 @@ public class ExplorerPanel extends JPanel {
 
         transferTargetRefreshController =
                 new ExplorerTransferTargetRefreshController(
+                        refreshScheduler);
+
+        transferSourceTreeRefreshController =
+                new ExplorerTransferSourceTreeRefreshController(
                         refreshScheduler);
 
         bindEvents();
@@ -2483,10 +2488,6 @@ public class ExplorerPanel extends JPanel {
          * ---------------------------------------------------------
          * MULTI-FILE UPLOAD GROUP
          * ---------------------------------------------------------
-         *
-         * Folder uploads keep their existing completion flow.
-         * File upload groups insert every successfully completed
-         * task, then restore the complete multi-selection.
          */
         if (group.getOperation() == TransferType.UPLOAD_GROUP
                 && !group.isSourceFolder()) {
@@ -2495,10 +2496,6 @@ public class ExplorerPanel extends JPanel {
                 return;
             }
 
-            /*
-             * A grouped upload must not use the old single-key
-             * selection mechanism.
-             */
             pendingFileTableSelectionKey = null;
             restoreFileTableFocus = false;
 
@@ -2528,9 +2525,6 @@ public class ExplorerPanel extends JPanel {
                         continue;
                     }
 
-                    /*
-                     * Only select keys belonging to the current table.
-                     */
                     if (Objects.equals(currentFileBucket, targetBucket)
                             && Objects.equals(
                             currentFilePrefix,
@@ -2539,17 +2533,9 @@ public class ExplorerPanel extends JPanel {
                         uploadedKeys.add(targetKey);
                     }
 
-                    /*
-                     * This method inserts the row only when its
-                     * target folder matches the currently open table.
-                     */
                     addUploadedFileToCurrentFileTable(task);
                 }
 
-                /*
-                 * Run selection after all row insertions and sorter
-                 * updates have had an opportunity to complete.
-                 */
                 SwingUtilities.invokeLater(() -> {
                     if (!uploadedKeys.isEmpty()) {
                         restoreFileTableSelectionByKeys(
@@ -2568,11 +2554,6 @@ public class ExplorerPanel extends JPanel {
          * =========================================================
          * INCREMENTAL MULTI FILE OPERATIONS
          * =========================================================
-         *
-         * Group içindeki bütün başarılı task'lar artık burada
-         * elimizde.
-         *
-         * File Table reload edilmez.
          */
         if (!completedTasks.isEmpty()
                 && (group.getOperation() == TransferType.COPY_GROUP
@@ -2585,11 +2566,6 @@ public class ExplorerPanel extends JPanel {
                     continue;
                 }
 
-                /*
-                 * -----------------------------------------------------
-                 * MULTI DELETE
-                 * -----------------------------------------------------
-                 */
                 if (task.getType() == TransferType.DELETE) {
 
                     if (Objects.equals(
@@ -2609,11 +2585,6 @@ public class ExplorerPanel extends JPanel {
                     continue;
                 }
 
-                /*
-                 * -----------------------------------------------------
-                 * MULTI COPY / MOVE - TARGET
-                 * -----------------------------------------------------
-                 */
                 if (task.getType() == TransferType.COPY
                         || task.getType() == TransferType.MOVE) {
 
@@ -2641,20 +2612,12 @@ public class ExplorerPanel extends JPanel {
 
                         if (flatBrowsingEnabled) {
 
-                            /*
-                             * Flat modda, etkin klasörün altındaki bütün
-                             * hedef nesneleri göreli yollarıyla ekle.
-                             */
                             if (targetKey.startsWith(effectivePrefix)
                                     && targetKey.length() > effectivePrefix.length()) {
 
                                 String relativeKey =
                                         targetKey.substring(effectivePrefix.length());
 
-                                /*
-                                 * Dosya iç içe bir klasörün altındaysa,
-                                 * eksik üst klasör satırlarını da oluştur.
-                                 */
                                 int slashIndex = relativeKey.indexOf('/');
 
                                 while (slashIndex >= 0) {
@@ -2704,9 +2667,6 @@ public class ExplorerPanel extends JPanel {
 
                         } else if (Objects.equals(currentPrefix, targetParentPrefix)) {
 
-                            /*
-                             * Normal modda yalnızca doğrudan alt öğeleri göster.
-                             */
                             S3FileItem item =
                                     new S3FileItem(
                                             task.getTargetRepositoryId(),
@@ -2719,13 +2679,10 @@ public class ExplorerPanel extends JPanel {
 
                             boolean added =
                                     view.getFileTableModel().addFile(item);
+
                         } else if (targetKey.startsWith(effectivePrefix)
                                 && targetKey.length() > effectivePrefix.length()) {
 
-                            /*
-                             * Normal modda iç içe dosyaları ayrı ayrı gösterme.
-                             * Bunun yerine ilk alt klasör satırını oluştur.
-                             */
                             String relativeKey =
                                     targetKey.substring(effectivePrefix.length());
 
@@ -2752,12 +2709,7 @@ public class ExplorerPanel extends JPanel {
                     }
 
                     /*
-                     * -------------------------------------------------
                      * MULTI MOVE - SOURCE
-                     * -------------------------------------------------
-                     *
-                     * MOVE'd edilen kaynak File Table'da açıksa
-                     * kaynak satırı da incremental kaldır.
                      */
                     if (task.getType() == TransferType.MOVE
                             && Objects.equals(
@@ -2777,9 +2729,7 @@ public class ExplorerPanel extends JPanel {
             }
 
             /*
-             * Klasör silindiğinde, içindeki dosyaların DELETE task'ları
-             * klasörün kendi satırını kaldırmak için yeterli olmayabilir.
-             * Kaynak klasör satırını ayrıca kaldır.
+             * DELETE GROUP - FILE TABLE FOLDER REMOVAL
              */
             if (group.getOperation() == TransferType.DELETE_GROUP
                     && group.isSourceFolder()) {
@@ -2819,37 +2769,7 @@ public class ExplorerPanel extends JPanel {
             }
 
             /*
-             * ---------------------------------------------------------
              * MULTI DELETE SELECTION RESTORE
-             * ---------------------------------------------------------
-             *
-             * DELETE group tamamlandığında bütün silinen satırlar
-             * incremental olarak File Table'dan kaldırılmış olur.
-             *
-             * Silme öncesinde pendingDeleteSelectionViewRow ile
-             * ilk seçili satırın view index'i saklanmıştır.
-             *
-             * Şimdi:
-             *
-             *     1. bütün silinen satırlar kaldırıldı
-             *     2. yeni rowCount hesaplanır
-             *     3. mümkünse aynı view row seçilir
-             *     4. eğer o satır artık mevcut değilse son satır seçilir
-             *
-             * Böylece:
-             *
-             *     [1] [2] [3] [4] [5]
-             *          ^^^^^^^^^^^^^
-             *          DELETE
-             *
-             * sonrasında:
-             *
-             *     [1] [5]
-             *          ^
-             *          selection
-             *
-             * veya silinenlerin arasında başka satırlar varsa
-             * mümkün olduğunca eski konuma yakın satır seçilir.
              */
             if (group.getOperation()
                     == TransferType.DELETE_GROUP
@@ -2892,17 +2812,9 @@ public class ExplorerPanel extends JPanel {
                     updateActionStates();
                 });
             }
-            
+
             /*
-             * ---------------------------------------------------------
              * GROUP SELECTION RESTORE
-             * ---------------------------------------------------------
-             *
-             * Bütün task'lar File Table'a eklendikten sonra
-             * selection yalnızca BİR KEZ restore edilir.
-             *
-             * Böylece ilk kopyalanan dosyada selection restore edilip
-             * sonraki dosyaların akışı bozulmaz.
              */
             if (pendingFileTableSelectionKeys != null
                     && !pendingFileTableSelectionKeys.isEmpty()) {
@@ -2914,55 +2826,11 @@ public class ExplorerPanel extends JPanel {
                     }
                 });
             }
-
-            /*
-             * ---------------------------------------------------------
-             * GROUP FILE OPERATION TAMAMLANDI
-             * ---------------------------------------------------------
-             *
-             * Tree tarafındaki mevcut group refresh mekanizmasının
-             * devam etmesine izin ver.
-             */
         }
-        
+
         /*
          * =========================================================
          * RENAME
-         * =========================================================
-         *
-         * Rename iki şekilde gelebilir:
-         *
-         *     TransferType.RENAME
-         *     TransferType.RENAME_GROUP
-         *
-         * Bu nedenle ikisini de burada özel olarak ele alıyoruz.
-         *
-         * DOSYA RENAME:
-         *
-         *     SIL71/1.json
-         *          ->
-         *     SIL71/2.json
-         *
-         * File Table'daki mevcut satır yerinde değiştirilir.
-         *
-         * Folder Tree'ye kesinlikle dokunulmaz.
-         *
-         *
-         * KLASÖR RENAME:
-         *
-         *     SIL71/
-         *          ->
-         *     SIL72/
-         *
-         * File Table:
-         *     SIL71/ remove
-         *     SIL72/ insert
-         *
-         * Folder Tree:
-         *     mevcut SIL71 node'u SIL72 olarak rename edilir.
-         *
-         * Aynı Tree node'u korunduğu için altındaki child node'lar,
-         * cache kayıtları ve expansion state korunur.
          * =========================================================
          */
         if (group.getOperation()
@@ -2986,9 +2854,7 @@ public class ExplorerPanel extends JPanel {
                     group.isSourceFolder();
 
             /*
-             * -----------------------------------------------------
              * FILE TABLE - SOURCE
-             * -----------------------------------------------------
              */
             if (Objects.equals(
                     currentBucket,
@@ -2997,40 +2863,19 @@ public class ExplorerPanel extends JPanel {
                 String sourceParentPrefix =
                         S3Util.getParentPrefix(sourceKey);
 
-                /*
-                 * Kaynak item şu anda açık olan File Table'ın
-                 * içinde gösteriliyorsa işlem yap.
-                 */
                 if (Objects.equals(
                         currentPrefix,
                         sourceParentPrefix)) {
 
                     if (sourceIsFolder) {
 
-                        /*
-                         * -----------------------------------------
-                         * KLASÖR RENAME
-                         * -----------------------------------------
-                         *
-                         * Klasörün mevcut satırını kaldırıyoruz.
-                         * Hedef satır aşağıda tekrar eklenecek.
-                         */
                         boolean removed =
                                 view.getFileTableModel()
                                         .removeFileByKey(
                                                 sourceKey);
+
                     } else {
 
-                        /*
-                         * -----------------------------------------
-                         * DOSYA RENAME
-                         * -----------------------------------------
-                         *
-                         * Satırı silip tekrar eklemiyoruz.
-                         *
-                         * Aynı satırdaki S3FileItem değiştirilir.
-                         * Böylece dosyanın sıra konumu korunur.
-                         */
                         int sourceRow =
                                 view.getFileTableModel()
                                         .findRowByKey(
@@ -3083,15 +2928,7 @@ public class ExplorerPanel extends JPanel {
             }
 
             /*
-             * -----------------------------------------------------
              * FILE TABLE - TARGET
-             * -----------------------------------------------------
-             *
-             * Sadece KLASÖR rename'inde ayrıca hedef klasör
-             * File Table'a eklenir.
-             *
-             * Dosya rename'inde yukarıdaki replaceFileByKey()
-             * zaten işlemi tamamladı.
              */
             if (sourceIsFolder
                     && Objects.equals(
@@ -3112,33 +2949,7 @@ public class ExplorerPanel extends JPanel {
             }
 
             /*
-             * -----------------------------------------------------
              * FOLDER TREE
-             * -----------------------------------------------------
-             *
-             * DOSYA RENAME:
-             *
-             *     Tree'ye hiçbir şey yapma.
-             *
-             * Çünkü dosya Folder Tree'nin node'u değildir.
-             *
-             * KLASÖR RENAME:
-             *
-             *     Mevcut Tree node'unu yerinde rename et.
-             *
-             * Böylece:
-             *
-             *     SIL71/
-             *       └── A/
-             *           └── B/
-             *
-             * rename sonrasında:
-             *
-             *     SIL72/
-             *       └── A/
-             *           └── B/
-             *
-             * olarak aynı node nesneleriyle korunur.
              */
             if (sourceIsFolder) {
 
@@ -3158,9 +2969,7 @@ public class ExplorerPanel extends JPanel {
             }
 
             /*
-             * -----------------------------------------------------
-             * RENAME SONRASI SELECTION
-             * -----------------------------------------------------
+             * RENAME SELECTION RESTORE
              */
             if (pendingFileTableSelectionKey != null) {
 
@@ -3178,30 +2987,20 @@ public class ExplorerPanel extends JPanel {
                 });
             }
 
-            /*
-             * -----------------------------------------------------
-             * ÇOK ÖNEMLİ
-             * -----------------------------------------------------
-             *
-             * Rename işlemi burada tamamen biter.
-             *
-             * Normal TARGET REFRESH bölümüne kesinlikle
-             * düşülmemelidir.
-             *
-             * Özellikle dosya rename'inde:
-             *
-             *     SIL71/2.json
-             *
-             * Folder Tree'ye ADD olarak gönderilmemelidir.
-             */
             return;
         }
 
         /*
          * =========================================================
-         * DELETE GROUP - FOLDER TREE + FILE TABLE
+         * SOURCE TREE REFRESH
          * =========================================================
+         *
+         * Bu bölüm ExplorerTransferSourceTreeRefreshController
+         * entegrasyonuyla değiştirilecek.
+         *
+         * Mevcut kaynak refresh kodu aşağıda korunmuştur.
          */
+
         if (group.getOperation() == TransferType.DELETE_GROUP
                 && event.isSourceRefreshRequired()) {
 
@@ -3223,11 +3022,6 @@ public class ExplorerPanel extends JPanel {
                     && !sourcePrefix.isBlank()
                     && Objects.equals(currentBucket, sourceBucket)) {
 
-                /*
-                 * Folder Tree'den klasörün kendisini kaldır.
-                 * İçerikteki DELETE task'larının objectKey değerlerine
-                 * bağımlı değiliz.
-                 */
                 String folderPrefix =
                         sourcePrefix.endsWith("/")
                                 ? sourcePrefix
@@ -3241,45 +3035,10 @@ public class ExplorerPanel extends JPanel {
             }
         }
 
-        /*
-         * =========================================================
-         * NORMAL SOURCE REFRESH
-         * =========================================================
-         *
-         * DELETE_GROUP buraya girmez.
-         */
-        /*
-         * =========================================================
-         * NORMAL SOURCE REFRESH
-         * =========================================================
-         *
-         * DELETE_GROUP kendi özel bloğunda işlenir.
-         *
-         * MOVE_GROUP'da ise source tarafını
-         * group.isSourceFolder() üzerinden belirleyemeyiz.
-         * Çünkü aynı group içinde:
-         *
-         *     klasör
-         *     klasör
-         *     dosya
-         *
-         * gibi karışık seçim olabilir.
-         *
-         * Bu nedenle tamamlanan task'ların kendisine bakıyoruz.
-         */
         if (event.isSourceRefreshRequired()
                 && group.getOperation()
                 != TransferType.DELETE_GROUP) {
 
-            /*
-             * -------------------------------------------------
-             * MOVE GROUP - FOLDER TREE
-             * -------------------------------------------------
-             *
-             * Kaynak klasörün kendisini group üzerinden bul.
-             * Tek tek task objectKey değerlerine güvenme;
-             * görevler klasörün içindeki dosyaları temsil edebilir.
-             */
             if (group.getOperation() == TransferType.MOVE_GROUP) {
 
                 String sourceBucket = group.getSourceBucket();
@@ -3306,19 +3065,12 @@ public class ExplorerPanel extends JPanel {
                                     new RefreshTreeNode(
                                             folderPrefix,
                                             RefreshTreeOperation.DELETE));
+
                     refreshScheduler.scheduleRefresh(sourceTreeRefreshes);
                 }
 
                 /*
-                 * -------------------------------------------------
                  * MOVE GROUP - FILE TABLE SOURCE
-                 * -------------------------------------------------
-                 *
-                 * File Table zaten group tamamlandığında
-                 * incremental olarak güncelleniyor.
-                 *
-                 * Burada yalnızca legacy davranışı korumak
-                 * için source dosya/klasör satırlarını kaldırıyoruz.
                  */
                 for (TransferTask task : completedTasks) {
 
@@ -3351,16 +3103,9 @@ public class ExplorerPanel extends JPanel {
                             view.getFileTableModel()
                                     .removeFileByKey(sourceKey);
                 }
+
             } else {
 
-                /*
-                 * -------------------------------------------------
-                 * NORMAL / LEGACY SOURCE REFRESH
-                 * -------------------------------------------------
-                 *
-                 * Tek tip source operasyonlarında mevcut
-                 * davranışı koruyoruz.
-                 */
                 String sourceBucket =
                         event.getBucket();
 
@@ -3428,26 +3173,12 @@ public class ExplorerPanel extends JPanel {
          * =========================================================
          * TARGET REFRESH
          * =========================================================
-         *
-         * Buraya RENAME kesinlikle gelemez.
-         *
-         * Sadece:
-         *
-         *     COPY
-         *     MOVE
-         *     COPY_GROUP
-         *     MOVE_GROUP
-         *     UPLOAD_GROUP
-         *
-         * gibi operasyonlar hedef Tree'yi günceller.
-         * =========================================================
          */
         transferTargetRefreshController.refreshGroupTargetViews(
                 group,
                 completedTasks,
                 currentBucket,
                 currentPrefix);
-
     }
     
     private void refreshCurrentTable() {
