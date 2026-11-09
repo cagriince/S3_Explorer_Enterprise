@@ -3106,10 +3106,7 @@ public class ExplorerPanel extends JPanel {
                             getParentPrefix(
                                     task.getObjectKey()))) {
 
-                        boolean removed =
-                                view.getFileTableModel()
-                                        .removeFileByKey(
-                                                task.getObjectKey());
+                        removeCompletedMultiFileMoveSource(task);
                     }
                 }
             }
@@ -3158,6 +3155,13 @@ public class ExplorerPanel extends JPanel {
 
             restoreCompletedMultiFileSelection(group);
         }
+    }
+
+    private void removeCompletedMultiFileMoveSource(TransferTask task) {
+        boolean removed =
+                view.getFileTableModel()
+                        .removeFileByKey(
+                                task.getObjectKey());
     }
 
     private void removeCompletedMultiFileDelete(String currentBucket, String currentPrefix, TransferTask task) {
