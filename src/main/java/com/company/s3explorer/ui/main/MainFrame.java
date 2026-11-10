@@ -312,7 +312,7 @@ public class MainFrame extends JFrame {
         explorerPanel.populateViewMenu(viewMenu);
 
         // Go
-        JMenu goMenu = new JMenu("Go");
+        JMenu goMenu = new JMenu("Navigation");
         goMenu.setMnemonic(KeyEvent.VK_G);
         explorerPanel.populateGoMenu(goMenu);
 
@@ -416,19 +416,24 @@ public class MainFrame extends JFrame {
         };
 
         Object[][] rows = {
-                {"Open selected item", "Enter"},
-                {"Select all items", "Ctrl + A"},
-                {"Copy", "Ctrl + C"},
-                {"Cut", "Ctrl + X"},
-                {"Paste", "Ctrl + V"},
-                {"Go to parent folder", "Backspace"},
-                {"Delete selected items", "Delete"},
-                {"Rename selected item", "F2"},
-                {"Show properties", "Alt + Enter"},
-                {"Navigate back", "Alt + Left"},
-                {"Navigate forward", "Alt + Right"},
-                {"Reload folder", "F5"},
-                {"Exit", "Ctrl + Q"},
+                {"<html><b>FILE</b></html>", ""},
+                {"   Open selected item", "Enter"},
+                {"   Show properties", "Alt + Enter"},
+                {"   Delete selected items", "Delete"},
+                {"   Rename selected item", "F2"},
+                {"   Exit", "Ctrl + Q"},
+                {"<html><b>EDIT</b></html>", ""},
+                {"   Cut", "Ctrl + X"},
+                {"   Copy", "Ctrl + C"},
+                {"   Paste", "Ctrl + V"},
+                {"   Select all items", "Ctrl + A"},
+                {"<html><b>VIEW</b></html>", ""},
+                {"   Reload folder", "F5"},
+                {"<html><b>NAVIGATION</b></html>", ""},
+                {"   Go to parent folder", "Backspace"},
+                {"   Navigate back", "Alt + Left"},
+                {"   Navigate forward", "Alt + Right"},
+                {"   Home", "Alt + Home"}
         };
 
         JTable table = new JTable(

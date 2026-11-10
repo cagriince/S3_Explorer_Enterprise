@@ -482,6 +482,12 @@ public class ExplorerPanel extends JPanel {
                 "explorerForward");
         panelActionMap.put("explorerForward", forwardAction);
 
+        // Alt + Home: Home
+        panelInputMap.put(
+                KeyStroke.getKeyStroke("alt HOME"),
+                "explorerHome");
+        panelActionMap.put("explorerHome", homeAction);
+
         // F5: Reload Folder
         panelInputMap.put(
                 KeyStroke.getKeyStroke("F5"),
@@ -6572,7 +6578,7 @@ public class ExplorerPanel extends JPanel {
         menu.add(createMenuItem(goToParentAction, "BACK_SPACE"));
         menu.add(createMenuItem(backAction, "alt LEFT"));
         menu.add(createMenuItem(forwardAction, "alt RIGHT"));
-        menu.add(new JMenuItem(homeAction));
+        menu.add(createMenuItem(homeAction, "alt HOME"));
         menu.addSeparator();
 
         menu.add(new JMenuItem(clearHistoryAction));
