@@ -4597,7 +4597,17 @@ public class ExplorerPanel extends JPanel {
         // Update the model first.
         // FileTableRowSorter.allRowsChanged() will consume pending sort
         // keys and apply them to the new rows, avoiding a sort of stale rows.
+        long sortStart = System.nanoTime();
+
         view.getFileTableModel().setFiles(rows);
+
+        long sortDuration =
+                (System.nanoTime() - sortStart) / 1_000_000;
+
+        System.out.printf(
+                "[FILE TABLE APPLY TIMING] setFiles + sorting: %d ms, rows=%d%n",
+                sortDuration,
+                rows.size());
 
         view.getFileTable().getTableHeader().repaint();
 
