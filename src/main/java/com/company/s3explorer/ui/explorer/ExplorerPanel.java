@@ -6205,6 +6205,26 @@ public class ExplorerPanel extends JPanel {
 
         if (locationChanged) {
             prepareForLocationChange();
+
+            boolean hasPendingSelection =
+                    pendingFileTableSelectionKey != null
+                            || (pendingFileTableSelectionKeys != null
+                            && !pendingFileTableSelectionKeys.isEmpty())
+                            || (preservedFileTableSelectionKeys != null
+                            && !preservedFileTableSelectionKeys.isEmpty());
+
+            boolean isRoot =
+                    prefix == null
+                            || prefix.isBlank()
+                            || S3TreeNode.ROOT_PREFIX.equals(prefix);
+
+            if (!pasteSelectionCollectionInProgress
+                    && !hasPendingSelection
+                    && !isRoot) {
+
+                pendingFileTableSelectionKey =
+                        prefix + S3FileItem.PARENT_FOLDER_NAME;
+            }
         }
 
         loadFiles(
