@@ -6,6 +6,8 @@ import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
@@ -164,7 +166,7 @@ public final class ExplorerOperationDialogManager {
         }
 
         OperationDialog created =
-                createDialog(title, minimumSize);
+                createDialog(type, title, minimumSize);
 
         dialogs.put(type, created);
 
@@ -172,6 +174,7 @@ public final class ExplorerOperationDialogManager {
     }
 
     private OperationDialog createDialog(
+            Type type,
             String title,
             Dimension minimumSize) {
 
@@ -185,7 +188,15 @@ public final class ExplorerOperationDialogManager {
                         Dialog.ModalityType.MODELESS);
 
         dialog.setDefaultCloseOperation(
-                WindowConstants.HIDE_ON_CLOSE);
+                WindowConstants.DO_NOTHING_ON_CLOSE);
+
+        dialog.addWindowListener(
+                new WindowAdapter() {
+                    @Override
+                    public void windowClosing(WindowEvent e) {
+                        hide(type);
+                    }
+                });
 
         dialog.setResizable(false);
 
@@ -211,7 +222,7 @@ public final class ExplorerOperationDialogManager {
                 new JButton("Hide");
 
         hideButton.addActionListener(
-                e -> dialog.setVisible(false));
+                e -> hide(type));
 
         dialog.getRootPane()
                 .getInputMap(
@@ -229,7 +240,7 @@ public final class ExplorerOperationDialogManager {
                         new AbstractAction() {
                             @Override
                             public void actionPerformed(ActionEvent e) {
-                                dialog.setVisible(false);
+                                hide(type);
                             }
                         });
 
