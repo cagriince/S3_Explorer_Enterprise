@@ -5,6 +5,7 @@ import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.exception.SdkClientException;
+import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3Configuration;
@@ -45,8 +46,13 @@ public class S3ClientFactory {
                 .overrideConfiguration(
                         ClientOverrideConfiguration.builder()
                                 .apiCallAttemptTimeout(
-                                        Duration.ofSeconds(60))
+                                        Duration.ofMinutes(4))
+                                .apiCallTimeout(
+                                        Duration.ofMinutes(5))
                                 .build())
+                .httpClientBuilder(
+                        ApacheHttpClient.builder()
+                                .socketTimeout(Duration.ofMinutes(3)))
                 /*.httpClientBuilder(ApacheHttpClient.builder()
                         // PROXY'Yİ KESİN OLARAK DEVRE DİŞİ BIRA KAN AYAR:
                         .proxyConfiguration(ProxyConfiguration.builder()
