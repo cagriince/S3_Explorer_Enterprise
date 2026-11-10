@@ -73,15 +73,7 @@ public class ExplorerRefreshScheduler {
                     }
 
                     if (pendingPrefixes.add(prefix)) {
-
                         addedCount++;
-
-                        System.out.println(
-                                "[SCHEDULE TREE REFRESH] " +
-                                        "prefix=" +
-                                        prefix.prefix() +
-                                        " operation=" +
-                                        prefix.operation());
                     }
                 }
 
@@ -135,14 +127,6 @@ public class ExplorerRefreshScheduler {
     }
 
     private void executeRefresh() {
-
-        System.out.println(
-                "[REFRESH SCHEDULER EXECUTE] " +
-                        "currentTableRefreshPending=" +
-                        currentTableRefreshPending +
-                        " pendingPrefixes=" +
-                        pendingPrefixes);
-
         /*
          * Önce o anda bekleyen refresh isteklerini
          * tüketiyoruz.
@@ -158,20 +142,7 @@ public class ExplorerRefreshScheduler {
          * ---------------------------------------------------------
          */
         if (refreshTable) {
-
-            System.out.println(
-                    "[REFRESH SCHEDULER TABLE REFRESH] " +
-                            "calling currentTableRefreshAction");
-
             currentTableRefreshAction.run();
-
-            System.out.println(
-                    "[REFRESH SCHEDULER TABLE REFRESH] " +
-                            "currentTableRefreshAction completed");
-        } else {
-
-            System.out.println(
-                    "[REFRESH SCHEDULER TABLE REFRESH] skipped");
         }
 
         /*
@@ -187,22 +158,11 @@ public class ExplorerRefreshScheduler {
 
             pendingPrefixes.removeAll(prefixes);
 
-            System.out.println(
-                    "[REFRESH SCHEDULER TREE REFRESH] " +
-                            "count=" +
-                            prefixes.size() +
-                            " prefixes=" +
-                            prefixes);
-
             for (RefreshTreeNode prefix :
                     prefixes) {
 
                 refreshAction.accept(prefix);
             }
-        } else {
-
-            System.out.println(
-                    "[REFRESH SCHEDULER TREE REFRESH] skipped");
         }
 
         /*
@@ -212,21 +172,7 @@ public class ExplorerRefreshScheduler {
          */
         if (currentTableRefreshPending
                 || !pendingPrefixes.isEmpty()) {
-
-            System.out.println(
-                    "[REFRESH SCHEDULER RESCHEDULE] " +
-                            "currentTableRefreshPending=" +
-                            currentTableRefreshPending +
-                            " pendingPrefixes=" +
-                            pendingPrefixes);
-
             scheduleTimer();
-
-        } else {
-
-            System.out.println(
-                    "[REFRESH SCHEDULER COMPLETE] " +
-                            "no pending refresh");
         }
     }
 }
