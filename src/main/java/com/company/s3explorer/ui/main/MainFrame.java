@@ -352,6 +352,18 @@ public class MainFrame extends JFrame {
         menuBar.add(goMenu);
         menuBar.add(helpMenu);
 
+        // Add horizontal spacing between top-level menus
+        for (JMenu menu : new JMenu[]{
+                repositoryMenu,
+                fileMenu,
+                editMenu,
+                viewMenu,
+                goMenu,
+                helpMenu
+        }) {
+            menu.setMargin(new Insets(0, 0, 0, 10));
+        }
+
         return menuBar;
     }
 
