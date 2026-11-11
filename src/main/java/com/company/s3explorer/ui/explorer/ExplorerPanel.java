@@ -6048,10 +6048,19 @@ public class ExplorerPanel extends JPanel {
     }
 
 
+
     private void validateAndLoadTreeSelection(
             String bucket,
             String prefix,
             TreePath selectedPath) {
+
+        System.out.println(
+                "[TREE VALIDATION] started: bucket="
+                        + bucket
+                        + ", prefix="
+                        + prefix
+                        + ", time="
+                        + java.time.LocalTime.now());
 
         /*
          * Root her zaman geçerlidir.
@@ -6062,6 +6071,8 @@ public class ExplorerPanel extends JPanel {
                 prefix,
                 S3TreeNode.ROOT_PREFIX)) {
 
+            System.out.println("[TREE VALIDATION] root selection");
+
             completeTreeSelection(bucket, prefix);
             return;
         }
@@ -6070,15 +6081,12 @@ public class ExplorerPanel extends JPanel {
                 getCurrentRepository();
 
         if (repository == null || repository.isEmpty()) {
+            System.out.println("[TREE VALIDATION] repository unavailable");
             return;
         }
 
         String repositoryId = repository.getId();
 
-        /*
-         * Her doğrulama işlemi için yeni bir generation oluştur.
-         * Böylece eski doğrulama sonuçları yeni seçimleri etkileyemez.
-         */
         final long validationGeneration =
                 treeSelectionValidationGeneration.incrementAndGet();
 
@@ -6086,29 +6094,47 @@ public class ExplorerPanel extends JPanel {
                 OperationDialogType.FILE_TABLE,
                 "Checking folder...");
 
+        System.out.println(
+                "[TREE VALIDATION] dialog requested: "
+                        + java.time.LocalTime.now());
+
         CompletableFuture.supplyAsync(
-                () -> new S3ExplorerService(
-                        clientManager.getClient(repository))
-                        .folderExists(bucket, prefix),
+                () -> {
+                    System.out.println(
+                            "[TREE VALIDATION] S3 folderExists started: "
+                                    + prefix
+                                    + ", time="
+                                    + java.time.LocalTime.now());
+
+                    boolean exists = new S3ExplorerService(
+                            clientManager.getClient(repository))
+                            .folderExists(bucket, prefix);
+
+                    System.out.println(
+                            "[TREE VALIDATION] S3 folderExists completed: "
+                                    + prefix
+                                    + ", exists="
+                                    + exists
+                                    + ", time="
+                                    + java.time.LocalTime.now());
+
+                    return exists;
+                },
                 explorerPool
         ).whenComplete((exists, exception) ->
                 SwingUtilities.invokeLater(() -> {
 
-                    /*
-                     * Daha yeni bir doğrulama başladıysa bu sonucu kullanma.
-                     */
                     if (validationGeneration
                             != treeSelectionValidationGeneration.get()) {
+
+                        System.out.println(
+                                "[TREE VALIDATION] ignored: newer validation exists");
                         return;
                     }
 
                     RepositoryDefinition activeRepository =
                             getCurrentRepository();
 
-                    /*
-                     * Kontrol sürerken repository veya bucket değiştiyse
-                     * eski sonucu kullanma.
-                     */
                     if (activeRepository == null
                             || !Objects.equals(
                             repositoryId,
@@ -6116,6 +6142,9 @@ public class ExplorerPanel extends JPanel {
                             || !Objects.equals(
                             bucket,
                             getCurrentBucket())) {
+
+                        System.out.println(
+                                "[TREE VALIDATION] ignored: repository or bucket changed");
 
                         hideOperationDialog(
                                 OperationDialogType.FILE_TABLE);
@@ -6125,25 +6154,25 @@ public class ExplorerPanel extends JPanel {
                     TreePath actualPath =
                             view.getFolderTree().getSelectionPath();
 
-                    /*
-                     * Ağaçta başka bir klasör seçilmişse eski sonucu kullanma.
-                     */
                     if (actualPath == null
                             || !actualPath.equals(selectedPath)) {
+
+                        System.out.println(
+                                "[TREE VALIDATION] ignored: tree selection changed");
 
                         hideOperationDialog(
                                 OperationDialogType.FILE_TABLE);
                         return;
                     }
 
-                    /*
-                     * Bağlantı veya yetki hatası, silinmiş klasör
-                     * olarak değerlendirilmemeli.
-                     */
                     if (exception != null) {
 
                         hideOperationDialog(
                                 OperationDialogType.FILE_TABLE);
+
+                        System.out.println(
+                                "[TREE VALIDATION] failed: "
+                                        + exception);
 
                         log.error(
                                 "[TREE SELECTION VALIDATION] failed "
@@ -6165,6 +6194,10 @@ public class ExplorerPanel extends JPanel {
                         hideOperationDialog(
                                 OperationDialogType.FILE_TABLE);
 
+                        System.out.println(
+                                "[TREE VALIDATION] folder not found: "
+                                        + prefix);
+
                         log.info(
                                 "[STALE TREE NODE] removing bucket={} prefix={}",
                                 bucket,
@@ -6176,8 +6209,6 @@ public class ExplorerPanel extends JPanel {
                                 bucket,
                                 prefix);
 
-                        // Silinen klasör mevcut File Table'da listeleniyorsa
-                        // tabloyu önbellekten değil S3'ten yeniden yükle.
                         String tableBucket = currentFileBucket;
                         String tablePrefix = currentFilePrefix;
 
@@ -6219,11 +6250,12 @@ public class ExplorerPanel extends JPanel {
                         return;
                     }
 
-                    /*
-                     * Doğrulama başarılı.
-                     * completeTreeSelection() içindeki loadFiles()
-                     * aynı dialogu "Preparing file table..." mesajıyla günceller.
-                     */
+                    System.out.println(
+                            "[TREE VALIDATION] completed, loading file table: "
+                                    + prefix
+                                    + ", time="
+                                    + java.time.LocalTime.now());
+
                     completeTreeSelection(bucket, prefix);
                 }));
     }
