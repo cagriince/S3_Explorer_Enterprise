@@ -542,39 +542,44 @@ public class ExplorerPanel extends JPanel {
                 "explorerForward");
         locationActionMap.put("explorerForward", forwardAction);
 
-        view.getFolderTree().addKeyListener(
-                new java.awt.event.KeyAdapter() {
-                    @Override
-                    public void keyPressed(java.awt.event.KeyEvent e) {
+        java.awt.KeyboardFocusManager
+                .getCurrentKeyboardFocusManager()
+                .addKeyEventDispatcher(e -> {
 
-                        if (e.getKeyCode()
-                                != java.awt.event.KeyEvent.VK_ENTER) {
-                            return;
-                        }
-
-                        TreePath selectedPath =
-                                view.getFolderTree().getSelectionPath();
-
-                        Object selectedObject =
-                                selectedPath == null
-                                        ? null
-                                        : selectedPath.getLastPathComponent();
-
-                        String prefix =
-                                selectedObject instanceof S3TreeNode node
-                                        ? node.getFullPrefix()
-                                        : null;
-
-                        System.out.println(
-                                "[TREE ENTER] pressed"
-                                        + ", prefix=" + prefix
-                                        + ", selectedPath=" + selectedPath
-                                        + ", expanded=" +
-                                        (selectedPath != null
-                                                && view.getFolderTree()
-                                                .isExpanded(selectedPath))
-                                        + ", time=" + java.time.LocalTime.now());
+                    if (e.getID() != java.awt.event.KeyEvent.KEY_PRESSED
+                            || e.getKeyCode()
+                            != java.awt.event.KeyEvent.VK_ENTER) {
+                        return false;
                     }
+
+                    java.awt.Component focusOwner =
+                            java.awt.KeyboardFocusManager
+                                    .getCurrentKeyboardFocusManager()
+                                    .getFocusOwner();
+
+                    TreePath selectedPath =
+                            view.getFolderTree().getSelectionPath();
+
+                    Object selectedObject =
+                            selectedPath == null
+                                    ? null
+                                    : selectedPath.getLastPathComponent();
+
+                    String selectedPrefix =
+                            selectedObject instanceof S3TreeNode node
+                                    ? node.getFullPrefix()
+                                    : null;
+
+                    System.out.println(
+                            "[GLOBAL ENTER DEBUG]"
+                                    + " source=" + e.getSource()
+                                    + ", focusOwner=" + focusOwner
+                                    + ", treeHasFocus="
+                                    + view.getFolderTree().hasFocus()
+                                    + ", selectedPrefix=" + selectedPrefix
+                                    + ", time=" + java.time.LocalTime.now());
+
+                    return false;
                 });
     }
 
@@ -1553,6 +1558,14 @@ public class ExplorerPanel extends JPanel {
                 sameLocation
                         && operationDialogManager.isVisible(
                         ExplorerOperationDialogManager.Type.FILE_TABLE);
+
+        System.out.println(
+                "[LOAD FILES STATE]"
+                        + " sameLocation=" + sameLocation
+                        + ", cachedSnapshotAvailable=" + cachedSnapshotAvailable
+                        + ", discoveryInProgress=" + discoveryInProgress
+                        + ", preparingDialogActive=" + preparingDialogActive
+                        + ", time=" + java.time.LocalTime.now());
 
         final long generation =
                 fileLoadGeneration.incrementAndGet();
