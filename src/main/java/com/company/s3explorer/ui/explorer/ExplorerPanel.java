@@ -541,6 +541,41 @@ public class ExplorerPanel extends JPanel {
                 KeyStroke.getKeyStroke("alt RIGHT"),
                 "explorerForward");
         locationActionMap.put("explorerForward", forwardAction);
+
+        view.getFolderTree().addKeyListener(
+                new java.awt.event.KeyAdapter() {
+                    @Override
+                    public void keyPressed(java.awt.event.KeyEvent e) {
+
+                        if (e.getKeyCode()
+                                != java.awt.event.KeyEvent.VK_ENTER) {
+                            return;
+                        }
+
+                        TreePath selectedPath =
+                                view.getFolderTree().getSelectionPath();
+
+                        Object selectedObject =
+                                selectedPath == null
+                                        ? null
+                                        : selectedPath.getLastPathComponent();
+
+                        String prefix =
+                                selectedObject instanceof S3TreeNode node
+                                        ? node.getFullPrefix()
+                                        : null;
+
+                        System.out.println(
+                                "[TREE ENTER] pressed"
+                                        + ", prefix=" + prefix
+                                        + ", selectedPath=" + selectedPath
+                                        + ", expanded=" +
+                                        (selectedPath != null
+                                                && view.getFolderTree()
+                                                .isExpanded(selectedPath))
+                                        + ", time=" + java.time.LocalTime.now());
+                    }
+                });
     }
 
     private JSplitPane createMainSplit() {
@@ -1487,6 +1522,13 @@ public class ExplorerPanel extends JPanel {
             String prefix,
             boolean restoreFocus,
             boolean filterRefresh) {
+
+        System.out.println(
+                "[LOAD FILES] entered"
+                        + ", bucket=" + bucket
+                        + ", prefix=" + prefix
+                        + ", thread=" + Thread.currentThread().getName()
+                        + ", time=" + java.time.LocalTime.now());
 
         final boolean sameLocation =
                 Objects.equals(currentFileBucket, bucket)
@@ -6264,21 +6306,31 @@ public class ExplorerPanel extends JPanel {
             String bucket,
             String prefix) {
 
+        System.out.println(
+                "[TREE COMPLETE] entered: prefix=" + prefix
+                        + ", time=" + java.time.LocalTime.now());
+
         treeSelectionValidationGeneration.incrementAndGet();
 
-        /*
-         * The tree selection has been validated at this point.
-         * Avoid disabling Flat Browsing for a selection that resolves
-         * to the location already displayed in the file table.
-         */
         boolean locationChanged =
                 !Objects.equals(bucket, currentFileBucket)
                         || !Objects.equals(
                         prefix,
                         currentFilePrefix);
 
+        System.out.println(
+                "[TREE COMPLETE] locationChanged=" + locationChanged
+                        + ", currentPrefix=" + currentFilePrefix);
+
         if (locationChanged) {
+
+            System.out.println(
+                    "[TREE COMPLETE] before prepareForLocationChange");
+
             prepareForLocationChange();
+
+            System.out.println(
+                    "[TREE COMPLETE] after prepareForLocationChange");
 
             boolean hasPendingSelection =
                     pendingFileTableSelectionKey != null
@@ -6301,10 +6353,16 @@ public class ExplorerPanel extends JPanel {
             }
         }
 
+        System.out.println(
+                "[TREE COMPLETE] before loadFiles: prefix=" + prefix);
+
         loadFiles(
                 bucket,
                 prefix,
                 true);
+
+        System.out.println(
+                "[TREE COMPLETE] after loadFiles: prefix=" + prefix);
 
         updateBreadcrumb(prefix);
 
@@ -6340,6 +6398,9 @@ public class ExplorerPanel extends JPanel {
 
         updateNavigationButtonStates();
         updateActionStates();
+
+        System.out.println(
+                "[TREE COMPLETE] finished: prefix=" + prefix);
     }
 
     private void recoverMissingHistoryTarget(

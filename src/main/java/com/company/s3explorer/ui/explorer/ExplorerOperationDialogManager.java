@@ -43,6 +43,7 @@ public final class ExplorerOperationDialogManager {
                 && visibleDialogs.contains(operationDialog);
     }
 
+
     public void show(Type type, String message) {
 
         SwingUtilities.invokeLater(() -> {
@@ -53,37 +54,61 @@ public final class ExplorerOperationDialogManager {
             operationDialog.message.setText(message);
             operationDialog.dialog.pack();
 
-            if (operationDialog.showTimer != null) {
-                operationDialog.showTimer.stop();
+            /*
+             * Dialog zaten görünüyorsa yalnızca mesajı güncelle.
+             * Dialogu tekrar gizleme.
+             */
+            if (operationDialog.dialog.isVisible()) {
+
+                positionDialogs();
+                return;
+            }
+
+            /*
+             * Dialog gösterilmek üzere bekliyorsa
+             * mevcut Timer'ı yeniden başlatma.
+             */
+            if (operationDialog.showTimer != null
+                    && operationDialog.showTimer.isRunning()) {
+
+                return;
             }
 
             if (!visibleDialogs.contains(operationDialog)) {
                 visibleDialogs.add(operationDialog);
             }
 
-            operationDialog.dialog.setVisible(false);
+            Timer timer = new Timer(
+                    SHOW_DELAY_MS,
+                    e -> {
 
-            operationDialog.showTimer =
-                    new Timer(
-                            SHOW_DELAY_MS,
-                            e -> {
+                        Timer completedTimer =
+                                (Timer) e.getSource();
 
-                                if (!visibleDialogs.contains(
-                                        operationDialog)) {
+                        completedTimer.stop();
 
-                                    ((Timer) e.getSource()).stop();
-                                    return;
-                                }
+                        if (operationDialog.showTimer
+                                == completedTimer) {
 
-                                operationDialog.dialog.setVisible(true);
+                            operationDialog.showTimer = null;
+                        }
 
-                                positionDialogs();
+                        if (!visibleDialogs.contains(
+                                operationDialog)) {
 
-                                ((Timer) e.getSource()).stop();
-                            });
+                            return;
+                        }
 
-            operationDialog.showTimer.setRepeats(false);
-            operationDialog.showTimer.start();
+                        operationDialog.dialog.setVisible(true);
+
+                        positionDialogs();
+                    });
+
+            timer.setRepeats(false);
+
+            operationDialog.showTimer = timer;
+
+            timer.start();
         });
     }
 
