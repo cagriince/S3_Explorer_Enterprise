@@ -75,6 +75,7 @@ public class ExplorerPanel extends JPanel {
     private String currentFileBucket;
     private String currentFilePrefix;
     private final AtomicLong rootFolderLoadGeneration = new AtomicLong();
+    private final AtomicLong treeSelectionValidationGeneration = new AtomicLong();
 
     private enum OperationDialogType {
         BUCKET,
@@ -6074,6 +6075,17 @@ public class ExplorerPanel extends JPanel {
 
         String repositoryId = repository.getId();
 
+        /*
+         * Her doğrulama işlemi için yeni bir generation oluştur.
+         * Böylece eski doğrulama sonuçları yeni seçimleri etkileyemez.
+         */
+        final long validationGeneration =
+                treeSelectionValidationGeneration.incrementAndGet();
+
+        showOperationDialog(
+                OperationDialogType.FILE_TABLE,
+                "Checking folder...");
+
         CompletableFuture.supplyAsync(
                 () -> new S3ExplorerService(
                         clientManager.getClient(repository))
@@ -6082,12 +6094,20 @@ public class ExplorerPanel extends JPanel {
         ).whenComplete((exists, exception) ->
                 SwingUtilities.invokeLater(() -> {
 
+                    /*
+                     * Daha yeni bir doğrulama başladıysa bu sonucu kullanma.
+                     */
+                    if (validationGeneration
+                            != treeSelectionValidationGeneration.get()) {
+                        return;
+                    }
+
                     RepositoryDefinition activeRepository =
                             getCurrentRepository();
 
                     /*
-                     * Kontrol sürerken repository, bucket veya
-                     * ağaç seçimi değiştiyse eski sonucu kullanma.
+                     * Kontrol sürerken repository veya bucket değiştiyse
+                     * eski sonucu kullanma.
                      */
                     if (activeRepository == null
                             || !Objects.equals(
@@ -6096,14 +6116,23 @@ public class ExplorerPanel extends JPanel {
                             || !Objects.equals(
                             bucket,
                             getCurrentBucket())) {
+
+                        hideOperationDialog(
+                                OperationDialogType.FILE_TABLE);
                         return;
                     }
 
                     TreePath actualPath =
                             view.getFolderTree().getSelectionPath();
 
+                    /*
+                     * Ağaçta başka bir klasör seçilmişse eski sonucu kullanma.
+                     */
                     if (actualPath == null
                             || !actualPath.equals(selectedPath)) {
+
+                        hideOperationDialog(
+                                OperationDialogType.FILE_TABLE);
                         return;
                     }
 
@@ -6112,6 +6141,10 @@ public class ExplorerPanel extends JPanel {
                      * olarak değerlendirilmemeli.
                      */
                     if (exception != null) {
+
+                        hideOperationDialog(
+                                OperationDialogType.FILE_TABLE);
+
                         log.error(
                                 "[TREE SELECTION VALIDATION] failed "
                                         + "bucket={} prefix={}",
@@ -6127,8 +6160,10 @@ public class ExplorerPanel extends JPanel {
                         return;
                     }
 
-
                     if (!Boolean.TRUE.equals(exists)) {
+
+                        hideOperationDialog(
+                                OperationDialogType.FILE_TABLE);
 
                         log.info(
                                 "[STALE TREE NODE] removing bucket={} prefix={}",
@@ -6141,7 +6176,7 @@ public class ExplorerPanel extends JPanel {
                                 bucket,
                                 prefix);
 
-                        // Silinen klasör, mevcut File Table'da listeleniyorsa
+                        // Silinen klasör mevcut File Table'da listeleniyorsa
                         // tabloyu önbellekten değil S3'ten yeniden yükle.
                         String tableBucket = currentFileBucket;
                         String tablePrefix = currentFilePrefix;
@@ -6184,6 +6219,11 @@ public class ExplorerPanel extends JPanel {
                         return;
                     }
 
+                    /*
+                     * Doğrulama başarılı.
+                     * completeTreeSelection() içindeki loadFiles()
+                     * aynı dialogu "Preparing file table..." mesajıyla günceller.
+                     */
                     completeTreeSelection(bucket, prefix);
                 }));
     }
@@ -6191,6 +6231,8 @@ public class ExplorerPanel extends JPanel {
     private void completeTreeSelection(
             String bucket,
             String prefix) {
+
+        treeSelectionValidationGeneration.incrementAndGet();
 
         /*
          * The tree selection has been validated at this point.
