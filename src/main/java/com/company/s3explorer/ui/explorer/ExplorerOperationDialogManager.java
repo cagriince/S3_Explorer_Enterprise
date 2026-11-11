@@ -44,9 +44,21 @@ public final class ExplorerOperationDialogManager {
     }
 
 
+
     public void show(Type type, String message) {
 
+        System.out.println(
+                "[DIALOG SHOW REQUEST]"
+                        + " type=" + type
+                        + ", thread=" + Thread.currentThread().getName()
+                        + ", time=" + java.time.LocalTime.now());
+
         SwingUtilities.invokeLater(() -> {
+
+            System.out.println(
+                    "[DIALOG SHOW EDT]"
+                            + " type=" + type
+                            + ", time=" + java.time.LocalTime.now());
 
             OperationDialog operationDialog =
                     getOrCreateDialog(type);
@@ -54,22 +66,24 @@ public final class ExplorerOperationDialogManager {
             operationDialog.message.setText(message);
             operationDialog.dialog.pack();
 
-            /*
-             * Dialog zaten görünüyorsa yalnızca mesajı güncelle.
-             * Dialogu tekrar gizleme.
-             */
             if (operationDialog.dialog.isVisible()) {
+
+                System.out.println(
+                        "[DIALOG ALREADY VISIBLE]"
+                                + " type=" + type
+                                + ", time=" + java.time.LocalTime.now());
 
                 positionDialogs();
                 return;
             }
 
-            /*
-             * Dialog gösterilmek üzere bekliyorsa
-             * mevcut Timer'ı yeniden başlatma.
-             */
             if (operationDialog.showTimer != null
                     && operationDialog.showTimer.isRunning()) {
+
+                System.out.println(
+                        "[DIALOG TIMER ALREADY RUNNING]"
+                                + " type=" + type
+                                + ", time=" + java.time.LocalTime.now());
 
                 return;
             }
@@ -93,13 +107,28 @@ public final class ExplorerOperationDialogManager {
                             operationDialog.showTimer = null;
                         }
 
-                        if (!visibleDialogs.contains(
-                                operationDialog)) {
+                        System.out.println(
+                                "[DIALOG TIMER FIRED]"
+                                        + " type=" + type
+                                        + ", time=" + java.time.LocalTime.now());
+
+                        if (!visibleDialogs.contains(operationDialog)) {
+
+                            System.out.println(
+                                    "[DIALOG TIMER ABORTED]"
+                                            + " type=" + type);
 
                             return;
                         }
 
                         operationDialog.dialog.setVisible(true);
+
+                        System.out.println(
+                                "[DIALOG SET VISIBLE]"
+                                        + " type=" + type
+                                        + ", visible="
+                                        + operationDialog.dialog.isVisible()
+                                        + ", time=" + java.time.LocalTime.now());
 
                         positionDialogs();
                     });
@@ -109,10 +138,23 @@ public final class ExplorerOperationDialogManager {
             operationDialog.showTimer = timer;
 
             timer.start();
+
+            System.out.println(
+                    "[DIALOG TIMER STARTED]"
+                            + " type=" + type
+                            + ", delay=" + SHOW_DELAY_MS
+                            + ", time=" + java.time.LocalTime.now());
         });
     }
 
+
     public void hide(Type type) {
+
+        System.out.println(
+                "[DIALOG HIDE REQUEST]"
+                        + " type=" + type
+                        + ", thread=" + Thread.currentThread().getName()
+                        + ", time=" + java.time.LocalTime.now());
 
         SwingUtilities.invokeLater(() -> {
 
@@ -120,8 +162,25 @@ public final class ExplorerOperationDialogManager {
                     dialogs.get(type);
 
             if (operationDialog == null) {
+
+                System.out.println(
+                        "[DIALOG HIDE] dialog does not exist: "
+                                + type);
+
                 return;
             }
+
+            boolean timerRunning =
+                    operationDialog.showTimer != null
+                            && operationDialog.showTimer.isRunning();
+
+            System.out.println(
+                    "[DIALOG HIDE EDT]"
+                            + " type=" + type
+                            + ", visible="
+                            + operationDialog.dialog.isVisible()
+                            + ", timerRunning=" + timerRunning
+                            + ", time=" + java.time.LocalTime.now());
 
             if (operationDialog.showTimer != null) {
                 operationDialog.showTimer.stop();
@@ -133,6 +192,11 @@ public final class ExplorerOperationDialogManager {
             visibleDialogs.remove(operationDialog);
 
             positionDialogs();
+
+            System.out.println(
+                    "[DIALOG HIDDEN]"
+                            + " type=" + type
+                            + ", time=" + java.time.LocalTime.now());
         });
     }
 
