@@ -74,6 +74,7 @@ public class ExplorerPanel extends JPanel {
     private final AtomicLong operationGeneration = new AtomicLong();
     private String currentFileBucket;
     private String currentFilePrefix;
+    private String pendingFileTableNavigationPrefix;
     private final AtomicLong rootFolderLoadGeneration = new AtomicLong();
     private final AtomicLong treeSelectionValidationGeneration = new AtomicLong();
 
@@ -1942,6 +1943,23 @@ public class ExplorerPanel extends JPanel {
                     selectedNode.getFullPrefix();
 
             /*
+             * File Table navigation already validates and loads
+             * this target independently. Ignore the corresponding
+             * programmatic Tree selection event.
+             */
+            if (pendingFileTableNavigationPrefix != null) {
+
+                if (Objects.equals(
+                        pendingFileTableNavigationPrefix,
+                        prefix)) {
+                    return;
+                }
+
+                // A different Tree selection supersedes the pending navigation.
+                pendingFileTableNavigationPrefix = null;
+            }
+
+            /*
              * ---------------------------------------------------------
              * TREE MODEL REFRESH GUARD
              * ---------------------------------------------------------
@@ -2224,6 +2242,21 @@ public class ExplorerPanel extends JPanel {
             return;
         }
 
+        /*
+         * Start File Table navigation immediately.
+         * Do not wait for Folder Tree lazy loading.
+         */
+        pendingFileTableNavigationPrefix = targetPrefix;
+
+        validateAndLoadTreeSelection(
+                bucket,
+                targetPrefix,
+                null);
+
+        /*
+         * Expand the Folder Tree and select the target
+         * asynchronously. This must not delay File Table loading.
+         */
         treeController.selectPrefix(
                 targetPrefix);
     }
@@ -6136,6 +6169,13 @@ public class ExplorerPanel extends JPanel {
                 getCurrentRepository();
 
         if (repository == null || repository.isEmpty()) {
+
+            if (Objects.equals(
+                    pendingFileTableNavigationPrefix,
+                    prefix)) {
+                pendingFileTableNavigationPrefix = null;
+            }
+
             System.out.println("[TREE VALIDATION] repository unavailable");
             return;
         }
@@ -6203,27 +6243,53 @@ public class ExplorerPanel extends JPanel {
 
                         hideOperationDialog(
                                 OperationDialogType.FILE_TABLE);
+
+                        if (Objects.equals(
+                                pendingFileTableNavigationPrefix,
+                                prefix)) {
+                            pendingFileTableNavigationPrefix = null;
+                        }
                         return;
                     }
 
-                    TreePath actualPath =
-                            view.getFolderTree().getSelectionPath();
+                    /*
+                     * A null selectedPath means this validation was initiated
+                     * by File Table navigation, not by a Tree selection event.
+                     */
+                    if (selectedPath != null) {
 
-                    if (actualPath == null
-                            || !actualPath.equals(selectedPath)) {
+                        TreePath actualPath =
+                                view.getFolderTree().getSelectionPath();
 
-                        System.out.println(
-                                "[TREE VALIDATION] ignored: tree selection changed");
+                        if (actualPath == null
+                                || !actualPath.equals(selectedPath)) {
 
-                        hideOperationDialog(
-                                OperationDialogType.FILE_TABLE);
-                        return;
+                            System.out.println(
+                                    "[TREE VALIDATION] ignored: tree selection changed");
+
+                            hideOperationDialog(
+                                    OperationDialogType.FILE_TABLE);
+
+                            if (Objects.equals(
+                                    pendingFileTableNavigationPrefix,
+                                    prefix)) {
+                                pendingFileTableNavigationPrefix = null;
+                            }
+
+                            return;
+                        }
                     }
 
                     if (exception != null) {
 
                         hideOperationDialog(
                                 OperationDialogType.FILE_TABLE);
+
+                        if (Objects.equals(
+                                pendingFileTableNavigationPrefix,
+                                prefix)) {
+                            pendingFileTableNavigationPrefix = null;
+                        }
 
                         System.out.println(
                                 "[TREE VALIDATION] failed: "
@@ -6241,6 +6307,7 @@ public class ExplorerPanel extends JPanel {
                                 S3ErrorResolver.getUserMessage(exception),
                                 "Folder Validation Failed",
                                 JOptionPane.ERROR_MESSAGE);
+
                         return;
                     }
 
@@ -6248,6 +6315,12 @@ public class ExplorerPanel extends JPanel {
 
                         hideOperationDialog(
                                 OperationDialogType.FILE_TABLE);
+
+                        if (Objects.equals(
+                                pendingFileTableNavigationPrefix,
+                                prefix)) {
+                            pendingFileTableNavigationPrefix = null;
+                        }
 
                         System.out.println(
                                 "[TREE VALIDATION] folder not found: "
@@ -6318,6 +6391,12 @@ public class ExplorerPanel extends JPanel {
     private void completeTreeSelection(
             String bucket,
             String prefix) {
+        if (Objects.equals(
+                pendingFileTableNavigationPrefix,
+                prefix)) {
+
+            pendingFileTableNavigationPrefix = null;
+        }
 
         System.out.println(
                 "[TREE COMPLETE] entered: prefix=" + prefix
