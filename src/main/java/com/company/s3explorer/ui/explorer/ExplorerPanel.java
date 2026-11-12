@@ -2258,7 +2258,14 @@ public class ExplorerPanel extends JPanel {
          * asynchronously. This must not delay File Table loading.
          */
         treeController.selectPrefix(
-                targetPrefix);
+                targetPrefix,
+                selected -> {
+
+                    if (selected) {
+                        treeController.expandPrefix(
+                                targetPrefix);
+                    }
+                });
     }
 
     private void startDownload(

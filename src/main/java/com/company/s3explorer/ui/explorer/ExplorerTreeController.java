@@ -1310,6 +1310,25 @@ public final class ExplorerTreeController {
                 });
     }
 
+    public void expandPrefix(String prefix) {
+
+        if (prefix == null) {
+            return;
+        }
+
+        S3TreeNode node =
+                findNodeByPrefix(prefix);
+
+        if (node == null) {
+            return;
+        }
+
+        TreePath path =
+                new TreePath(node.getPath());
+
+        folderTree.expandPath(path);
+    }
+
     /*
      * ---------------------------------------------------------
      * STATE
