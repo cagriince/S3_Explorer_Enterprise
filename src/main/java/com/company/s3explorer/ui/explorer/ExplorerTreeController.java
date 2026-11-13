@@ -411,7 +411,7 @@ public final class ExplorerTreeController {
             return CompletableFuture.completedFuture(null);
         }
 
-        log.error(
+        log.info(
                 "[TREE LOAD] started: bucket={}, prefix={}, generation={}",
                 bucket,
                 prefix,
@@ -432,7 +432,7 @@ public final class ExplorerTreeController {
                                 generation,
                                 exception);
                     } else {
-                        log.error(
+                        log.info(
                                 "[TREE LOAD] S3 completed: bucket={}, prefix={}, folders={}, generation={}",
                                 bucket,
                                 prefix,
@@ -504,7 +504,7 @@ public final class ExplorerTreeController {
                                 parentNode.add(child);
                             }
 
-                            log.error(
+                            log.info(
                                     "[TREE LOAD] applied: bucket={}, prefix={}, foldersReceived={}, foldersApplied={}, generation={}",
                                     bucket,
                                     prefix,

@@ -35,7 +35,7 @@
     </appender>
 
     <!-- Application logs -->
-    <logger name="com.company.s3explorer" level="ERROR"/>
+    <logger name="com.company.s3explorer" level="INFO"/>
 
     <!-- Third-party libraries -->
     <root level="WARN">
