@@ -342,7 +342,23 @@ public class S3ObjectListingService {
             FolderDiscoveryListener discoveryListener,
             boolean flatBrowsing) {
 
+        return listFolderSnapshot(
+                bucket,
+                prefix,
+                discoveryListener,
+                flatBrowsing,
+                () -> true);
+    }
+
+    public FolderContentSnapshot listFolderSnapshot(
+            String bucket,
+            String prefix,
+            FolderDiscoveryListener discoveryListener,
+            boolean flatBrowsing,
+            BooleanSupplier shouldContinue) {
+
         Objects.requireNonNull(bucket, "bucket");
+        Objects.requireNonNull(shouldContinue, "shouldContinue");
 
         String effectivePrefix =
                 prefix == null ? "" : prefix;
@@ -354,6 +370,11 @@ public class S3ObjectListingService {
         long discoveredFileCount = 0;
 
         do {
+            if (!shouldContinue.getAsBoolean()) {
+                throw new CancellationException(
+                        "S3 folder listing cancelled");
+            }
+
             ListObjectsV2Request.Builder builder =
                     ListObjectsV2Request.builder()
                             .bucket(bucket)
@@ -371,6 +392,15 @@ public class S3ObjectListingService {
 
             ListObjectsV2Response response =
                     client.listObjectsV2(builder.build());
+
+            /*
+             * The current HTTP request may have completed after
+             * cancellation was requested. Do not process its result.
+             */
+            if (!shouldContinue.getAsBoolean()) {
+                throw new CancellationException(
+                        "S3 folder listing cancelled");
+            }
 
             if (!flatBrowsing) {
                 for (CommonPrefix commonPrefix
@@ -418,10 +448,17 @@ public class S3ObjectListingService {
                         folders.size());
             }
 
-            continuationToken = response.nextContinuationToken();
+            continuationToken =
+                    response.nextContinuationToken();
 
         } while (continuationToken != null
-                && !continuationToken.isBlank());
+                && !continuationToken.isBlank()
+                && shouldContinue.getAsBoolean());
+
+        if (!shouldContinue.getAsBoolean()) {
+            throw new CancellationException(
+                    "S3 folder listing cancelled");
+        }
 
         return new FolderContentSnapshot(
                 new ArrayList<>(folders),

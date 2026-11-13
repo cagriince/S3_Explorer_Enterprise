@@ -317,4 +317,19 @@ public class S3ExplorerService {
                 discoveryListener,
                 flatBrowsing);
     }
+
+    public FolderContentSnapshot listFolderSnapshot(
+            String bucket,
+            String prefix,
+            FolderDiscoveryListener discoveryListener,
+            boolean flatBrowsing,
+            java.util.function.BooleanSupplier shouldContinue) {
+
+        return objectListingService.listFolderSnapshot(
+                bucket,
+                prefix,
+                discoveryListener,
+                flatBrowsing,
+                shouldContinue);
+    }
 }
