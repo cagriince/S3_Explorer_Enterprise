@@ -5,10 +5,7 @@ import com.company.s3explorer.service.*;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
@@ -43,7 +40,8 @@ public final class ExplorerContentLoader {
 
     private record SnapshotLoad(
             AtomicBoolean cancelled,
-            CompletableFuture<FolderContentSnapshot> future) {
+            CompletableFuture<FolderContentSnapshot> future,
+            CopyOnWriteArrayList<FolderDiscoveryListener> listeners) {
     }
 
     /**
@@ -219,6 +217,7 @@ public final class ExplorerContentLoader {
      * The most recently loaded folder remains cached.
      * Loading another folder replaces that cached snapshot.
      */
+
     public CompletableFuture<FolderContentSnapshot> loadFolderSnapshot(
             ExecutorService executor,
             String bucket,
@@ -254,6 +253,23 @@ public final class ExplorerContentLoader {
                             AtomicBoolean cancelled =
                                     new AtomicBoolean(false);
 
+                            CopyOnWriteArrayList<FolderDiscoveryListener> listeners =
+                                    new CopyOnWriteArrayList<>();
+
+                            if (discoveryListener != null) {
+                                listeners.add(discoveryListener);
+                            }
+
+                            FolderDiscoveryListener combinedListener =
+                                    (fileCount, folderCount) -> {
+
+                                        for (FolderDiscoveryListener listener : listeners) {
+                                            listener.onDiscovery(
+                                                    fileCount,
+                                                    folderCount);
+                                        }
+                                    };
+
                             CompletableFuture<FolderContentSnapshot> future =
                                     CompletableFuture.supplyAsync(
                                             () -> {
@@ -267,7 +283,7 @@ public final class ExplorerContentLoader {
                                                         service.listFolderSnapshot(
                                                                 bucket,
                                                                 prefix,
-                                                                discoveryListener,
+                                                                combinedListener,
                                                                 flatBrowsing,
                                                                 () -> !cancelled.get());
 
@@ -300,7 +316,8 @@ public final class ExplorerContentLoader {
                             SnapshotLoad created =
                                     new SnapshotLoad(
                                             cancelled,
-                                            future);
+                                            future,
+                                            listeners);
 
                             future.whenComplete(
                                     (result, throwable) ->
@@ -310,6 +327,15 @@ public final class ExplorerContentLoader {
 
                             return created;
                         });
+
+        /*
+         * If another request already created the snapshot load,
+         * register this request's progress listener as well.
+         */
+        if (discoveryListener != null) {
+            snapshotLoad.listeners().addIfAbsent(
+                    discoveryListener);
+        }
 
         return snapshotLoad.future();
     }
