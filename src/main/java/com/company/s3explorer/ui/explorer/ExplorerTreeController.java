@@ -417,11 +417,12 @@ public final class ExplorerTreeController {
                 prefix,
                 generation);
 
-        return contentLoader.loadFolders(
+        return contentLoader.loadFolderSnapshot(
                         currentPool,
                         bucket,
                         prefix,
-                        null)
+                        null,
+                        false)
                 .whenComplete((content, exception) -> {
 
                     if (exception != null) {
