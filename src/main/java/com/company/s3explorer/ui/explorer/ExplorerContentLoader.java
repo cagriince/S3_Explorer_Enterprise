@@ -167,6 +167,7 @@ public final class ExplorerContentLoader {
      * that pool can be resized at runtime.
      * </p>
      */
+
     public CompletableFuture<LimitedFolderContent> loadFolder(
             ExecutorService executor,
             String bucket,
@@ -192,19 +193,51 @@ public final class ExplorerContentLoader {
                         ? FileTableFilter.noFilter()
                         : filter;
 
+        return loadFolderSnapshot(
+                executor,
+                bucket,
+                prefix,
+                discoveryListener,
+                flatBrowsing)
+                .thenApplyAsync(
+                        snapshot -> createDisplayContent(
+                                snapshot,
+                                fileLimit,
+                                sortSpec,
+                                effectiveFilter,
+                                prefix,
+                                flatBrowsing),
+                        executor);
+    }
+
+    /**
+     * Loads the complete folder snapshot.
+     *
+     * Concurrent requests for the same bucket and prefix
+     * share the same S3 discovery operation.
+     *
+     * The most recently loaded folder remains cached.
+     * Loading another folder replaces that cached snapshot.
+     */
+    public CompletableFuture<FolderContentSnapshot> loadFolderSnapshot(
+            ExecutorService executor,
+            String bucket,
+            String prefix,
+            FolderDiscoveryListener discoveryListener,
+            boolean flatBrowsing) {
+
+        Objects.requireNonNull(executor, "executor");
+        Objects.requireNonNull(bucket, "bucket");
+        Objects.requireNonNull(prefix, "prefix");
+
         FolderContentSnapshot cached =
-                getCachedSnapshot(bucket, prefix, flatBrowsing);
+                getCachedSnapshot(
+                        bucket,
+                        prefix,
+                        flatBrowsing);
 
         if (cached != null) {
-            return CompletableFuture.supplyAsync(
-                    () -> createDisplayContent(
-                            cached,
-                            fileLimit,
-                            sortSpec,
-                            effectiveFilter,
-                            prefix,
-                            flatBrowsing),
-                    executor);
+            return CompletableFuture.completedFuture(cached);
         }
 
         String snapshotKey =
@@ -278,15 +311,7 @@ public final class ExplorerContentLoader {
                             return created;
                         });
 
-        return snapshotLoad.future().thenApplyAsync(
-                snapshot -> createDisplayContent(
-                        snapshot,
-                        fileLimit,
-                        sortSpec,
-                        effectiveFilter,
-                        prefix,
-                        flatBrowsing),
-                executor);
+        return snapshotLoad.future();
     }
 
     /**
