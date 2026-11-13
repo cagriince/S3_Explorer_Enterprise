@@ -1577,6 +1577,10 @@ public class ExplorerPanel extends JPanel {
         currentFileBucket = bucket;
         currentFilePrefix = prefix;
 
+        if (!sameLocation) {
+            clearFileTableForLocationChange();
+        }
+
         final int fileLimit =
                 getSelectedFileTableRowLimit();
 
@@ -7695,5 +7699,20 @@ public class ExplorerPanel extends JPanel {
         }
 
         reloadCurrentFileTable();
+    }
+
+    private void clearFileTableForLocationChange() {
+
+        view.getFileTableModel().setFiles(
+                Collections.emptyList());
+
+        view.getFileFolderInfo().setText("");
+
+        view.getFileSelectionInfo().setText("");
+        view.getFileSelectionInfo().setVisible(false);
+
+        view.setFileSelectionSeparatorVisible(false);
+
+        view.getFileTable().clearSelection();
     }
 }
