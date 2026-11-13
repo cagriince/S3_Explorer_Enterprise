@@ -504,6 +504,14 @@ public final class ExplorerTreeController {
                                 parentNode.add(child);
                             }
 
+                            log.info(
+                                    "[TREE LOAD] applied: bucket={}, prefix={}, foldersReceived={}, foldersApplied={}, generation={}",
+                                    bucket,
+                                    prefix,
+                                    content.folders().size(),
+                                    parentNode.getChildCount(),
+                                    generation);
+
                             TreePath selectionBeforeReload =
                                     folderTree.getSelectionPath();
 
