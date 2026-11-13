@@ -18,6 +18,7 @@ import javax.swing.event.TreeWillExpandListener;
 import javax.swing.table.TableColumn;
 import javax.swing.tree.DefaultTreeCellRenderer;
 import javax.swing.tree.DefaultTreeModel;
+import javax.swing.tree.TreePath;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -181,9 +182,14 @@ public final class ExplorerView {
         folderTree.addTreeWillExpandListener(new TreeWillExpandListener() {
             @Override
             public void treeWillExpand(TreeExpansionEvent event) {
+                TreePath path = event.getPath();
+
+                // Automatically select the folder being expanded.
+                folderTree.setSelectionPath(path);
+
                 if (treeExpansionListener != null) {
                     treeExpansionListener.accept(
-                            (S3TreeNode) event.getPath().getLastPathComponent());
+                            (S3TreeNode) path.getLastPathComponent());
                 }
             }
 
