@@ -1939,7 +1939,45 @@ public class ExplorerPanel extends JPanel {
             Object selectedObject =
                     selectedPath.getLastPathComponent();
 
+
             if (!(selectedObject instanceof S3TreeNode selectedNode)) {
+                return;
+            }
+
+            /*
+             * Loading and error nodes are placeholders, not folders.
+             * Always select their parent folder instead.
+             */
+            if (selectedNode.isLoading()) {
+
+                Object parentObject =
+                        selectedNode.getParent();
+
+                if (!(parentObject instanceof S3TreeNode parentNode)) {
+                    return;
+                }
+
+                TreePath parentPath =
+                        new TreePath(parentNode.getPath());
+
+                SwingUtilities.invokeLater(() -> {
+
+                    // Ignore this event if another selection has superseded it.
+                    if (!Objects.equals(
+                            view.getFolderTree().getSelectionPath(),
+                            selectedPath)) {
+                        return;
+                    }
+
+                    // Select the actual parent folder.
+                    view.getFolderTree().setSelectionPath(parentPath);
+
+                    // Retry only when the selected placeholder represents a failure.
+                    if (selectedNode.isError()) {
+                        treeController.retryLoadChildren(parentNode);
+                    }
+                });
+
                 return;
             }
 
@@ -2039,6 +2077,8 @@ public class ExplorerPanel extends JPanel {
                         prefix)) {
                     return;
                 }
+
+                clearFileTableForLocationChange();
 
                 validateAndLoadTreeSelection(
                         bucket,

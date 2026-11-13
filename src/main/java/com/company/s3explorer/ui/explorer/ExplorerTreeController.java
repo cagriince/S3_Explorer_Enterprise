@@ -338,6 +338,17 @@ public final class ExplorerTreeController {
                 forceRefresh);
     }
 
+    public void retryLoadChildren(S3TreeNode parentNode) {
+
+        if (parentNode == null) {
+            return;
+        }
+
+        loadChildrenAsync(
+                parentNode,
+                true);
+    }
+
     private CompletableFuture<Void> loadChildrenAsync(
             S3TreeNode parentNode,
             boolean forceRefresh) {

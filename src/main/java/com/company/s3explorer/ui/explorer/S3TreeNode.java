@@ -38,6 +38,10 @@ public class S3TreeNode extends DefaultMutableTreeNode {
                 || ERROR.equals(userObject);
     }
 
+    public boolean isError() {
+        return ERROR.equals(super.getUserObject());
+    }
+
     public void rename(
             String newDisplayName,
             String newBucket,

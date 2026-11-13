@@ -361,7 +361,7 @@ public class MainFrame extends JFrame {
                 goMenu,
                 helpMenu
         }) {
-            menu.setMargin(new Insets(0, 0, 0, 10));
+            menu.setMargin(new Insets(5, 0, 0, 5));
         }
 
         return menuBar;
