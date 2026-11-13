@@ -320,6 +320,10 @@ public class S3ObjectListingService {
         for (ListObjectsV2Response page : iterable) {
 
             if (!shouldContinue.getAsBoolean()) {
+                System.out.println(
+                        "[S3 LISTING] Cancelled: bucket={}, prefix={}" +
+                        bucket + " : " + prefix
+                );
                 throw new CancellationException(
                         "S3 object listing cancelled");
             }
@@ -327,6 +331,10 @@ public class S3ObjectListingService {
             for (S3Object object : page.contents()) {
 
                 if (!shouldContinue.getAsBoolean()) {
+                    System.out.println(
+                            "[S3 LISTING] Cancelled: bucket={}, prefix={}" +
+                            bucket + " : " + prefix
+                    );
                     throw new CancellationException(
                             "S3 object listing cancelled");
                 }
@@ -371,6 +379,10 @@ public class S3ObjectListingService {
 
         do {
             if (!shouldContinue.getAsBoolean()) {
+                System.out.println(
+                        "[S3 LISTING] Cancelled: bucket={}, prefix={}" +
+                        bucket + " : " + prefix
+                );
                 throw new CancellationException(
                         "S3 folder listing cancelled");
             }
@@ -398,6 +410,10 @@ public class S3ObjectListingService {
              * cancellation was requested. Do not process its result.
              */
             if (!shouldContinue.getAsBoolean()) {
+                System.out.println(
+                        "[S3 LISTING] Cancelled: bucket={}, prefix={}" +
+                        bucket + " : " + prefix
+                );
                 throw new CancellationException(
                         "S3 folder listing cancelled");
             }
@@ -456,6 +472,10 @@ public class S3ObjectListingService {
                 && shouldContinue.getAsBoolean());
 
         if (!shouldContinue.getAsBoolean()) {
+            System.out.println(
+                    "[S3 LISTING] Cancelled: bucket={}, prefix={}" +
+                    bucket + " : " + prefix
+            );
             throw new CancellationException(
                     "S3 folder listing cancelled");
         }

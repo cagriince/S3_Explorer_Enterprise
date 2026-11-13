@@ -7670,7 +7670,7 @@ public class ExplorerPanel extends JPanel {
                     currentFilePrefix,
                     flatBrowsingEnabled);
         }
-        
+
         // Invalidate progress updates from the previous location session.
         fileDiscoveryGeneration.incrementAndGet();
 
