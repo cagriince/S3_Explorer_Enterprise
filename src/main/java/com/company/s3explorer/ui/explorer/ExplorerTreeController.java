@@ -408,6 +408,16 @@ public final class ExplorerTreeController {
                     bucket,
                     prefix);
 
+            parentNode.removeAllChildren();
+
+            parentNode.add(
+                    new S3TreeNode(
+                            S3TreeNode.ERROR,
+                            bucket,
+                            prefix));
+
+            treeModel.reload(parentNode);
+
             return CompletableFuture.completedFuture(null);
         }
 
@@ -540,6 +550,44 @@ public final class ExplorerTreeController {
                     });
 
                     return applied;
+                })
+                .exceptionally(exception -> {
+
+                    log.error(
+                            "[TREE LOAD] failed while applying result: bucket={}, prefix={}, generation={}",
+                            bucket,
+                            prefix,
+                            generation,
+                            exception);
+
+                    SwingUtilities.invokeLater(() -> {
+
+                        Long currentGeneration =
+                                treeLoadGenerations.get(parentNode);
+
+                        if (!Objects.equals(
+                                generation,
+                                currentGeneration)) {
+                            return;
+                        }
+
+                        if (parentNode.getParent() == null
+                                && parentNode != treeModel.getRoot()) {
+                            return;
+                        }
+
+                        parentNode.removeAllChildren();
+
+                        parentNode.add(
+                                new S3TreeNode(
+                                        S3TreeNode.ERROR,
+                                        bucket,
+                                        prefix));
+
+                        treeModel.reload(parentNode);
+                    });
+
+                    return null;
                 });
     }
 

@@ -5,6 +5,7 @@ import javax.swing.tree.DefaultMutableTreeNode;
 public class S3TreeNode extends DefaultMutableTreeNode {
     public static final String ROOT_PREFIX = "";
     public static final String LOADING = "Loading...";
+    public static final String ERROR = "Load failed - expand to retry";
 
     private String displayName;
     private String bucket;
@@ -31,7 +32,10 @@ public class S3TreeNode extends DefaultMutableTreeNode {
     }
 
     public boolean isLoading() {
-        return LOADING.equals(super.getUserObject());
+        Object userObject = super.getUserObject();
+
+        return LOADING.equals(userObject)
+                || ERROR.equals(userObject);
     }
 
     public void rename(
