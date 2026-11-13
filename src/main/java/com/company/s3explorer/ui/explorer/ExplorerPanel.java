@@ -7656,7 +7656,21 @@ public class ExplorerPanel extends JPanel {
      * responsible for continuing the existing navigation flow.
      */
     private void prepareForLocationChange() {
+        /*
+         * Stop discovering the previous location.
+         *
+         * The current HTTP request may finish, but no further
+         * S3 listing pages will be requested.
+         */
+        if (currentFileBucket != null
+                && currentFilePrefix != null) {
 
+            contentLoader.cancelLoad(
+                    currentFileBucket,
+                    currentFilePrefix,
+                    flatBrowsingEnabled);
+        }
+        
         // Invalidate progress updates from the previous location session.
         fileDiscoveryGeneration.incrementAndGet();
 

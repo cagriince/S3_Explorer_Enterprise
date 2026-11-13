@@ -9,6 +9,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
@@ -40,11 +41,17 @@ public final class ExplorerContentLoader {
 
     private volatile boolean cachedFlatBrowsing;
 
+    private record SnapshotLoad(
+            AtomicBoolean cancelled,
+            CompletableFuture<FolderContentSnapshot> future) {
+    }
+
     /**
      * Concurrent requests for the same folder share one full S3 discovery.
      */
-    private final Map<String, CompletableFuture<FolderContentSnapshot>>
-            inFlightSnapshots = new ConcurrentHashMap<>();
+    private final Map<String, SnapshotLoad>
+            inFlightSnapshots =
+            new ConcurrentHashMap<>();
 
     /**
      * Changes whenever the cached snapshot is invalidated.
@@ -203,58 +210,75 @@ public final class ExplorerContentLoader {
         String snapshotKey =
                 bucket + "\u0000" + prefix + "\u0000" + flatBrowsing;
 
-        /*
-         * Capture the generation before starting or joining a scan.
-         * A scan started before invalidation must not repopulate the cache.
-         */
-        long generationAtStart = snapshotGeneration.get();
+        long generationAtStart =
+                snapshotGeneration.get();
 
-        CompletableFuture<FolderContentSnapshot> snapshotFuture =
+        SnapshotLoad snapshotLoad =
                 inFlightSnapshots.computeIfAbsent(
                         snapshotKey,
-                        key -> CompletableFuture.supplyAsync(
-                                () -> {
-                                    S3ExplorerService service =
-                                            Objects.requireNonNull(
-                                                    serviceSupplier.get(),
-                                                    "serviceSupplier returned null");
+                        key -> {
 
-                                    FolderContentSnapshot snapshot =
-                                            service.listFolderSnapshot(
-                                                    bucket,
-                                                    prefix,
-                                                    discoveryListener,
-                                                    flatBrowsing);
+                            AtomicBoolean cancelled =
+                                    new AtomicBoolean(false);
 
-                                    /*
-                                     * Publish only if no invalidation happened
-                                     * while this scan was running.
-                                     */
-                                    if (snapshotGeneration.get()
-                                            == generationAtStart) {
+                            CompletableFuture<FolderContentSnapshot> future =
+                                    CompletableFuture.supplyAsync(
+                                            () -> {
 
-                                        synchronized (this) {
-                                            if (snapshotGeneration.get()
-                                                    == generationAtStart) {
-                                                cachedSnapshot = snapshot;
-                                                cachedBucket = bucket;
-                                                cachedPrefix = prefix;
-                                                cachedFlatBrowsing = flatBrowsing;
-                                            }
-                                        }
-                                    }
+                                                S3ExplorerService service =
+                                                        Objects.requireNonNull(
+                                                                serviceSupplier.get(),
+                                                                "serviceSupplier returned null");
 
-                                    return snapshot;
-                                },
-                                executor));
+                                                FolderContentSnapshot snapshot =
+                                                        service.listFolderSnapshot(
+                                                                bucket,
+                                                                prefix,
+                                                                discoveryListener,
+                                                                flatBrowsing,
+                                                                () -> !cancelled.get());
 
-        snapshotFuture.whenComplete(
-                (snapshot, throwable) ->
-                        inFlightSnapshots.remove(
-                                snapshotKey,
-                                snapshotFuture));
+                                                /*
+                                                 * A cancelled scan must never
+                                                 * publish its result to the cache.
+                                                 */
+                                                if (!cancelled.get()
+                                                        && snapshotGeneration.get()
+                                                        == generationAtStart) {
 
-        return snapshotFuture.thenApplyAsync(
+                                                    synchronized (this) {
+
+                                                        if (!cancelled.get()
+                                                                && snapshotGeneration.get()
+                                                                == generationAtStart) {
+
+                                                            cachedSnapshot = snapshot;
+                                                            cachedBucket = bucket;
+                                                            cachedPrefix = prefix;
+                                                            cachedFlatBrowsing = flatBrowsing;
+                                                        }
+                                                    }
+                                                }
+
+                                                return snapshot;
+                                            },
+                                            executor);
+
+                            SnapshotLoad created =
+                                    new SnapshotLoad(
+                                            cancelled,
+                                            future);
+
+                            future.whenComplete(
+                                    (result, throwable) ->
+                                            inFlightSnapshots.remove(
+                                                    key,
+                                                    created));
+
+                            return created;
+                        });
+
+        return snapshotLoad.future().thenApplyAsync(
                 snapshot -> createDisplayContent(
                         snapshot,
                         fileLimit,
@@ -305,6 +329,28 @@ public final class ExplorerContentLoader {
         return inFlightSnapshots.containsKey(snapshotKey);
     }
 
+    public void cancelLoad(
+            String bucket,
+            String prefix,
+            boolean flatBrowsing) {
+
+        if (bucket == null || prefix == null) {
+            return;
+        }
+
+        String snapshotKey =
+                bucket + "\u0000" + prefix + "\u0000" + flatBrowsing;
+
+        SnapshotLoad load =
+                inFlightSnapshots.remove(snapshotKey);
+
+        if (load == null) {
+            return;
+        }
+
+        load.cancelled().set(true);
+    }
+
     public void invalidate(
             String bucket,
             String prefix) {
@@ -347,8 +393,15 @@ public final class ExplorerContentLoader {
          * Remove matching futures from the map. Existing callers may still
          * receive their result, but a subsequent load can start a fresh scan.
          */
-        inFlightSnapshots.keySet().removeIf(
-                key -> key.startsWith(keyPrefix));
+        inFlightSnapshots.forEach(
+                (key, load) -> {
+
+                    if (key.startsWith(keyPrefix)
+                            && inFlightSnapshots.remove(key, load)) {
+
+                        load.cancelled().set(true);
+                    }
+                });
     }
 
     /**
