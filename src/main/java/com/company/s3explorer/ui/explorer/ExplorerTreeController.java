@@ -411,13 +411,36 @@ public final class ExplorerTreeController {
             return CompletableFuture.completedFuture(null);
         }
 
+        log.info(
+                "[TREE LOAD] started: bucket={}, prefix={}, generation={}",
+                bucket,
+                prefix,
+                generation);
+
         return contentLoader.loadFolders(
                         currentPool,
                         bucket,
                         prefix,
                         null)
-                .thenCompose(content -> {
+                .whenComplete((content, exception) -> {
 
+                    if (exception != null) {
+                        log.error(
+                                "[TREE LOAD] failed: bucket={}, prefix={}, generation={}",
+                                bucket,
+                                prefix,
+                                generation,
+                                exception);
+                    } else {
+                        log.info(
+                                "[TREE LOAD] S3 completed: bucket={}, prefix={}, folders={}, generation={}",
+                                bucket,
+                                prefix,
+                                content.folders().size(),
+                                generation);
+                    }
+                })
+                .thenCompose(content -> {
                     CompletableFuture<Void> applied =
                             new CompletableFuture<>();
 
@@ -432,7 +455,11 @@ public final class ExplorerTreeController {
                             if (!Objects.equals(
                                     generation,
                                     currentGeneration)) {
-
+                                log.warn(
+                                        "[TREE LOAD] stale result ignored: prefix={}, expectedGeneration={}, currentGeneration={}",
+                                        prefix,
+                                        generation,
+                                        currentGeneration);
                                 applied.complete(null);
                                 return;
                             }
